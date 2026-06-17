@@ -26,6 +26,20 @@
 
   --shadow-glow:    0 0 20px rgba(108, 99, 255, 0.3);
   --shadow-glow-sm: 0 0 10px rgba(108, 99, 255, 0.2);
+  
+  --color-text-main: #f1f5f9;
+}
+
+.light {
+  --color-bg-base:     #f8fafc;
+  --color-bg-surface:  #ffffff;
+  --color-bg-elevated: #f1f5f9;
+  --color-bg-hover:    #e2e8f0;
+
+  --color-border:        rgba(0, 0, 0, 0.1);
+  --color-border-accent: rgba(108, 99, 255, 0.4);
+
+  --color-text-main:   #0f172a;
 }
 
 /* ─── Base Reset ─────────────────────────────────────────────────────────── */
@@ -37,12 +51,13 @@
 
   html {
     background-color: var(--color-bg-base);
-    color: #f1f5f9;
+    color: var(--color-text-main);
     font-family: var(--font-sans);
   }
 
   body {
     background-color: var(--color-bg-base);
+    color: var(--color-text-main);
     min-height: 100vh;
   }
 
@@ -98,7 +113,7 @@
     justify-content: center;
     gap: 0.5rem;
     background-color: var(--color-bg-elevated);
-    color: #cbd5e1;
+    color: var(--color-text-main);
     font-weight: 500;
     padding: 0.75rem 1.5rem;
     border-radius: 0.75rem;
@@ -153,7 +168,7 @@
     border: 1px solid var(--color-border);
     border-radius: 0.75rem;
     padding: 0.75rem 1rem;
-    color: #f1f5f9;
+    color: var(--color-text-main);
     font-family: var(--font-sans);
     font-size: 1rem;
     outline: none;
@@ -171,7 +186,7 @@
     border: 1px solid var(--color-border);
     border-radius: 0.75rem;
     padding: 0.75rem 1rem;
-    color: #f1f5f9;
+    color: var(--color-text-main);
     font-family: var(--font-sans);
     font-size: 1rem;
     outline: none;

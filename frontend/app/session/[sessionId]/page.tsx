@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import ChatPanel, { ChatMessage } from "@/components/ChatPanel";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
@@ -326,6 +327,7 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
             ← Back to Dashboard
           </button>
           <div className="flex items-center gap-5 text-sm">
+            <ThemeToggle />
             <span style={{ color: "#64748b" }}>⏱ {fmt(elapsed)}</span>
             {sessionData && sessionData.total_cost_usd > 0 && (
               <span style={{ color: "#64748b" }}>💰 ${sessionData.total_cost_usd.toFixed(4)}</span>

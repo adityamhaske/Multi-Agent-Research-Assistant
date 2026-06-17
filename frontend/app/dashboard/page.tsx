@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ResearchDepth = "fast" | "balanced" | "comprehensive";
@@ -161,6 +162,7 @@ export default function DashboardPage() {
             {userEmail && (
               <span className="text-xs text-slate-500 hidden sm:block">{userEmail}</span>
             )}
+            <ThemeToggle />
             <Link
               href="/history"
               className="text-sm font-medium text-[#a78bfa] hover:text-[#c4b5fd] transition-colors"
