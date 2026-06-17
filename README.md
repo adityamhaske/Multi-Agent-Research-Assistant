@@ -4,10 +4,32 @@
 
 ---
 
+## Why Use This Project? (The Edge)
+Unlike standard single-prompt LLM wrappers, the **Multi-Agent Research Assistant** delegates tasks to a specialized team of autonomous AI agents. This guarantees deeper dives, hallucination-free fact-checking, and comprehensive synthesis that closely mimics a real human research team.
+- **Save Hours of Manual Work:** Turn days of manual googling, reading, and summarizing into a 3-minute automated pipeline.
+- **Cost-Efficient & Scalable:** Uses Gemini 1.5 Flash for rapid, cheap critiques and Gemini 1.5 Pro for deep reasoning, ensuring enterprise-grade performance without the massive API bills.
+- **Human-in-the-Loop (HITL):** You aren't just handed a black-box result. You can intervene, review drafts, and ask the agents to rework specific sections before the final report is generated.
+
+## Exceptional Functions & Features
+- 🧠 **Multi-Agent Orchestration (LangGraph):** A cyclical graph of agents (Planner, Executor, Critic, Synthesizer). The Executor gathers data, the Critic reviews it against your prompt, and if it's not good enough, sends it back to the Executor.
+- 💬 **Contextual Follow-Up Chat:** Once a report is generated, chat directly with the final document. The AI retains full context of the research session, allowing you to interrogate the data interactively.
+- ⏳ **Real-Time Live Feed:** Watch the "brain" of the AI at work. An EventSource (SSE) stream provides a live feed of exactly what each agent is thinking and doing in real-time.
+- 🌓 **Modern UI/UX:** A stunning, responsive Next.js frontend with dark/light mode toggles, interactive markdown rendering, and animated status monitors.
+
+## How to Use the Application
+1. **Create an Account/Login:** Secure JWT-based authentication ensures your research history is private.
+2. **Start a Research Session:** Head to the Dashboard. Enter a detailed prompt (e.g., *"Analyze the competitive landscape of AI coding assistants in Q4 2024"*). Choose your research depth and click start.
+3. **Monitor the Agents:** Watch the Live Feed as the Planner breaks down the task, the Executor searches the web, and the Critic evaluates the findings.
+4. **Human Review (Awaiting Approval):** Review the Draft Report. You can either hit "Approve" to generate the final Markdown document, or "Reject & Rework" with specific feedback to send the agents back to work.
+5. **Chat with the Report:** Once completed, view the final report and use the adjacent Chat Panel to ask follow-up questions.
+6. **Browse History:** Access your past research sessions, review costs and durations, and pick up where you left off via the History dashboard.
+
+---
+
 ## Tech Stack
-- **Frontend**: Next.js 14 (App Router), TailwindCSS, Zustand, TanStack Query
+- **Frontend**: Next.js 14 (App Router), TailwindCSS v4, Zustand, TanStack Query
 - **Backend**: FastAPI (Python 3.11+), LangGraph, LangChain
-- **LLM Providers**: OpenAI GPT-4o (primary) + Google Gemini 1.5 Flash (Critic agent)
+- **LLM Providers**: Google Gemini 1.5 Pro (Reasoning) + Gemini 1.5 Flash (Chat/Critique)
 - **Search**: DuckDuckGo Search (free, no API key required)
 - **Database**: PostgreSQL 15 (async SQLAlchemy + Alembic)
 - **Cache/Queue**: Redis 7 (Celery broker, SSE pub/sub, distributed locks)
