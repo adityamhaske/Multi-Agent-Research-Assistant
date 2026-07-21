@@ -1,25 +1,26 @@
-import uuid
 import json
-from datetime import datetime, timezone
-from typing import AsyncGenerator
-import structlog
+import uuid
+from collections.abc import AsyncGenerator
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
 from app.db.base import get_db
-from app.db.redis import get_redis, publish_event, acquire_session_lock
+from app.db.redis import get_redis
+from app.dependencies import check_rate_limit, get_current_user
 from app.models.session import Session, SessionStatus
-from app.models.agent_log import AgentLog
 from app.models.user import User
 from app.schemas.research import (
-    ResearchStartRequest, ResearchStartResponse,
-    ApprovalRequest, SessionStatusResponse, SessionListResponse,
+    ApprovalRequest,
+    ResearchStartRequest,
+    ResearchStartResponse,
     SessionHistoryResponse,
+    SessionListResponse,
+    SessionStatusResponse,
 )
-from app.dependencies import get_current_user, check_rate_limit
 from app.workers.tasks import run_agent_pipeline
 
 logger = structlog.get_logger()
@@ -130,15 +131,17 @@ async def approve_or_rework(
     if payload.approved:
         # Resume the graph with approval signal
         run_agent_pipeline.delay(
-            str(session.id), str(current_user.id),
-            resume=True, approved=True, feedback=None
+            str(session.id), str(current_user.id), resume=True, approved=True, feedback=None
         )
         return {"message": "Approved. Finalizing report.", "session_id": str(session_id)}
     else:
         # Resume with rework instructions
         run_agent_pipeline.delay(
-            str(session.id), str(current_user.id),
-            resume=True, approved=False, feedback=payload.feedback
+            str(session.id),
+            str(current_user.id),
+            resume=True,
+            approved=False,
+            feedback=payload.feedback,
         )
         return {"message": "Rework requested. Agent is resuming.", "session_id": str(session_id)}
 
@@ -162,9 +165,7 @@ async def list_sessions(
             pass  # Invalid filter — ignore and return all
 
     # Count total
-    count_result = await db.execute(
-        select(func.count()).select_from(query.subquery())
-    )
+    count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar_one()
 
     from sqlalchemy.orm import selectinload
@@ -196,6 +197,7 @@ async def list_sessions(
 
 
 # ─── Helper ─────────────────────────────────────────────────────────────────────
+
 
 async def _get_authorized_session(
     db: AsyncSession,

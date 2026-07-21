@@ -1,6 +1,7 @@
 import redis.asyncio as aioredis
-from app.config import settings
 import structlog
+
+from app.config import settings
 
 logger = structlog.get_logger()
 
@@ -37,6 +38,7 @@ def get_redis() -> aioredis.Redis:
 async def publish_event(session_id: str, event: dict) -> None:
     """Publish a JSON event to a session's SSE channel."""
     import json
+
     redis = get_redis()
     channel = f"session:{session_id}:events"
     await redis.publish(channel, json.dumps(event))

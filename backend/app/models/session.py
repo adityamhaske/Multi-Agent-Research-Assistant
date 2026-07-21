@@ -1,14 +1,16 @@
-import uuid
 import enum
+import uuid
 from datetime import datetime
-from typing import Optional
-from sqlalchemy import String, Text, Float, Integer, Enum as SAEnum, DateTime, ForeignKey, func
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.models.base import Base
 
 
-class SessionStatus(str, enum.Enum):
+class SessionStatus(enum.StrEnum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
     AWAITING_APPROVAL = "AWAITING_APPROVAL"
@@ -19,9 +21,7 @@ class SessionStatus(str, enum.Enum):
 class Session(Base):
     __tablename__ = "sessions"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -35,23 +35,17 @@ class Session(Base):
         default=SessionStatus.PENDING,
         index=True,
     )
-    research_depth: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="balanced"
-    )
-    selected_sources: Mapped[list] = mapped_column(
-        JSONB, nullable=False, default=lambda: ["web"]
-    )
+    research_depth: Mapped[str] = mapped_column(String(20), nullable=False, default="balanced")
+    selected_sources: Mapped[list] = mapped_column(JSONB, nullable=False, default=lambda: ["web"])
     total_cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     total_tokens_input: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total_tokens_output: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    elapsed_seconds: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    draft_report: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    final_report: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    checkpoint_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    elapsed_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    draft_report: Mapped[str | None] = mapped_column(Text, nullable=True)
+    final_report: Mapped[str | None] = mapped_column(Text, nullable=True)
+    checkpoint_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

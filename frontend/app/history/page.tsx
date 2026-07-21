@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ThemeToggle } from '@/components/ThemeToggle';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 interface SessionHistory {
   session_id: string;
@@ -18,30 +21,41 @@ interface SessionHistory {
 }
 
 export default function HistoryPage() {
+  const router = useRouter();
   const [sessions, setSessions] = useState<SessionHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchSessions();
-  }, []);
-
-  const fetchSessions = async () => {
+  async function fetchSessions(token: string) {
     try {
-      const res = await fetch('http://localhost:8000/api/v1/research?limit=50', {
-        headers: {
-          'Authorization': 'Bearer test-token-123'
-        }
+      const res = await fetch(`${API_BASE}/research/?limit=50`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) {
+        localStorage.removeItem('access_token');
+        router.replace('/login');
+        return;
+      }
       if (!res.ok) throw new Error('Failed to fetch history');
       const data = await res.json();
       setSessions(data.sessions);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch history');
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      router.replace('/login');
+      return;
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO(M3): TanStack Query
+    fetchSessions(token);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO(M3): TanStack Query
+  }, [router]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -86,7 +100,7 @@ export default function HistoryPage() {
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
           </div>
           <h3 className="text-xl font-semibold text-white mb-2">No research history</h3>
-          <p className="text-[#94a3b8] mb-6">You haven't run any research queries yet.</p>
+          <p className="text-[#94a3b8] mb-6">You haven&apos;t run any research queries yet.</p>
           <Link href="/dashboard" className="btn-secondary">Start your first query</Link>
         </div>
       ) : (

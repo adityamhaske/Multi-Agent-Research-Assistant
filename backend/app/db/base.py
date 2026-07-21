@@ -1,6 +1,7 @@
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
 from app.models import Base  # noqa: F401 — imports all models for Alembic
@@ -9,7 +10,7 @@ logger = structlog.get_logger()
 
 engine = create_async_engine(
     settings.database_url,
-    echo=False,          # Set True for SQL query logging in development
+    echo=False,  # Set True for SQL query logging in development
     pool_size=10,
     max_overflow=20,
     pool_pre_ping=True,  # Reconnect if connection dropped

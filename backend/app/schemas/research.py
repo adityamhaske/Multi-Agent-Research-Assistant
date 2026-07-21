@@ -1,11 +1,12 @@
-from pydantic import BaseModel, Field, field_validator
-from uuid import UUID
 from datetime import datetime
-from typing import Optional
+from uuid import UUID
+
+from pydantic import BaseModel, Field, field_validator
+
 from app.models.session import SessionStatus
 
-
 # ─── Request Schemas ────────────────────────────────────────────────────────────
+
 
 class ResearchStartRequest(BaseModel):
     model_config = {"str_strip_whitespace": True}
@@ -41,7 +42,7 @@ class ResearchStartRequest(BaseModel):
 
 class ApprovalRequest(BaseModel):
     approved: bool = Field(..., description="True=approve and finalize; False=reject and rework.")
-    feedback: Optional[str] = Field(
+    feedback: str | None = Field(
         default=None,
         max_length=1000,
         description="Required if approved=False. Feedback for the agent on what to fix.",
@@ -49,13 +50,14 @@ class ApprovalRequest(BaseModel):
 
     @field_validator("feedback")
     @classmethod
-    def feedback_required_on_reject(cls, v: Optional[str], info) -> Optional[str]:
+    def feedback_required_on_reject(cls, v: str | None, info) -> str | None:
         if info.data.get("approved") is False and (not v or not v.strip()):
             raise ValueError("Feedback is required when rejecting a draft.")
         return v
 
 
 # ─── Response Schemas ───────────────────────────────────────────────────────────
+
 
 class ResearchStartResponse(BaseModel):
     session_id: UUID
@@ -68,7 +70,7 @@ class AgentLogSchema(BaseModel):
     session_id: UUID
     agent_name: str
     action: str
-    result: Optional[dict] = None
+    result: dict | None = None
     timestamp: datetime
 
     model_config = {"from_attributes": True}
@@ -82,10 +84,10 @@ class SessionStatusResponse(BaseModel):
     total_cost_usd: float
     total_tokens_input: int
     total_tokens_output: int
-    elapsed_seconds: Optional[float] = None
-    draft_report: Optional[str] = None
-    final_report: Optional[str] = None
-    error_message: Optional[str] = None
+    elapsed_seconds: float | None = None
+    draft_report: str | None = None
+    final_report: str | None = None
+    error_message: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -104,6 +106,7 @@ class SessionListResponse(BaseModel):
 
 
 # ─── Chat Schemas ───────────────────────────────────────────────────────────────
+
 
 class ChatMessageSchema(BaseModel):
     id: UUID

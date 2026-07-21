@@ -1,7 +1,9 @@
 """
 Celery application configuration.
 """
+
 from celery import Celery
+
 from app.config import settings
 
 celery_app = Celery(
@@ -20,7 +22,7 @@ celery_app.conf.update(
     # One heavy LLM task per worker at a time
     worker_prefetch_multiplier=1,
     # Soft limit: send SIGTERM to task (graceful cleanup)
-    task_soft_time_limit=600,   # 10 minutes
+    task_soft_time_limit=600,  # 10 minutes
     # Hard limit: send SIGKILL (absolute max)
     task_time_limit=settings.celery_task_timeout_seconds,
     # Result expiration

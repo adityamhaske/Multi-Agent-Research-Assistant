@@ -1,9 +1,10 @@
 import uuid
 from datetime import datetime
-from typing import Optional
-from sqlalchemy import Text, DateTime, ForeignKey, func, BigInteger, String
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+
+from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.models.base import Base
 
 
@@ -18,10 +19,11 @@ class AgentLog(Base):
         index=True,
     )
     agent_name: Mapped[str] = mapped_column(
-        String(50), nullable=False  # planner | executor | critic | synthesizer | system
+        String(50),
+        nullable=False,  # planner | executor | critic | synthesizer | system
     )
     action: Mapped[str] = mapped_column(Text, nullable=False)
-    result: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )

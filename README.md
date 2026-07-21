@@ -1,125 +1,114 @@
 # Multi-Agent Research Assistant
 
-> Production-grade, horizontally scalable research synthesis system powered by LangGraph multi-agent orchestration.
+> A self-hostable, bring-your-own-key research assistant with an auditable
+> human-in-the-loop approval gate and verifiable per-claim citations.
 
----
+A user submits a research question. A pipeline of specialized agents (Planner →
+Executor → Critic → Synthesizer) searches the web, gathers evidence with sources,
+drafts a cited Markdown report, and pauses at a **mandatory human approval gate** —
+approve to finalize, or reject with feedback to send the agents back to work. Completed
+reports support grounded follow-up chat and export to Markdown/PDF.
 
-## Why Use This Project? (The Edge)
-Unlike standard single-prompt LLM wrappers, the **Multi-Agent Research Assistant** delegates tasks to a specialized team of autonomous AI agents. This guarantees deeper dives, hallucination-free fact-checking, and comprehensive synthesis that closely mimics a real human research team.
-- **Save Hours of Manual Work:** Turn days of manual googling, reading, and summarizing into a 3-minute automated pipeline.
-- **Cost-Efficient & Scalable:** Uses Gemini 1.5 Flash for rapid, cheap critiques and Gemini 1.5 Pro for deep reasoning, ensuring enterprise-grade performance without the massive API bills.
-- **Human-in-the-Loop (HITL):** You aren't just handed a black-box result. You can intervene, review drafts, and ask the agents to rework specific sections before the final report is generated.
+## ⚠️ Project status: active rebuild
 
-## Exceptional Functions & Features
-- 🧠 **Multi-Agent Orchestration (LangGraph):** A cyclical graph of agents (Planner, Executor, Critic, Synthesizer). The Executor gathers data, the Critic reviews it against your prompt, and if it's not good enough, sends it back to the Executor.
-- 💬 **Contextual Follow-Up Chat:** Once a report is generated, chat directly with the final document. The AI retains full context of the research session, allowing you to interrogate the data interactively.
-- ⏳ **Real-Time Live Feed:** Watch the "brain" of the AI at work. An EventSource (SSE) stream provides a live feed of exactly what each agent is thinking and doing in real-time.
-- 🌓 **Modern UI/UX:** A stunning, responsive Next.js frontend with dark/light mode toggles, interactive markdown rendering, and animated status monitors.
+This codebase is mid-overhaul against the specifications in [`docs/`](docs/00_INDEX.md).
+The table below is the truth about what works today — see
+[docs/10_Roadmap.md](docs/10_Roadmap.md) for full milestone definitions.
 
-## How to Use the Application
-1. **Create an Account/Login:** Secure JWT-based authentication ensures your research history is private.
-2. **Start a Research Session:** Head to the Dashboard. Enter a detailed prompt (e.g., *"Analyze the competitive landscape of AI coding assistants in Q4 2024"*). Choose your research depth and click start.
-3. **Monitor the Agents:** Watch the Live Feed as the Planner breaks down the task, the Executor searches the web, and the Critic evaluates the findings.
-4. **Human Review (Awaiting Approval):** Review the Draft Report. You can either hit "Approve" to generate the final Markdown document, or "Reject & Rework" with specific feedback to send the agents back to work.
-5. **Chat with the Report:** Once completed, view the final report and use the adjacent Chat Panel to ask follow-up questions.
-6. **Browse History:** Access your past research sessions, review costs and durations, and pick up where you left off via the History dashboard.
+| Milestone | Scope | Status |
+|---|---|---|
+| M0 | Truth reset: honest docs/README, config validation, test scaffold, CI | ✅ done |
+| M1 | Agent pipeline rebuilt on LangGraph with checkpointed HITL resume | ☐ next |
+| M2 | Auth & API hardening (cookie auth, rate limits, SSRF guard, SSE replay) | ☐ |
+| M3 | Frontend rebuild (citations UX, resilient streaming, TanStack Query) | ☐ |
+| M4 | Ship: Docker images, full compose, eval harness, deploy guide | ☐ |
 
----
+**Until M1 lands, the research pipeline is not functional end-to-end.** The previous
+implementation had critical defects (tool calls never executed, approval could not
+complete a session, unauthenticated event stream) that are documented in the roadmap
+and being replaced rather than patched.
 
-## Tech Stack
-- **Frontend**: Next.js 14 (App Router), TailwindCSS v4, Zustand, TanStack Query
-- **Backend**: FastAPI (Python 3.11+), LangGraph, LangChain
-- **LLM Providers**: Google Gemini 1.5 Pro (Reasoning) + Gemini 1.5 Flash (Chat/Critique)
-- **Search**: DuckDuckGo Search (free, no API key required)
-- **Database**: PostgreSQL 15 (async SQLAlchemy + Alembic)
-- **Cache/Queue**: Redis 7 (Celery broker, SSE pub/sub, distributed locks)
-- **Infrastructure**: Docker Compose (local), Kubernetes (production)
+## Architecture (target — see [docs/02](docs/02_System_Architecture.md))
 
-## Project Structure
+- **Backend**: FastAPI + Celery worker, PostgreSQL 16, Redis 7
+- **Agents**: LangGraph `StateGraph` with Postgres checkpointing; HITL via
+  `interrupt()`; structured Pydantic outputs; fail-closed quality gate
+- **LLMs**: BYOK, provider-pluggable — Gemini 2.5 by default (`MODEL_*` env routing)
+- **Search**: retriever chain with fallback — Tavily → Brave → DuckDuckGo, Redis-cached
+- **Frontend**: Next.js 16 (App Router), Tailwind v4, TanStack Query; same-origin
+  `/api` proxy so auth cookies stay first-party and SSE works natively
+- **Security**: httpOnly cookie auth with refresh rotation, SSRF guard on page
+  fetching, prompt-injection framing, per-operation rate limits
+  ([docs/06](docs/06_Security.md))
 
-```
-Multi-Agent Research Assistant/
-├── backend/              # FastAPI backend + LangGraph agents
-├── frontend/             # Next.js 14 frontend
-├── multi_agent_docs/     # Project specification documents
-├── docker-compose.yml    # Local development services
-├── Makefile              # Developer convenience commands
-└── README.md
-```
+## Quick start (development)
 
-## Quick Start
-
-### Prerequisites
-- Docker Desktop
-- Python 3.11+
-- Node.js 18+
-- OpenAI API Key
-- Google API Key (Gemini)
-
-### Setup
+Prerequisites: Docker Desktop, Python 3.11+, Node.js 18+, and a
+[Gemini API key](https://aistudio.google.com/apikey) (or run `LLM_MODE=fake` with no
+keys).
 
 ```bash
-# 1. Clone and enter the project
-cd "Multi-Agent Research Assistant"
-
-# 2. Copy environment file
+# 1. Environment
 cp .env.example .env
-# Edit .env and add your API keys
+# Edit .env: set JWT_SECRET_KEY (openssl rand -hex 32) and GOOGLE_API_KEY
 
-# 3. Start infrastructure (Postgres + Redis)
+# 2. Infrastructure (Postgres + Redis)
 make infra-up
 
-# 4. Install and run backend
+# 3. Backend
 make backend-setup
 make migrate
-make backend-dev
+make backend-dev        # API on http://localhost:8000
 
-# 5. Install and run frontend (new terminal)
+# 4. Worker (new terminal)
+make worker
+
+# 5. Frontend (new terminal)
 make frontend-setup
-make frontend-dev
+make frontend-dev       # UI on http://localhost:3000
 ```
 
-The app will be running at:
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
+API docs (dev only): http://localhost:8000/docs
 
-### Makefile Commands
+### Make targets
 
 ```bash
-make infra-up        # Start PostgreSQL + Redis via Docker Compose
-make infra-down      # Stop infrastructure containers
-make backend-setup   # Create venv and install Python dependencies
-make backend-dev     # Run FastAPI dev server (with hot reload)
-make worker          # Start Celery agent worker
-make migrate         # Run Alembic migrations
-make frontend-setup  # Install Node dependencies
-make frontend-dev    # Run Next.js dev server
-make test            # Run all tests
-make lint            # Run ruff (Python) + eslint (JS)
+make infra-up / infra-down / infra-clean   # Postgres + Redis containers
+make backend-setup / backend-dev / worker  # venv + API + Celery worker
+make migrate / migration msg="..."         # Alembic
+make frontend-setup / frontend-dev         # Next.js
+make test                                  # backend pytest suite
+make lint / format                         # ruff + eslint
 ```
 
-## Environment Variables
+## Configuration
 
-See `.env.example` for all required variables.
+Every variable is documented in [`.env.example`](.env.example) and validated at
+startup (`backend/app/config.py`) — the app refuses to boot with a placeholder or
+short `JWT_SECRET_KEY`, and in production it verifies that every routed model
+provider has an API key.
 
-| Variable | Required | Description |
+| Variable | Required | Notes |
 |---|---|---|
-| `OPENAI_API_KEY` | ✅ | OpenAI API key for GPT-4o |
-| `GOOGLE_API_KEY` | ✅ | Google API key for Gemini 1.5 Flash |
-| `DATABASE_URL` | ✅ | PostgreSQL async connection string |
-| `REDIS_URL` | ✅ | Redis connection string |
-| `JWT_SECRET_KEY` | ✅ | Secret for signing JWT tokens |
-| `LANGCHAIN_API_KEY` | ⚪ | Optional: LangSmith for LLM tracing |
+| `DATABASE_URL` | ✅ | async PostgreSQL DSN |
+| `REDIS_URL` | ✅ | broker, cache, pub/sub |
+| `JWT_SECRET_KEY` | ✅ | ≥ 32 random chars; placeholders refused |
+| `GOOGLE_API_KEY` | with default routing | BYOK; `LLM_MODE=fake` needs no keys |
+| `MODEL_PLANNER` … `MODEL_CHAT` | ⚪ | `provider:model` routing per agent role |
+| `TAVILY_API_KEY`, `BRAVE_API_KEY` | ⚪ | optional retrievers; DuckDuckGo is the keyless fallback |
+| `MAX_COST_PER_SESSION_USD` | ⚪ | hard budget per session (default 0.50) |
 
-## Reference Documentation
+## Documentation
 
-All detailed specifications are in [`multi_agent_docs/`](./multi_agent_docs/):
-
-1. [DOs and DON'Ts](./multi_agent_docs/1_DOs_and_DONTs.md) — Development guardrails
-2. [System Architecture](./multi_agent_docs/2_System_Architecture.md) — Full system design
-3. [UI/UX Guidelines](./multi_agent_docs/3_UIUX_Guidelines.md) — Frontend component specs
-4. [Domain Context](./multi_agent_docs/4_Domain_Context.md) — Business context & personas
-5. [Roadmap](./multi_agent_docs/5_Roadmap.md) — Development milestones
-6. [Data Models & API](./multi_agent_docs/6_Database_Data_Models.md) — DB schema & API contracts
-7. [Agent Prompts & Tools](./multi_agent_docs/7_Prompts_and_Tools.md) — LLM prompt specs
+The build contract lives in [`docs/`](docs/00_INDEX.md):
+[Vision](docs/01_Product_Vision.md) ·
+[Architecture](docs/02_System_Architecture.md) ·
+[Tech Stack](docs/03_Tech_Stack.md) ·
+[Agent Design](docs/04_Agent_Design.md) ·
+[Data & API](docs/05_Data_and_API.md) ·
+[Security](docs/06_Security.md) ·
+[UI/UX](docs/07_UIUX_Guidelines.md) ·
+[Testing](docs/08_Testing_and_Quality.md) ·
+[Deployment](docs/09_Deployment_and_Operations.md) ·
+[Roadmap](docs/10_Roadmap.md) ·
+[Standards](docs/11_Engineering_Standards.md)

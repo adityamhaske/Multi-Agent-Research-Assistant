@@ -28,6 +28,18 @@ export default function DashboardPage() {
   const [userEmail, setUserEmail] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  async function fetchSessions(token: string) {
+    try {
+      const res = await fetch(`${API_BASE}/research/?limit=5`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSessions(data.sessions || []);
+      }
+    } catch { /* silent */ }
+  }
+
   // ─── Auth guard ────────────────────────────────────────────────────────────
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -44,21 +56,10 @@ export default function DashboardPage() {
       .then((data) => data && setUserEmail(data.email))
       .catch(() => {});
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO(M3): TanStack Query
     fetchSessions(token);
     textareaRef.current?.focus();
   }, [router]);
-
-  const fetchSessions = async (token: string) => {
-    try {
-      const res = await fetch(`${API_BASE}/research/?limit=5`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSessions(data.sessions || []);
-      }
-    } catch { /* silent */ }
-  };
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
@@ -98,8 +99,8 @@ export default function DashboardPage() {
 
       const data = await res.json();
       router.push(`/session/${data.session_id}`);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
       setIsLoading(false);
     }
   };

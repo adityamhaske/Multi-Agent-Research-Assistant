@@ -1,17 +1,19 @@
 """
 Agent tools — each tool has exactly one responsibility.
 """
-import asyncio
+
 import ast
+import asyncio
 import operator
 from typing import Any
 
 import httpx
 from bs4 import BeautifulSoup
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 from langchain_core.tools import tool
 
 # ─── Tool 1: Web Search ─────────────────────────────────────────────────────────
+
 
 @tool
 async def web_search(query: str, max_results: int = 5) -> list[dict]:
@@ -27,9 +29,7 @@ async def web_search(query: str, max_results: int = 5) -> list[dict]:
         List of dicts with keys: 'title', 'href' (URL), 'body' (snippet).
     """
     try:
-        results = await asyncio.to_thread(
-            lambda: list(DDGS().text(query, max_results=max_results))
-        )
+        results = await asyncio.to_thread(lambda: list(DDGS().text(query, max_results=max_results)))
         return results or [{"title": "No results", "href": "", "body": "No results found."}]
     except Exception as e:
         return [{"title": "Search error", "href": "", "body": str(e)}]
@@ -38,6 +38,7 @@ async def web_search(query: str, max_results: int = 5) -> list[dict]:
 # ─── Tool 2: Webpage Reader ──────────────────────────────────────────────────────
 
 MAX_PAGE_CHARS = 8000  # ~2,000 tokens — prevent context overflow
+
 
 @tool
 async def read_webpage(url: str) -> dict:
@@ -56,11 +57,10 @@ async def read_webpage(url: str) -> dict:
         return {"url": url, "title": "", "text": "", "error": "Invalid URL."}
 
     try:
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(10.0), follow_redirects=True
-        ) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0), follow_redirects=True) as client:
             response = await client.get(
-                url, headers={"User-Agent": "ResearchBot/1.0 (+https://github.com/research-assistant)"}
+                url,
+                headers={"User-Agent": "ResearchBot/1.0 (+https://github.com/research-assistant)"},
             )
             response.raise_for_status()
 
@@ -86,11 +86,11 @@ async def read_webpage(url: str) -> dict:
 # ─── Tool 3: Safe Calculator ─────────────────────────────────────────────────────
 
 _SAFE_OPERATORS: dict[type, Any] = {
-    ast.Add:  operator.add,
-    ast.Sub:  operator.sub,
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
     ast.Mult: operator.mul,
-    ast.Div:  operator.truediv,
-    ast.Pow:  operator.pow,
+    ast.Div: operator.truediv,
+    ast.Pow: operator.pow,
     ast.USub: operator.neg,
 }
 
@@ -109,6 +109,7 @@ def calculate_metrics(expression: str) -> float:
     Returns:
         The numerical result as a float.
     """
+
     def _safe_eval(node: ast.expr) -> float:
         if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
             return float(node.value)
@@ -125,10 +126,10 @@ def calculate_metrics(expression: str) -> float:
     try:
         tree = ast.parse(expression.strip(), mode="eval")
         return _safe_eval(tree.body)
-    except ZeroDivisionError:
-        raise ValueError("Division by zero in expression.")
+    except ZeroDivisionError as e:
+        raise ValueError("Division by zero in expression.") from e
     except Exception as e:
-        raise ValueError(f"Calculation error: {e}")
+        raise ValueError(f"Calculation error: {e}") from e
 
 
 # ─── Tool Registry ───────────────────────────────────────────────────────────────

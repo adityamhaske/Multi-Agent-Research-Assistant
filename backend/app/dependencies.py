@@ -1,14 +1,13 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
-from typing import Optional
-import structlog
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import bcrypt
 import jwt
-from passlib.context import CryptContext
-from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db.base import get_db
@@ -16,23 +15,29 @@ from app.db.redis import get_redis
 from app.models.user import User
 
 logger = structlog.get_logger()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer_scheme = HTTPBearer()
+
+# bcrypt silently ignores bytes past 72 — reject instead (docs/06 §1).
+_BCRYPT_MAX_BYTES = 72
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    pw = password.encode("utf-8")
+    if len(pw) > _BCRYPT_MAX_BYTES:
+        raise ValueError(f"Password exceeds bcrypt's {_BCRYPT_MAX_BYTES}-byte limit.")
+    return bcrypt.hashpw(pw, bcrypt.gensalt(rounds=12)).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except ValueError:
+        return False
 
 
 def create_access_token(user_id: UUID) -> tuple[str, int]:
     """Returns (token, expires_in_seconds)."""
-    expire = datetime.now(timezone.utc) + timedelta(
-        minutes=settings.jwt_access_token_expire_minutes
-    )
+    expire = datetime.now(UTC) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
     payload = {"sub": str(user_id), "exp": expire, "type": "access"}
     token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
     return token, settings.jwt_access_token_expire_minutes * 60
@@ -45,9 +50,7 @@ async def get_current_user(
     """FastAPI dependency: validates JWT and returns the authenticated User."""
     token = credentials.credentials
     try:
-        payload = jwt.decode(
-            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
-        )
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
         user_id: str = payload.get("sub")
         if not user_id or payload.get("type") != "access":
             raise ValueError("Invalid token payload")
@@ -70,8 +73,7 @@ async def get_current_user(
 
 
 async def check_rate_limit(
-    current_user: User = Depends(get_current_user),
-    redis=Depends(get_redis)
+    current_user: User = Depends(get_current_user), redis=Depends(get_redis)
 ) -> None:
     """Enforce 5 research sessions per hour per user."""
     user_id = current_user.id

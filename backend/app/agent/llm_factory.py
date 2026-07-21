@@ -7,7 +7,9 @@ Using Google Gemini for all agents:
 
 Both are free-tier friendly via Google AI Studio API key.
 """
+
 from langchain_google_genai import ChatGoogleGenerativeAI
+
 from app.config import settings
 
 

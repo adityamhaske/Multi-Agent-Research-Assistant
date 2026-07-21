@@ -1,4 +1,4 @@
-from typing import TypedDict, Optional
+from typing import TypedDict
 
 
 class Task(TypedDict):
@@ -33,22 +33,22 @@ class AgentState(TypedDict):
 
     # Executor / Critic loop state
     raw_context: list[ContextChunk]
-    critic_feedback: Optional[dict]    # {"passed": bool, "reason": str, "feedback": str}
-    critic_loop_count: int             # Circuit breaker counter
+    critic_feedback: dict | None  # {"passed": bool, "reason": str, "feedback": str}
+    critic_loop_count: int  # Circuit breaker counter
 
     # HITL Gate
-    synthesized_draft: Optional[str]
-    human_feedback: Optional[str]      # Populated when user requests rework
+    synthesized_draft: str | None
+    human_feedback: str | None  # Populated when user requests rework
 
     # Output
-    final_report: Optional[str]
+    final_report: str | None
 
     # Telemetry
     total_tokens_input: int
     total_tokens_output: int
     total_cost_usd: float
-    start_time: float                  # Unix timestamp
+    start_time: float  # Unix timestamp
 
     # Error handling
-    error: Optional[str]
-    error_node: Optional[str]
+    error: str | None
+    error_node: str | None

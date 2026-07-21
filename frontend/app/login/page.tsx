@@ -53,8 +53,8 @@ export default function AuthPage() {
       } else {
         await doLogin(email, password);
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
     } finally {
       setIsLoading(false);
     }

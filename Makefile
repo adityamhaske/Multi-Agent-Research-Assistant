@@ -1,4 +1,4 @@
-.PHONY: infra-up infra-down backend-setup backend-dev worker migrate frontend-setup frontend-dev test lint
+.PHONY: infra-up infra-down infra-clean backend-setup backend-dev worker migrate migration frontend-setup frontend-dev frontend-build test test-backend lint format
 
 ## ─── Infrastructure ────────────────────────────────────────────────────────────
 infra-up:
@@ -50,16 +50,15 @@ frontend-build:
 	cd frontend && npm run build
 
 ## ─── Quality ───────────────────────────────────────────────────────────────────
-test:
+test: test-backend
+
+test-backend:
 	cd backend && . .venv/bin/activate && \
-	pytest tests/ -v --tb=short
+	python -m pytest tests/ -v --tb=short
 
 lint:
 	cd backend && . .venv/bin/activate && ruff check app/ tests/
-	cd frontend && npx eslint src/
+	cd frontend && npm run lint
 
-## ─── Helpers ───────────────────────────────────────────────────────────────────
-check-secrets:
-	@echo "Checking for hardcoded secrets..."
-	@grep -rn "sk-" backend/app/ && echo "⚠️  Possible OpenAI key found!" || echo "✅ No OpenAI keys found."
-	@grep -rn "sk-ant" backend/app/ && echo "⚠️  Possible Anthropic key found!" || echo "✅ No Anthropic keys found."
+format:
+	cd backend && . .venv/bin/activate && ruff format app/ tests/ && ruff check --fix app/ tests/

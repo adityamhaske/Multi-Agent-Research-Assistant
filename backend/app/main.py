@@ -1,14 +1,16 @@
 from contextlib import asynccontextmanager
+
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import structlog
 
+from app.api.v1.router import api_router
 from app.config import settings
 from app.db.base import init_db
-from app.db.redis import init_redis_pool, close_redis_pool
-from app.api.v1.router import api_router
+from app.db.redis import close_redis_pool, init_redis_pool
 
 logger = structlog.get_logger()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -21,12 +23,13 @@ async def lifespan(app: FastAPI):
     await close_redis_pool()
     logger.info("shutdown", message="Server shutting down")
 
+
 app = FastAPI(
     title="Multi-Agent Research Assistant API",
     version="1.0.0",
-    description="Production-grade autonomous research synthesis system powered by LangGraph.",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    description="Self-hostable research assistant with an auditable human-in-the-loop gate.",
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
     lifespan=lifespan,
 )
 
@@ -40,6 +43,7 @@ app.add_middleware(
 
 # Mount versioned API router
 app.include_router(api_router, prefix="/api/v1")
+
 
 @app.get("/health", tags=["Health"])
 async def health_check():

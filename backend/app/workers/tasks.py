@@ -1,14 +1,13 @@
 """
 Celery tasks for running the LangGraph agent pipeline in the background.
 """
+
 import asyncio
-import json
 import time
-from typing import Optional
+
 import structlog
 
 from app.workers.celery_app import celery_app
-from app.config import settings
 
 logger = structlog.get_logger()
 
@@ -19,8 +18,8 @@ def run_agent_pipeline(
     session_id: str,
     user_id: str,
     resume: bool = False,
-    approved: Optional[bool] = None,
-    feedback: Optional[str] = None,
+    approved: bool | None = None,
+    feedback: str | None = None,
 ):
     """
     Main Celery task: runs the LangGraph agent pipeline for a research session.
@@ -60,14 +59,21 @@ async def _run_pipeline_async(
     session_id: str,
     user_id: str,
     resume: bool,
-    approved: Optional[bool],
-    feedback: Optional[str],
+    approved: bool | None,
+    feedback: str | None,
 ) -> None:
     """Async implementation of the agent pipeline run."""
-    from app.db.base import AsyncSessionLocal, engine
-    from app.db.redis import init_redis_pool, close_redis_pool, publish_event, acquire_session_lock, release_session_lock
-    from app.models.session import Session, SessionStatus
     from sqlalchemy import select
+
+    from app.db.base import AsyncSessionLocal, engine
+    from app.db.redis import (
+        acquire_session_lock,
+        close_redis_pool,
+        init_redis_pool,
+        publish_event,
+        release_session_lock,
+    )
+    from app.models.session import Session, SessionStatus
 
     # Init connections for this task's event loop
     await init_redis_pool()
@@ -76,7 +82,11 @@ async def _run_pipeline_async(
         # Acquire distributed lock so only one worker processes this session at a time
         acquired = await acquire_session_lock(session_id)
         if not acquired:
-            logger.warning("session_lock_failed", session_id=session_id, reason="Already locked by another worker")
+            logger.warning(
+                "session_lock_failed",
+                session_id=session_id,
+                reason="Already locked by another worker",
+            )
             return
 
         try:
@@ -123,18 +133,24 @@ async def _run_pipeline_async(
                 await db.commit()
 
             # Publish "running" status event
-            await publish_event(session_id, {
-                "type": "agent_log",
-                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "data": {
-                    "agent_name": "system",
-                    "action": "Pipeline started" if not resume else "Resuming from HITL checkpoint",
-                    "result": None,
-                }
-            })
+            await publish_event(
+                session_id,
+                {
+                    "type": "agent_log",
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "data": {
+                        "agent_name": "system",
+                        "action": "Pipeline started"
+                        if not resume
+                        else "Resuming from HITL checkpoint",
+                        "result": None,
+                    },
+                },
+            )
 
             # Import and run graph
             from app.agent.graph import run_graph
+
             await run_graph(initial_state, db, session)
 
         finally:
@@ -146,10 +162,11 @@ async def _run_pipeline_async(
 
 async def _mark_session_failed(session_id: str, error: str) -> None:
     """Mark a session as FAILED after all retries are exhausted."""
-    from app.db.base import AsyncSessionLocal, engine
-    from app.db.redis import init_redis_pool, close_redis_pool, publish_event
-    from app.models.session import Session, SessionStatus
     from sqlalchemy import select
+
+    from app.db.base import AsyncSessionLocal, engine
+    from app.db.redis import close_redis_pool, init_redis_pool, publish_event
+    from app.models.session import Session, SessionStatus
 
     await init_redis_pool()
     try:
@@ -161,11 +178,14 @@ async def _mark_session_failed(session_id: str, error: str) -> None:
                 session.error_message = error[:500]  # Truncate to fit column
                 await db.commit()
 
-        await publish_event(session_id, {
-            "type": "FAILED",
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "data": {"error": error},
-        })
+        await publish_event(
+            session_id,
+            {
+                "type": "FAILED",
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "data": {"error": error},
+            },
+        )
     finally:
         await close_redis_pool()
         await engine.dispose()

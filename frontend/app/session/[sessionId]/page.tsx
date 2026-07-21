@@ -72,7 +72,7 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
   const logEndRef = useRef<HTMLDivElement>(null);
   const esRef = useRef<EventSource | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef(Date.now());
+  const startTimeRef = useRef(0);
 
   const getToken = () =>
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
@@ -101,6 +101,7 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
 
   // ─── Elapsed timer ───────────────────────────────────────────────────────────
   useEffect(() => {
+    if (startTimeRef.current === 0) startTimeRef.current = Date.now();
     timerRef.current = setInterval(
       () => setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000)),
       1000,
@@ -109,7 +110,9 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
   }, []);
 
   // ─── SSE stream ──────────────────────────────────────────────────────────────
+  // TODO(M3): replace with TanStack Query + resilient SSE per docs/07 §3.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchStatus();
     const connect = () => {
       esRef.current?.close();
@@ -164,6 +167,7 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
 
   useEffect(() => {
     if (status === "COMPLETED") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchChatHistory();
     }
   }, [status, fetchChatHistory]);
@@ -172,7 +176,8 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
   const handleSendMessage = async (msg: string) => {
     setIsChatLoading(true);
     
-    // Optimistic UI update
+    // Optimistic UI update (event handler — purity rule false positive)
+    // eslint-disable-next-line react-hooks/purity
     const tempId = Date.now().toString();
     setChatMessages(prev => [...prev, { id: tempId, role: 'user', content: msg, created_at: new Date().toISOString() }]);
 
@@ -204,17 +209,14 @@ export default function SessionPage({ params }: { params: Promise<{ sessionId: s
               const data = JSON.parse(line.slice(6));
               if (data.type === "chunk") {
                 aiContent += data.text;
-                setChatMessages(prev => {
-                  const newMsgs = [...prev];
-                  newMsgs[newMsgs.length - 1].content = aiContent;
-                  return newMsgs;
-                });
+                const nextContent = aiContent;
+                setChatMessages(prev =>
+                  prev.map(m => (m.id === "temp-ai" ? { ...m, content: nextContent } : m))
+                );
               } else if (data.type === "done") {
-                setChatMessages(prev => {
-                  const newMsgs = [...prev];
-                  newMsgs[newMsgs.length - 1].id = data.message_id;
-                  return newMsgs;
-                });
+                setChatMessages(prev =>
+                  prev.map(m => (m.id === "temp-ai" ? { ...m, id: data.message_id } : m))
+                );
               }
             } catch { /* ignore parse error */ }
           }
