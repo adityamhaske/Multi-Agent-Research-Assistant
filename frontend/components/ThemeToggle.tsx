@@ -6,26 +6,26 @@ import { useSyncExternalStore } from "react";
 const emptySubscribe = () => () => {};
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   // Hydration guard: false during SSR, true after mount — without a setState-in-effect.
   const mounted = useSyncExternalStore(
     emptySubscribe,
     () => true,
-    () => false
+    () => false,
   );
 
   if (!mounted) {
-    return <div className="w-8 h-8 rounded-md" />; // placeholder
+    return <div className="h-9 w-9" aria-hidden />;
   }
 
-  const isDark = theme === "dark";
-
+  const isDark = resolvedTheme === "dark";
   return (
     <button
+      type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className="p-2 rounded-md hover:bg-[var(--color-bg-hover)] transition-colors text-slate-400 hover:text-slate-100 flex items-center justify-center w-9 h-9"
-      aria-label="Toggle Theme"
-      title="Toggle Theme"
+      className="flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
+      aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
+      title="Toggle theme"
     >
       {isDark ? "☀️" : "🌙"}
     </button>

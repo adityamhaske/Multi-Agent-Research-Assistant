@@ -1,26 +1,37 @@
 import type { Metadata } from "next";
+import { Inter, JetBrains_Mono } from "next/font/google";
+
+import { Providers } from "@/components/Providers";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Research Assistant — AI-Powered Multi-Agent Research",
-  description:
-    "Automate complex research synthesis with a multi-agent AI pipeline. Powered by GPT-4o, Gemini, and LangGraph.",
-  keywords: ["AI research", "multi-agent", "LangGraph", "research automation"],
-};
+// Self-hosted via next/font — no render-blocking external CSS import (docs/03, docs/07 §1).
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
-import { ThemeProvider } from "@/components/ThemeProvider";
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains-mono",
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  title: "Research Assistant",
+  description:
+    "A multi-agent research pipeline: plan, gather cited evidence, critique, and synthesize a reviewable report.",
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      </head>
-      <body className="font-sans antialiased bg-bg-base text-slate-100 min-h-screen">
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-          {children}
-        </ThemeProvider>
+    <html
+      lang="en"
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="min-h-screen bg-bg-base text-text-primary antialiased">
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
