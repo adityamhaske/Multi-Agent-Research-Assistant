@@ -26,6 +26,17 @@ works on a clean clone · gitleaks clean.
 
 ## M1 — The pipeline actually works  *(≈ 1–2 weeks)*  ← the critical milestone
 
+**Status: ◐ agent layer done & proven at graph level; worker/DB persistence lands with M2's schema.**
+Done: compiled `StateGraph` (planner → executor ToolNode loop → critic → synthesizer →
+`interrupt()` gate → finalizer/rework), structured Pydantic outputs (fail-closed critic),
+budget guards, retriever chain, SSRF guard, untrusted-content framing, provider-pluggable
+LLM factory with `LLM_MODE=fake`, event indirection, real token/cost accounting. Proven by
+24 passing tests including the three golden journeys at graph level (`tests/test_pipeline.py`)
+and regressions (`tests/test_ssrf_guard.py`, `tests/test_critic_failclosed.py`).
+Remaining: the Celery worker rewrite (single DB-session scope, token-based lock,
+`AsyncPostgresSaver`, resume-at-checkpoint) + the API-level golden E2E, which depend on the
+M2 schema (sources column, audit_log, restructured agent_logs) and are built alongside it.
+
 Scope: rebuild the agent layer on real LangGraph; fix the worker persistence scope.
 
 - Compiled `StateGraph` per [04_Agent_Design.md](04_Agent_Design.md): planner →

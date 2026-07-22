@@ -1,54 +1,48 @@
-from typing import TypedDict
+"""
+LangGraph pipeline state (docs/04_Agent_Design.md §2).
+
+A plain TypedDict — LangGraph manages it and the Postgres checkpointer persists it
+at every step, so it must stay JSON-serializable (primitives/lists/dicts only).
+"""
+
+from __future__ import annotations
+
+from typing import Any, TypedDict
 
 
-class Task(TypedDict):
-    id: int
-    query: str
-    status: str  # "pending" | "running" | "passed" | "failed"
-    rationale: str
-
-
-class ContextChunk(TypedDict):
-    task_id: int
-    source_url: str
-    source_title: str
-    source_date: str
-    key_facts: str
-    relevance_score: float
-
-
-class AgentState(TypedDict):
+class AgentState(TypedDict, total=False):
     # Identity
     session_id: str
     user_id: str
 
-    # Research Input
+    # Input
     original_query: str
     research_depth: str
-    selected_sources: list[str]
 
-    # Planner output
-    tasks: list[Task]
+    # Planner
+    tasks: list[dict[str, Any]]
     current_task_index: int
 
-    # Executor / Critic loop state
-    raw_context: list[ContextChunk]
-    critic_feedback: dict | None  # {"passed": bool, "reason": str, "feedback": str}
-    critic_loop_count: int  # Circuit breaker counter
+    # Executor / Critic loop
+    evidence: list[dict[str, Any]]
+    critic_verdict: dict[str, Any] | None
+    critic_retries: int
 
-    # HITL Gate
-    synthesized_draft: str | None
-    human_feedback: str | None  # Populated when user requests rework
+    # Synthesis / HITL
+    draft_report: str | None
+    sources: list[dict[str, Any]]
+    human_feedback: str | None
+    rework_count: int
+    approved: bool | None
 
     # Output
     final_report: str | None
 
     # Telemetry
-    total_tokens_input: int
-    total_tokens_output: int
-    total_cost_usd: float
-    start_time: float  # Unix timestamp
+    tokens_input: int
+    tokens_output: int
+    cost_usd: float
+    started_at: float
 
-    # Error handling
+    # Terminal
     error: str | None
-    error_node: str | None

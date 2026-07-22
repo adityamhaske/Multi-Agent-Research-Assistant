@@ -4,9 +4,9 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.agent.llm_factory import validate_pricing
 from app.api.v1.router import api_router
 from app.config import settings
-from app.db.base import init_db
 from app.db.redis import close_redis_pool, init_redis_pool
 
 logger = structlog.get_logger()
@@ -14,11 +14,16 @@ logger = structlog.get_logger()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application startup and shutdown lifecycle."""
+    """Application startup and shutdown lifecycle.
+
+    Schema is owned by Alembic — there is deliberately no create_all here
+    (docs/03, docs/05 §2). Config is validated fast at import; pricing is
+    re-checked here so a mis-routed model fails before serving traffic.
+    """
     logger.info("startup", message="Starting Multi-Agent Research Assistant API")
-    await init_db()
+    validate_pricing()
     await init_redis_pool()
-    logger.info("startup", message="Database and Redis initialized ✅")
+    logger.info("startup", message="Redis initialized ✅ (run `alembic upgrade head` for schema)")
     yield
     await close_redis_pool()
     logger.info("shutdown", message="Server shutting down")

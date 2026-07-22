@@ -1,467 +1,395 @@
 """
-LangGraph agent pipeline — wires together all nodes and conditional edges.
+The research agent pipeline as a real compiled LangGraph StateGraph
+(docs/04_Agent_Design.md). No hand-rolled loop, no fail-open behavior.
+
+    planner → executor(ToolNode loop) → critic ─┐
+                     ▲            (fail, retries) │
+                     └────────────────────────────┘
+    (pass / retries exhausted) → next task or → synthesizer → hitl_gate
+    hitl_gate --interrupt--> (approve) finalizer / (reject) synthesizer
+    budget/time breach anywhere → failer
 """
+
+from __future__ import annotations
 
 import json
 import time
 
 import structlog
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langgraph.graph import END, START, StateGraph
+from langgraph.types import interrupt
 
-from app.agent.llm_factory import (
-    get_critic_llm,
-    get_executor_llm,
-    get_planner_llm,
-    get_synthesizer_llm,
-)
+from app.agent import prompts
+from app.agent.events import emit
+from app.agent.llm_factory import estimate_cost, get_llm, token_counts
+from app.agent.schemas import CriticVerdict, ExecutorOutput, PlannerOutput, Source
 from app.agent.state import AgentState
 from app.agent.tools import EXECUTOR_TOOLS
 from app.config import settings
-from app.db.redis import publish_event
 
 logger = structlog.get_logger()
 
-# ─── Prompts ─────────────────────────────────────────────────────────────────────
-
-PLANNER_PROMPT = """You are the Orchestration Planner for a professional research assistant.
-Decompose the user's research query into 3 to 5 highly specific, independently executable search tasks.
-Each task must include a specific search query string, a rationale, and expected source types.
-Output ONLY valid JSON matching this schema:
-{"tasks": [{"id": 1, "query": "...", "rationale": "...", "status": "pending"}]}"""
-
-EXECUTOR_PROMPT = """You are the Research Executor. You have web search and webpage reading tools.
-For the given task, use your tools to gather factual evidence with explicit source URLs.
-Do NOT synthesize or analyze. Only collect raw facts with their source URLs.
-Output ONLY valid JSON:
-{"task_id": 1, "status": "success", "context_chunks": [{"source_url": "...", "source_title": "...", "source_date": "...", "key_facts": "...", "relevance_score": 0.9}]}"""
-
-CRITIC_PROMPT = """You are the Quality Critic. Evaluate if the gathered context adequately answers the task.
-Check: completeness, citation quality (every fact needs a URL), recency, specificity, minimum 2 sources.
-Output ONLY valid JSON:
-{"task_id": 1, "passed": true, "confidence": 0.9, "reasons": ["..."], "feedback_for_executor": null, "flagged_uncited_claims": []}"""
-
-SYNTHESIZER_PROMPT = """You are the Research Synthesizer. Compile the verified context into a professional Markdown report.
-Required structure: # Title, ## Executive Summary, ## Key Findings (with citations), ## Detailed Analysis, ## Data & Metrics Table, ## Conclusion, ## Sources Cited.
-Every factual claim MUST have an inline citation [Source](URL). Do not introduce new facts.
-Return ONLY the raw Markdown text."""
+_TOOLS_BY_NAME = {t.name: t for t in EXECUTOR_TOOLS}
+_MAX_TOOL_ROUNDS = 8
 
 
-# ─── Node Functions ───────────────────────────────────────────────────────────────
+# ── Structured-output helper ──────────────────────────────────────────────────────
+
+
+async def _structured(role: str, messages: list, schema):
+    """Invoke a role's model and return (parsed_model_or_None, cost, in_tok, out_tok).
+
+    Real models use with_structured_output(include_raw=True) so usage_metadata is
+    available for cost; fake models return JSON content we parse directly.
+    """
+    model = get_llm(role)
+    if settings.llm_mode == "fake":
+        resp = await model.ainvoke(messages)
+        cost = estimate_cost(resp, role)
+        i, o = token_counts(resp)
+        try:
+            parsed = schema.model_validate_json(resp.content)
+        except Exception:
+            parsed = None
+        return parsed, cost, i, o
+
+    structured = model.with_structured_output(schema, include_raw=True)
+    result = await structured.ainvoke(messages)
+    raw = result.get("raw")
+    cost = estimate_cost(raw, role) if raw is not None else 0.0
+    i, o = token_counts(raw) if raw is not None else (0, 0)
+    parsed = None if result.get("parsing_error") else result.get("parsed")
+    return parsed, cost, i, o
+
+
+def _acc(state: AgentState, cost: float, i: int, o: int) -> dict:
+    return {
+        "cost_usd": state.get("cost_usd", 0.0) + cost,
+        "tokens_input": state.get("tokens_input", 0) + i,
+        "tokens_output": state.get("tokens_output", 0) + o,
+    }
+
+
+# ── Nodes ─────────────────────────────────────────────────────────────────────────
 
 
 async def planner_node(state: AgentState) -> dict:
-    """Breaks the query into 3-5 structured tasks."""
-    log = logger.bind(session_id=state["session_id"], node="planner")
-    log.info("node_started")
-
-    await _publish_log(
-        state["session_id"],
-        "planner",
-        f"Breaking query into tasks: '{state['original_query'][:60]}...'",
-    )
-
-    llm = get_planner_llm()
+    sid = state["session_id"]
+    await emit(sid, "agent_log", agent="planner", message="Decomposing the query into tasks…")
     messages = [
-        SystemMessage(content=PLANNER_PROMPT),
+        SystemMessage(content=prompts.PLANNER_PROMPT_V2),
         HumanMessage(
-            content=f"Research query: {state['original_query']}\nResearch depth: {state['research_depth']}"
+            content=f"Research query: {state['original_query']}\nDepth: {state.get('research_depth', 'balanced')}"
         ),
     ]
+    parsed, cost, i, o = await _structured("planner", messages, PlannerOutput)
+    if parsed is None:
+        parsed2, c2, i2, o2 = await _structured("planner", messages, PlannerOutput)  # one retry
+        cost, i, o = cost + c2, i + i2, o + o2
+        parsed = parsed2
+    if parsed is None:
+        return {"error": "planner: could not produce a valid task list", **_acc(state, cost, i, o)}
 
-    response = await llm.ainvoke(messages)
-    cost = _estimate_cost(response, "gemini-1.5-pro")
-
-    try:
-        parsed = json.loads(response.content)
-        tasks = parsed.get("tasks", [])
-        # Ensure status field is present
-        for task in tasks:
-            task.setdefault("status", "pending")
-    except (json.JSONDecodeError, KeyError) as e:
-        log.error("planner_parse_error", error=str(e), raw=response.content[:200])
-        tasks = [
-            {
-                "id": 1,
-                "query": state["original_query"],
-                "rationale": "Fallback task",
-                "status": "pending",
-            }
-        ]
-
-    log.info("planner_finished", task_count=len(tasks))
-    await _publish_log(
-        state["session_id"],
-        "planner",
-        f"Created {len(tasks)} research tasks",
-        {"tasks": [t["query"] for t in tasks]},
+    tasks = [t.model_dump() for t in parsed.tasks]
+    await emit(
+        sid,
+        "agent_log",
+        agent="planner",
+        message=f"Created {len(tasks)} research tasks",
+        detail={"tasks": [t["query"] for t in tasks]},
     )
-
     return {
         "tasks": tasks,
         "current_task_index": 0,
-        "total_cost_usd": state["total_cost_usd"] + cost,
+        "evidence": [],
+        "critic_retries": 0,
+        **_acc(state, cost, i, o),
     }
 
 
 async def executor_node(state: AgentState) -> dict:
-    """Executes the current task using tools."""
-    log = logger.bind(session_id=state["session_id"], node="executor")
-    current_idx = state["current_task_index"]
-    current_task = state["tasks"][current_idx]
-
-    log.info("node_started", task_id=current_task["id"], query=current_task["query"])
-    await _publish_log(
-        state["session_id"],
-        "executor",
-        f"Searching: '{current_task['query']}'",
-        {"task_id": current_task["id"], "loop": state["critic_loop_count"]},
+    sid = state["session_id"]
+    idx = state["current_task_index"]
+    task = state["tasks"][idx]
+    await emit(
+        sid,
+        "agent_log",
+        agent="executor",
+        message=f"Researching: '{task['query']}'",
+        detail={"task_id": task["id"]},
     )
 
-    # Update task status
-    tasks = list(state["tasks"])
-    tasks[current_idx] = {**current_task, "status": "running"}
-
-    llm = get_executor_llm().bind_tools(EXECUTOR_TOOLS)
-    messages = [
-        SystemMessage(content=EXECUTOR_PROMPT),
-        HumanMessage(content=f"Task ID: {current_task['id']}\nTask Query: {current_task['query']}"),
+    model = get_llm("executor").bind_tools(EXECUTOR_TOOLS)
+    messages: list = [
+        SystemMessage(content=prompts.EXECUTOR_PROMPT_V2),
+        HumanMessage(content=f"Task {task['id']}: {task['query']}"),
     ]
-
-    # Add critic feedback if retrying
-    if state.get("critic_feedback") and not state["critic_feedback"].get("passed"):
+    verdict = state.get("critic_verdict")
+    if verdict and not verdict.get("passed"):
         messages.append(
             HumanMessage(
-                content=f"Previous attempt failed. Critic feedback: {state['critic_feedback'].get('feedback_for_executor', '')}"
+                content=f"Previous attempt insufficient. Fix: "
+                f"{verdict.get('feedback_for_executor', '')}"
             )
         )
 
-    response = await llm.ainvoke(messages)
-    cost = _estimate_cost(response, "gemini-1.5-pro")
+    cost = 0.0
+    i_tot = o_tot = 0
+    for _round in range(_MAX_TOOL_ROUNDS):
+        resp = await model.ainvoke(messages)
+        cost += estimate_cost(resp, "executor")
+        di, do = token_counts(resp)
+        i_tot += di
+        o_tot += do
+        messages.append(resp)
+        tool_calls = getattr(resp, "tool_calls", None) or []
+        if not tool_calls:
+            break
+        for call in tool_calls:
+            tool = _TOOLS_BY_NAME.get(call["name"])
+            try:
+                observation = (
+                    await tool.ainvoke(call["args"]) if tool else f"unknown tool {call['name']}"
+                )
+            except Exception as e:  # noqa: BLE001
+                observation = f"tool error: {e}"
+            await emit(
+                sid,
+                "agent_log",
+                agent="executor",
+                message=f"Used {call['name']}",
+                detail={"task_id": task["id"]},
+            )
+            messages.append(
+                ToolMessage(content=json.dumps(observation, default=str), tool_call_id=call["id"])
+            )
 
-    try:
-        parsed = json.loads(
-            response.content
-            if hasattr(response, "content")
-            and isinstance(response.content, str)
-            and response.content.startswith("{")
-            else "{}"
-        )
-        context_chunks = parsed.get("context_chunks", [])
-    except Exception:
-        context_chunks = []
+    # Convert the final answer into structured evidence.
+    final = messages[-1]
+    evidence: list[dict] = []
+    if isinstance(final, AIMessage) and isinstance(final.content, str) and final.content.strip():
+        try:
+            evidence = [
+                e.model_dump() for e in ExecutorOutput.model_validate_json(final.content).evidence
+            ]
+        except Exception:
+            evidence = []
+    for e in evidence:
+        e["task_id"] = task["id"]
 
-    await _publish_log(
-        state["session_id"],
-        "executor",
-        f"Gathered {len(context_chunks)} source(s) for task {current_task['id']}",
-        {"task_id": current_task["id"], "source_count": len(context_chunks)},
+    await emit(
+        sid,
+        "agent_log",
+        agent="executor",
+        message=f"Gathered {len(evidence)} source(s) for task {task['id']}",
+        detail={"task_id": task["id"], "source_count": len(evidence)},
     )
-
-    return {
-        "tasks": tasks,
-        "raw_context": state["raw_context"]
-        + [{"task_id": current_task["id"], **c} for c in context_chunks],
-        "total_cost_usd": state["total_cost_usd"] + cost,
-    }
+    return {"evidence": state.get("evidence", []) + evidence, **_acc(state, cost, i_tot, o_tot)}
 
 
 async def critic_node(state: AgentState) -> dict:
-    """Evaluates executor output and passes or fails it."""
-    log = logger.bind(session_id=state["session_id"], node="critic")
-    current_task = state["tasks"][state["current_task_index"]]
-
-    log.info("node_started", task_id=current_task["id"], loop=state["critic_loop_count"])
-    await _publish_log(
-        state["session_id"],
-        "critic",
-        f"Evaluating context quality for task {current_task['id']}...",
+    sid = state["session_id"]
+    task = state["tasks"][state["current_task_index"]]
+    await emit(
+        sid, "agent_log", agent="critic", message=f"Evaluating evidence for task {task['id']}…"
     )
-
-    # Get context for this task
-    task_context = [c for c in state["raw_context"] if c.get("task_id") == current_task["id"]]
-
-    llm = get_critic_llm()
+    task_evidence = [e for e in state.get("evidence", []) if e.get("task_id") == task["id"]]
     messages = [
-        SystemMessage(content=CRITIC_PROMPT),
+        SystemMessage(content=prompts.CRITIC_PROMPT_V2),
         HumanMessage(
-            content=f"Task: {current_task['query']}\n\nGathered Context:\n{json.dumps(task_context, indent=2)}"
+            content=f"Task: {task['query']}\n\n<untrusted_web_content>\n"
+            f"{json.dumps(task_evidence, indent=2)}\n</untrusted_web_content>"
         ),
     ]
+    parsed, cost, i, o = await _structured("critic", messages, CriticVerdict)
+    if parsed is None:
+        # Fail closed (docs/11 §1 rule 2): invalid critic output is a failure, not a pass.
+        verdict = CriticVerdict(
+            passed=False,
+            confidence=0.0,
+            reasons=["critic output invalid — failing closed"],
+            feedback_for_executor="Re-gather clearer, well-cited evidence.",
+        )
+    else:
+        verdict = parsed
 
-    response = await llm.ainvoke(messages)
-    cost = _estimate_cost(response, "gemini-1.5-flash")
-
-    try:
-        critic_result = json.loads(response.content)
-    except json.JSONDecodeError:
-        critic_result = {
-            "passed": True,
-            "confidence": 0.5,
-            "reasons": ["Parse error — defaulting to pass"],
-            "feedback_for_executor": None,
-        }
-
-    passed = critic_result.get("passed", True)
-    new_loop_count = state["critic_loop_count"] + (0 if passed else 1)
-
-    # Update task status
-    tasks = list(state["tasks"])
-    tasks[state["current_task_index"]] = {
-        **current_task,
-        "status": "passed" if passed else "failed_retrying",
-    }
-
-    status_msg = "✅ PASS" if passed else f"❌ FAIL (loop {new_loop_count}/3)"
-    await _publish_log(
-        state["session_id"],
-        "critic",
-        f"{status_msg} — {critic_result.get('reasons', [''])[0]}",
-        critic_result,
+    passed = verdict.passed
+    retries = state.get("critic_retries", 0) + (0 if passed else 1)
+    await emit(
+        sid,
+        "agent_log",
+        agent="critic",
+        message=("✅ PASS" if passed else f"❌ FAIL (retry {retries})"),
+        detail=verdict.model_dump(),
     )
-
-    log.info(
-        "critic_result",
-        passed=passed,
-        confidence=critic_result.get("confidence"),
-        loop=new_loop_count,
-    )
-
     return {
-        "tasks": tasks,
-        "critic_feedback": critic_result,
-        "critic_loop_count": new_loop_count,
-        "total_cost_usd": state["total_cost_usd"] + cost,
+        "critic_verdict": verdict.model_dump(),
+        "critic_retries": retries,
+        **_acc(state, cost, i, o),
     }
 
 
 async def synthesizer_node(state: AgentState) -> dict:
-    """Compiles all verified context into a structured Markdown report."""
-    log = logger.bind(session_id=state["session_id"], node="synthesizer")
-    log.info("node_started")
+    sid = state["session_id"]
+    await emit(sid, "agent_log", agent="synthesizer", message="Compiling the report…")
 
-    await _publish_log(
-        state["session_id"], "synthesizer", "Compiling research into structured report..."
-    )
+    # Build a numbered source list from unique evidence URLs; the draft cites [n].
+    sources: list[dict] = []
+    seen: dict[str, int] = {}
+    for e in state.get("evidence", []):
+        url = e.get("source_url", "")
+        if url and url not in seen:
+            n = len(sources) + 1
+            seen[url] = n
+            sources.append(
+                Source(
+                    index=n, url=url, title=e.get("source_title", ""), snippet=e.get("snippet", "")
+                ).model_dump()
+            )
 
-    human_feedback = state.get("human_feedback")
-    feedback_note = f"\n\nHuman feedback to incorporate: {human_feedback}" if human_feedback else ""
-
-    llm = get_synthesizer_llm()
+    numbered_evidence = [
+        {
+            "n": seen.get(e.get("source_url", ""), 0),
+            "key_fact": e.get("key_fact", ""),
+            "snippet": e.get("snippet", ""),
+            "url": e.get("source_url", ""),
+        }
+        for e in state.get("evidence", [])
+    ]
+    fb = state.get("human_feedback")
+    human = f"\n\nHuman feedback to incorporate: {fb}" if fb else ""
     messages = [
-        SystemMessage(content=SYNTHESIZER_PROMPT),
+        SystemMessage(content=prompts.SYNTHESIZER_PROMPT_V2),
         HumanMessage(
-            content=f"Original Query: {state['original_query']}\n\nVerified Context:\n{json.dumps(state['raw_context'], indent=2)}{feedback_note}"
+            content=f"Original query: {state['original_query']}\n\nNumbered evidence:\n"
+            f"{json.dumps(numbered_evidence, indent=2)}{human}"
         ),
     ]
+    model = get_llm("synthesizer")
+    resp = await model.ainvoke(messages)
+    draft = resp.content if isinstance(resp.content, str) else str(resp.content)
+    cost = estimate_cost(resp, "synthesizer")
+    i, o = token_counts(resp)
 
-    response = await llm.ainvoke(messages)
-    cost = _estimate_cost(response, "gemini-1.5-pro")
-    draft = response.content
-
-    log.info("synthesizer_finished", draft_length=len(draft))
-    await _publish_log(
-        state["session_id"], "synthesizer", f"Draft compiled ({len(draft.split())} words)"
+    await emit(
+        sid,
+        "agent_log",
+        agent="synthesizer",
+        message=f"Draft compiled ({len(draft.split())} words, {len(sources)} sources)",
     )
-
     return {
-        "synthesized_draft": draft,
-        "human_feedback": None,  # Clear after use
-        "total_cost_usd": state["total_cost_usd"] + cost,
+        "draft_report": draft,
+        "sources": sources,
+        "human_feedback": None,
+        **_acc(state, cost, i, o),
     }
 
 
-async def hitl_gate_node(state: AgentState, db, session) -> dict:
-    """Pauses execution and awaits human approval."""
-    from app.models.session import SessionStatus
-
-    session.status = SessionStatus.AWAITING_APPROVAL
-    session.draft_report = state["synthesized_draft"]
-    session.checkpoint_data = dict(state)  # Save full state for resume
-    await db.commit()
-
-    await publish_event(
-        state["session_id"],
+def hitl_gate_node(state: AgentState) -> dict:
+    """Pause for human review. interrupt() persists the checkpoint and suspends."""
+    decision = interrupt(
         {
             "type": "HITL_READY",
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "data": {
-                "session_id": state["session_id"],
-                "draft_word_count": len((state["synthesized_draft"] or "").split()),
-                "source_count": len(
-                    {c.get("source_url") for c in state["raw_context"] if c.get("source_url")}
-                ),
-                "total_cost_usd": round(state["total_cost_usd"], 4),
-            },
-        },
+            "word_count": len((state.get("draft_report") or "").split()),
+            "source_count": len(state.get("sources", [])),
+            "cost_usd": round(state.get("cost_usd", 0.0), 4),
+        }
+    )
+    # Resumed: decision = {"approved": bool, "feedback": str | None}
+    if decision.get("approved"):
+        return {"approved": True}
+    return {
+        "approved": False,
+        "human_feedback": decision.get("feedback"),
+        "rework_count": state.get("rework_count", 0) + 1,
+    }
+
+
+def finalizer_node(state: AgentState) -> dict:
+    return {"final_report": state.get("draft_report")}
+
+
+def failer_node(state: AgentState) -> dict:
+    return {"error": state.get("error") or "budget or loop limit exceeded"}
+
+
+# ── Conditional routing ────────────────────────────────────────────────────────────
+
+
+def _over_budget(state: AgentState) -> bool:
+    return (
+        state.get("cost_usd", 0.0) >= settings.max_cost_per_session_usd
+        or state.get("tokens_input", 0) >= 1_000_000
+        or (time.time() - state.get("started_at", time.time())) >= settings.max_wallclock_seconds
     )
 
-    return {}
 
-
-async def finalizer_node(state: AgentState, db, session) -> dict:
-    """Finalizes the report and marks the session as COMPLETED."""
-    from app.models.session import SessionStatus
-
-    final_report = state["synthesized_draft"]  # Already approved
-    elapsed = time.time() - state.get("start_time", time.time())
-
-    session.status = SessionStatus.COMPLETED
-    session.final_report = final_report
-    session.total_cost_usd = round(state["total_cost_usd"], 6)
-    session.total_tokens_input = state["total_tokens_input"]
-    session.total_tokens_output = state["total_tokens_output"]
-    session.elapsed_seconds = elapsed
-    await db.commit()
-
-    await publish_event(
-        state["session_id"],
-        {
-            "type": "COMPLETED",
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "data": {
-                "session_id": state["session_id"],
-                "elapsed_seconds": round(elapsed, 1),
-                "total_cost_usd": round(state["total_cost_usd"], 4),
-            },
-        },
-    )
-
-    return {"final_report": final_report}
-
-
-async def error_handler_node(state: AgentState, db, session) -> dict:
-    """Handles graceful fallback when budget or loop limit is exceeded."""
-    from app.models.session import SessionStatus
-
-    error_msg = state.get("error", "Budget or loop limit exceeded")
-    session.status = SessionStatus.FAILED
-    session.error_message = error_msg
-    await db.commit()
-
-    await publish_event(
-        state["session_id"],
-        {
-            "type": "FAILED",
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "data": {"error": error_msg},
-        },
-    )
-
-    return {}
-
-
-# ─── Conditional Routing ─────────────────────────────────────────────────────────
+def route_after_planner(state: AgentState) -> str:
+    if state.get("error"):
+        return "failer"
+    return "executor"
 
 
 def route_after_critic(state: AgentState) -> str:
-    """Decides what happens after the Critic evaluates a task."""
-    # Check cost budget
-    if state["total_cost_usd"] >= settings.max_cost_per_session_usd:
-        return "error"
-
-    # Check critic result
-    critic = state.get("critic_feedback", {})
-    passed = critic.get("passed", True)
-
-    if not passed and state["critic_loop_count"] < settings.max_critic_loops:
-        return "executor"  # Retry
-
-    # Move to next task
-    next_idx = state["current_task_index"] + 1
-    if next_idx < len(state["tasks"]):
-        return "next_task"  # More tasks to do
-
-    return "synthesizer"  # All tasks done
+    if _over_budget(state):
+        return "failer"
+    verdict = state.get("critic_verdict") or {}
+    if not verdict.get("passed") and state.get("critic_retries", 0) < settings.max_critic_loops:
+        return "executor"
+    if state["current_task_index"] + 1 < len(state["tasks"]):
+        return "next_task"
+    return "synthesizer"
 
 
-# ─── Main graph runner (simplified for M1) ───────────────────────────────────────
+def advance_task_node(state: AgentState) -> dict:
+    return {
+        "current_task_index": state["current_task_index"] + 1,
+        "critic_retries": 0,
+        "critic_verdict": None,
+    }
 
 
-async def run_graph(initial_state: dict, db, session) -> None:
-    """
-    Simplified sequential graph runner for Milestone 1.
-    Full LangGraph compilation with checkpointing comes in Milestone 2-3.
-    """
-
-    state = AgentState(**initial_state)  # type: ignore
-
-    try:
-        # Node 1: Planner
-        updates = await planner_node(state)
-        state.update(updates)  # type: ignore
-
-        # Node 2-3: Executor → Critic loop for each task
-        for i, _task in enumerate(state["tasks"]):
-            state["current_task_index"] = i
-            state["critic_loop_count"] = 0
-
-            for _ in range(settings.max_critic_loops + 1):
-                # Executor
-                updates = await executor_node(state)
-                state.update(updates)  # type: ignore
-
-                # Check cost
-                if state["total_cost_usd"] >= settings.max_cost_per_session_usd:
-                    state["error"] = "Budget exceeded"
-                    await error_handler_node(state, db, session)
-                    return
-
-                # Critic
-                updates = await critic_node(state)
-                state.update(updates)  # type: ignore
-
-                if (
-                    state["critic_feedback"].get("passed", False)
-                    or state["critic_loop_count"] >= settings.max_critic_loops
-                ):
-                    break  # Move to next task
-
-        # Node 4: Synthesizer
-        updates = await synthesizer_node(state)
-        state.update(updates)  # type: ignore
-
-        # Node 5: HITL Gate (pause for human)
-        await hitl_gate_node(state, db, session)
-        # Pipeline pauses here — resumed via POST /approve
-
-    except Exception as e:
-        logger.error("graph_error", session_id=state["session_id"], error=str(e), exc_info=True)
-        state["error"] = str(e)
-        await error_handler_node(state, db, session)
+def route_after_gate(state: AgentState) -> str:
+    if state.get("approved"):
+        return "finalizer"
+    return "synthesizer"  # rework with human_feedback
 
 
-# ─── Helpers ─────────────────────────────────────────────────────────────────────
+# ── Build ──────────────────────────────────────────────────────────────────────────
 
 
-async def _publish_log(session_id: str, agent_name: str, action: str, result: dict = None) -> None:
-    """Publish an agent log event to the SSE channel."""
-    await publish_event(
-        session_id,
+def build_graph(checkpointer):
+    g = StateGraph(AgentState)
+    g.add_node("planner", planner_node)
+    g.add_node("executor", executor_node)
+    g.add_node("critic", critic_node)
+    g.add_node("advance_task", advance_task_node)
+    g.add_node("synthesizer", synthesizer_node)
+    g.add_node("hitl_gate", hitl_gate_node)
+    g.add_node("finalizer", finalizer_node)
+    g.add_node("failer", failer_node)
+
+    g.add_edge(START, "planner")
+    g.add_conditional_edges(
+        "planner", route_after_planner, {"executor": "executor", "failer": "failer"}
+    )
+    g.add_edge("executor", "critic")
+    g.add_conditional_edges(
+        "critic",
+        route_after_critic,
         {
-            "type": "agent_log",
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "data": {
-                "agent_name": agent_name,
-                "action": action,
-                "result": result,
-            },
+            "executor": "executor",
+            "next_task": "advance_task",
+            "synthesizer": "synthesizer",
+            "failer": "failer",
         },
     )
-
-
-MODEL_COST_PER_1K = {
-    "gemini-1.5-pro": {"input": 0.00125, "output": 0.005},
-    "gemini-1.5-flash": {"input": 0.000075, "output": 0.0003},
-}
-
-
-def _estimate_cost(response, model: str) -> float:
-    """Estimate the cost of an LLM response from token usage."""
-    try:
-        usage = response.usage_metadata or {}
-        in_tok = usage.get("input_tokens", 0)
-        out_tok = usage.get("output_tokens", 0)
-        pricing = MODEL_COST_PER_1K.get(model, {"input": 0, "output": 0})
-        return (in_tok / 1000 * pricing["input"]) + (out_tok / 1000 * pricing["output"])
-    except Exception:
-        return 0.0
+    g.add_edge("advance_task", "executor")
+    g.add_edge("synthesizer", "hitl_gate")
+    g.add_conditional_edges(
+        "hitl_gate", route_after_gate, {"finalizer": "finalizer", "synthesizer": "synthesizer"}
+    )
+    g.add_edge("finalizer", END)
+    g.add_edge("failer", END)
+    return g.compile(checkpointer=checkpointer)
