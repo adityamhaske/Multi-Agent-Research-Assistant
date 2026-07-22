@@ -44,15 +44,22 @@ async def publish_event(session_id: str, event: dict) -> None:
     await redis.publish(channel, json.dumps(event))
 
 
-async def acquire_session_lock(session_id: str, timeout: int = 30) -> bool:
-    """Acquire a distributed lock for a session. Returns True if acquired."""
-    redis = get_redis()
-    lock_key = f"lock:session:{session_id}"
-    return await redis.set(lock_key, "1", ex=timeout, nx=True)
+# Compare-and-delete so a worker only releases a lock it still owns (docs/02 §6).
+_RELEASE_LUA = """
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+  return redis.call('DEL', KEYS[1])
+end
+return 0
+"""
 
 
-async def release_session_lock(session_id: str) -> None:
-    """Release the distributed lock for a session."""
+async def acquire_session_lock(session_id: str, token: str, ttl: int) -> bool:
+    """Acquire a session lock with a unique token. TTL must exceed the task timeout."""
     redis = get_redis()
-    lock_key = f"lock:session:{session_id}"
-    await redis.delete(lock_key)
+    return bool(await redis.set(f"lock:session:{session_id}", token, ex=ttl, nx=True))
+
+
+async def release_session_lock(session_id: str, token: str) -> None:
+    """Release the lock only if we still hold it (token match)."""
+    redis = get_redis()
+    await redis.eval(_RELEASE_LUA, 1, f"lock:session:{session_id}", token)

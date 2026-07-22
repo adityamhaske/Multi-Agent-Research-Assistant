@@ -1,17 +1,27 @@
+"""
+Follow-up chat grounded in a completed report (docs/04 §5, docs/05 §3).
+
+Assistant history is replayed as AIMessage (never SystemMessage — model output must
+not gain system authority, docs/06 §4). Streaming is SSE; the report + sources are
+provided as grounding, wrapped as untrusted content.
+"""
+
+from __future__ import annotations
+
 import json
 import uuid
 from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
+from app.agent import prompts
+from app.agent.llm_factory import get_llm
 from app.db.base import get_db
-from app.dependencies import check_rate_limit, get_current_user
+from app.dependencies import enforce_chat_rate_limit, get_current_user
 from app.models.chat_message import ChatMessage
 from app.models.session import Session, SessionStatus
 from app.models.user import User
@@ -20,112 +30,100 @@ from app.schemas.research import ChatMessageSchema, ChatRequest
 router = APIRouter(prefix="/research/{session_id}/chat", tags=["Chat"])
 
 
-@router.get("/", response_model=list[ChatMessageSchema])
-async def get_chat_history(
+async def _authorized_completed_session(db, session_id, user_id) -> Session:
+    session = (
+        await db.execute(
+            select(Session).where(Session.id == session_id, Session.user_id == user_id)
+        )
+    ).scalar_one_or_none()
+    if not session:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Session not found.")
+    return session
+
+
+@router.get("", response_model=list[ChatMessageSchema])
+async def get_history(
     session_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get the full chat history for a research session."""
-    # Verify ownership
-    result = await db.execute(
-        select(Session).where(Session.id == session_id, Session.user_id == current_user.id)
+    await _authorized_completed_session(db, session_id, current_user.id)
+    rows = (
+        (
+            await db.execute(
+                select(ChatMessage)
+                .where(ChatMessage.session_id == session_id)
+                .order_by(ChatMessage.created_at.asc())
+            )
+        )
+        .scalars()
+        .all()
     )
-    session = result.scalar_one_or_none()
-    if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-
-    result = await db.execute(
-        select(ChatMessage)
-        .where(ChatMessage.session_id == session_id)
-        .order_by(ChatMessage.created_at.asc())
-    )
-    return result.scalars().all()
+    return rows
 
 
-@router.post("/")
-async def send_chat_message(
+@router.post("")
+async def send_message(
     session_id: uuid.UUID,
     payload: ChatRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rate_limit: None = Depends(check_rate_limit),
+    _rl: None = Depends(enforce_chat_rate_limit),
 ):
-    """Send a message and get an AI response streamed via SSE."""
-    # Verify ownership and status
-    result = await db.execute(
-        select(Session).where(Session.id == session_id, Session.user_id == current_user.id)
-    )
-    session = result.scalar_one_or_none()
-
-    if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    session = await _authorized_completed_session(db, session_id, current_user.id)
     if session.status != SessionStatus.COMPLETED:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Chat is only available for COMPLETED sessions.",
+            status.HTTP_400_BAD_REQUEST, detail="Chat is available only for completed sessions."
         )
 
-    # Save user message
-    user_msg = ChatMessage(session_id=session_id, role="user", content=payload.message)
-    db.add(user_msg)
+    db.add(ChatMessage(session_id=session_id, role="user", content=payload.message))
     await db.commit()
-    await db.refresh(user_msg)
 
-    # Load history for context
-    history_result = await db.execute(
-        select(ChatMessage)
-        .where(ChatMessage.session_id == session_id)
-        .order_by(ChatMessage.created_at.asc())
-        .limit(20)  # Keep context window reasonable
+    history = (
+        (
+            await db.execute(
+                select(ChatMessage)
+                .where(ChatMessage.session_id == session_id)
+                .order_by(ChatMessage.created_at.asc())
+                .limit(20)
+            )
+        )
+        .scalars()
+        .all()
     )
-    chat_history = history_result.scalars().all()
 
-    # Construct LLM prompt
-    system_prompt = f"""You are an expert analyst and research assistant.
-You recently completed a research report for the user. Answer their follow-up questions using the context of the original report.
-Be concise, accurate, and professional. Use Markdown for formatting.
-
---- ORIGINAL RESEARCH REPORT ---
-{session.final_report}
-"""
-    messages = [SystemMessage(content=system_prompt)]
-    for msg in chat_history:
-        # Avoid passing the last message again as it's already in chat_history
-        if msg.role == "user":
-            messages.append(HumanMessage(content=msg.content))
-        else:
-            messages.append(SystemMessage(content=msg.content))  # Assistant message
-
-    async def generate_response() -> AsyncGenerator[str, None]:
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
-            api_key=settings.google_api_key,
-            temperature=0.3,
-            max_tokens=2000,
+    sources = json.dumps(session.sources or [], indent=2)
+    system = (
+        f"{prompts.CHAT_PROMPT_V2}\n\n"
+        f"--- REPORT ---\n{session.final_report}\n\n"
+        f"--- SOURCES ---\n<untrusted_web_content>\n{sources}\n</untrusted_web_content>"
+    )
+    messages: list = [SystemMessage(content=system)]
+    for m in history:
+        messages.append(
+            HumanMessage(content=m.content) if m.role == "user" else AIMessage(content=m.content)
         )
 
-        ai_content = ""
+    async def gen() -> AsyncGenerator[str, None]:
+        llm = get_llm("chat")
+        acc = ""
         try:
-            # Yield initial connection heartbeat
             yield f"data: {json.dumps({'type': 'connected'})}\n\n"
-
             async for chunk in llm.astream(messages):
-                if chunk.content:
-                    ai_content += chunk.content
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': chunk.content})}\n\n"
-
-            # Save the full AI response to DB
-            ai_msg = ChatMessage(session_id=session_id, role="assistant", content=ai_content)
-            db.add(ai_msg)
+                text = chunk.content if isinstance(chunk.content, str) else ""
+                if text:
+                    acc += text
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': text})}\n\n"
+            msg = ChatMessage(session_id=session_id, role="assistant", content=acc)
+            db.add(msg)
             await db.commit()
-
-            yield f"data: {json.dumps({'type': 'done', 'message_id': str(ai_msg.id)})}\n\n"
-        except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'text': str(e)})}\n\n"
+            await db.refresh(msg)
+            yield f"data: {json.dumps({'type': 'done', 'message_id': str(msg.id)})}\n\n"
+        except Exception as e:  # noqa: BLE001
+            yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
 
     return StreamingResponse(
-        generate_response(),
+        gen(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

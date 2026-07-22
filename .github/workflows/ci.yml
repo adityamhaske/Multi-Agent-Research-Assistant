@@ -11,6 +11,29 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ci" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      ENVIRONMENT: test
+      LLM_MODE: fake
+      JWT_SECRET_KEY: ci-secret-0123456789abcdef0123456789abcdef
+      DATABASE_URL: postgresql+asyncpg://ci:ci@localhost:5432/ci
+      REDIS_URL: redis://localhost:6379/1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -26,14 +49,10 @@ jobs:
         run: ruff check app/ tests/
       - name: Format check
         run: ruff format --check app/ tests/
+      - name: Migrations apply (schema built purely from Alembic)
+        run: alembic upgrade head
       - name: Tests
         run: python -m pytest tests/ -v --tb=short
-        env:
-          ENVIRONMENT: test
-          LLM_MODE: fake
-          JWT_SECRET_KEY: ci-secret-0123456789abcdef0123456789abcdef
-          DATABASE_URL: postgresql+asyncpg://ci:ci@localhost:5432/ci
-          REDIS_URL: redis://localhost:6379/1
 
   frontend:
     runs-on: ubuntu-latest

@@ -1,6 +1,4 @@
-"""
-Celery application configuration.
-"""
+"""Celery application configuration (docs/02 §6)."""
 
 from celery import Celery
 
@@ -13,18 +11,19 @@ celery_app = Celery(
     include=["app.workers.tasks"],
 )
 
+# Hard limit from config; soft limit derived so raising one never inverts them.
+_HARD = settings.celery_task_timeout_seconds
+_SOFT = max(60, _HARD - 60)
+
 celery_app.conf.update(
     task_serializer="json",
     result_serializer="json",
     accept_content=["json"],
-    # Don't ack task until it's committed (prevents lost tasks on worker crash)
-    task_acks_late=True,
-    # One heavy LLM task per worker at a time
+    task_ignore_result=True,
+    # The pipeline is NOT idempotent; a crashed run is resumed from the LangGraph
+    # checkpoint by an explicit retry, never by broker redelivery (docs/02 §6).
+    task_acks_late=False,
     worker_prefetch_multiplier=1,
-    # Soft limit: send SIGTERM to task (graceful cleanup)
-    task_soft_time_limit=600,  # 10 minutes
-    # Hard limit: send SIGKILL (absolute max)
-    task_time_limit=settings.celery_task_timeout_seconds,
-    # Result expiration
-    result_expires=86400,  # 24 hours
+    task_soft_time_limit=_SOFT,
+    task_time_limit=_HARD,
 )

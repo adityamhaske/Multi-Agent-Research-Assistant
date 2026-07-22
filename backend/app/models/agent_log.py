@@ -1,7 +1,15 @@
+"""
+Durable pipeline event stream (docs/05 §1, docs/02 §5).
+
+Every pipeline event is a row here first, then published to Redis. On (re)connect
+the SSE endpoint replays these rows so a late-joining or reconnecting client loses
+nothing; the bigserial id doubles as the SSE Last-Event-ID cursor.
+"""
+
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,18 +26,16 @@ class AgentLog(Base):
         nullable=False,
         index=True,
     )
-    agent_name: Mapped[str] = mapped_column(
-        String(50),
-        nullable=False,  # planner | executor | critic | synthesizer | system
-    )
-    action: Mapped[str] = mapped_column(Text, nullable=False)
-    result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    timestamp: Mapped[datetime] = mapped_column(
+    event_type: Mapped[str] = mapped_column(
+        String(40), nullable=False
+    )  # agent_log|HITL_READY|COMPLETED|FAILED
+    agent_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
 
-    # Relationship
     session: Mapped["Session"] = relationship("Session", back_populates="agent_logs")  # noqa: F821
 
     def __repr__(self) -> str:
-        return f"<AgentLog id={self.id} agent={self.agent_name} session={self.session_id}>"
+        return f"<AgentLog id={self.id} type={self.event_type} session={self.session_id}>"

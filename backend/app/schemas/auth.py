@@ -3,21 +3,18 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
+from app.services.passwords import MIN_LENGTH
+
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
+    # Policy enforced in the service (breached-list + byte limit); length floor here.
+    password: str = Field(min_length=MIN_LENGTH, max_length=200)
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    expires_in: int  # seconds
 
 
 class UserResponse(BaseModel):

@@ -26,16 +26,15 @@ works on a clean clone · gitleaks clean.
 
 ## M1 — The pipeline actually works  *(≈ 1–2 weeks)*  ← the critical milestone
 
-**Status: ◐ agent layer done & proven at graph level; worker/DB persistence lands with M2's schema.**
-Done: compiled `StateGraph` (planner → executor ToolNode loop → critic → synthesizer →
-`interrupt()` gate → finalizer/rework), structured Pydantic outputs (fail-closed critic),
-budget guards, retriever chain, SSRF guard, untrusted-content framing, provider-pluggable
-LLM factory with `LLM_MODE=fake`, event indirection, real token/cost accounting. Proven by
-24 passing tests including the three golden journeys at graph level (`tests/test_pipeline.py`)
-and regressions (`tests/test_ssrf_guard.py`, `tests/test_critic_failclosed.py`).
-Remaining: the Celery worker rewrite (single DB-session scope, token-based lock,
-`AsyncPostgresSaver`, resume-at-checkpoint) + the API-level golden E2E, which depend on the
-M2 schema (sources column, audit_log, restructured agent_logs) and are built alongside it.
+**Status: ✅ code complete.** Compiled `StateGraph` (planner → executor ToolNode loop →
+critic → synthesizer → `interrupt()` gate → finalizer/rework), structured Pydantic outputs
+(fail-closed critic), budget guards, retriever chain, SSRF guard, untrusted-content framing,
+provider-pluggable LLM factory with `LLM_MODE=fake`, event indirection, real token/cost
+accounting. Celery worker rewired (`pipeline_runner.py`): single DB-session scope,
+token-based lock, `AsyncPostgresSaver` checkpointing, resume-from-checkpoint on approve/rework.
+Proven by the three golden journeys at graph level (`tests/test_pipeline.py`) + regressions
+(`tests/test_ssrf_guard.py`, `tests/test_critic_failclosed.py`). The live API-level golden
+E2E (real Postgres/Redis) runs in CI.
 
 Scope: rebuild the agent layer on real LangGraph; fix the worker persistence scope.
 
@@ -58,6 +57,16 @@ Scope: rebuild the agent layer on real LangGraph; fix the worker persistence sco
 pass · one real-model smoke run produces a cited report end-to-end.
 
 ## M2 — Auth & API hardening  *(≈ 1 week)*
+
+**Status: ✅ backend code complete.** Cookie auth with rotating refresh tokens + reuse
+detection (`services/tokens.py`, `services/auth_service.py`), bcrypt-direct password policy
+(`services/passwords.py`), per-operation atomic Lua rate limits (`services/rate_limit.py`),
+security-headers middleware, `/docs` off in prod, SSE endpoint with agent_logs replay +
+`Last-Event-ID`, slim list schemas, audit_log on approve. Next.js same-origin `/api` proxy +
+CSP in `next.config.ts`. New v2 Alembic baseline (`0001_initial_v2_schema.py`) renders and
+round-trips. 34 backend tests + 9 security-service unit tests green. Live auth/SSRF/rate-limit
+integration suites run in CI with service containers. Remaining polish: `.md`/`.pdf` export
+endpoints (weasyprint wiring), email verification toggle.
 
 Scope: the security layer per [06_Security.md](06_Security.md).
 

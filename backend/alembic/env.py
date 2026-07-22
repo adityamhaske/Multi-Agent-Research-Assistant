@@ -1,16 +1,27 @@
 """
 Alembic environment configuration for async SQLAlchemy.
 """
+
 import asyncio
 from logging.config import fileConfig
+
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
+
 from alembic import context
 
-# Import all models so Alembic can detect them
+# Import every model module explicitly so Alembic sees the full metadata
+# (docs/05 §2 — no hidden transitive imports).
 from app.config import settings
+from app.models import (  # noqa: F401
+    agent_log,
+    audit_log,
+    chat_message,
+    refresh_token,
+    session,
+    user,
+)
 from app.models.base import Base
-from app.models import user, session, agent_log  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
@@ -32,7 +43,12 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection):
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        compare_type=True,
+        compare_server_default=True,
+    )
     with context.begin_transaction():
         context.run_migrations()
 

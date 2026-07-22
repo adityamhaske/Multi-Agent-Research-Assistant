@@ -18,7 +18,11 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     sessions: Mapped[list["Session"]] = relationship(  # noqa: F821
-        "Session", back_populates="user", lazy="select"
+        "Session",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="select",
     )
 
     def __repr__(self) -> str:

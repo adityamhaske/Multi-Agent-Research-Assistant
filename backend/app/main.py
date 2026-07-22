@@ -8,6 +8,7 @@ from app.agent.llm_factory import validate_pricing
 from app.api.v1.router import api_router
 from app.config import settings
 from app.db.redis import close_redis_pool, init_redis_pool
+from app.services.security_headers import SecurityHeadersMiddleware
 
 logger = structlog.get_logger()
 
@@ -38,13 +39,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[settings.frontend_url],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Dev convenience only: the browser talks to the API through the Next.js same-origin
+# proxy in real deployments (docs/02 §1), so CORS is unnecessary there. In dev the
+# frontend runs on a separate port, so we allow exactly that origin. In production
+# no cross-origin browser access is permitted (docs/06 §6).
+if not settings.is_production:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[settings.frontend_url],
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["*"],
+    )
 
 # Mount versioned API router
 app.include_router(api_router, prefix="/api/v1")
