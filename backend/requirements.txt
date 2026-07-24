@@ -16,6 +16,10 @@ celery>=5.4,<6.0
 # Agent orchestration (docs/03_Tech_Stack.md — real LangGraph, no hand-rolled loops)
 langgraph>=1.0
 langgraph-checkpoint-postgres>=2.0
+# AsyncPostgresSaver runs on psycopg (not asyncpg). [binary] bundles libpq so the
+# checkpointer works in the slim container without a system libpq — without this every
+# worker run fails with "no pq wrapper available" (found via docker-compose smoke test).
+psycopg[binary]>=3.2
 langchain-core>=0.3
 langchain-google-genai>=2.0
 # Optional BYOK providers — uncomment to enable routing to them:

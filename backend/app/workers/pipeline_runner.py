@@ -110,7 +110,9 @@ async def _run(session_id: str, user_id: str, *, resume_cmd: Command | None) -> 
                         else:
                             result = await graph.ainvoke(resume_cmd, config)
 
-                        state = graph.get_state(config).values
+                        # Async checkpointer → must use the async state getter; the
+                        # sync get_state() raises from the main async thread.
+                        state = (await graph.aget_state(config)).values
                         await _persist_outcome(db, session, session_id, result, state)
                 finally:
                     events.reset_emitter(token)

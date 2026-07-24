@@ -1,0 +1,101 @@
+# Full stack (docs/09 §1–§4): postgres, redis, api, worker, frontend.
+#
+#   docker compose -f docker-compose.full.yml up --build
+#
+# Secrets and provider keys come from ./.env (never baked into images). The api
+# container runs `alembic upgrade head` before serving; the worker and frontend wait
+# on the api's readiness (/health/ready) via depends_on, so migrations run exactly
+# once per deploy before any dependent starts. The frontend is the only public
+# service — it proxies /api/* to the api over the internal network.
+#
+# For a keyless demo set LLM_MODE=fake in .env; for real research set LLM_MODE=real
+# and GOOGLE_API_KEY. For a public deployment, front the frontend with a TLS reverse
+# proxy and set ENVIRONMENT=production (see deploy/Caddyfile and the README).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-research_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-research_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-research_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-research_user} -d ${POSTGRES_DB:-research_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./backend
+      target: api
+    env_file: [.env]
+    environment:
+      # Override the app's localhost defaults with the compose network hostnames.
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-research_user}:${POSTGRES_PASSWORD:-research_pass}@postgres:5432/${POSTGRES_DB:-research_db}
+      REDIS_URL: redis://redis:6379/0
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LLM_MODE: ${LLM_MODE:-real}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    # Wait for DB + Redis reachability (not just liveness) before dependents start.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+      target: worker
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-research_user}:${POSTGRES_PASSWORD:-research_pass}@postgres:5432/${POSTGRES_DB:-research_db}
+      REDIS_URL: redis://redis:6379/0
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LLM_MODE: ${LLM_MODE:-real}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      api: { condition: service_healthy } # migrations applied before the worker runs
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        BACKEND_ORIGIN: http://api:8000
+    environment:
+      BACKEND_ORIGIN: http://api:8000
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000" # the only publicly exposed service
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+
+volumes:
+  # Distinct names so the full stack never collides with the dev compose's volumes
+  # (which may hold a different Postgres major version).
+  postgres_data:
+    name: mara_full_postgres_data
+  redis_data:
+    name: mara_full_redis_data

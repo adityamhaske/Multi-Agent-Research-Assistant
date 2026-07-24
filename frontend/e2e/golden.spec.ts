@@ -13,7 +13,9 @@ const QUERY =
 const PASSWORD = "e2e-correct-horse-battery-42";
 
 function uniqueEmail(): string {
-  return `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.test`;
+  // `.test` / `.example` etc. are rejected by the email validator as special-use;
+  // use a normal TLD so registration validates (no deliverability check is performed).
+  return `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@mara-demo.dev`;
 }
 
 /** Register a fresh account; the app logs straight in and lands on the dashboard. */
