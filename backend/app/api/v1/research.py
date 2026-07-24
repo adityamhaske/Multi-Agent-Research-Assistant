@@ -169,6 +169,51 @@ async def stream_events(
     )
 
 
+def _report_or_404(session: Session) -> str:
+    report = session.final_report or session.draft_report
+    if not report:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No report available to export.")
+    return report
+
+
+@router.get("/{session_id}/export.md")
+async def export_markdown(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    session = await _authorized_session(db, session_id, current_user.id)
+    report = _report_or_404(session)
+    filename = f"research-{str(session.id)[:8]}.md"
+    return Response(
+        content=report,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/{session_id}/export.pdf")
+async def export_pdf(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    session = await _authorized_session(db, session_id, current_user.id)
+    report = _report_or_404(session)
+    title = (session.prompt or "Research Report")[:120]
+    try:
+        pdf = export.render_pdf(report, session.sources or [], title=title)
+    except RuntimeError as e:
+        # Native PDF libs unavailable in this environment (docs/09 §1 bakes them in).
+        raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, detail=str(e)) from e
+    filename = f"research-{str(session.id)[:8]}.pdf"
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.post("/{session_id}/approve", status_code=200)
 async def approve_or_rework(
     session_id: uuid.UUID,

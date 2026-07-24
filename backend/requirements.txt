@@ -40,7 +40,8 @@ bcrypt>=4.2
 # Observability
 structlog>=24.4
 
-# PDF export
+# Export: Markdown → HTML (python-markdown) → PDF (WeasyPrint)
+markdown>=3.5
 weasyprint>=62
 
 # Testing
