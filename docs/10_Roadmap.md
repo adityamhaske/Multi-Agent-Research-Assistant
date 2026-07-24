@@ -122,6 +122,24 @@ contrast check on core pages · no hardcoded hex/URLs/tokens (grep-guarded).
 
 ## M4 — Ship it  *(≈ 1 week)*
 
+**Status: ✅ code complete.** Multi-stage `backend/Dockerfile` (targets `api` +
+`worker`, non-root, HEALTHCHECKs, migrate-on-start entrypoint) and `frontend/Dockerfile`
+(Next.js standalone); `docker-compose.full.yml` bringing up postgres/redis/api/worker/
+frontend with the api gating dependents on `/health/ready` and the frontend as the only
+published service. Validated by bringing the whole stack up and driving the golden path
+end-to-end in fake mode through the same-origin proxy — which surfaced and fixed two real
+worker-path bugs (`psycopg[binary]` missing for the checkpointer; sync `get_state` on the
+async saver) that graph-level tests could not catch. Eval harness (`backend/evals/`) with a
+versioned 10-query set, pure tested metrics, and a committed fake-mode baseline in
+`results/`; `make eval`. `release.yml` builds/pushes GHCR images and cuts a Release on
+`vX.Y.Z`; CI gained typecheck, token-hygiene guards, unit tests, golden E2E, and
+non-blocking dependency audits. `deploy/` Caddyfile + backup cron; README rewritten with
+the one-command quick start.
+
+Remaining (not blocking the milestone): server-side `.md`/`.pdf` export endpoints (the
+UI ships client-side Copy/`.md`/print-to-PDF today), a real-model eval run recorded with
+keys, and tagging `v1.0.0` once CI is green on `main`.
+
 Scope: packaging, deployment, quality measurement per
 [09](09_Deployment_and_Operations.md) / [08 §5](08_Testing_and_Quality.md).
 

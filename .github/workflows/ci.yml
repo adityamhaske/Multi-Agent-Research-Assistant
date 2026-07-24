@@ -46,13 +46,18 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Lint
-        run: ruff check app/ tests/
+        run: ruff check app/ tests/ evals/
       - name: Format check
-        run: ruff format --check app/ tests/
+        run: ruff format --check app/ tests/ evals/
       - name: Migrations apply (schema built purely from Alembic)
         run: alembic upgrade head
       - name: Tests
         run: python -m pytest tests/ -v --tb=short
+      - name: Dependency audit (non-blocking, docs/08 §4)
+        continue-on-error: true
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
 
   frontend:
     runs-on: ubuntu-latest
@@ -94,6 +99,9 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      - name: Dependency audit (non-blocking, docs/08 §4)
+        continue-on-error: true
+        run: npm audit --audit-level=critical
 
   golden-e2e:
     runs-on: ubuntu-latest

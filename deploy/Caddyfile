@@ -1,0 +1,30 @@
+# Production TLS reverse proxy (docs/09 §2). Caddy terminates HTTPS (automatic Let's
+# Encrypt certs) and forwards to the frontend container — the only public service. The
+# frontend in turn proxies /api/* to the api over the internal Docker network, so cookies
+# stay first-party and the api/postgres/redis are never exposed.
+#
+# Usage: replace research.example.com with your domain, run Caddy on the same host as the
+# compose stack (or add it as a service), and set ENVIRONMENT=production in .env so the
+# app issues Secure cookies and disables /docs.
+#
+#   caddy run --config ./deploy/Caddyfile
+#
+# SSE note: research streaming is Server-Sent Events; Caddy's reverse_proxy streams by
+# default and does not buffer, so the live feed works without extra config.
+
+research.example.com {
+	encode gzip
+
+	# The frontend serves the app and proxies /api/* onward.
+	reverse_proxy localhost:3000
+
+	header {
+		# HSTS: force HTTPS for a year (the app also sets its own security headers).
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	log {
+		output file /var/log/caddy/research.access.log
+	}
+}

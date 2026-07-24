@@ -86,7 +86,5 @@ async def readiness_check():
         logger.warning("readiness_redis_down", error=str(e))
 
     if not all(checks.values()):
-        return JSONResponse(
-            status_code=503, content={"status": "not_ready", "checks": checks}
-        )
+        return JSONResponse(status_code=503, content={"status": "not_ready", "checks": checks})
     return {"status": "ready", "checks": checks}

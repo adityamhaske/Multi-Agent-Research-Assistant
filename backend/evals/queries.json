@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "description": "Fixed eval query set (docs/08 §5). Versioned so quality is diffable over time. 10 queries across domains, each answerable from public web sources.",
+  "queries": [
+    {
+      "id": "llm-memory",
+      "domain": "ai",
+      "depth": "balanced",
+      "query": "What are the leading approaches to long-term memory in LLM agents, and their trade-offs?"
+    },
+    {
+      "id": "postgres-vs-mysql",
+      "domain": "software",
+      "depth": "fast",
+      "query": "For a new transactional web application, what are the practical trade-offs between PostgreSQL and MySQL in 2025?"
+    },
+    {
+      "id": "solid-state-batteries",
+      "domain": "energy",
+      "depth": "comprehensive",
+      "query": "What is the current state of solid-state battery commercialization and the main remaining engineering obstacles?"
+    },
+    {
+      "id": "ozempic-mechanism",
+      "domain": "health",
+      "depth": "balanced",
+      "query": "How do GLP-1 receptor agonists like semaglutide work, and what are the documented risks and open questions?"
+    },
+    {
+      "id": "carbon-capture-cost",
+      "domain": "climate",
+      "depth": "balanced",
+      "query": "How cost-effective is direct air capture of CO2 today compared with other carbon-removal methods?"
+    },
+    {
+      "id": "rust-adoption",
+      "domain": "software",
+      "depth": "fast",
+      "query": "Why are systems teams adopting Rust, and where does it still fall short versus C++?"
+    },
+    {
+      "id": "remote-work-productivity",
+      "domain": "economics",
+      "depth": "balanced",
+      "query": "What does the research say about the effect of remote work on productivity since 2020?"
+    },
+    {
+      "id": "quantum-error-correction",
+      "domain": "physics",
+      "depth": "comprehensive",
+      "query": "What recent progress has been made on quantum error correction, and how far are we from fault-tolerant machines?"
+    },
+    {
+      "id": "eu-ai-act",
+      "domain": "policy",
+      "depth": "balanced",
+      "query": "What obligations does the EU AI Act place on providers of general-purpose AI models?"
+    },
+    {
+      "id": "mediterranean-diet",
+      "domain": "health",
+      "depth": "fast",
+      "query": "What is the strength of evidence that the Mediterranean diet reduces cardiovascular risk?"
+    }
+  ]
+}

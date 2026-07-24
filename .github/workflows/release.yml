@@ -1,0 +1,67 @@
+name: Release
+
+# Tag a version to build and push the three images to GHCR and cut a GitHub Release
+# (docs/09 §8). Prerequisite: green CI on main (golden E2E included).
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write # create the GitHub Release
+  packages: write # push images to GHCR
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { name: api, context: ./backend, target: api }
+          - { name: worker, context: ./backend, target: worker }
+          - { name: frontend, context: ./frontend, target: runtime }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-${{ matrix.name }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          target: ${{ matrix.target }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    needs: images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # Changelog auto-generated from merged PRs / conventional commits.
+          generate_release_notes: true
+          body: |
+            Container images (linux/amd64) pushed to GHCR:
+            - `ghcr.io/${{ github.repository }}-api:${{ github.ref_name }}`
+            - `ghcr.io/${{ github.repository }}-worker:${{ github.ref_name }}`
+            - `ghcr.io/${{ github.repository }}-frontend:${{ github.ref_name }}`
