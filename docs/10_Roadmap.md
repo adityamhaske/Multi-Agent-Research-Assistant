@@ -84,6 +84,27 @@ checklist items buildable-now all checked · OpenAPI reflects real contracts.
 
 ## M3 — Frontend rebuild  *(≈ 1–2 weeks)*
 
+**Status: ✅ code complete.** TanStack Query owns all server state (`hooks/queries.ts`);
+same-origin API client with transparent refresh-on-401 (`lib/api.ts`) — no `localStorage`,
+no cross-origin URL (both grep-guarded in CI). Server-side cookie auth guard
+(`app/(app)/layout.tsx`) plus client `AppShell` recovery. The session page renders all
+five states: the PENDING/RUNNING brain-monitor (`PipelineRail` + `StatusBar` + `LiveFeed`)
+driven by native `EventSource` with `Last-Event-ID` reconnect and a 5 s polling fallback
+(`useSessionStream`); the AWAITING_APPROVAL split draft/decision gate with optimistic
+re-subscribe; COMPLETED report with metrics + export (Copy / `.md` / print-to-PDF) and
+grounded streaming chat; FAILED with reason, partial sources, and restart. Citations UX
+(`lib/citations.tsx`): `[n]` chips with snippet popovers, sources panel, and a visible ⚠
+"unverified" chip for unresolved markers — via a dependency-free rehype plugin (no
+`rehype-raw`). Chat uses a UTF-8-safe buffered SSE parser (`lib/sse.ts`) with immutable
+replace-by-id state, stop affordance, and input-restore. Design tokens are both-theme
+first-class with WCAG-AA values; typography plugin, `next/font` (Inter + JetBrains Mono),
+and react-hot-toast are wired. 39 Vitest unit tests (SSE parser incl. the split-UTF-8
+regression, citation renderer, pipeline derivations, formatters) pass; Playwright golden
+E2E 1–3 are wired to run against the real stack in `LLM_MODE=fake` via a new CI
+`golden-e2e` job. Frontend CI now runs lint → typecheck → markdown/token-hygiene guards →
+unit tests → build, then the golden E2E. Remaining polish: server-side `.md`/`.pdf` export
+endpoints (M4; currently client-side).
+
 Scope: the UI per [07_UIUX_Guidelines.md](07_UIUX_Guidelines.md).
 
 - TanStack Query everywhere; shared API client; server-side auth guard via cookies

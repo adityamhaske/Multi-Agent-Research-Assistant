@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import toast from "react-hot-toast";
@@ -121,9 +122,9 @@ export default function DashboardPage() {
             Recent sessions
           </h2>
           {data && data.total > 5 && (
-            <a href="/history" className="text-sm text-accent hover:underline">
+            <Link href="/history" className="text-sm text-accent hover:underline">
               View all →
-            </a>
+            </Link>
           )}
         </div>
 

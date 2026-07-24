@@ -17,7 +17,8 @@ import type { Source } from "./types";
  * The `[n]` → chip transform is a tiny hand-written rehype plugin that walks the HAST
  * and replaces citation runs inside text nodes with `<cite>` elements. Doing it at the
  * tree level (not by regex on the markdown string) keeps code blocks untouched and
- * never corrupts surrounding markup. No `rehype-raw` — CI forbids it (docs/06).
+ * never corrupts surrounding markup. No raw-HTML rehype plugin is used — the markdown
+ * pipeline stays sanitized by construction and CI guards against one (docs/06 §5).
  */
 
 // ─── HAST (minimal shapes we touch) ─────────────────────────────────────────────
