@@ -10,7 +10,7 @@ A user submits a research question. A pipeline of specialized agents (**Planner 
 Executor → Critic → Synthesizer**) searches the web, gathers evidence with sources,
 drafts a cited Markdown report, and pauses at a **mandatory human approval gate** —
 approve to finalize, or reject with feedback to send the agents back to work. Completed
-reports support grounded follow-up chat and Markdown export.
+reports support grounded follow-up chat and Markdown / PDF export.
 
 Every claim carries an inline `[n]` citation that resolves to a source with the verbatim
 supporting snippet; a citation that doesn't resolve is shown as a visible ⚠ "unverified"
@@ -50,7 +50,7 @@ LLM_MODE=fake docker compose -f docker-compose.full.yml up --build
 ```
 
 Then open **http://localhost:3000** → register → ask a question → watch the pipeline in
-the live monitor → approve the draft → read the cited report → export `.md`.
+the live monitor → approve the draft → read the cited report → export `.md` or `.pdf`.
 
 The api container runs `alembic upgrade head` before serving, and the worker and frontend
 wait on its readiness — so migrations apply exactly once, automatically. The **frontend is

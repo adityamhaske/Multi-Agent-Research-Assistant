@@ -63,7 +63,9 @@ def _sources_html(sources: list[dict]) -> str:
     return '<div class="sources"><h2>Sources</h2><ol>' + "".join(items) + "</ol></div>"
 
 
-def render_html(report_markdown: str, sources: list[dict], *, title: str = "Research Report") -> str:
+def render_html(
+    report_markdown: str, sources: list[dict], *, title: str = "Research Report"
+) -> str:
     """Full standalone HTML document for the report (used by the PDF renderer)."""
     # Render inline [n] markers as superscripts before markdown conversion so they
     # survive as <sup> in the output.
@@ -78,7 +80,9 @@ def render_html(report_markdown: str, sources: list[dict], *, title: str = "Rese
     )
 
 
-def render_pdf(report_markdown: str, sources: list[dict], *, title: str = "Research Report") -> bytes:
+def render_pdf(
+    report_markdown: str, sources: list[dict], *, title: str = "Research Report"
+) -> bytes:
     """Render the report to PDF. Raises RuntimeError if WeasyPrint's native libs are
     unavailable — the caller maps that to a clear 501."""
     try:

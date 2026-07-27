@@ -136,9 +136,11 @@ versioned 10-query set, pure tested metrics, and a committed fake-mode baseline 
 non-blocking dependency audits. `deploy/` Caddyfile + backup cron; README rewritten with
 the one-command quick start.
 
-Remaining (not blocking the milestone): server-side `.md`/`.pdf` export endpoints (the
-UI ships client-side Copy/`.md`/print-to-PDF today), a real-model eval run recorded with
-keys, and tagging `v1.0.0` once CI is green on `main`.
+Server-side export shipped too: `GET /research/{id}/export.md` and `.pdf` (Markdown →
+styled HTML → WeasyPrint), wired to the report's export buttons; verified end-to-end in
+the compose stack (real PDF, `%PDF` bytes) and unit-tested. Remaining (not blocking the
+milestone): a real-model eval run recorded with keys, and tagging `v1.0.0` once CI is
+green on `main`.
 
 Scope: packaging, deployment, quality measurement per
 [09](09_Deployment_and_Operations.md) / [08 §5](08_Testing_and_Quality.md).

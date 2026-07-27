@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import toast from "react-hot-toast";
 
 import { Report, SourcesPanel } from "@/lib/citations";
@@ -21,6 +22,7 @@ export function ReportView({ session }: { session: SessionDetail }) {
   const report = session.final_report ?? session.draft_report ?? "";
   const sources = session.sources ?? [];
   const tokens = session.total_tokens_input + session.total_tokens_output;
+  const [exporting, setExporting] = useState<null | "md" | "pdf">(null);
 
   const copy = async () => {
     try {
@@ -31,17 +33,37 @@ export function ReportView({ session }: { session: SessionDetail }) {
     }
   };
 
-  // Generated client-side — no server export endpoint needed (docs/07 §3 export buttons).
-  const downloadMarkdown = () => {
-    const blob = new Blob([report], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `research-${session.session_id.slice(0, 8)}.md`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+  // Server-rendered export (docs/05 §3, docs/07 §3): .md is the raw report; .pdf is
+  // WeasyPrint. Fetched same-origin so the httpOnly cookie authenticates; a 501 (PDF
+  // libs missing) surfaces as a toast rather than a broken download.
+  const download = async (format: "md" | "pdf") => {
+    setExporting(format);
+    try {
+      const res = await fetch(`/api/v1/research/${session.session_id}/export.${format}`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => null);
+        toast.error(
+          (detail as { detail?: string } | null)?.detail ??
+            (format === "pdf" ? "PDF export is unavailable." : "Export failed."),
+        );
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `research-${session.session_id.slice(0, 8)}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Network error during export.");
+    } finally {
+      setExporting(null);
+    }
   };
 
   return (
@@ -52,22 +74,31 @@ export function ReportView({ session }: { session: SessionDetail }) {
             Report
           </h1>
           <div className="flex gap-2 print:hidden">
-            <button type="button" onClick={copy} className="btn btn-secondary px-3 py-1.5 text-sm">
+            <button
+              type="button"
+              onClick={copy}
+              disabled={exporting !== null}
+              className="btn btn-secondary px-3 py-1.5 text-sm"
+            >
               Copy
             </button>
             <button
               type="button"
-              onClick={downloadMarkdown}
+              onClick={() => download("md")}
+              disabled={exporting !== null}
               className="btn btn-secondary px-3 py-1.5 text-sm"
             >
+              {exporting === "md" && <span className="spinner" />}
               .md
             </button>
             <button
               type="button"
-              onClick={() => window.print()}
+              onClick={() => download("pdf")}
+              disabled={exporting !== null}
               className="btn btn-secondary px-3 py-1.5 text-sm"
             >
-              Save as PDF
+              {exporting === "pdf" && <span className="spinner" />}
+              PDF
             </button>
           </div>
         </div>

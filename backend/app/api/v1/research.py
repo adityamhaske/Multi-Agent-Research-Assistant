@@ -15,7 +15,7 @@ import uuid
 from collections.abc import AsyncGenerator
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,6 +35,7 @@ from app.schemas.research import (
     SessionListResponse,
     SessionSummary,
 )
+from app.services import export
 from app.workers.tasks import resume_agent_pipeline, run_agent_pipeline
 
 logger = structlog.get_logger()
