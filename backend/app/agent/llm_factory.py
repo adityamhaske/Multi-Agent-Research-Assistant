@@ -21,7 +21,23 @@ PRICE_TABLE: dict[str, dict[str, float]] = {
     # Legacy fallbacks kept priced so mixed configs still boot.
     "gemini-1.5-pro": {"input": 1.25, "output": 5.00},
     "gemini-1.5-flash": {"input": 0.075, "output": 0.30},
+    # Anthropic (BYOK). Standard list prices; Sonnet 5 has intro $2/$10 through
+    # 2026-08-31 — the higher standard rate is kept here so the budget guard never
+    # under-estimates. Update alongside MODEL_* routing when Anthropic reprices.
+    "claude-opus-4-8": {"input": 5.00, "output": 25.00},
+    "claude-sonnet-5": {"input": 3.00, "output": 15.00},
+    "claude-haiku-4-5": {"input": 1.00, "output": 5.00},
 }
+
+# Opus 4.7+/Sonnet 5/Fable 5 reject temperature/top_p/top_k with a 400; only Haiku 4.5
+# and the 4.6 generation still accept sampling params (docs/03; verified against the
+# Anthropic API reference). Models here are built without a temperature.
+_ANTHROPIC_NO_SAMPLING = (
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-sonnet-5",
+    "claude-fable-5",
+)
 
 # Roles → per-role generation config.
 _ROLE_CONFIG = {
@@ -74,12 +90,16 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
     if provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
-        return ChatAnthropic(
-            model=model,
-            api_key=settings.anthropic_api_key,
-            temperature=cfg["temperature"],
-            max_tokens=cfg["max_tokens"],
-        )
+        # Newer tiers reject a temperature; omit it there so structured-output and
+        # tool calls don't 400. max_tokens (the output cap) is accepted everywhere.
+        kwargs: dict = {
+            "model": model,
+            "api_key": settings.anthropic_api_key,
+            "max_tokens": cfg["max_tokens"],
+        }
+        if not any(model.startswith(p) for p in _ANTHROPIC_NO_SAMPLING):
+            kwargs["temperature"] = cfg["temperature"]
+        return ChatAnthropic(**kwargs)
     if provider == "openai":
         from langchain_openai import ChatOpenAI
 
