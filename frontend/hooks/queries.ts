@@ -4,11 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError, apiFetch } from "@/lib/api";
 import type {
+  ApiKeyProvider,
   ChatMessage,
+  ProfileUpdate,
   ResearchDepth,
   ResearchStartResponse,
   SessionDetail,
   SessionListResponse,
+  Usage,
   User,
 } from "@/lib/types";
 
@@ -19,6 +22,7 @@ import type {
  */
 export const queryKeys = {
   me: ["me"] as const,
+  usage: ["usage"] as const,
   sessions: (page: number) => ["sessions", page] as const,
   session: (id: string) => ["session", id] as const,
   chat: (id: string) => ["chat", id] as const,
@@ -52,6 +56,41 @@ export function useRegister() {
   });
 }
 
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ProfileUpdate) =>
+      apiFetch<User>("/auth/me", { method: "PATCH", body }),
+    onSuccess: (user) => qc.setQueryData(queryKeys.me, user),
+  });
+}
+
+/** Store a BYOK provider key. The key is sent once and never returned. */
+export function useSetApiKey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { provider: ApiKeyProvider; api_key: string }) =>
+      apiFetch<User>("/auth/me/api-key", { method: "PUT", body }),
+    onSuccess: (user) => qc.setQueryData(queryKeys.me, user),
+  });
+}
+
+export function useDeleteApiKey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch<User>("/auth/me/api-key", { method: "DELETE" }),
+    onSuccess: (user) => qc.setQueryData(queryKeys.me, user),
+  });
+}
+
+export function useUsage() {
+  return useQuery({
+    queryKey: queryKeys.usage,
+    queryFn: () => apiFetch<Usage>("/auth/me/usage"),
+    staleTime: 15_000,
+  });
+}
+
 export function useLogout() {
   const qc = useQueryClient();
   return useMutation({
@@ -69,12 +108,18 @@ export function useSessions(page = 1, limit = 20) {
   });
 }
 
-export function useSession(id: string, opts?: { refetchInterval?: number | false }) {
+export function useSession(id: string) {
   return useQuery({
     queryKey: queryKeys.session(id),
     queryFn: () => apiFetch<SessionDetail>(`/research/${id}`),
-    refetchInterval: opts?.refetchInterval ?? false,
     enabled: Boolean(id),
+    // Poll only while a run is in flight. SSE is the fast path for live events;
+    // this guarantees the page still converges if a terminal event is ever missed
+    // (dropped stream, proxy hiccup) instead of hanging on the monitor forever.
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "PENDING" || status === "RUNNING" ? 5000 : false;
+    },
   });
 }
 

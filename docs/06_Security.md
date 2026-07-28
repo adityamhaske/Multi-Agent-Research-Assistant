@@ -111,6 +111,24 @@ Backend middleware + Next.js `headers()` both set:
 - Housekeeping from the audit: the unused OpenAI key found in the working-tree `.env`
   must be revoked at the provider and deleted from the file.
 
+### 7a. User-supplied (BYOK) provider keys
+
+A key a *user* pastes is their secret, not the operator's, and is handled accordingly:
+
+- **Encrypted at rest** with Fernet (AES-128-CBC + HMAC). The encryption key is derived
+  via HKDF-SHA256 from `ENCRYPTION_KEY`, falling back to `JWT_SECRET_KEY` under a distinct
+  `info` label so the two uses stay domain-separated. Set `ENCRYPTION_KEY` explicitly in
+  production so JWT rotation doesn't invalidate stored keys.
+- **Never returned.** No endpoint echoes the key; responses carry only the provider and a
+  last-4 hint (`…aB3d`). Set/remove events log the provider, never the key.
+- **Scoped at use.** Decrypted only inside the worker for the duration of that user's own
+  run and held in a `ContextVar`, so concurrent runs in one worker process cannot read
+  each other's key. A Google BYOK key is never handed to an Anthropic-routed role.
+- **Degrades, doesn't crash.** An undecryptable key (rotated secret) is treated as absent
+  — the run continues on the server key and logs a warning; the user re-enters it.
+- **Limits still apply.** `DEFAULT_MONTHLY_TOKEN_LIMIT` caps new accounts so a public
+  deployment's shared key can't be drained by one signup.
+
 ## 8. Release checklist (gate for any public deployment)
 
 - [ ] JWT secret is unique, ≥ 32 random bytes; startup check active

@@ -1,0 +1,120 @@
+/**
+ * Screenshot capture for the README (docs/screenshots/).
+ *
+ * Not part of the golden E2E suite — this is a documentation tool. It drives a
+ * real run against whatever LLM_MODE the stack is in and saves the resulting
+ * screens to disk, so the README shows the actual product rather than mockups.
+ *
+ *   npx playwright test e2e/capture-screenshots.spec.ts --project=chromium
+ *
+ * Requires the full stack running (docker compose -f docker-compose.full.yml up).
+ */
+import fs from "node:fs";
+import path from "node:path";
+
+import { expect, test, type Page } from "@playwright/test";
+
+const OUT = path.resolve(__dirname, "../../docs/screenshots");
+const PASSWORD = "demo-correct-horse-battery-99";
+const QUERY =
+  "What are the main approaches to retrieval-augmented generation (RAG), and what are their trade-offs?";
+
+// One long-running test: the pipeline runs once and every screen is captured
+// from that same real session.
+test.describe.configure({ mode: "serial", timeout: 900_000 });
+
+async function shot(page: Page, name: string) {
+  fs.mkdirSync(OUT, { recursive: true });
+  await page.screenshot({ path: path.join(OUT, `${name}.png`), fullPage: false });
+}
+
+async function setTheme(page: Page, theme: "light" | "dark") {
+  await page.evaluate((t) => {
+    localStorage.setItem("theme", t);
+    document.documentElement.classList.toggle("dark", t === "dark");
+  }, theme);
+  await page.waitForTimeout(250);
+}
+
+test("capture product screenshots", async ({ page }) => {
+  test.setTimeout(900_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  const email = `docs-${Date.now()}@mara-demo.dev`;
+
+  // ── 1. Sign-up (light) ────────────────────────────────────────────────────
+  await page.goto("/login");
+  await setTheme(page, "light");
+  await page.getByRole("tab", { name: /create account/i }).click();
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(PASSWORD);
+  await shot(page, "01-login");
+  await page.getByRole("button", { name: /create account/i }).click();
+  await page.waitForURL("**/dashboard");
+
+  // ── 2. Dashboard (light) ──────────────────────────────────────────────────
+  await setTheme(page, "light");
+  await page.getByLabel(/research question/i).fill(QUERY);
+  await shot(page, "02-dashboard");
+
+  // ── 3. Live monitor while the pipeline runs ───────────────────────────────
+  await page.getByRole("button", { name: /start research/i }).click();
+  await page.waitForURL(/\/session\/[0-9a-f-]{36}/);
+  const sessionUrl = page.url();
+  await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible();
+  // Let a few agent events land so the feed and rail are populated.
+  await expect(page.getByLabel("Agent activity log")).toContainText(/planner|executor/i, {
+    timeout: 120_000,
+  });
+  await page.waitForTimeout(6000);
+  await shot(page, "03-live-monitor");
+
+  // ── 4. Human approval gate ────────────────────────────────────────────────
+  await expect(page.getByRole("heading", { name: /review gate/i })).toBeVisible({
+    timeout: 600_000,
+  });
+  await page.waitForTimeout(1500);
+  await shot(page, "04-approval-gate");
+
+  // ── 5. Completed report + citations ───────────────────────────────────────
+  await page.getByRole("button", { name: /approve & finalize/i }).click();
+  await expect(page.getByRole("heading", { name: "Report", exact: true })).toBeVisible({
+    timeout: 600_000,
+  });
+  await page.waitForTimeout(1500);
+  await shot(page, "05-report");
+
+  // Sources panel (scroll to it).
+  await page.evaluate(() => {
+    const el = [...document.querySelectorAll("h2")].find((h) => /^Sources \(/.test(h.textContent ?? ""));
+    if (el) window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 70);
+  });
+  await page.waitForTimeout(600);
+  await shot(page, "06-sources");
+
+  // ── 6. Same report in dark mode (Claude Code palette) ─────────────────────
+  await page.goto(sessionUrl);
+  await setTheme(page, "dark");
+  await page.waitForTimeout(800);
+  await shot(page, "07-report-dark");
+
+  // ── 7. Profile / usage / BYOK ─────────────────────────────────────────────
+  await page.goto("/settings");
+  await setTheme(page, "light");
+  await page.waitForTimeout(800);
+  await shot(page, "08-profile");
+
+  await page.evaluate(() => {
+    const el = document.getElementById("key-heading");
+    if (el) window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 60);
+  });
+  await page.waitForTimeout(500);
+  await shot(page, "09-byok");
+
+  // ── 8. History ────────────────────────────────────────────────────────────
+  await page.goto("/history");
+  await page.waitForTimeout(800);
+  await shot(page, "10-history");
+
+  console.log(`Screenshots written to ${OUT}`);
+});

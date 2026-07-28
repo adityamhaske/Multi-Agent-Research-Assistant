@@ -10,61 +10,68 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ─── Design tokens (docs/07 §1) ──────────────────────────────────────────────
- * Both themes are first-class. Components NEVER hardcode hex — every color goes
- * through a token so light/dark both work. Values are chosen for WCAG AA contrast.
+ * Warm, Claude-flavored palette. Light is the default: cream paper + terracotta,
+ * like claude.ai. Dark mirrors the Claude Code terminal — warm charcoal, never
+ * blue-black. Both themes are first-class; components NEVER hardcode hex.
+ *
+ * Contrast is deliberate, not decorative — every foreground/background pair below
+ * was computed against WCAG AA (≥4.5:1 body, ≥3:1 large/UI). Note the accent
+ * splits by theme: the signature terracotta #D97757 only reaches ~2.9:1 on cream,
+ * so light mode uses a deepened #B54F2A (4.8:1 as text, 5.1:1 behind white button
+ * labels) while dark keeps #D97757 (5.4:1 on charcoal).
  */
 :root {
-  --bg-base: #f7f8fa;
+  --bg-base: #faf9f5; /* warm cream paper */
   --bg-surface: #ffffff;
-  --bg-elevated: #eef1f5;
-  --border: #d8dee8;
+  --bg-elevated: #f0eee6;
+  --border: #e3e0d6;
 
-  --text-primary: #0f172a; /* ~16:1 on bg-base */
-  --text-secondary: #334155; /* ~9.6:1 */
-  --text-muted: #4b5563; /* ~7.4:1 */
+  --text-primary: #1f1e1d; /* warm near-black, ~15.9:1 */
+  --text-secondary: #45443f; /* ~9.4:1 */
+  --text-muted: #6b6a65; /* ~5.1:1 */
 
-  --accent: #6d28d9; /* violet-700 — text/ring, ~5.6:1 on bg-base */
-  --accent-muted: #ede9fe;
-  --accent-contrast: #ffffff; /* text on an --accent-filled button */
+  --accent: #b54f2a; /* deepened terracotta — AA as text on cream */
+  --accent-muted: #f5e6dd;
+  --accent-contrast: #ffffff; /* label on an --accent-filled button */
 
-  --success: #15803d;
-  --warning: #b45309;
-  --danger: #b91c1c;
-  --info: #0369a1;
+  --success: #3f7a47;
+  --warning: #96601a;
+  --danger: #a83232;
+  --info: #2f6f9f;
 
-  --agent-planner: #0369a1;
-  --agent-executor: #b45309;
-  --agent-critic: #be185d;
-  --agent-synthesizer: #15803d;
-  --agent-hitl: #6d28d9;
+  --agent-planner: #2f6f9f;
+  --agent-executor: #96601a;
+  --agent-critic: #a03e5c;
+  --agent-synthesizer: #3f7a47;
+  --agent-hitl: #b54f2a;
 
   --ring: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 .dark {
-  --bg-base: #0b0e14;
-  --bg-surface: #12151d;
-  --bg-elevated: #1b1f2a;
-  --border: #2a3040;
+  --bg-base: #1f1e1d; /* Claude Code warm charcoal */
+  --bg-surface: #262625;
+  --bg-elevated: #302f2d;
+  --border: #3e3d3a;
 
-  --text-primary: #f1f5f9; /* ~17:1 on bg-base */
-  --text-secondary: #cbd5e1; /* ~13:1 */
-  --text-muted: #94a3b8; /* ~7.3:1 */
+  --text-primary: #f5f4ee; /* warm cream, ~15.1:1 */
+  --text-secondary: #cfccc3; /* ~10.6:1 */
+  --text-muted: #a3a099; /* ~6.4:1 */
 
-  --accent: #a78bfa; /* violet-400 — text/ring, ~7:1 on bg-base */
-  --accent-muted: #2a2545;
-  --accent-contrast: #0b0e14; /* dark text on a light-violet button */
+  --accent: #d97757; /* signature terracotta — AA on charcoal */
+  --accent-muted: #3a2a24;
+  --accent-contrast: #1f1e1d; /* dark label on a terracotta button */
 
-  --success: #4ade80;
-  --warning: #fbbf24;
-  --danger: #f87171;
-  --info: #38bdf8;
+  --success: #86c08d;
+  --warning: #e0a45c;
+  --danger: #e88b7d;
+  --info: #7fb6de;
 
-  --agent-planner: #38bdf8;
-  --agent-executor: #fbbf24;
-  --agent-critic: #f472b6;
-  --agent-synthesizer: #4ade80;
-  --agent-hitl: #a78bfa;
+  --agent-planner: #7fb6de;
+  --agent-executor: #e0a45c;
+  --agent-critic: #e08fa8;
+  --agent-synthesizer: #86c08d;
+  --agent-hitl: #d97757;
 
   --ring: color-mix(in srgb, var(--accent) 55%, transparent);
 }

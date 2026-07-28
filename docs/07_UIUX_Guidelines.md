@@ -15,7 +15,13 @@
   so dark/light themes both work. (The previous iteration hardcoded dark-theme hex
   in JSX, which silently broke light mode.)
 - Both themes are first-class: `next-themes` class strategy; every token has a value in
-  `:root` (light) and `.dark`.
+  `:root` (light) and `.dark`. **Light is the default** (`defaultTheme="light"`,
+  `enableSystem={false}`) so a dark-OS visitor still lands on the intended default until
+  they toggle. The palette is warm: light is Claude's cream paper + terracotta; dark
+  mirrors the Claude Code terminal (warm charcoal, never blue-black).
+- The accent splits by theme for contrast, not taste: the signature terracotta `#D97757`
+  only reaches ~2.9:1 on cream, so light uses a deepened `#B54F2A` (4.8:1) and dark keeps
+  `#D97757` (5.4:1 on charcoal).
 - Typography: Inter (UI), JetBrains Mono (log feed, code) via `next/font` — no external
   CSS imports.
 - Spacing/radius: Tailwind defaults; radius `rounded-xl` for cards, `rounded-lg` for
@@ -78,6 +84,17 @@ a status arrived before its report body).
 - Human-readable reason (from `error_message`), whatever partial evidence exists
   ("12 sources were gathered before failure" with the sources list), and a
   "Start new research from this query" action. Never a dead end.
+
+## 3a. Settings — profile, usage, BYOK
+
+- Profile: display name, unique user ID (copyable), avatar image with **initials fallback**
+  (a broken image URL falls back too — the profile is never half-rendered).
+- Usage: tokens/cost for the current calendar month, the rolling 7 days, and the last
+  session, derived from the user's own sessions. A monthly limit renders as a progress bar
+  and blocks new research when reached (`402`), with the reset date stated.
+- BYOK: paste a provider key (Anthropic / Google / OpenAI). The key is encrypted at rest and
+  **never returned** — the UI shows only a `…abcd` hint and the provider. Removing it falls
+  back to the deployment's server key.
 
 ## 4. Dashboard
 

@@ -20,7 +20,7 @@ import structlog
 from langgraph.types import Command
 from sqlalchemy import select
 
-from app.agent import events
+from app.agent import events, llm_factory
 from app.agent.graph import build_graph
 from app.config import settings
 from app.db.base import AsyncSessionLocal, engine
@@ -33,6 +33,8 @@ from app.db.redis import (
 )
 from app.models.agent_log import AgentLog
 from app.models.session import Session, SessionStatus
+from app.models.user import User
+from app.services import crypto
 
 logger = structlog.get_logger()
 
@@ -61,6 +63,25 @@ def _make_sink(db, session_id: str):
     return sink
 
 
+async def _user_provider_keys(db, user_id: str) -> dict[str, str]:
+    """Decrypt this user's BYOK provider key, if they've set one.
+
+    Returns {provider: key} or {} to fall back to the server's key. A key that
+    can't be decrypted (signing secret rotated) is treated as absent and logged
+    once — the run continues on the server key rather than failing outright.
+    """
+    user = (
+        await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    ).scalar_one_or_none()
+    if user is None or not user.api_key_encrypted or not user.api_key_provider:
+        return {}
+    plaintext = crypto.decrypt(user.api_key_encrypted)
+    if not plaintext:
+        logger.warning("byok_key_undecryptable", user_id=user_id, provider=user.api_key_provider)
+        return {}
+    return {user.api_key_provider: plaintext}
+
+
 async def _run(session_id: str, user_id: str, *, resume_cmd: Command | None) -> None:
     lock_token = uuid.uuid4().hex
     await init_redis_pool()
@@ -83,6 +104,11 @@ async def _run(session_id: str, user_id: str, *, resume_cmd: Command | None) -> 
                 session.status = SessionStatus.RUNNING
                 await db.commit()
 
+                # BYOK: install this user's own provider key for the run, scoped to
+                # this context so concurrent runs never see each other's key. Falls
+                # back to the server key when the user hasn't set one.
+                user_keys = await _user_provider_keys(db, user_id)
+                keys_token = llm_factory.set_user_keys(user_keys)
                 token = events.set_emitter(_make_sink(db, session_id))
                 try:
                     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -116,6 +142,7 @@ async def _run(session_id: str, user_id: str, *, resume_cmd: Command | None) -> 
                         await _persist_outcome(db, session, session_id, result, state)
                 finally:
                     events.reset_emitter(token)
+                    llm_factory.reset_user_keys(keys_token)
         finally:
             await release_session_lock(session_id, lock_token)
     finally:

@@ -8,17 +8,27 @@ and rate-limited; login has per-IP and per-account limits.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.db.base import get_db
 from app.db.redis import get_redis
 from app.dependencies import get_client_ip, get_current_user
 from app.models.user import User
-from app.schemas.auth import LoginRequest, RegisterRequest, UserResponse
-from app.services import auth_service, rate_limit, tokens
+from app.schemas.auth import (
+    ApiKeyRequest,
+    LoginRequest,
+    ProfileUpdate,
+    RegisterRequest,
+    UsageResponse,
+    UserResponse,
+)
+from app.services import auth_service, crypto, rate_limit, tokens, usage
 from app.services.passwords import WeakPassword, hash_password, verify_password
 
 logger = structlog.get_logger()
@@ -59,7 +69,15 @@ async def register(
         await db.execute(select(User).where(User.email == payload.email))
     ).scalar_one_or_none()
     if existing is None:
-        db.add(User(email=payload.email, hashed_pw=hashed))
+        db.add(
+            User(
+                email=payload.email,
+                hashed_pw=hashed,
+                # Public deployments set this so one account can't drain a shared
+                # server key; 0 (the default) means unlimited.
+                monthly_token_limit=settings.default_monthly_token_limit,
+            )
+        )
         await db.commit()
         logger.info("user_registered", email=payload.email)
     # Neutral response either way (no enumeration, docs/06 §1).
@@ -137,3 +155,71 @@ async def logout(
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     return UserResponse.model_validate(current_user)
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    payload: ProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update editable profile fields. Only provided fields change."""
+    fields = payload.model_dump(exclude_unset=True)
+    for field in ("display_name", "avatar_url", "monthly_token_limit"):
+        if field in fields:
+            value = fields[field]
+            # Treat "" as clearing an optional text field.
+            if field in ("display_name", "avatar_url") and value == "":
+                value = None
+            setattr(current_user, field, value)
+    await db.commit()
+    await db.refresh(current_user)
+    logger.info("profile_updated", user_id=str(current_user.id), fields=sorted(fields))
+    return UserResponse.model_validate(current_user)
+
+
+@router.put("/me/api-key", response_model=UserResponse)
+async def set_api_key(
+    payload: ApiKeyRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Store a user-supplied provider key (BYOK).
+
+    The key is encrypted at rest and never returned by any endpoint — the
+    response carries only the provider and a display hint (docs/06 §1).
+    """
+    current_user.api_key_encrypted = crypto.encrypt(payload.api_key)
+    current_user.api_key_provider = payload.provider
+    current_user.api_key_hint = crypto.hint(payload.api_key)
+    current_user.api_key_set_at = datetime.now(UTC)
+    await db.commit()
+    await db.refresh(current_user)
+    # Log the event, never the key or its hint.
+    logger.info("api_key_set", user_id=str(current_user.id), provider=payload.provider)
+    return UserResponse.model_validate(current_user)
+
+
+@router.delete("/me/api-key", response_model=UserResponse)
+async def delete_api_key(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Remove the stored BYOK key; the deployment's server key applies again."""
+    current_user.api_key_encrypted = None
+    current_user.api_key_provider = None
+    current_user.api_key_hint = None
+    current_user.api_key_set_at = None
+    await db.commit()
+    await db.refresh(current_user)
+    logger.info("api_key_removed", user_id=str(current_user.id))
+    return UserResponse.model_validate(current_user)
+
+
+@router.get("/me/usage", response_model=UsageResponse)
+async def get_usage(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Token/cost usage for this month, the last 7 days, and the last session."""
+    return await usage.summary(db, current_user.id, current_user.monthly_token_limit)

@@ -10,6 +10,8 @@ LLM_MODE=fake returns deterministic scripted models (no keys, no network).
 
 from __future__ import annotations
 
+from contextvars import ContextVar
+
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.config import settings
@@ -49,6 +51,35 @@ _ROLE_CONFIG = {
 }
 
 
+# ── Per-user BYOK keys ────────────────────────────────────────────────────────
+# The worker installs the running user's decrypted provider key for the duration
+# of their pipeline run; get_llm reads it here. A ContextVar (not a global) keeps
+# concurrent runs in the same worker process isolated from each other, and the
+# key is never written to disk or logs. Empty/unset falls back to the server key.
+_user_keys: ContextVar[dict[str, str] | None] = ContextVar("user_provider_keys", default=None)
+
+
+def set_user_keys(keys: dict[str, str]):
+    """Install per-user provider keys for this context. Returns a reset token."""
+    return _user_keys.set(keys or {})
+
+
+def reset_user_keys(token) -> None:
+    _user_keys.reset(token)
+
+
+def api_key_for(provider: str) -> str:
+    """The user's BYOK key for a provider if present, else the server's key."""
+    user_key = (_user_keys.get() or {}).get(provider, "")
+    if user_key:
+        return user_key
+    return {
+        "google": settings.google_api_key,
+        "anthropic": settings.anthropic_api_key,
+        "openai": settings.openai_api_key,
+    }.get(provider, "")
+
+
 def _routing() -> dict[str, str]:
     return {
         "planner": settings.model_planner,
@@ -78,12 +109,21 @@ def validate_pricing() -> None:
 
 def _build(provider: str, model: str, role: str) -> BaseChatModel:
     cfg = _ROLE_CONFIG[role]
+    key = api_key_for(provider)
+    if not key:
+        # Fail with an actionable message rather than a provider-side 401 buried
+        # in a stack trace — this is what a BYOK user sees if they haven't added
+        # a key and the deployment has none configured.
+        raise ValueError(
+            f"No API key available for provider '{provider}'. Add your own key in "
+            f"Settings, or configure {provider.upper()}_API_KEY on the server."
+        )
     if provider == "google":
         from langchain_google_genai import ChatGoogleGenerativeAI
 
         return ChatGoogleGenerativeAI(
             model=model,
-            google_api_key=settings.google_api_key,
+            google_api_key=key,
             temperature=cfg["temperature"],
             max_output_tokens=cfg["max_tokens"],
         )
@@ -94,7 +134,7 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
         # tool calls don't 400. max_tokens (the output cap) is accepted everywhere.
         kwargs: dict = {
             "model": model,
-            "api_key": settings.anthropic_api_key,
+            "api_key": key,
             "max_tokens": cfg["max_tokens"],
         }
         if not any(model.startswith(p) for p in _ANTHROPIC_NO_SAMPLING):
@@ -105,7 +145,7 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
 
         return ChatOpenAI(
             model=model,
-            api_key=settings.openai_api_key,
+            api_key=key,
             temperature=cfg["temperature"],
             max_tokens=cfg["max_tokens"],
         )

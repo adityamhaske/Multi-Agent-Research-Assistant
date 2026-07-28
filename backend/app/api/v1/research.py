@@ -35,7 +35,8 @@ from app.schemas.research import (
     SessionListResponse,
     SessionSummary,
 )
-from app.services import export
+from app.services import export, usage
+from app.services.sse import SSE_HEADERS
 from app.workers.tasks import resume_agent_pipeline, run_agent_pipeline
 
 logger = structlog.get_logger()
@@ -49,6 +50,20 @@ async def start_research(
     current_user: User = Depends(get_current_user),
     _rl: None = Depends(enforce_research_rate_limit),
 ):
+    # Monthly token ceiling (0 = unlimited). Checked before enqueueing so a
+    # capped user gets a clear 402 instead of a session that fails mid-run.
+    if current_user.monthly_token_limit > 0:
+        used = await usage.monthly_tokens(db, current_user.id)
+        if used >= current_user.monthly_token_limit:
+            raise HTTPException(
+                status.HTTP_402_PAYMENT_REQUIRED,
+                detail=(
+                    f"Monthly token limit reached ({used:,} of "
+                    f"{current_user.monthly_token_limit:,}). It resets on the 1st, or you "
+                    "can add your own API key in Settings."
+                ),
+            )
+
     session = Session(
         user_id=current_user.id,
         prompt=payload.query,
@@ -162,11 +177,7 @@ async def stream_events(
     return StreamingResponse(
         gen(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-            "Connection": "keep-alive",
-        },
+        headers=SSE_HEADERS,
     )
 
 

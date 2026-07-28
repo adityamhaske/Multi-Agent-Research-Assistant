@@ -6,146 +6,231 @@
 [![CI](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml)
 [![eval](https://img.shields.io/badge/eval-baseline%20recorded-blue)](backend/evals/results/)
 
-A user submits a research question. A pipeline of specialized agents (**Planner →
-Executor → Critic → Synthesizer**) searches the web, gathers evidence with sources,
-drafts a cited Markdown report, and pauses at a **mandatory human approval gate** —
-approve to finalize, or reject with feedback to send the agents back to work. Completed
-reports support grounded follow-up chat and Markdown / PDF export.
+Ask a research question. A pipeline of specialized agents (**Planner → Executor → Critic
+→ Synthesizer**) searches the web, gathers evidence with sources, drafts a cited report,
+and **pauses for your approval** before finalizing. Approve it, or send it back with
+feedback. Completed reports support grounded follow-up chat and `.md` / `.pdf` export.
 
-Every claim carries an inline `[n]` citation that resolves to a source with the verbatim
-supporting snippet; a citation that doesn't resolve is shown as a visible ⚠ "unverified"
-chip rather than hidden.
+Every claim carries an inline `[n]` citation that resolves to a real source with the
+verbatim supporting snippet. A citation that *doesn't* resolve renders as a visible ⚠
+"unverified" chip — the system surfaces its own failures instead of hiding them.
 
-## Status
+![Report with citations](docs/screenshots/05-report.png)
 
-All milestones are code-complete and CI-gated; see
-[docs/10_Roadmap.md](docs/10_Roadmap.md) for full definitions.
+---
 
-| Milestone | Scope | Status |
-|---|---|---|
-| M0 | Truth reset: honest docs/README, config validation, test scaffold, CI | ✅ |
-| M1 | Agent pipeline on LangGraph with checkpointed HITL resume | ✅ |
-| M2 | Auth & API hardening (cookie auth, rate limits, SSRF guard, SSE replay) | ✅ |
-| M3 | Frontend rebuild (citations UX, resilient streaming, TanStack Query) | ✅ |
-| M4 | Ship: Docker images, full compose, eval harness, deploy guide | ✅ |
+## How it works
 
-The full golden path — **register → cited report → approve → export** — runs end-to-end
-through the packaged stack and is exercised in CI by three Playwright golden journeys
-against real Postgres + Redis in deterministic fake-LLM mode.
+The pipeline is a compiled [LangGraph](https://langchain-ai.github.io/langgraph/)
+`StateGraph`. Each agent has one job, and the graph's conditional edges enforce budgets
+and retries. Screenshots below are the real product, captured from an actual run.
 
-## Quick start — full stack, one command
+```
+                    ┌──────────────────── rework (bounded) ─────────────────┐
+                    ▼                                                       │
+  Query → Planner → Executor ⇄ Critic → Synthesizer → ⏸ HUMAN GATE → Finalizer → Report
+                    (tools)   (fail-   (cited draft)   (approve /            (+ chat,
+                              closed)                   send back)            export)
+```
+
+### 1 · Ask a question
+
+Pick a depth — `fast`, `balanced`, or `comprehensive`. Depth controls how many research
+tasks the planner creates and therefore how much the run costs.
+
+![Dashboard](docs/screenshots/02-dashboard.png)
+
+### 2 · Watch the agents work
+
+The **Planner** decomposes your question into research tasks. For each task the
+**Executor** runs real tool calls (`web_search`, `read_webpage`) and returns structured
+evidence. The **Critic** grades that evidence and **fails closed** — invalid or missing
+critic output counts as a failure, never a pass — sending weak tasks back to the Executor
+up to a bounded retry limit.
+
+The live monitor streams every node event over SSE, with durable replay: reconnect
+mid-run and you lose nothing, because events are persisted to `agent_logs` and replayed
+with `Last-Event-ID` before the live tail resumes.
+
+![Live pipeline monitor](docs/screenshots/03-live-monitor.png)
+
+### 3 · Review before it's final
+
+The **Synthesizer** compiles a cited draft, then the graph hits `interrupt()` — a real
+LangGraph checkpoint pause, not a polling loop. The session's state is durably
+checkpointed in Postgres and the worker exits.
+
+You get the draft beside a decision panel: source count, cost so far, and how many rework
+rounds remain. **Approve** finalizes it; **request rework** sends your feedback back to
+the Synthesizer. Either way the run **resumes from the checkpoint** — it never re-runs
+research you already paid for.
+
+![Human approval gate](docs/screenshots/04-approval-gate.png)
+
+### 4 · Verify every claim
+
+Each `[n]` marker is a chip you can hover for the source title, domain, and the **verbatim
+snippet that supports that claim**. The sources panel lists all of them with links.
+
+![Sources panel](docs/screenshots/06-sources.png)
+
+Then ask follow-up questions in a chat grounded in the report and its sources, or export
+to Markdown or PDF.
+
+### 5 · Both themes are first-class
+
+Light by default; dark mirrors the Claude Code palette. Every color is a design token —
+no hardcoded hex — and both themes are checked for WCAG AA contrast.
+
+![Dark mode](docs/screenshots/07-report-dark.png)
+
+---
+
+## Bring your own key
+
+Users can paste their own provider key and run research on their own account. The key is
+**encrypted at rest** (Fernet/AES), never returned by any endpoint, and never sent back to
+the browser — the UI only ever shows the last four characters.
+
+![Bring your own API key](docs/screenshots/09-byok.png)
+
+Supported providers: **Anthropic (Claude)**, **Google (Gemini)**, and **OpenAI**. A user
+without a key falls back to the deployment's shared server key, subject to their monthly
+token limit.
+
+### Profile and usage
+
+Each account has a display name, a unique user ID, an avatar (or generated initials), and
+token usage for the month, the last 7 days, and the last session — measured from their own
+sessions, so it matches what actually bills against the key.
+
+![Profile and usage](docs/screenshots/08-profile.png)
+
+Set a **monthly token limit** (`0` = unlimited) to cap spend. Research is blocked with a
+clear message once an account passes it, and resets on the 1st.
+
+### Deploying for public use
+
+For a deployment where strangers sign up, the intended shape is: users bring their own
+keys, and the shared server key is either absent or tightly capped.
+
+```bash
+# .env
+ENVIRONMENT=production          # Secure cookies, /docs disabled
+DEFAULT_MONTHLY_TOKEN_LIMIT=50000   # applied to every new account
+ENCRYPTION_KEY=<openssl rand -hex 32>   # encrypts users' stored keys
+# Leave GOOGLE_API_KEY / ANTHROPIC_API_KEY unset to require BYOK from everyone.
+```
+
+Then put a TLS reverse proxy in front (see [`deploy/Caddyfile`](deploy/Caddyfile)) and read
+the security checklist in [docs/06_Security.md](docs/06_Security.md).
+
+> **`ENCRYPTION_KEY` is what protects your users' API keys.** If unset it derives from
+> `JWT_SECRET_KEY`, which works but means rotating your JWT secret makes every stored key
+> undecryptable (users are prompted to re-enter, nothing crashes). Set it explicitly in
+> production so the two rotate independently.
+
+---
+
+## Quick start — one command
 
 Prerequisites: Docker with Compose v2.
 
 ```bash
-# 1. Configure
 cp .env.example .env
-# In .env, set a real secret:      JWT_SECRET_KEY=$(openssl rand -hex 32)
-# For a keyless demo, set:          LLM_MODE=fake      (deterministic fixtures, no API keys)
-# For real research instead, set:   LLM_MODE=real  and  GOOGLE_API_KEY=<your key>
+# In .env set:  JWT_SECRET_KEY=$(openssl rand -hex 32)
+# Then either a server key (GOOGLE_API_KEY / ANTHROPIC_API_KEY),
+# or LLM_MODE=fake for a keyless demo with deterministic fixtures.
 
-# 2. Launch everything (postgres, redis, api, worker, frontend)
-LLM_MODE=fake docker compose -f docker-compose.full.yml up --build
-#   equivalently:  LLM_MODE=fake make compose-up
+docker compose -f docker-compose.full.yml up --build
 ```
 
-Then open **http://localhost:3000** → register → ask a question → watch the pipeline in
-the live monitor → approve the draft → read the cited report → export `.md` or `.pdf`.
+Open **http://localhost:3000** → register → ask a question → watch the pipeline → approve
+→ read the cited report.
 
-The api container runs `alembic upgrade head` before serving, and the worker and frontend
-wait on its readiness — so migrations apply exactly once, automatically. The **frontend is
-the only published service**; it proxies `/api/*` to the api over the internal network, so
-auth cookies stay first-party and the api/database/redis are never exposed.
+The API container runs `alembic upgrade head` before serving, and the worker and frontend
+wait on its readiness, so migrations apply exactly once, automatically. **The frontend is
+the only published service** — it proxies `/api/*` internally, so auth cookies stay
+first-party and the database is never exposed.
 
-> A [Gemini API key](https://aistudio.google.com/apikey) is only needed for real research
-> (`LLM_MODE=real`). The keyless `fake` mode returns scripted models and fixture sources so
-> you can exercise the whole flow — pipeline, approval gate, citations, chat — for free.
+> `LLM_MODE=fake` needs no API keys at all: scripted models and fixture sources let you
+> exercise the whole flow — pipeline, gate, citations, chat, export — for free.
 
-## Quick start — native development
-
-Run Postgres + Redis in containers and the app processes natively for hot reload:
+### Native development
 
 ```bash
-cp .env.example .env          # set JWT_SECRET_KEY and GOOGLE_API_KEY (or LLM_MODE=fake)
-make infra-up                 # Postgres + Redis
+make infra-up                              # Postgres + Redis only
 make backend-setup && make migrate
-make backend-dev              # API  → http://localhost:8000  (docs at /docs in dev)
-make worker                   # Celery worker (new terminal)
-make frontend-setup && make frontend-dev   # UI → http://localhost:3000 (new terminal)
+make backend-dev                           # API  → :8000  (/docs in dev)
+make worker                                # Celery worker (new terminal)
+make frontend-setup && make frontend-dev   # UI   → :3000  (new terminal)
 ```
-
-### Make targets
 
 ```bash
-make compose-up / compose-down / compose-logs   # full stack via docker compose
-make infra-up / infra-down / infra-clean        # dev: Postgres + Redis only
-make backend-setup / backend-dev / worker       # venv + API + Celery worker
-make migrate / migration msg="..."              # Alembic
-make frontend-setup / frontend-dev              # Next.js
+make compose-up / compose-down / compose-logs   # full stack
 make test / test-backend / test-frontend        # pytest + Vitest
-make eval                                       # report-quality eval suite (docs/08 §5)
-make lint / format                              # ruff + eslint
+make eval                                       # report-quality eval suite
+make lint / format
 ```
 
-## Architecture ([docs/02](docs/02_System_Architecture.md))
+---
 
-- **Backend**: FastAPI + Celery worker, PostgreSQL 16, Redis 7
-- **Agents**: LangGraph `StateGraph` with Postgres checkpointing; HITL via `interrupt()`
-  so approval/rework resume from the gate instead of re-running; structured Pydantic
-  outputs; fail-closed quality critic; per-session cost/time budgets
-- **LLMs**: BYOK, provider-pluggable — Gemini 2.5 by default (`MODEL_*` env routing);
-  `LLM_MODE=fake` swaps in scripted models + fixture retrievers for tests/demos
-- **Search**: retriever chain with fallback — Tavily → Brave → DuckDuckGo, Redis-cached;
-  SSRF guard on page fetching; untrusted-content framing
-- **Frontend**: Next.js 16 (App Router), Tailwind v4, TanStack Query; same-origin `/api`
-  proxy so cookies stay first-party and SSE authenticates natively; the live monitor
-  streams pipeline events with `Last-Event-ID` replay and a polling fallback
-- **Security** ([docs/06](docs/06_Security.md)): httpOnly cookie auth with rotating
-  refresh tokens + reuse detection, per-operation atomic rate limits, security headers,
-  strict CSP
+## Architecture
+
+- **Backend** — FastAPI + Celery worker, PostgreSQL 16, Redis 7
+- **Agents** — LangGraph `StateGraph` with Postgres checkpointing; HITL via `interrupt()`
+  so approval resumes rather than restarts; structured Pydantic outputs; fail-closed
+  critic; per-session cost and wall-clock budgets
+- **LLMs** — BYOK and provider-pluggable via `MODEL_*` routing (`provider:model`).
+  `LLM_MODE=fake` swaps in scripted models for tests and demos
+- **Search** — Tavily → Brave → DuckDuckGo fallback chain, Redis-cached, with an SSRF
+  guard on page fetching and untrusted-content framing around everything the web returns
+- **Frontend** — Next.js 16 (App Router), Tailwind v4, TanStack Query; same-origin `/api`
+  proxy so cookies stay first-party and SSE authenticates natively
+- **Security** ([docs/06](docs/06_Security.md)) — httpOnly cookie auth with rotating
+  refresh tokens and reuse detection, per-operation atomic rate limits, encrypted BYOK
+  keys, security headers, strict CSP
 
 ## Configuration
 
-Every variable is documented in [`.env.example`](.env.example) and validated at startup
-(`backend/app/config.py`): the app refuses to boot with a placeholder or short
-`JWT_SECRET_KEY`, and in production it verifies every routed model provider has an API key.
+Every variable is documented in [`.env.example`](.env.example) and validated at startup —
+the app refuses to boot with a placeholder or short `JWT_SECRET_KEY`, and in production it
+verifies every routed model provider has a key.
 
 | Variable | Required | Notes |
 |---|---|---|
-| `JWT_SECRET_KEY` | ✅ | ≥ 32 random chars; placeholders refused (`openssl rand -hex 32`) |
-| `DATABASE_URL` | ✅ | async PostgreSQL DSN (set for you in the full-stack compose) |
-| `REDIS_URL` | ✅ | broker, cache, pub/sub (set for you in compose) |
-| `LLM_MODE` | ⚪ | `real` (default) or `fake` (keyless deterministic) |
-| `GOOGLE_API_KEY` | with default routing | BYOK; not needed in `fake` mode |
-| `MODEL_PLANNER` … `MODEL_CHAT` | ⚪ | `provider:model` routing per agent role |
-| `TAVILY_API_KEY`, `BRAVE_API_KEY` | ⚪ | optional retrievers; DuckDuckGo is the keyless fallback |
-| `MAX_COST_PER_SESSION_USD` | ⚪ | hard budget per session (default 0.50) |
-| `ENVIRONMENT` | ⚪ | `development` (default) or `production` (Secure cookies, `/docs` off) |
+| `JWT_SECRET_KEY` | ✅ | ≥ 32 random chars (`openssl rand -hex 32`) |
+| `DATABASE_URL`, `REDIS_URL` | ✅ | Set for you by the full-stack compose |
+| `LLM_MODE` | ⚪ | `real` (default) or `fake` (keyless, deterministic) |
+| `GOOGLE_API_KEY` / `ANTHROPIC_API_KEY` | with matching routing | Server key; users may BYOK instead |
+| `MODEL_PLANNER` … `MODEL_CHAT` | ⚪ | `provider:model` per agent role |
+| `ENCRYPTION_KEY` | ⚪ (recommended in prod) | Encrypts users' stored keys; defaults to deriving from `JWT_SECRET_KEY` |
+| `DEFAULT_MONTHLY_TOKEN_LIMIT` | ⚪ | Token cap for new accounts; `0` = unlimited |
+| `MAX_COST_PER_SESSION_USD` | ⚪ | Hard per-session budget (default `0.50`) |
+| `ENVIRONMENT` | ⚪ | `development` or `production` (Secure cookies, `/docs` off) |
 
-## Testing & quality ([docs/08](docs/08_Testing_and_Quality.md))
+## Testing ([docs/08](docs/08_Testing_and_Quality.md))
 
-- **Backend**: pytest — unit, pipeline (fake-LLM graph), and integration (real
-  Postgres + Redis) suites; migrations are applied on every CI run.
-- **Frontend**: Vitest (SSE parser, citation renderer, derivations) + `next build`.
-- **Golden E2E**: three Playwright journeys through the packaged stack in fake-LLM mode.
-- **Evals**: `make eval` runs a fixed query set and records report-quality metrics to
-  `backend/evals/results/` as dated JSON, diffable over time.
+- **Backend** — pytest: unit, pipeline (fake-LLM graph), and integration suites; migrations
+  run on every CI run
+- **Frontend** — Vitest (SSE parser, citation renderer, derivations) + `next build`
+- **Golden E2E** — three Playwright journeys through the packaged stack in fake-LLM mode
+- **Evals** — `make eval` scores a fixed query set and writes dated JSON to
+  `backend/evals/results/`, so report quality is diffable over time
 
 ## Deployment ([docs/09](docs/09_Deployment_and_Operations.md))
 
-Single host + a TLS reverse proxy in front of the frontend. Example artifacts:
+Single host plus a TLS reverse proxy in front of the frontend:
 
-- [`deploy/Caddyfile`](deploy/Caddyfile) — automatic-HTTPS reverse proxy (set your
-  domain and `ENVIRONMENT=production`).
-- [`deploy/backup-postgres.sh`](deploy/backup-postgres.sh) — nightly `pg_dump` with a
-  cron example; a single dump captures full state (reports, audit rows, checkpoints).
+- [`deploy/Caddyfile`](deploy/Caddyfile) — automatic-HTTPS reverse proxy
+- [`deploy/backup-postgres.sh`](deploy/backup-postgres.sh) — nightly `pg_dump` with cron
+  and restore examples; one dump captures full state
 
 Tagging `vX.Y.Z` triggers [`release.yml`](.github/workflows/release.yml), which builds and
 pushes the api/worker/frontend images to GHCR and cuts a GitHub Release.
 
 ## Documentation
 
-The build contract lives in [`docs/`](docs/00_INDEX.md):
 [Vision](docs/01_Product_Vision.md) ·
 [Architecture](docs/02_System_Architecture.md) ·
 [Tech Stack](docs/03_Tech_Stack.md) ·
@@ -160,5 +245,5 @@ The build contract lives in [`docs/`](docs/00_INDEX.md):
 
 ## License
 
-No license has been set yet — add a `LICENSE` file to choose one (MIT is the
-conventional choice for a self-hostable BYOK tool). Until then, all rights are reserved.
+No license has been set yet — add a `LICENSE` file to choose one. Until then, all rights
+are reserved.

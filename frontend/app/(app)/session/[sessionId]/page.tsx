@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect } from "react";
 
 import { RelativeTime } from "@/components/RelativeTime";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -20,6 +19,9 @@ export default function SessionPage() {
   const params = useParams<{ sessionId: string }>();
   const sessionId = params.sessionId;
 
+  // useSession self-polls every 5s while the run is active (docs/07 §3) — SSE is the
+  // fast path for live events, polling is the safety net for state transitions. The page
+  // used to hang on the monitor forever if the terminal event was ever missed.
   const sessionQuery = useSession(sessionId);
   const session = sessionQuery.data;
   const status = session?.status;
@@ -28,13 +30,6 @@ export default function SessionPage() {
   // (optimistically), which re-enables this and re-subscribes through the same path.
   const streamEnabled = status === "PENDING" || status === "RUNNING";
   const stream = useSessionStream(sessionId, streamEnabled);
-
-  // Fallback: if the live stream is degraded, poll the session every 5s (docs/07 §3).
-  useEffect(() => {
-    if (!(streamEnabled && stream.state === "reconnecting")) return;
-    const id = setInterval(() => void sessionQuery.refetch(), 5000);
-    return () => clearInterval(id);
-  }, [streamEnabled, stream.state, sessionQuery]);
 
   if (sessionQuery.isLoading) {
     return (

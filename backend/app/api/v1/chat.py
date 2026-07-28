@@ -19,13 +19,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent import prompts
-from app.agent.llm_factory import get_llm, text_of
+from app.agent.llm_factory import get_llm, reset_user_keys, set_user_keys, text_of
 from app.db.base import get_db
 from app.dependencies import enforce_chat_rate_limit, get_current_user
 from app.models.chat_message import ChatMessage
 from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.schemas.research import ChatMessageSchema, ChatRequest
+from app.services import crypto
+from app.services.sse import SSE_HEADERS
 
 router = APIRouter(prefix="/research/{session_id}/chat", tags=["Chat"])
 
@@ -104,10 +106,18 @@ async def send_message(
             HumanMessage(content=m.content) if m.role == "user" else AIMessage(content=m.content)
         )
 
+    # BYOK: follow-up chat runs on the same user's key as their research did.
+    user_keys: dict[str, str] = {}
+    if current_user.api_key_encrypted and current_user.api_key_provider:
+        plaintext = crypto.decrypt(current_user.api_key_encrypted)
+        if plaintext:
+            user_keys = {current_user.api_key_provider: plaintext}
+
     async def gen() -> AsyncGenerator[str, None]:
-        llm = get_llm("chat")
+        keys_token = set_user_keys(user_keys)
         acc = ""
         try:
+            llm = get_llm("chat")  # raises with an actionable message if no key
             yield f"data: {json.dumps({'type': 'connected'})}\n\n"
             async for chunk in llm.astream(messages):
                 text = text_of(chunk)
@@ -121,13 +131,11 @@ async def send_message(
             yield f"data: {json.dumps({'type': 'done', 'message_id': str(msg.id)})}\n\n"
         except Exception as e:  # noqa: BLE001
             yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
+        finally:
+            reset_user_keys(keys_token)
 
     return StreamingResponse(
         gen(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-            "Connection": "keep-alive",
-        },
+        headers=SSE_HEADERS,
     )

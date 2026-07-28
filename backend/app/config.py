@@ -59,6 +59,15 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 15
     jwt_refresh_token_expire_days: int = 14
     require_email_verification: bool = False
+    # Encrypts user-supplied BYOK provider keys at rest. Falls back to
+    # jwt_secret_key (domain-separated via HKDF) so self-hosters need no extra
+    # setup; set it explicitly to rotate JWTs without invalidating stored keys.
+    encryption_key: str = ""
+
+    # ── BYOK / usage limits ────────────────────────────────────────────────────
+    # Default monthly token ceiling applied to new users (0 = unlimited). Public
+    # deployments should set this so one account can't drain a shared server key.
+    default_monthly_token_limit: int = 0
 
     # ── Agent budgets (docs/04 §6) ─────────────────────────────────────────────
     max_critic_loops: int = 2

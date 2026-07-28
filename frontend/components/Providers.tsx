@@ -28,7 +28,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      {/* Light is the product default (docs/07 §1); enableSystem=false so a
+          dark-OS user still lands on the intended default until they toggle. */}
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
         {children}
         <Toaster
           position="bottom-right"

@@ -14,11 +14,44 @@ export type ResearchDepth = "fast" | "balanced" | "comprehensive";
 
 export type AgentName = "planner" | "executor" | "critic" | "synthesizer";
 
+export type ApiKeyProvider = "google" | "anthropic" | "openai";
+
 export interface User {
   id: string;
   email: string;
   is_active: boolean;
   created_at: string;
+  // Profile
+  display_name: string | null;
+  avatar_url: string | null;
+  monthly_token_limit: number;
+  // BYOK status — the key itself is never sent to the client.
+  api_key_provider: ApiKeyProvider | null;
+  api_key_hint: string | null;
+  api_key_set_at: string | null;
+}
+
+export interface ProfileUpdate {
+  display_name?: string | null;
+  avatar_url?: string | null;
+  monthly_token_limit?: number;
+}
+
+export interface UsageWindow {
+  tokens_input: number;
+  tokens_output: number;
+  tokens_total: number;
+  cost_usd: number;
+  sessions: number;
+}
+
+export interface Usage {
+  month: UsageWindow;
+  week: UsageWindow;
+  last_session: UsageWindow;
+  monthly_token_limit: number;
+  limit_remaining: number | null;
+  limit_reached: boolean;
 }
 
 export interface Source {
