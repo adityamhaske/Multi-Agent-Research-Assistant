@@ -5,6 +5,8 @@
 
 [![CI](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml)
 [![eval](https://img.shields.io/badge/eval-baseline%20recorded-blue)](backend/evals/results/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 Ask a research question. A pipeline of specialized agents (**Planner → Executor → Critic
 → Synthesizer**) searches the web, gathers evidence with sources, drafts a cited report,
