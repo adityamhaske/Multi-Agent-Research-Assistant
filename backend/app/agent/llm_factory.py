@@ -122,6 +122,31 @@ def get_llm(role: str) -> BaseChatModel:
     return _build(provider, model, role)
 
 
+def text_of(message_or_chunk) -> str:
+    """Extract plain text from a model response.
+
+    Modern LangChain returns `.content` either as a plain string (Gemini 2.5,
+    most providers) or as a list of typed content blocks (Gemini 3.x, and any
+    model emitting thinking + text parts). Treating the list case with str()
+    would splice a Python repr into the report, and ignoring it would drop the
+    text entirely — so normalize both shapes here and use this everywhere.
+    """
+    content = getattr(message_or_chunk, "content", message_or_chunk)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict):
+                # Only user-visible text; thinking/reasoning blocks are skipped.
+                if block.get("type") in (None, "text") and isinstance(block.get("text"), str):
+                    parts.append(block["text"])
+        return "".join(parts)
+    return ""
+
+
 def estimate_cost(response, role: str) -> float:
     """Cost of one response from its usage_metadata and the role's model price."""
     usage = getattr(response, "usage_metadata", None) or {}

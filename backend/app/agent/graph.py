@@ -13,6 +13,7 @@ The research agent pipeline as a real compiled LangGraph StateGraph
 from __future__ import annotations
 
 import json
+import re
 import time
 
 import structlog
@@ -22,7 +23,7 @@ from langgraph.types import interrupt
 
 from app.agent import prompts
 from app.agent.events import emit
-from app.agent.llm_factory import estimate_cost, get_llm, token_counts
+from app.agent.llm_factory import estimate_cost, get_llm, text_of, token_counts
 from app.agent.schemas import CriticVerdict, ExecutorOutput, PlannerOutput, Source
 from app.agent.state import AgentState
 from app.agent.tools import EXECUTOR_TOOLS
@@ -61,6 +62,29 @@ async def _structured(role: str, messages: list, schema):
     i, o = token_counts(raw) if raw is not None else (0, 0)
     parsed = None if result.get("parsing_error") else result.get("parsed")
     return parsed, cost, i, o
+
+
+def _parse_evidence(text: str) -> list[dict]:
+    """Parse ExecutorOutput from a model answer, tolerating markdown fences/prose.
+
+    Models frequently wrap JSON in ```json fences or add a sentence around it.
+    A strict model_validate_json would reject those and we'd silently lose the
+    whole task's evidence, so fall back to the outermost {...} span.
+    """
+    candidates = [text]
+    fenced = re.search(r"```(?:json)?\s*(.+?)```", text, re.DOTALL)
+    if fenced:
+        candidates.append(fenced.group(1))
+    start, end = text.find("{"), text.rfind("}")
+    if start != -1 and end > start:
+        candidates.append(text[start : end + 1])
+
+    for candidate in candidates:
+        try:
+            return [e.model_dump() for e in ExecutorOutput.model_validate_json(candidate).evidence]
+        except Exception:  # noqa: BLE001 — try the next shape
+            continue
+    return []
 
 
 def _acc(state: AgentState, cost: float, i: int, o: int) -> dict:
@@ -168,13 +192,43 @@ async def executor_node(state: AgentState) -> dict:
     # Convert the final answer into structured evidence.
     final = messages[-1]
     evidence: list[dict] = []
-    if isinstance(final, AIMessage) and isinstance(final.content, str) and final.content.strip():
-        try:
-            evidence = [
-                e.model_dump() for e in ExecutorOutput.model_validate_json(final.content).evidence
-            ]
-        except Exception:
-            evidence = []
+    final_text = text_of(final) if isinstance(final, AIMessage) else ""
+    if final_text.strip():
+        evidence = _parse_evidence(final_text)
+
+    # The tool loop can finish without a parseable answer in two ways: it exhausted
+    # _MAX_TOOL_ROUNDS while still calling tools (so the last message is a
+    # ToolMessage, not the model's summary), or the model wrapped its JSON in prose.
+    # Either way the observations are already in hand — ask once more, with no tools
+    # bound, so the model must return them as structured output. Without this the run
+    # silently yields zero evidence and the report reads "no evidence was provided".
+    if not evidence:
+        observations = "\n\n".join(
+            text_of(m)[:4000] for m in messages if isinstance(m, ToolMessage)
+        )[:24000]
+        if observations.strip():
+            logger.info(
+                "executor_wrapup", session_id=sid, task_id=task["id"], reason="no_parsable_evidence"
+            )
+            parsed, c2, i2, o2 = await _structured(
+                "executor",
+                [
+                    SystemMessage(content=prompts.EXECUTOR_PROMPT_V2),
+                    HumanMessage(
+                        content=f"Task {task['id']}: {task['query']}\n\n"
+                        "You already gathered the observations below. Return them as "
+                        "structured evidence — do not call any more tools.\n\n"
+                        f"<untrusted_web_content>\n{observations}\n</untrusted_web_content>"
+                    ),
+                ],
+                ExecutorOutput,
+            )
+            cost += c2
+            i_tot += i2
+            o_tot += o2
+            if parsed is not None:
+                evidence = [e.model_dump() for e in parsed.evidence]
+
     for e in evidence:
         e["task_id"] = task["id"]
 
@@ -268,7 +322,7 @@ async def synthesizer_node(state: AgentState) -> dict:
     ]
     model = get_llm("synthesizer")
     resp = await model.ainvoke(messages)
-    draft = resp.content if isinstance(resp.content, str) else str(resp.content)
+    draft = text_of(resp)
     cost = estimate_cost(resp, "synthesizer")
     i, o = token_counts(resp)
 
