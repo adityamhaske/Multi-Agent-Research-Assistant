@@ -19,7 +19,7 @@ langgraph-checkpoint-postgres>=2.0
 # AsyncPostgresSaver runs on psycopg (not asyncpg). [binary] bundles libpq so the
 # checkpointer works in the slim container without a system libpq — without this every
 # worker run fails with "no pq wrapper available" (found via docker-compose smoke test).
-psycopg[binary]>=3.2
+psycopg[binary]>=3.3.4
 langchain-core>=0.3
 langchain-google-genai>=2.0
 # BYOK providers — enabled for Anthropic routing (MODEL_*=anthropic:...).
