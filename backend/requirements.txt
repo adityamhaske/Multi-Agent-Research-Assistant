@@ -44,7 +44,7 @@ structlog>=24.4
 
 # Export: Markdown → HTML (python-markdown) → PDF (WeasyPrint)
 markdown>=3.5
-weasyprint>=62
+weasyprint>=69.0
 
 # Testing
 pytest>=8.3
