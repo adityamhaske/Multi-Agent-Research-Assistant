@@ -65,6 +65,17 @@ export function useUpdateProfile() {
   });
 }
 
+/**
+ * Change the account password. The server revokes every other refresh token and
+ * re-issues this device's cookies, so the caller stays signed in.
+ */
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (body: { current_password: string; new_password: string }) =>
+      apiFetch<{ message: string }>("/auth/me/password", { method: "POST", body }),
+  });
+}
+
 /** Store a BYOK provider key. The key is sent once and never returned. */
 export function useSetApiKey() {
   const qc = useQueryClient();

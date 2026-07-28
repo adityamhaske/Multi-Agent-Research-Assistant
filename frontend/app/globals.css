@@ -46,6 +46,13 @@
   --agent-hitl: #b54f2a;
 
   --ring: color-mix(in srgb, var(--accent) 45%, transparent);
+
+  /* Elevation. Warm-tinted rather than neutral grey so shadows sit in the same
+     family as the paper — a neutral black shadow reads "cheap" on cream. */
+  --shadow-xs: 0 1px 2px 0 rgb(60 45 35 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(60 45 35 / 0.07), 0 1px 2px -1px rgb(60 45 35 / 0.06);
+  --shadow-md: 0 4px 12px -2px rgb(60 45 35 / 0.09), 0 2px 4px -2px rgb(60 45 35 / 0.05);
+  --shadow-lg: 0 12px 28px -6px rgb(60 45 35 / 0.14), 0 4px 8px -4px rgb(60 45 35 / 0.06);
 }
 
 .dark {
@@ -74,6 +81,13 @@
   --agent-hitl: #d97757;
 
   --ring: color-mix(in srgb, var(--accent) 55%, transparent);
+
+  /* On dark, elevation comes mostly from the surface step; shadows stay deep and
+     subtle so cards don't glow. */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.25);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.35), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 12px 28px -6px rgb(0 0 0 / 0.55), 0 4px 8px -4px rgb(0 0 0 / 0.35);
 }
 
 /* Map raw tokens into Tailwind's theme so `bg-bg-surface`, `text-text-muted`,
@@ -206,42 +220,49 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    font-weight: 600;
-    font-size: 0.9375rem;
-    padding: 0.625rem 1.25rem;
+    font-weight: 550;
+    font-size: 0.875rem;
+    letter-spacing: -0.006em;
+    line-height: 1.25rem;
+    padding: 0.5rem 0.9375rem;
     border-radius: 0.5rem;
     border: 1px solid transparent;
     cursor: pointer;
     white-space: nowrap;
     transition:
-      background-color 0.15s,
-      border-color 0.15s,
-      color 0.15s,
-      transform 0.1s;
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease,
+      box-shadow 0.15s ease,
+      transform 0.08s ease;
   }
   .btn:disabled {
-    opacity: 0.55;
+    opacity: 0.5;
     cursor: not-allowed;
   }
   .btn:active:not(:disabled) {
-    transform: scale(0.985);
+    transform: translateY(0.5px);
   }
 
   .btn-primary {
     background-color: var(--accent);
     color: var(--accent-contrast);
+    box-shadow: var(--shadow-xs);
   }
   .btn-primary:hover:not(:disabled) {
-    background-color: color-mix(in srgb, var(--accent) 88%, black);
+    background-color: color-mix(in srgb, var(--accent) 90%, black);
+    box-shadow: var(--shadow-sm);
   }
 
   .btn-secondary {
-    background-color: var(--bg-elevated);
+    background-color: var(--bg-surface);
     color: var(--text-primary);
     border-color: var(--border);
+    box-shadow: var(--shadow-xs);
   }
   .btn-secondary:hover:not(:disabled) {
-    background-color: color-mix(in srgb, var(--bg-elevated) 80%, var(--text-muted));
+    background-color: var(--bg-elevated);
+    border-color: color-mix(in srgb, var(--border) 60%, var(--text-muted));
   }
 
   .btn-ghost {
@@ -266,8 +287,31 @@
   .card {
     background-color: var(--bg-surface);
     border: 1px solid var(--border);
-    border-radius: 0.875rem;
+    border-radius: 0.75rem;
     padding: 1.5rem;
+    box-shadow: var(--shadow-xs);
+  }
+
+  /* An interactive card lifts on hover — the affordance that says "this is a link". */
+  .card-interactive {
+    transition:
+      box-shadow 0.18s ease,
+      border-color 0.18s ease,
+      transform 0.18s ease;
+  }
+  .card-interactive:hover {
+    box-shadow: var(--shadow-md);
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+    transform: translateY(-1px);
+  }
+
+  /* Section label above a group of settings — small, tracked-out, quiet. */
+  .eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
   }
 
   .input-base,
@@ -276,14 +320,25 @@
     background-color: var(--bg-base);
     border: 1px solid var(--border);
     border-radius: 0.5rem;
-    padding: 0.625rem 0.875rem;
+    padding: 0.5625rem 0.8125rem;
     color: var(--text-primary);
     font-family: var(--font-sans);
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
+    line-height: 1.375rem;
     outline: none;
     transition:
-      border-color 0.15s,
-      box-shadow 0.15s;
+      border-color 0.15s ease,
+      box-shadow 0.15s ease,
+      background-color 0.15s ease;
+  }
+  .input-base:hover:not(:focus):not(:disabled),
+  .textarea-base:hover:not(:focus):not(:disabled) {
+    border-color: color-mix(in srgb, var(--border) 55%, var(--text-muted));
+  }
+  .input-base:disabled,
+  .textarea-base:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
   .textarea-base {
     resize: vertical;
@@ -309,6 +364,79 @@
     font-weight: 600;
     line-height: 1.2;
     border: 1px solid transparent;
+  }
+
+  /* Popover surface for the account menu. Sits above the page on --bg-surface so
+     it stays legible over the translucent nav. */
+  .menu-surface {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow-lg);
+    padding: 0.3125rem;
+  }
+
+  .menu-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.625rem;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.625rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-align: left;
+    cursor: pointer;
+    transition:
+      background-color 0.12s ease,
+      color 0.12s ease;
+  }
+  .menu-item:hover,
+  .menu-item:focus-visible {
+    background-color: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+  .menu-item[data-danger="true"]:hover {
+    color: var(--danger);
+    background-color: color-mix(in srgb, var(--danger) 10%, transparent);
+  }
+
+  .menu-separator {
+    height: 1px;
+    margin: 0.3125rem -0.3125rem;
+    background-color: var(--border);
+  }
+
+  /* Segmented control — used for the account sub-nav and depth picker. */
+  .segmented {
+    display: inline-flex;
+    gap: 0.125rem;
+    padding: 0.1875rem;
+    border-radius: 0.625rem;
+    background-color: var(--bg-elevated);
+    border: 1px solid var(--border);
+  }
+  .segmented-item {
+    border-radius: 0.4375rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 550;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  .segmented-item:hover {
+    color: var(--text-secondary);
+  }
+  .segmented-item[aria-current="page"],
+  .segmented-item[aria-selected="true"],
+  .segmented-item[aria-checked="true"] {
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-xs);
   }
 
   .spinner {

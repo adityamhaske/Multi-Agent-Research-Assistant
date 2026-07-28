@@ -58,6 +58,14 @@ class ProfileUpdate(BaseModel):
         return v
 
 
+class PasswordChangeRequest(BaseModel):
+    """Change the account password. Proving knowledge of the current one is what
+    stops a stolen session cookie from being escalated into a permanent takeover."""
+
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=MIN_LENGTH, max_length=200)
+
+
 class ApiKeyRequest(BaseModel):
     """User-supplied provider key (BYOK). Stored encrypted, never returned."""
 

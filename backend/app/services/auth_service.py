@@ -65,6 +65,15 @@ async def revoke_refresh_token(db: AsyncSession, raw: str) -> None:
     )
 
 
+async def revoke_all_for_user(db: AsyncSession, user_id: UUID) -> None:
+    """Revoke every live refresh token for a user — signs out all their devices.
+
+    Public entry point for deliberate account-wide sign-out (password change);
+    reuse detection calls the same logic via the private alias below.
+    """
+    await _revoke_all_for_user(db, user_id)
+
+
 async def _revoke_all_for_user(db: AsyncSession, user_id: UUID) -> None:
     await db.execute(
         update(RefreshToken)

@@ -98,13 +98,14 @@ Supported providers: **Anthropic (Claude)**, **Google (Gemini)**, and **OpenAI**
 without a key falls back to the deployment's shared server key, subject to their monthly
 token limit.
 
-### Profile and usage
+### Account: Profile and Settings
 
-Each account has a display name, a unique user ID, an avatar (or generated initials), and
-token usage for the month, the last 7 days, and the last session — measured from their own
-sessions, so it matches what actually bills against the key.
+The account area splits along a clean line. **Profile** is identity — display name, photo
+(or generated initials), email, and password change. **Settings** is operation — token
+usage, your API key, spending limit, and appearance. Both live behind the avatar menu in
+the top bar, which shows your picture and first name only.
 
-![Profile and usage](docs/screenshots/08-profile.png)
+![Profile](docs/screenshots/08-profile.png)
 
 Set a **monthly token limit** (`0` = unlimited) to cap spend. Research is blocked with a
 clear message once an account passes it, and resets on the 1st.
@@ -135,6 +136,23 @@ the security checklist in [docs/06_Security.md](docs/06_Security.md).
 ## Quick start — one command
 
 Prerequisites: Docker with Compose v2.
+
+```bash
+./start.sh
+```
+
+That's it. The script creates `.env` if missing (generating a JWT secret), checks your
+config, builds and starts all five services, waits until every one reports healthy, and
+opens the app.
+
+```bash
+./start.sh --fake      # keyless demo — no API key needed
+./start.sh --logs      # start, then follow logs
+./start.sh --stop      # stop (data preserved)
+./start.sh --reset     # stop and delete all data (asks first)
+```
+
+Prefer to drive compose yourself:
 
 ```bash
 cp .env.example .env
@@ -230,6 +248,15 @@ Tagging `vX.Y.Z` triggers [`release.yml`](.github/workflows/release.yml), which 
 pushes the api/worker/frontend images to GHCR and cuts a GitHub Release.
 
 ## Documentation
+
+**Start here for depth:** [`docs/deep-dive/`](docs/deep-dive/00_INDEX.md) — four documents
+covering the [end-to-end system](docs/deep-dive/01_End_to_End_System.md) (stakeholders,
+usage, architecture, a principal-engineer technical review, and what's genuinely novel),
+the [HLD](docs/deep-dive/02_HLD.md), the [LLD](docs/deep-dive/03_LLD.md), and an
+[interview defense](docs/deep-dive/04_Interview_Defense.md) with post-mortems of the four
+production bugs found by actually running the system.
+
+The build contract:
 
 [Vision](docs/01_Product_Vision.md) ·
 [Architecture](docs/02_System_Architecture.md) ·

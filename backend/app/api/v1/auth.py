@@ -23,6 +23,7 @@ from app.models.user import User
 from app.schemas.auth import (
     ApiKeyRequest,
     LoginRequest,
+    PasswordChangeRequest,
     ProfileUpdate,
     RegisterRequest,
     UsageResponse,
@@ -176,6 +177,54 @@ async def update_me(
     await db.refresh(current_user)
     logger.info("profile_updated", user_id=str(current_user.id), fields=sorted(fields))
     return UserResponse.model_validate(current_user)
+
+
+@router.post("/me/password", status_code=200)
+async def change_password(
+    payload: PasswordChangeRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    redis=Depends(get_redis),
+):
+    """Change the account password.
+
+    Requires the current password (a stolen session cookie alone must not be
+    enough to lock the owner out), applies the same strength policy as
+    registration, and revokes every refresh token for the account so other
+    devices are signed out. The caller keeps working: we immediately issue a
+    fresh token pair on this response.
+    """
+    # Reuse the login limiter: this endpoint verifies a password, so it is a
+    # brute-force target in exactly the same way.
+    ip = get_client_ip(request)
+    limited = await rate_limit.check(redis, rate_limit.key_login_ip(ip), rate_limit.LOGIN_IP)
+    if not limited.allowed:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many attempts. Please wait before trying again.",
+        )
+
+    if not verify_password(payload.current_password, current_user.hashed_pw):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Current password is incorrect.")
+    if payload.new_password == payload.current_password:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="New password must be different from the current one.",
+        )
+
+    try:
+        current_user.hashed_pw = hash_password(payload.new_password)
+    except WeakPassword as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
+
+    # Sign out every other device, then re-issue for this one.
+    await auth_service.revoke_all_for_user(db, current_user.id)
+    await _issue_session(response, db, current_user)
+    await db.commit()
+    logger.info("password_changed", user_id=str(current_user.id))
+    return {"message": "Password updated. Other devices have been signed out."}
 
 
 @router.put("/me/api-key", response_model=UserResponse)

@@ -47,15 +47,18 @@ export default function DashboardPage() {
   return (
     <div className="space-y-10">
       <section aria-labelledby="new-research">
-        <h1 id="new-research" className="mb-1 text-xl font-semibold text-text-primary">
+        <h1
+          id="new-research"
+          className="mb-1 text-2xl font-semibold tracking-[-0.02em] text-text-primary"
+        >
           New research
         </h1>
-        <p className="mb-4 text-sm text-text-muted">
-          Describe what you want to know. The agents will plan, gather cited evidence, and draft a
-          report for your review.
+        <p className="mb-5 max-w-2xl text-sm leading-relaxed text-text-muted">
+          Describe what you want to know. The agents plan, gather cited evidence, and draft a report
+          for your review.
         </p>
 
-        <form onSubmit={submit} className="card space-y-5">
+        <form onSubmit={submit} className="card space-y-5 p-5 sm:p-6">
           <div>
             <label htmlFor="query" className="mb-1.5 block text-sm font-medium text-text-secondary">
               Research question
@@ -85,7 +88,7 @@ export default function DashboardPage() {
               {DEPTHS.map((d) => (
                 <label
                   key={d.value}
-                  className="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors"
+                  className="flex cursor-pointer flex-col gap-1 rounded-lg border p-3.5 transition-all hover:shadow-xs"
                   style={{
                     borderColor: depth === d.value ? "var(--accent)" : "var(--border)",
                     backgroundColor:
@@ -118,7 +121,7 @@ export default function DashboardPage() {
 
       <section aria-labelledby="recent">
         <div className="mb-4 flex items-center justify-between">
-          <h2 id="recent" className="text-lg font-semibold text-text-primary">
+          <h2 id="recent" className="text-base font-semibold tracking-[-0.01em] text-text-primary">
             Recent sessions
           </h2>
           {data && data.total > 5 && (
@@ -148,8 +151,10 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="card text-center">
-            <p className="text-sm text-text-secondary">No research yet.</p>
+          <div className="card flex flex-col items-center py-10 text-center">
+            <span aria-hidden className="mb-2 text-2xl opacity-60">◇</span>
+            <p className="text-sm font-medium text-text-primary">No research yet</p>
+            <p className="mt-0.5 text-xs text-text-muted">Your completed reports will appear here.</p>
             <button
               type="button"
               onClick={() => setQuery(SAMPLE_QUERY)}

@@ -104,3 +104,38 @@ def test_profile_rejects_negative_token_limit():
 def test_usage_window_defaults_to_zero():
     w = UsageWindow()
     assert (w.tokens_total, w.cost_usd, w.sessions) == (0, 0.0, 0)
+
+
+# ── Password change ──────────────────────────────────────────────────────────
+
+
+def test_password_change_requires_min_length():
+    from app.schemas.auth import PasswordChangeRequest
+
+    with pytest.raises(ValidationError):
+        PasswordChangeRequest(current_password="whatever", new_password="short")
+
+
+def test_password_change_accepts_a_strong_new_password():
+    from app.schemas.auth import PasswordChangeRequest
+
+    req = PasswordChangeRequest(
+        current_password="old-correct-horse-battery",
+        new_password="new-correct-horse-battery",
+    )
+    assert req.new_password != req.current_password
+
+
+def test_password_policy_rejects_common_choices():
+    from app.services.passwords import WeakPassword, validate_password
+
+    with pytest.raises(WeakPassword):
+        validate_password("password123")
+
+
+def test_auth_service_exposes_public_revoke_all():
+    # The password-change flow signs out other devices; that entry point must be
+    # public API, not a private helper that could be renamed out from under it.
+    from app.services import auth_service
+
+    assert callable(auth_service.revoke_all_for_user)

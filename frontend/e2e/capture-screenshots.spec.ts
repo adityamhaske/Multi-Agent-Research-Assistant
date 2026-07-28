@@ -98,18 +98,27 @@ test("capture product screenshots", async ({ page }) => {
   await page.waitForTimeout(800);
   await shot(page, "07-report-dark");
 
-  // ── 7. Profile / usage / BYOK ─────────────────────────────────────────────
-  await page.goto("/settings");
+  // ── 7. Profile (identity + password) ──────────────────────────────────────
+  await page.goto("/profile");
   await setTheme(page, "light");
   await page.waitForTimeout(800);
   await shot(page, "08-profile");
 
-  await page.evaluate(() => {
-    const el = document.getElementById("key-heading");
-    if (el) window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 60);
-  });
-  await page.waitForTimeout(500);
+  // ── 8. Settings (usage + BYOK) ────────────────────────────────────────────
+  await page.goto("/settings");
+  await page.waitForTimeout(800);
   await shot(page, "09-byok");
+
+  // ── 8b. Account menu open (nav IA) ────────────────────────────────────────
+  await page.getByRole("button", { name: /account|ada|docs-/i }).first().click().catch(() => {});
+  await page.evaluate(() => {
+    const b = [...document.querySelectorAll("button")].find(
+      (x) => x.getAttribute("aria-haspopup") === "menu",
+    );
+    if (b && b.getAttribute("aria-expanded") !== "true") (b as HTMLButtonElement).click();
+  });
+  await page.waitForTimeout(400);
+  await shot(page, "11-account-menu");
 
   // ── 8. History ────────────────────────────────────────────────────────────
   await page.goto("/history");
