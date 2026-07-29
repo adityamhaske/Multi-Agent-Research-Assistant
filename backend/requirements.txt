@@ -1,11 +1,11 @@
 # API
-fastapi>=0.115,<1.0
+fastapi>=0.140.13,<1.0
 uvicorn[standard]>=0.30
 pydantic[email]>=2.10,<3.0
 pydantic-settings>=2.6
 
 # Database
-sqlalchemy[asyncio]>=2.0.36,<2.1
+sqlalchemy[asyncio]>=2.0.51,<2.1
 asyncpg>=0.30
 alembic>=1.14
 
@@ -19,7 +19,7 @@ langgraph-checkpoint-postgres>=2.0
 # AsyncPostgresSaver runs on psycopg (not asyncpg). [binary] bundles libpq so the
 # checkpointer works in the slim container without a system libpq — without this every
 # worker run fails with "no pq wrapper available" (found via docker-compose smoke test).
-psycopg[binary]>=3.2
+psycopg[binary]>=3.3.4
 langchain-core>=0.3
 langchain-google-genai>=2.0
 # BYOK providers — enabled for Anthropic routing (MODEL_*=anthropic:...).
@@ -44,7 +44,7 @@ structlog>=24.4
 
 # Export: Markdown → HTML (python-markdown) → PDF (WeasyPrint)
 markdown>=3.5
-weasyprint>=62
+weasyprint>=69.0
 
 # Testing
 pytest>=8.3

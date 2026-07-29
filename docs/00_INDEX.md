@@ -21,6 +21,8 @@
 | 09 | [Deployment & Operations](09_Deployment_and_Operations.md) | Docker, environments, migrations, observability, runbook |
 | 10 | [Roadmap](10_Roadmap.md) | Vertical-slice milestones with verifiable Definitions of Done |
 | 11 | [Engineering Standards](11_Engineering_Standards.md) | DOs/DON'Ts, code style, git conventions, review checklist |
+| 12 | [v2 Launch Plan](12_Launch_Plan.md) | **[PLANNED]** Local-first strategy, milestones M5–M14, budget, binding out-of-scope list |
+| 13 | [Local-First Architecture](13_Local_First_Architecture.md) | **[PLANNED]** Engine extraction, ports/adapters, desktop packaging, offline tiers |
 
 ## How to use these docs
 
