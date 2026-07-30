@@ -3,6 +3,11 @@
 from celery import Celery
 
 from app.config import settings
+from app.runtime import install_process_default
+
+# `app.agent` does not read `app.config` (docs/13 §2) — the worker process installs
+# the engine's baseline config here, before any task can import the graph.
+install_process_default()
 
 celery_app = Celery(
     "research_worker",

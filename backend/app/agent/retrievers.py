@@ -16,7 +16,7 @@ import json
 import httpx
 import structlog
 
-from app.config import settings
+from app.agent.runconfig import get_run_config
 
 logger = structlog.get_logger()
 
@@ -25,13 +25,14 @@ _CACHE_TTL = 86_400
 
 
 async def _tavily(query: str, max_results: int) -> list[SearchResult]:
-    if not settings.tavily_api_key:
+    api_key = get_run_config().tavily_api_key
+    if not api_key:
         return []
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.post(
             "https://api.tavily.com/search",
             json={
-                "api_key": settings.tavily_api_key,
+                "api_key": api_key,
                 "query": query,
                 "max_results": max_results,
             },
@@ -45,13 +46,14 @@ async def _tavily(query: str, max_results: int) -> list[SearchResult]:
 
 
 async def _brave(query: str, max_results: int) -> list[SearchResult]:
-    if not settings.brave_api_key:
+    api_key = get_run_config().brave_api_key
+    if not api_key:
         return []
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.get(
             "https://api.search.brave.com/res/v1/web/search",
             params={"q": query, "count": max_results},
-            headers={"X-Subscription-Token": settings.brave_api_key},
+            headers={"X-Subscription-Token": api_key},
         )
         resp.raise_for_status()
         data = resp.json()
@@ -80,7 +82,7 @@ _CHAIN = (("tavily", _tavily), ("brave", _brave), ("duckduckgo", _duckduckgo))
 
 async def search(query: str, max_results: int = 5) -> list[SearchResult]:
     """Run the retriever chain with Redis caching. Raises on total exhaustion."""
-    if settings.llm_mode == "fake":
+    if get_run_config().llm_mode == "fake":
         from app.agent.fakes import fake_search
 
         return fake_search(query, max_results)

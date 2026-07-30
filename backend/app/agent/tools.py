@@ -18,7 +18,7 @@ from langchain_core.tools import tool
 
 from app.agent.net_guard import SSRFBlocked, validate_url
 from app.agent.retrievers import search
-from app.config import settings
+from app.agent.runconfig import get_run_config
 
 MAX_PAGE_CHARS = 8000
 MAX_BODY_BYTES = 2 * 1024 * 1024
@@ -45,7 +45,7 @@ async def read_webpage(url: str) -> dict:
     Use after web_search to read a promising page. SSRF-guarded: internal,
     loopback, and cloud-metadata addresses are refused. Not for PDFs/videos.
     """
-    if settings.llm_mode == "fake":
+    if get_run_config().llm_mode == "fake":
         from app.agent.fakes import fake_read_webpage
 
         return fake_read_webpage(url)

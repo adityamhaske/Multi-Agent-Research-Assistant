@@ -4,7 +4,7 @@
 > human-in-the-loop approval gate and verifiable per-claim citations.
 
 [![CI](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml)
-[![eval](https://img.shields.io/badge/eval-baseline%20recorded-blue)](backend/evals/results/)
+[![eval](https://img.shields.io/badge/eval-fake--mode%20baseline-lightgrey)](backend/evals/results/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -236,7 +236,10 @@ verifies every routed model provider has a key.
 - **Frontend** — Vitest (SSE parser, citation renderer, derivations) + `next build`
 - **Golden E2E** — three Playwright journeys through the packaged stack in fake-LLM mode
 - **Evals** — `make eval` scores a fixed query set and writes dated JSON to
-  `backend/evals/results/`, so report quality is diffable over time
+  `backend/evals/results/`, so report quality is diffable over time. **The committed
+  baseline is a fake-mode run**: it pins the metric plumbing and structural numbers, not
+  model quality. Real-model runs (`LLM_MODE=real make eval`) additionally compute the
+  LLM-judged citation-support rate that the release criteria gate on
 
 ## Deployment ([docs/09](docs/09_Deployment_and_Operations.md))
 
@@ -274,5 +277,4 @@ The build contract:
 
 ## License
 
-No license has been set yet — add a `LICENSE` file to choose one. Until then, all rights
-are reserved.
+[MIT](LICENSE) — free to use, modify, and self-host, commercially or otherwise.

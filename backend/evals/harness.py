@@ -33,7 +33,11 @@ from langgraph.checkpoint.memory import MemorySaver  # noqa: E402
 
 from app.agent.graph import build_graph  # noqa: E402
 from app.config import settings  # noqa: E402
+from app.runtime import install_process_default  # noqa: E402
 from evals import metrics  # noqa: E402
+
+# The eval harness is a host: `app.agent` no longer reads `app.config` (docs/13 §2).
+install_process_default()
 
 EVALS_DIR = Path(__file__).resolve().parent
 RESULTS_DIR = EVALS_DIR / "results"

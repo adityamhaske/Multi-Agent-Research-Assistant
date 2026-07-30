@@ -24,10 +24,10 @@ from langgraph.types import interrupt
 from app.agent import prompts
 from app.agent.events import emit
 from app.agent.llm_factory import estimate_cost, get_llm, text_of, token_counts
+from app.agent.runconfig import get_run_config
 from app.agent.schemas import CriticVerdict, ExecutorOutput, PlannerOutput, Source
 from app.agent.state import AgentState
 from app.agent.tools import EXECUTOR_TOOLS
-from app.config import settings
 
 logger = structlog.get_logger()
 
@@ -45,7 +45,7 @@ async def _structured(role: str, messages: list, schema):
     available for cost; fake models return JSON content we parse directly.
     """
     model = get_llm(role)
-    if settings.llm_mode == "fake":
+    if get_run_config().llm_mode == "fake":
         resp = await model.ainvoke(messages)
         cost = estimate_cost(resp, role)
         i, o = token_counts(resp)
@@ -372,10 +372,11 @@ def failer_node(state: AgentState) -> dict:
 
 
 def _over_budget(state: AgentState) -> bool:
+    cfg = get_run_config()
     return (
-        state.get("cost_usd", 0.0) >= settings.max_cost_per_session_usd
+        state.get("cost_usd", 0.0) >= cfg.max_cost_per_session_usd
         or state.get("tokens_input", 0) >= 1_000_000
-        or (time.time() - state.get("started_at", time.time())) >= settings.max_wallclock_seconds
+        or (time.time() - state.get("started_at", time.time())) >= cfg.max_wallclock_seconds
     )
 
 
@@ -389,7 +390,8 @@ def route_after_critic(state: AgentState) -> str:
     if _over_budget(state):
         return "failer"
     verdict = state.get("critic_verdict") or {}
-    if not verdict.get("passed") and state.get("critic_retries", 0) < settings.max_critic_loops:
+    max_retries = get_run_config().max_critic_loops
+    if not verdict.get("passed") and state.get("critic_retries", 0) < max_retries:
         return "executor"
     if state["current_task_index"] + 1 < len(state["tasks"]):
         return "next_task"

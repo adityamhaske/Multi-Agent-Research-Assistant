@@ -140,18 +140,40 @@ Adapter matrix:
 | `RunLock` | Redis token lock | in-process `asyncio.Lock` (single process) |
 | Job execution | Celery task | `asyncio.create_task` |
 
-`RunConfig` carries everything the graph currently reads from `settings`: `llm_mode`,
-per-role routing, budgets, retriever keys. It is constructed by each host — from env
-in the server, from a local JSON/keychain read on the desktop — and threaded through
-`AgentState` so nodes read `state["run_config"]` instead of a global.
+`RunConfig` carries everything the graph used to read from `settings`: `llm_mode`,
+per-role routing, budgets, retriever keys. It is constructed by each host — from env in
+the server (`app/runtime.py`), from local JSON + OS keychain on the desktop.
+
+**Delivery mechanism: a module default plus a `ContextVar` override**
+([`app/agent/runconfig.py`](../backend/app/agent/runconfig.py)), *not* threading through
+`AgentState` as an earlier draft of this document said. `AgentState` cannot reach the
+retriever chain: LangGraph invokes tools without passing state, and `retrievers.search()`
+is called from inside `web_search`. A `ContextVar` reaches both, and matches the two
+existing precedents in the package (`events._emitter`, `llm_factory._user_keys`).
+
+- `set_process_default(cfg)` — one baseline per process, installed by the host.
+- `set_run_config(cfg)` — per-run override; what M8's per-session model picker uses.
+- `get_run_config()` — override → process default → module defaults, where the module
+  defaults mirror `app/config.py`'s field defaults exactly, so a host that forgets to
+  install degrades to today's behaviour rather than to something new.
+
+**Status: ✅ built (M6 step 1).** `app/agent/` no longer imports `app.config`;
+`import app.agent.graph` and `build_graph()` both succeed with no `DATABASE_URL`, no
+`JWT_SECRET_KEY`, and no provider keys. Enforced by
+[`tests/test_engine_boundary.py`](../backend/tests/test_engine_boundary.py), which
+AST-scans the package for host imports and pins the defaults equivalence.
 
 ## 5. Migration sequence (strangler — CI green at every step)
 
 Do **not** big-bang this. Each step is independently mergeable and testable.
 
-1. **Introduce `RunConfig`; stop reading `settings` inside `app/agent/`.** Server host
-   builds it from `settings` and passes it in. Behaviour identical, tests unchanged.
-   This is the whole risky part; do it first and alone.
+1. **✅ Introduce `RunConfig`; stop reading `settings` inside `app/agent/`.** Server host
+   builds it from `settings` and installs it. Behaviour identical, existing tests
+   unchanged. This was the whole risky part; done first and alone.
+   Hosts installing a config: `app/main.py` (lifespan), `app/workers/celery_app.py`
+   (import time), `evals/harness.py`, `tests/conftest.py`. Remaining engine→host
+   import: `app.db.redis` in `retrievers.py`, resolved by step 3's `Cache` port and
+   allowlisted in the boundary test until then.
 2. **Move `app/agent/*` → `packages/research-engine/`** with `app.agent` left as a
    re-export shim so nothing else in `backend/` moves yet. Add the import-linter
    contract.

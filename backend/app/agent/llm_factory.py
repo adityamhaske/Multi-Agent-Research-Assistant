@@ -14,7 +14,7 @@ from contextvars import ContextVar
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from app.config import settings
+from app.agent.runconfig import RunConfig, get_run_config
 
 # $ per 1M tokens. Review when models change (docs/03 upgrade policy).
 PRICE_TABLE: dict[str, dict[str, float]] = {
@@ -69,37 +69,28 @@ def reset_user_keys(token) -> None:
 
 
 def api_key_for(provider: str) -> str:
-    """The user's BYOK key for a provider if present, else the server's key."""
+    """The user's BYOK key for a provider if present, else the deployment's key."""
     user_key = (_user_keys.get() or {}).get(provider, "")
     if user_key:
         return user_key
-    return {
-        "google": settings.google_api_key,
-        "anthropic": settings.anthropic_api_key,
-        "openai": settings.openai_api_key,
-    }.get(provider, "")
-
-
-def _routing() -> dict[str, str]:
-    return {
-        "planner": settings.model_planner,
-        "executor": settings.model_executor,
-        "critic": settings.model_critic,
-        "synthesizer": settings.model_synthesizer,
-        "chat": settings.model_chat,
-    }
+    return get_run_config().provider_keys.get(provider, "")
 
 
 def model_name_for(role: str) -> str:
     """The bare model id (no provider prefix) for a role — used for pricing."""
-    return _routing()[role].split(":", 1)[-1]
+    return get_run_config().model_for(role).split(":", 1)[-1]
 
 
-def validate_pricing() -> None:
+def validate_pricing(cfg: RunConfig | None = None) -> None:
     """Fail fast if any routed model lacks a price entry (called at startup)."""
-    if settings.llm_mode == "fake":
+    cfg = cfg or get_run_config()
+    if cfg.llm_mode == "fake":
         return
-    missing = {name for name in (model_name_for(r) for r in _routing()) if name not in PRICE_TABLE}
+    missing = {
+        name
+        for name in (cfg.model_for(role).split(":", 1)[-1] for role in cfg.models)
+        if name not in PRICE_TABLE
+    }
     if missing:
         raise ValueError(
             f"No price-table entry for routed model(s): {sorted(missing)}. "
@@ -154,11 +145,12 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
 
 def get_llm(role: str) -> BaseChatModel:
     """Return the chat model for an agent role."""
-    if settings.llm_mode == "fake":
+    cfg = get_run_config()
+    if cfg.llm_mode == "fake":
         from app.agent.fakes import fake_model
 
         return fake_model()
-    provider, _, model = _routing()[role].partition(":")
+    provider, _, model = cfg.model_for(role).partition(":")
     return _build(provider, model, role)
 
 
