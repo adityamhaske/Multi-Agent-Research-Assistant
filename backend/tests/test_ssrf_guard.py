@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.agent.net_guard import SSRFBlocked, validate_url
+from research_engine.net_guard import SSRFBlocked, validate_url
 
 
 @pytest.mark.parametrize(

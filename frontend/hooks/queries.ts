@@ -6,9 +6,12 @@ import { ApiError, apiFetch } from "@/lib/api";
 import type {
   ApiKeyProvider,
   ChatMessage,
+  ModelCatalog,
+  ModelRouting,
   ProfileUpdate,
   ResearchDepth,
   ResearchStartResponse,
+  RoutingResponse,
   SessionDetail,
   SessionListResponse,
   Usage,
@@ -26,6 +29,7 @@ export const queryKeys = {
   sessions: (page: number) => ["sessions", page] as const,
   session: (id: string) => ["session", id] as const,
   chat: (id: string) => ["chat", id] as const,
+  models: ["models"] as const,
 };
 
 // ─── Auth ────────────────────────────────────────────────────────────────────────
@@ -160,5 +164,37 @@ export function useChatHistory(id: string, enabled = true) {
     queryFn: () => apiFetch<ChatMessage[]>(`/research/${id}/chat`),
     enabled: enabled && Boolean(id),
     staleTime: Infinity,
+  });
+}
+
+// ─── Models (docs/12 M8) ─────────────────────────────────────────────────────────
+
+/**
+ * The catalog rarely changes within a session, but a user adding an API key flips
+ * `available` on a whole provider — so it's invalidated by the key mutations rather
+ * than polled.
+ */
+export function useModelCatalog() {
+  return useQuery({
+    queryKey: queryKeys.models,
+    queryFn: () => apiFetch<ModelCatalog>("/models"),
+    staleTime: 60_000,
+  });
+}
+
+export function useSetModelRouting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (routing: ModelRouting) =>
+      apiFetch<RoutingResponse>("/models/routing", { method: "PUT", body: { routing } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.models }),
+  });
+}
+
+export function useResetModelRouting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch<RoutingResponse>("/models/routing", { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.models }),
   });
 }

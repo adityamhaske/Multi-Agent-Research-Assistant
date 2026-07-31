@@ -21,7 +21,7 @@ Image rules: multi-stage builds, non-root runtime user, pinned base images,
 | Env | How | Notes |
 |---|---|---|
 | Local dev | `make infra-up` + `make backend-dev` + `make worker` + `make frontend-dev` | hot reload; `.env` from `.env.example` |
-| Full-stack local / demo | `docker compose -f docker-compose.full.yml up` | one command; the 15-minute clone-to-report path from [01](01_Product_Vision.md) |
+| Full-stack local / demo | `docker compose -f docker-compose.full.yml up` | one command; the 15-minute clone-to-report path from [01](../product/01_Product_Vision.md) |
 | Production (single host) | same compose file + TLS reverse proxy (Caddy/Traefik) in front of the frontend | documented in README; frontend is the only public service |
 
 ## 3. Configuration

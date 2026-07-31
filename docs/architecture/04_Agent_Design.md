@@ -2,7 +2,7 @@
 
 > The complete contract for the agent layer. The graph is a real compiled
 > `langgraph.StateGraph` with Postgres checkpointing. There is no fallback
-> "simplified runner" — that pattern is banned ([00_INDEX.md](00_INDEX.md)).
+> "simplified runner" — that pattern is banned ([00_INDEX.md](../00_INDEX.md)).
 
 ## 1. Graph topology
 
@@ -46,9 +46,13 @@ class AgentState(TypedDict):
     original_query: str
     research_depth: Literal["fast", "balanced", "comprehensive"]
     tasks: list[ResearchTask]          # from PlannerOutput
-    current_task_index: int
-    evidence: list[EvidenceChunk]      # accumulated, per-task tagged
-    critic_retries: int                # per current task
+    # Tasks run concurrently in rounds (docs/12 M7), so progress is tracked per task
+    # rather than by a moving index. `verdicts`/`retries` are keyed by str(task_id)
+    # because the checkpointer serializes state as JSON.
+    evidence: list[EvidenceChunk]      # rebuilt each round in TASK order, not completion
+    verdicts: dict[str, CriticVerdict]
+    retries: dict[str, int]
+    research_round: int
     draft_report: str | None
     human_feedback: str | None
     rework_count: int                  # bounded, see §6
@@ -117,12 +121,12 @@ Tools (each with one responsibility, defined in `app/agent/tools.py`):
 | Tool | Contract | Guards |
 |---|---|---|
 | `web_search(query, max_results=5)` | Retriever chain: Tavily → Brave → ddgs, first success wins; results normalized to `{title, url, snippet}` | Redis cache (24h); per-retriever timeout 10s; chain exhaustion returns an explicit error the executor must surface |
-| `read_webpage(url)` | Fetch + extract main text (≤ 8000 chars), title | **SSRF guard** ([06](06_Security.md) §3): scheme allowlist, resolve-and-check IPs, redirect re-validation, response size cap 2 MB, content-type must be text/html |
+| `read_webpage(url)` | Fetch + extract main text (≤ 8000 chars), title | **SSRF guard** ([06](../engineering/06_Security.md) §3): scheme allowlist, resolve-and-check IPs, redirect re-validation, response size cap 2 MB, content-type must be text/html |
 | `calculate(expression)` | AST-restricted arithmetic | numbers + `+ - * / **` only |
 
 **Untrusted-content framing:** all retrieved text enters prompts wrapped in
 `<untrusted_web_content>` tags with a standing instruction that content inside the tags
-is data, never instructions ([06](06_Security.md) §4).
+is data, never instructions ([06](../engineering/06_Security.md) §4).
 
 ## 5. Prompts
 

@@ -53,7 +53,7 @@ service (Next.js `rewrites`). Consequences, all intentional:
 
 1. `POST /api/v1/research` — API validates, creates `sessions` row
    (status `PENDING`), enqueues `run_agent_pipeline(session_id)`, returns `202` with the
-   session id. Rate limit: research-specific key (see [06](06_Security.md)).
+   session id. Rate limit: research-specific key (see [06](../engineering/06_Security.md)).
 2. Browser navigates to the session page and opens
    `GET /api/v1/research/{id}/stream` (SSE, cookie-authed via proxy). On connect the
    API first **replays persisted `agent_logs`** for the session (so refresh/late-join
@@ -84,7 +84,7 @@ Any state → FAILED (reason recorded; terminal)
 Transitions are performed **only** by the worker (single writer), inside one database
 session scope per task run. The API changes session state in exactly one place:
 `FAILED` on enqueue errors. All transitions are asserted by tests
-([08](08_Testing_and_Quality.md)).
+([08](../engineering/08_Testing_and_Quality.md)).
 
 ## 4. Agent pipeline (summary — full contract in [04](04_Agent_Design.md))
 
@@ -105,7 +105,7 @@ session scope per task run. The API changes session state in exactly one place:
 | Auth | Session cookie (httpOnly) — sent automatically; no tokens in URLs, ever |
 | Durability | Events are rows in `agent_logs` first, Redis pub/sub second. Connect = replay from DB, then live tail. `Last-Event-ID` supported using the log row id |
 | Event contract | Typed events (`agent_log`, `HITL_READY`, `COMPLETED`, `FAILED`) — schema in [05](05_Data_and_API.md) |
-| Chat streaming | `POST /chat` returns an SSE `StreamingResponse` consumed via `fetch` + buffered reader (UTF-8-safe, boundary-safe parsing per [07](07_UIUX_Guidelines.md) §7) |
+| Chat streaming | `POST /chat` returns an SSE `StreamingResponse` consumed via `fetch` + buffered reader (UTF-8-safe, boundary-safe parsing per [07](../product/07_UIUX_Guidelines.md) §7) |
 
 ## 6. Concurrency & idempotency
 

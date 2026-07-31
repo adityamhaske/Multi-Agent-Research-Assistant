@@ -55,9 +55,10 @@ Nodes return **partial dicts**, LangGraph merges them. Key fields:
 
 | Field | Owner | Notes |
 |---|---|---|
-| `tasks`, `current_task_index` | planner / advance_task | drives the per-task loop |
-| `evidence[]` | executor | accumulates across tasks; each item tagged `task_id` |
-| `critic_verdict`, `critic_retries` | critic | retries reset on task advance |
+| `tasks` | planner | the work list; researched concurrently in rounds (docs/12 M7) |
+| `evidence[]` | executor | **rebuilt each round in task order**, never completion order — otherwise citation numbers shuffle between identical runs; each item tagged `task_id` |
+| `verdicts{}`, `retries{}` | critic | per task, keyed by `str(task_id)` (state is JSON in the checkpointer); a task leaves the pending set when it passes or exhausts retries |
+| `research_round` | executor | how many executor→critic rounds have run |
 | `draft_report`, `sources[]` | synthesizer | `sources` is the numbered citation table |
 | `approved`, `human_feedback`, `rework_count` | gate | set from the resume `Command` |
 | `cost_usd`, `tokens_input`, `tokens_output` | every node via `_acc()` | budget inputs |

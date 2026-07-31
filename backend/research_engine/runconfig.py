@@ -4,7 +4,7 @@ Run-scoped engine configuration (docs/13 §4, docs/12 M6 step 1).
 The agent package must not read `app.config` or the process environment. It is being
 extracted into a standalone `research_engine` package that has to run inside a desktop
 app with no Postgres, no Redis, and no `.env` file — see
-docs/13_Local_First_Architecture.md §2 for the measured coupling this removes.
+docs/architecture/13_Local_First_Architecture.md §2 for the measured coupling this removes.
 
 Everything the graph, the model factory, the retrievers, and the tools used to read
 from `settings` now arrives as a `RunConfig`.
@@ -67,10 +67,19 @@ class RunConfig:
     tavily_api_key: str = ""
     brave_api_key: str = ""
 
+    # Where a local Ollama server listens (docs/13 §6). Overridable so the desktop build
+    # can point at a remote box on the LAN instead of the machine it runs on.
+    ollama_base_url: str = "http://localhost:11434/v1"
+
     # Budgets (docs/04 §6)
     max_critic_loops: int = 2
     max_cost_per_session_usd: float = 0.50
     max_wallclock_seconds: int = 600
+
+    # How many research tasks may run at once (docs/12 M7). 1 restores the old strictly
+    # sequential behaviour, which also makes budget overshoot impossible — see
+    # `graph._BudgetGuard` on why concurrency can only bound overshoot, not eliminate it.
+    max_parallel_tasks: int = 4
 
     def model_for(self, role: str) -> str:
         """The "provider:model" string routed to a role."""

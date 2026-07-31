@@ -73,11 +73,11 @@ test-frontend:
 	cd frontend && npm test
 
 lint:
-	cd backend && . .venv/bin/activate && ruff check app/ tests/ evals/
+	cd backend && . .venv/bin/activate && ruff check app/ research_engine/ tests/ evals/
 	cd frontend && npm run lint
 
 format:
-	cd backend && . .venv/bin/activate && ruff format app/ tests/ evals/ && ruff check --fix app/ tests/ evals/
+	cd backend && . .venv/bin/activate && ruff format app/ research_engine/ tests/ evals/ && ruff check --fix app/ research_engine/ tests/ evals/
 
 ## ─── Evals (docs/08 §5) ─────────────────────────────────────────────────────────
 # Fake mode by default (deterministic, no keys). Real: LLM_MODE=real GOOGLE_API_KEY=… make eval

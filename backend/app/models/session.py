@@ -47,6 +47,13 @@ class Session(Base):
     total_tokens_output: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     elapsed_seconds: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
     rework_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # Which models actually produced this report (docs/12 M8). Snapshotted at run time
+    # rather than read back from the user's current preference, because a preference can
+    # change afterwards and a report has to stay attributable to what wrote it — the same
+    # reason the approval decision is recorded in the audit log.
+    model_routing: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

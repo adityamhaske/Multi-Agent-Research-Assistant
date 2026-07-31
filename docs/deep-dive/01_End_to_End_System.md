@@ -45,7 +45,7 @@ Concretely, it is:
 
 Scope discipline is part of the design. This is **not** a chatbot, a general agent
 platform, a RAG-over-your-documents product, or a multi-tenant SaaS with billing. Those
-are in [../01_Product_Vision.md](../01_Product_Vision.md) as a binding out-of-scope list,
+are in [../01_Product_Vision.md](../product/01_Product_Vision.md) as a binding out-of-scope list,
 because the failure mode of a project like this is becoming four half-products.
 
 ---
@@ -57,7 +57,7 @@ because the failure mode of a project like this is becoming four half-products.
 | **Researcher / analyst** (primary user) | An answer they can defend in a meeting | Cited report; hover any `[n]` for the verbatim supporting snippet; grounded follow-up chat; `.md`/`.pdf` export | `lib/citations.tsx`, `services/export.py` |
 | **Reviewer / approver** (may be the same person, different hat) | To see the evidence *before* the artifact is final, and for that decision to be recorded | HITL gate with source count, cost, rework budget; every decision writes an `audit_log` row with a **SHA-256 of the exact draft approved** | `api/v1/research.py::approve_or_rework`, `models/audit_log.py` |
 | **Operator / self-hoster** | To run this without leaking keys or getting a surprise bill | One-command compose; migrations on start; per-session cost ceiling; per-user monthly token limits; BYOK so users spend their own money | `docker-compose.full.yml`, `config.py`, `services/usage.py` |
-| **Security reviewer** | To approve it for a network with real data | Threat model, SSRF guard, untrusted-content framing, cookie auth with rotation + reuse detection, encrypted BYOK, strict CSP | [../06_Security.md](../06_Security.md), `agent/net_guard.py` |
+| **Security reviewer** | To approve it for a network with real data | Threat model, SSRF guard, untrusted-content framing, cookie auth with rotation + reuse detection, encrypted BYOK, strict CSP | [../06_Security.md](../engineering/06_Security.md), `agent/net_guard.py` |
 | **Engineer inheriting it** | To change it without fear | Specs that match the code, 69 backend + 39 frontend tests, named regression tests per historical bug, eval baseline | `docs/`, `backend/tests/`, `backend/evals/` |
 | **Interviewer / reviewer of the author** | Evidence of judgment, not just output | This folder; the bug post-mortems in [04](04_Interview_Defense.md) | — |
 

@@ -126,7 +126,7 @@ ENCRYPTION_KEY=<openssl rand -hex 32>   # encrypts users' stored keys
 ```
 
 Then put a TLS reverse proxy in front (see [`deploy/Caddyfile`](deploy/Caddyfile)) and read
-the security checklist in [docs/06_Security.md](docs/06_Security.md).
+the security checklist in [docs/engineering/06_Security.md](docs/engineering/06_Security.md).
 
 > **`ENCRYPTION_KEY` is what protects your users' API keys.** If unset it derives from
 > `JWT_SECRET_KEY`, which works but means rotating your JWT secret makes every stored key
@@ -207,7 +207,7 @@ make lint / format
   guard on page fetching and untrusted-content framing around everything the web returns
 - **Frontend** — Next.js 16 (App Router), Tailwind v4, TanStack Query; same-origin `/api`
   proxy so cookies stay first-party and SSE authenticates natively
-- **Security** ([docs/06](docs/06_Security.md)) — httpOnly cookie auth with rotating
+- **Security** ([docs/06](docs/engineering/06_Security.md)) — httpOnly cookie auth with rotating
   refresh tokens and reuse detection, per-operation atomic rate limits, encrypted BYOK
   keys, security headers, strict CSP
 
@@ -229,7 +229,7 @@ verifies every routed model provider has a key.
 | `MAX_COST_PER_SESSION_USD` | ⚪ | Hard per-session budget (default `0.50`) |
 | `ENVIRONMENT` | ⚪ | `development` or `production` (Secure cookies, `/docs` off) |
 
-## Testing ([docs/08](docs/08_Testing_and_Quality.md))
+## Testing ([docs/08](docs/engineering/08_Testing_and_Quality.md))
 
 - **Backend** — pytest: unit, pipeline (fake-LLM graph), and integration suites; migrations
   run on every CI run
@@ -241,7 +241,7 @@ verifies every routed model provider has a key.
   model quality. Real-model runs (`LLM_MODE=real make eval`) additionally compute the
   LLM-judged citation-support rate that the release criteria gate on
 
-## Deployment ([docs/09](docs/09_Deployment_and_Operations.md))
+## Deployment ([docs/09](docs/engineering/09_Deployment_and_Operations.md))
 
 Single host plus a TLS reverse proxy in front of the frontend:
 
@@ -263,17 +263,17 @@ production bugs found by actually running the system.
 
 The build contract:
 
-[Vision](docs/01_Product_Vision.md) ·
-[Architecture](docs/02_System_Architecture.md) ·
-[Tech Stack](docs/03_Tech_Stack.md) ·
-[Agent Design](docs/04_Agent_Design.md) ·
-[Data & API](docs/05_Data_and_API.md) ·
-[Security](docs/06_Security.md) ·
-[UI/UX](docs/07_UIUX_Guidelines.md) ·
-[Testing](docs/08_Testing_and_Quality.md) ·
-[Deployment](docs/09_Deployment_and_Operations.md) ·
-[Roadmap](docs/10_Roadmap.md) ·
-[Standards](docs/11_Engineering_Standards.md)
+[Vision](docs/product/01_Product_Vision.md) ·
+[Architecture](docs/architecture/02_System_Architecture.md) ·
+[Tech Stack](docs/architecture/03_Tech_Stack.md) ·
+[Agent Design](docs/architecture/04_Agent_Design.md) ·
+[Data & API](docs/architecture/05_Data_and_API.md) ·
+[Security](docs/engineering/06_Security.md) ·
+[UI/UX](docs/product/07_UIUX_Guidelines.md) ·
+[Testing](docs/engineering/08_Testing_and_Quality.md) ·
+[Deployment](docs/engineering/09_Deployment_and_Operations.md) ·
+[Roadmap](docs/product/10_Roadmap.md) ·
+[Standards](docs/engineering/11_Engineering_Standards.md)
 
 ## License
 

@@ -9,9 +9,9 @@ key degrades to the server key instead of crashing the pipeline.
 import pytest
 from pydantic import ValidationError
 
-from app.agent import llm_factory
 from app.schemas.auth import ApiKeyRequest, ProfileUpdate, UsageWindow
 from app.services import crypto
+from research_engine import llm_factory
 
 KEY = "AIzaSyEXAMPLEuserkey1234567890abcd"
 

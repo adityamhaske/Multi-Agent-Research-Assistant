@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -36,6 +36,13 @@ class User(Base):
     # Rolling-month ceiling on total tokens. 0 = unlimited (the default for
     # self-hosted single-user installs).
     monthly_token_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # ── Model routing (docs/12 M8) ─────────────────────────────────────────────
+    # Per-role "provider:model" map, e.g. {"planner": "anthropic:claude-opus-5", …}.
+    # NULL means "use the deployment's MODEL_* routing" — the default, and what every
+    # existing user keeps until they choose otherwise. Validated against the catalog
+    # on write, so an unroutable or unpriced model can never be persisted here.
+    model_routing: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     sessions: Mapped[list["Session"]] = relationship(  # noqa: F821
         "Session",

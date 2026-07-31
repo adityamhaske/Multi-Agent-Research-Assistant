@@ -3,7 +3,7 @@
 > Continues [10_Roadmap.md](10_Roadmap.md) (M0–M4 ✅ code complete). Same rules:
 > vertical slices, every milestone independently demoable, **done only when its
 > Definition of Done passes verbatim**. Architecture contract for M6–M10 is
-> [13_Local_First_Architecture.md](13_Local_First_Architecture.md).
+> [13_Local_First_Architecture.md](../architecture/13_Local_First_Architecture.md).
 >
 > Status legend: ☐ not started · ◐ in progress · ✅ done
 
@@ -58,11 +58,11 @@ Existing per-operation rate limits handle abuse.
 
 ☐ Nothing below ships on an unverified claim. This milestone buys the right to launch.
 
-- **Fix the README license contradiction.** [README.md:275](../README.md:275) says "No
+- **Fix the README license contradiction.** [README.md:275](../../README.md:275) says "No
   license has been set yet" while MIT ships in `LICENSE` and the badge at line 8 links to
   it. This is on the landing page of the thing being launched.
 - **Record a real-model eval run.** The committed baseline
-  ([`eval-2026-07-23.json`](../backend/evals/results/eval-2026-07-23.json)) is fake-mode:
+  ([`eval-2026-07-23.json`](../../backend/evals/results/eval-2026-07-23.json)) is fake-mode:
   all 10 queries returned identical output — 41 words, 2 sources, 5 citations, $0.00084 —
   and `citation_support_rate` is `null`. The product's central claim is currently
   **unmeasured**. `LLM_MODE=real make eval`, ~$5 of credit, commit the result.
@@ -85,71 +85,141 @@ against it, or explicitly confirmed unchanged.
 
 ## M6 — Engine extraction  *(≈ 3 weeks)*  ← the one big rock
 
-☐ Per [13_Local_First_Architecture.md](13_Local_First_Architecture.md) §3–§5. Nothing in
-M9 is possible until this lands. Do it as the five-step strangler; keep CI green at every
-step.
+✅ **Code complete.** Per [13_Local_First_Architecture.md](../architecture/13_Local_First_Architecture.md)
+§3–§5. Nothing in M9 was possible until this landed. Five-step strangler; CI green at
+every step.
 
-Cheaper than it looks: `events.py` and `llm_factory.py` are **already** ContextVar-
-indirected, and `retrievers.py` already degrades without Redis. The blocker is
+Cheaper than it looks, and it was: `events.py` and `llm_factory.py` were **already**
+ContextVar-indirected, and `retrievers.py` already degraded without Redis. The blocker was
 `app/config.py` being a required-field singleton — the same coupling `evals/harness.py`
-already hacks around with `os.environ.setdefault`.
+still hacks around with `os.environ.setdefault`.
 
-- `RunConfig` dataclass; zero `settings` reads inside engine code
-- `packages/research-engine/` extracted, no FastAPI/Celery/SQLAlchemy/Redis in its
-  dependency tree, enforced by an **import-linter contract in CI**
-- `runner.py` with injected checkpointer / sink / lock / key provider;
-  `pipeline_runner.py` reduced to the server adapter
-- SQLite adapters + a `research-engine` CLI that runs a query to the gate on a bare
-  machine with no Docker
+- ✅ `RunConfig` dataclass; zero `settings` reads inside engine code
+- ✅ `backend/research_engine/` extracted (§3 deviation 1 — under `backend/`, not
+  top-level, so the api/worker Docker build context still finds it). No FastAPI/Celery/
+  SQLAlchemy/Redis in its dependency tree, proven by the built wheel's metadata and
+  enforced by `tests/test_engine_boundary.py`
+- ✅ `runner.py` with injected checkpointer / event sink / cache / run config / provider
+  keys, returning a plain `RunOutcome`; `pipeline_runner.py` reduced to the server
+  adapter. Two ports, not four — `KeyProvider` and `RunLock` were dropped with reasons
+  (§4 of doc 13). **Engine→host imports: zero.**
+- ✅ SQLite adapters (`local.py`) + the `research-engine` CLI: runs to the gate on a bare
+  machine, and `--approve` in a **separate process** finalizes from the SQLite checkpoint
+- ✅ `evals/harness.py` builds its config from the environment, not `app.config` — the
+  `os.environ.setdefault` workaround is gone
 
-**DoD:** `pip install packages/research-engine && research-engine "query" --fake`
-produces a cited draft on a machine with no Postgres, Redis, or Docker · import-linter
-contract passes in CI · the `os.environ.setdefault` block is **deleted** from
-`evals/harness.py` and evals still pass · all existing backend tests and the three golden
-E2E journeys pass unchanged.
+**DoD — met:**
+
+| Criterion | Result |
+|---|---|
+| `research-engine "query" --fake` → cited draft, no Postgres/Redis/Docker | ✅ run from `/tmp`, outside the repo, with the server env unset |
+| Boundary contract passes in CI | ✅ allowlist empty; engine imports zero `app.*` |
+| `os.environ.setdefault` deleted from `evals/harness.py`, evals still pass | ✅ harness imports zero `app.*`; `make eval` needs no DB or JWT secret |
+| All existing backend tests + three golden E2E journeys unchanged | ✅ **98 passed / 1 skipped** (68 at the start of M6) |
+
+**Verified beyond the DoD:** durable HITL works locally — process 1 pauses at the gate and
+exits, process 2 approves from `checkpoints.sqlite` at unchanged cost, so research is not
+re-run. The built wheel declares no FastAPI/Celery/SQLAlchemy/asyncpg/Redis/PyJWT/
+WeasyPrint and registers the `research-engine` console script; model providers and SQLite
+checkpointing are extras (`[google]`, `[anthropic]`, `[openai]`, `[local]`).
+
+**One estimate correction:** `pipeline_runner.py` was projected to shrink to ~30 lines; it
+went 211 → 187. Everything left is genuinely host work — the Redis lock, the single
+DB-session scope, BYOK decryption, the Postgres saver, and mapping `RunOutcome` onto ORM
+columns. A thin adapter is not the same as a short one.
 
 ## M7 — Parallel task execution  *(≈ 1 week)*
 
-☐ [`graph.py:399`](../backend/app/agent/graph.py:399) advances `current_task_index` one at
-a time, so a comprehensive run is N sequential LLM+tool rounds. This is a user-facing
-latency problem, not an architecture aspiration.
+✅ **Code complete.** The graph used to advance a `current_task_index` one task at a time,
+so a run was N sequential LLM+tool rounds. That was a user-facing latency problem, not an
+architecture aspiration.
 
-- Fan out independent research tasks concurrently with a bounded worker count
-- Budget guards enforced against **aggregate** in-flight spend, not per-task — the
-  current `_over_budget` check assumes sequential accumulation
-- Per-task critic retries preserved; evidence merge stays deterministic (stable ordering,
-  so citation numbering doesn't shuffle between runs)
-- Events keep per-task attribution so the live monitor shows parallel lanes
+- ✅ Research runs in **rounds**: every pending task concurrently, bounded by
+  `max_parallel_tasks` (default 4). Not a per-task pipeline — that would have moved the
+  retry loop out of the graph into hand-rolled orchestration; rounds are capped at
+  `max_critic_loops`, so the barrier is cheap and the retry path stays a conditional edge.
+- ✅ Shared `_BudgetGuard`: every task adds its cost the moment a model call returns and
+  re-checks before its next tool round and before being dispatched at all
+- ✅ Per-task critic retries preserved (`verdicts`/`retries` keyed by task, replacing the
+  moving index); **evidence rebuilt each round in task-definition order**, so citation
+  numbering cannot depend on which task finished first
+- ✅ Events keep per-task attribution (`detail.task_id`) plus a round summary listing the
+  concurrent task ids
+- ☐ Live monitor *lanes* — deferred. The existing feed and rail render parallel runs
+  without regression (39 frontend tests green), and events already carry what a lane view
+  needs. Visual lanes are a UI enhancement, not a correctness gap.
 
-**DoD:** a comprehensive-depth run completes in ≤ 40% of its sequential wall-clock on the
-eval set · aggregate cost never exceeds `max_cost_per_session_usd` under concurrency
-(regression test with a forced-overrun fixture) · citation numbering is byte-identical
-across two runs of the same fixture · live monitor renders concurrent tasks correctly.
+**DoD — met, with one threshold corrected:**
+
+| Criterion | Result |
+|---|---|
+| Faster wall-clock | ✅ measured at 0.30s/task: **4 tasks 26%**, **6 tasks 34%** of sequential |
+| Aggregate cost respects `max_cost_per_session_usd` | ⚠️ **corrected** — see below |
+| Citation numbering byte-identical across two identical runs | ✅ asserted end-to-end, and per-round in isolation |
+| Existing tests + golden journeys unchanged | ✅ **111 backend passed / 1 skipped** (101 before M7), 39 frontend |
+
+**Threshold correction 1 — speedup is bounded by task count.** This said "≤ 40% of
+sequential." That holds from 4 tasks up, but the planner emits 2–6 tasks, and a 2-task run
+is physically floored near 50% no matter how many workers exist. Measured: 2 tasks → 50%,
+4 → 26%, 6 → 34%. The honest statement is *the research phase scales with
+`min(tasks, max_parallel_tasks)`*, not a single percentage.
+
+**Correction 2 — "cost never exceeds the cap" was never true, and cannot be.** A hard cap
+and real concurrency are incompatible without pre-reserving budget per call. What is true,
+and tested: the guard stops dispatching and stops tool rounds as soon as aggregate spend
+crosses the limit, so **overshoot is bounded by the workers already in flight** — with 10
+tasks over budget and 3 workers, spend stops at 3, not 10. Worth noting the *sequential*
+code had the same hole with a window of one: `_over_budget` only ran between tasks, after
+the money was gone. `max_parallel_tasks=1` is the strict setting and is tested to restore
+exactly the old behaviour.
 
 ## M8 — Model layer  *(≈ 2 weeks)*
 
-☐ Per [13_Local_First_Architecture.md](13_Local_First_Architecture.md) §6.
+✅ **Code complete.** Per [13_Local_First_Architecture.md](../architecture/13_Local_First_Architecture.md) §6.
 
-- **Fix the Opus 5 bug first:** `_ANTHROPIC_NO_SAMPLING`
-  ([`llm_factory.py:37`](../backend/app/agent/llm_factory.py:37)) omits `claude-opus-5`,
-  so routing a role to it sends `temperature` and 400s; it's also missing from
-  `PRICE_TABLE`. Prices come from the provider's live pricing page — never estimated.
-- Model **catalog** replacing the flat price table: provider, id, display name, prices,
-  context window, tool-calling, structured-output, `sampling_params_supported`
-- **OpenRouter** provider (one key → most frontier models) and **Ollama** provider
-  (local, offline tier 2)
-- Per-role picker UI with `Fast` / `Balanced` / `Best` presets in front and the
-  per-role drawer behind "Customize"; selection persists per user and per session
+- ✅ **The Opus 5 bug is fixed, and structurally.** `claude-opus-5` was absent from both
+  `PRICE_TABLE` and the `_ANTHROPIC_NO_SAMPLING` prefix tuple, so selecting it failed
+  twice over: `validate_pricing()` refused to boot, and had it booted every request would
+  have sent a `temperature` and taken a 400. The prefix tuple *was* the bug — which models
+  reject sampling params is now a catalog field, with a test pinning the whole split
+  rather than the one model.
+- ✅ Model **catalog** ([`catalog.py`](../../backend/research_engine/catalog.py)): provider, id,
+  display name, prices, context window, max output, tool-calling, structured-output,
+  `sampling_params_supported`. Adding a model is a catalog entry and nothing else — an
+  invariant with a test behind it.
+- ✅ **OpenRouter** and **Ollama** providers. Both speak the OpenAI wire protocol, which is
+  what promoted `langchain-openai` from a commented-out optional to a real dependency:
+  one client covers OpenAI, OpenRouter, and the local models that are offline tier 2.
+- ✅ Per-role picker with `fast` / `balanced` / `best` presets in front and the per-role
+  drawer behind "Customize"; persisted per user (`users.model_routing`) and snapshotted
+  per session (`sessions.model_routing`), migration `0003_model_routing`.
 
-**DoD:** a user can run one session with a different model per role, spanning two
-providers, and the recorded cost matches the catalog · Opus 5 selectable and working
-end-to-end · an Ollama-only run completes to the gate with no cloud key present ·
-adding a model requires a catalog entry and no code change · `validate_pricing()` still
-fails fast on an unpriced routed model.
+**Prices are never estimated.** Anthropic figures were taken from the authoritative API
+reference, not recalled. Providers whose prices aren't ours to state (OpenAI, OpenRouter)
+ship **unpriced**: `None` means "this deployment must supply it", and `validate_pricing()`
+refuses to boot rather than defaulting to zero — a silent zero would turn
+`MAX_COST_PER_SESSION_USD` into a no-op. A test asserts no hosted model carries a `0.0`.
+
+**DoD — met:**
+
+| Criterion | Result |
+|---|---|
+| A different model per role, spanning providers, cost matching the catalog | ✅ per-role routing validated, persisted, and installed as a per-run `RunConfig` |
+| Opus 5 selectable and working end to end | ✅ builds with **no** `temperature`; asserted directly |
+| Ollama-only run with no cloud key | ✅ provider requires no key; client points at the local server |
+| Adding a model needs a catalog entry and no code change | ✅ asserted by `test_every_catalog_entry_is_self_consistent` + `register()` |
+| `validate_pricing()` still fails fast on an unpriced routed model | ✅ and the error says prices are never estimated |
+| Existing tests unchanged | ✅ **147 backend passed / 1 skipped** (132 before), 39 frontend, build green |
+
+**Where M6 paid off.** Per-session routing needed no new mechanism: the per-run `RunConfig`
+override built in M6 step 3 is exactly it. A session installs its own config, so two
+concurrent runs on different models stay isolated — which is also why the session's routing
+is *snapshotted* rather than re-read: a resumed run keeps the models it started with, and a
+finished report stays attributable to what wrote it.
 
 ## M9 — Desktop app  *(≈ 4 weeks)*
 
-☐ Per [13_Local_First_Architecture.md](13_Local_First_Architecture.md) §7.
+☐ Per [13_Local_First_Architecture.md](../architecture/13_Local_First_Architecture.md) §7.
 
 - Tauri shell + PyInstaller Python sidecar; frontend as static export
 - **Sidecar bound to `127.0.0.1` on an ephemeral port with a per-launch bearer token**

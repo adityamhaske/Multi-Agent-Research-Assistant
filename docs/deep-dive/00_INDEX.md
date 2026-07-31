@@ -50,13 +50,13 @@ Deep-dive docs explain *why*. These are the specs that define *what*:
 
 | Concern | Spec |
 |---|---|
-| Product scope, out-of-scope | [../01_Product_Vision.md](../01_Product_Vision.md) |
-| Architecture | [../02_System_Architecture.md](../02_System_Architecture.md) |
-| Stack choices + rejected options | [../03_Tech_Stack.md](../03_Tech_Stack.md) |
-| Agent/graph design | [../04_Agent_Design.md](../04_Agent_Design.md) |
-| Schema + API contracts | [../05_Data_and_API.md](../05_Data_and_API.md) |
-| Threat model, auth, BYOK | [../06_Security.md](../06_Security.md) |
-| UI/UX rules | [../07_UIUX_Guidelines.md](../07_UIUX_Guidelines.md) |
-| Test strategy, golden journeys | [../08_Testing_and_Quality.md](../08_Testing_and_Quality.md) |
-| Deploy/ops runbook | [../09_Deployment_and_Operations.md](../09_Deployment_and_Operations.md) |
-| Milestones | [../10_Roadmap.md](../10_Roadmap.md) |
+| Product scope, out-of-scope | [../01_Product_Vision.md](../product/01_Product_Vision.md) |
+| Architecture | [../02_System_Architecture.md](../architecture/02_System_Architecture.md) |
+| Stack choices + rejected options | [../03_Tech_Stack.md](../architecture/03_Tech_Stack.md) |
+| Agent/graph design | [../04_Agent_Design.md](../architecture/04_Agent_Design.md) |
+| Schema + API contracts | [../05_Data_and_API.md](../architecture/05_Data_and_API.md) |
+| Threat model, auth, BYOK | [../06_Security.md](../engineering/06_Security.md) |
+| UI/UX rules | [../07_UIUX_Guidelines.md](../product/07_UIUX_Guidelines.md) |
+| Test strategy, golden journeys | [../08_Testing_and_Quality.md](../engineering/08_Testing_and_Quality.md) |
+| Deploy/ops runbook | [../09_Deployment_and_Operations.md](../engineering/09_Deployment_and_Operations.md) |
+| Milestones | [../10_Roadmap.md](../product/10_Roadmap.md) |

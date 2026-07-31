@@ -1,5 +1,5 @@
 """
-Auth dependencies (docs/06_Security.md §1).
+Auth dependencies (docs/engineering/06_Security.md §1).
 
 The browser authenticates via the httpOnly `access_token` cookie (sent
 automatically through the same-origin proxy, so SSE works). A Bearer header is

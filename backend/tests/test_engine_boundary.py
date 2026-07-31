@@ -1,9 +1,9 @@
 """
 Engine boundary guard (docs/12 M6, docs/13 §3).
 
-`app/agent/` is being extracted into a standalone `research_engine` package that must
-run inside a desktop app with no Postgres, no Redis, and no `.env`. These tests are the
-enforcement: they fail the moment engine code re-couples to the server host.
+`research_engine/` (formerly `app/agent/`) is a standalone package that must run inside
+a desktop app with no Postgres, no Redis, and no `.env`. These tests are the enforcement:
+they fail the moment engine code re-couples to the server host.
 
 Without a test like this the refactor decays back — the coupling it removes was itself
 introduced one convenient import at a time. docs/13 §3 calls for an import-linter
@@ -16,7 +16,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from app.agent.runconfig import (
+from app.config import Settings
+from research_engine.runconfig import (
     DEFAULT_MODELS,
     ROLES,
     RunConfig,
@@ -24,27 +25,29 @@ from app.agent.runconfig import (
     reset_run_config,
     set_run_config,
 )
-from app.config import Settings
 
-AGENT_DIR = Path(__file__).resolve().parents[1] / "app" / "agent"
+ENGINE_DIR = Path(__file__).resolve().parents[1] / "research_engine"
 
-# Host modules the engine may not import. `app.config` is the one this milestone removes.
-FORBIDDEN_ROOTS = ("app.config", "app.db", "app.models", "app.services", "app.api", "app.workers")
+# The engine may not import the server host at all — not just `app.config`. Now that the
+# package is physically separate (M6 step 2) the contract is the whole `app` namespace.
+FORBIDDEN_ROOTS = ("app",)
 
 # Remaining known couplings, each with the milestone that removes it. A violation NOT in
 # this set fails the test; an entry here that no longer occurs also fails it, so the list
 # cannot rot.
-KNOWN_EXCEPTIONS: set[tuple[str, str]] = {
-    # docs/12 M6 step 3 — becomes the Cache port (docs/13 §4). Already best-effort:
-    # every Redis touch in retrievers.py is wrapped in try/except.
-    ("retrievers.py", "app.db.redis"),
-}
+#
+# Empty as of M6 step 3: the last one (`app.db.redis` in retrievers.py) became the Cache
+# port. The engine now imports nothing from the host at all. Adding an entry here should
+# take an argument, not a convenience.
+KNOWN_EXCEPTIONS: set[tuple[str, str]] = set()
 
 
 def _imported_host_modules() -> set[tuple[str, str]]:
     """Every (filename, module) pair where engine code imports a forbidden host module."""
     found: set[tuple[str, str]] = set()
-    for path in sorted(AGENT_DIR.glob("*.py")):
+    paths = sorted(ENGINE_DIR.glob("*.py"))
+    assert paths, f"no engine modules found under {ENGINE_DIR} — did the package move?"
+    for path in paths:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             modules: list[str] = []
@@ -58,7 +61,7 @@ def _imported_host_modules() -> set[tuple[str, str]]:
     return found
 
 
-def test_agent_package_does_not_import_the_server_host():
+def test_engine_package_does_not_import_the_server_host():
     """The engine reads config through RunConfig, never from app.config or the data plane."""
     assert _imported_host_modules() == KNOWN_EXCEPTIONS
 

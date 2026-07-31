@@ -1,6 +1,6 @@
 """
 M0 smoke tests: the app imports, health responds, and config validation
-refuses dangerous secrets (docs/06_Security.md §1).
+refuses dangerous secrets (docs/engineering/06_Security.md §1).
 """
 
 import pytest

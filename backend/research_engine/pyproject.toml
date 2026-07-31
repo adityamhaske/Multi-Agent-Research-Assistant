@@ -1,0 +1,61 @@
+# research_engine — installable independently of the server host (docs/12 M6, docs/13 §3).
+#
+# This file exists to make the dependency boundary REAL rather than notional. The engine
+# must be installable without FastAPI, Celery, SQLAlchemy, asyncpg, Redis, bcrypt, PyJWT,
+# or WeasyPrint, because the desktop sidecar (docs/12 M9) ships none of them. If a future
+# change makes the engine need one of those, this list is where the pressure shows up —
+# and adding a server dependency here is the signal that something belongs in the host.
+#
+# The package currently lives inside backend/ so that the api/worker Docker build context
+# (./backend, with `COPY . /app`) still finds it and requirements.txt keeps working
+# unchanged. When the desktop build needs to install it standalone, `git mv` this
+# directory to a top-level packages/ and point the compose build context at the repo root
+# — the code does not change, only the path.
+#
+# Versions are kept consistent with ../requirements.txt; that file remains the source of
+# truth for the server image.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "research-engine"
+version = "0.1.0"
+description = "Host-independent multi-agent research pipeline with per-claim citations"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+dependencies = [
+    # Orchestration
+    "langgraph>=1.0",
+    "langchain-core>=0.3",
+    # Structured outputs / schemas
+    "pydantic>=2.10,<3.0",
+    # Retrieval + page fetching
+    "httpx>=0.27",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.2",
+    "tavily-python>=0.5",
+    "ddgs",
+    # Logging
+    "structlog>=24.4",
+]
+
+[project.optional-dependencies]
+# Model providers are optional so a deployment installs only what it routes to, and the
+# desktop build can ship local-only inference (docs/12 M8).
+google = ["langchain-google-genai>=2.0"]
+anthropic = ["langchain-anthropic>=0.3"]
+openai = ["langchain-openai>=0.2"]
+# The local host: SQLite checkpointing for `research_engine.cli` and the desktop sidecar
+# (docs/12 M9). The SQLite search cache in local.py needs nothing beyond stdlib sqlite3.
+local = ["langgraph-checkpoint-sqlite>=3.0"]
+
+[project.scripts]
+research-engine = "research_engine.cli:main"
+
+[tool.setuptools]
+# Flat layout: this directory *is* the package.
+packages = ["research_engine"]
+package-dir = { research_engine = "." }

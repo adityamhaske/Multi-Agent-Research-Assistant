@@ -1,5 +1,5 @@
 """
-Agent tools — each with one responsibility (docs/04_Agent_Design.md §4).
+Agent tools — each with one responsibility (docs/architecture/04_Agent_Design.md §4).
 
 web_search   → retriever chain (Tavily → Brave → DuckDuckGo), Redis-cached
 read_webpage → SSRF-guarded fetch + main-text extraction
@@ -16,9 +16,9 @@ import httpx
 from bs4 import BeautifulSoup
 from langchain_core.tools import tool
 
-from app.agent.net_guard import SSRFBlocked, validate_url
-from app.agent.retrievers import search
-from app.agent.runconfig import get_run_config
+from research_engine.net_guard import SSRFBlocked, validate_url
+from research_engine.retrievers import search
+from research_engine.runconfig import get_run_config
 
 MAX_PAGE_CHARS = 8000
 MAX_BODY_BYTES = 2 * 1024 * 1024
@@ -46,7 +46,7 @@ async def read_webpage(url: str) -> dict:
     loopback, and cloud-metadata addresses are refused. Not for PDFs/videos.
     """
     if get_run_config().llm_mode == "fake":
-        from app.agent.fakes import fake_read_webpage
+        from research_engine.fakes import fake_read_webpage
 
         return fake_read_webpage(url)
 

@@ -38,7 +38,7 @@ E2E (real Postgres/Redis) runs in CI.
 
 Scope: rebuild the agent layer on real LangGraph; fix the worker persistence scope.
 
-- Compiled `StateGraph` per [04_Agent_Design.md](04_Agent_Design.md): planner →
+- Compiled `StateGraph` per [04_Agent_Design.md](../architecture/04_Agent_Design.md): planner →
   executor (ToolNode loop) → critic → synthesizer → `interrupt()` gate → finalizer /
   rework path; `AsyncPostgresSaver` checkpointing; budgets at conditional edges
 - Structured outputs (Pydantic) for planner/executor/critic; fail-closed everywhere
@@ -68,7 +68,7 @@ round-trips. 34 backend tests + 9 security-service unit tests green. Live auth/S
 integration suites run in CI with service containers. Remaining polish: `.md`/`.pdf` export
 endpoints (weasyprint wiring), email verification toggle.
 
-Scope: the security layer per [06_Security.md](06_Security.md).
+Scope: the security layer per [06_Security.md](../engineering/06_Security.md).
 
 - Cookie auth (access + rotating refresh), revocation, logout; bcrypt direct;
   password policy; neutral registration
@@ -143,7 +143,7 @@ milestone): a real-model eval run recorded with keys, and tagging `v1.0.0` once 
 green on `main`.
 
 Scope: packaging, deployment, quality measurement per
-[09](09_Deployment_and_Operations.md) / [08 §5](08_Testing_and_Quality.md).
+[09](../engineering/09_Deployment_and_Operations.md) / [08 §5](../engineering/08_Testing_and_Quality.md).
 
 - Dockerfiles (api/worker/frontend) + `docker-compose.full.yml`; migration-on-start
   entrypoint; healthchecks
@@ -170,7 +170,7 @@ README · CI fully green on `main` · eval baseline committed · release `v1.0.0
 
 | Risk | Mitigation |
 |---|---|
-| Model deprecations break routing | config-driven IDs + price-table startup check + eval before switch ([03](03_Tech_Stack.md)) |
+| Model deprecations break routing | config-driven IDs + price-table startup check + eval before switch ([03](../architecture/03_Tech_Stack.md)) |
 | Search APIs cost/limits | retriever chain + cache; DDG as keyless fallback; degradation is explicit, not silent |
 | Scope creep past the wedge | [01](01_Product_Vision.md) out-of-scope list is binding; v2 list absorbs ideas |
 | Solo-dev burnout mid-rebuild | vertical slices — every milestone is independently demoable and stoppable |

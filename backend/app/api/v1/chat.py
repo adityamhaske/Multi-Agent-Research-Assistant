@@ -18,8 +18,6 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent import prompts
-from app.agent.llm_factory import get_llm, reset_user_keys, set_user_keys, text_of
 from app.db.base import get_db
 from app.dependencies import enforce_chat_rate_limit, get_current_user
 from app.models.chat_message import ChatMessage
@@ -28,6 +26,8 @@ from app.models.user import User
 from app.schemas.research import ChatMessageSchema, ChatRequest
 from app.services import crypto
 from app.services.sse import SSE_HEADERS
+from research_engine import prompts
+from research_engine.llm_factory import get_llm, reset_user_keys, set_user_keys, text_of
 
 router = APIRouter(prefix="/research/{session_id}/chat", tags=["Chat"])
 

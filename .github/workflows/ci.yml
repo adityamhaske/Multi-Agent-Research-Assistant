@@ -46,9 +46,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Lint
-        run: ruff check app/ tests/ evals/
+        run: ruff check app/ research_engine/ tests/ evals/
       - name: Format check
-        run: ruff format --check app/ tests/ evals/
+        run: ruff format --check app/ research_engine/ tests/ evals/
       - name: Migrations apply (schema built purely from Alembic)
         run: alembic upgrade head
       - name: Tests

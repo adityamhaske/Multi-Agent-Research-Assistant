@@ -84,9 +84,9 @@ the combination of three things none of them package together:
 
 - A new user can go from `git clone` to an approved, exported, cited report in under
   15 minutes using only the README.
-- The three golden E2E tests (see [08](08_Testing_and_Quality.md)) pass in CI on every
+- The three golden E2E tests (see [08](../engineering/08_Testing_and_Quality.md)) pass in CI on every
   commit to `main`.
 - Citation eval: ≥95% of claims in generated reports link to a source whose snippet
   actually supports the claim, measured by the eval harness on the fixed query set.
 - Zero critical/high findings open from the security checklist in
-  [06_Security.md](06_Security.md) at release tag.
+  [06_Security.md](../engineering/06_Security.md) at release tag.

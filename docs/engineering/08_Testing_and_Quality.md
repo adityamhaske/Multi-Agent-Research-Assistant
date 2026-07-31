@@ -3,7 +3,7 @@
 > The previous iteration shipped four fatal bugs that any single end-to-end test would
 > have caught, while its Makefile advertised a test suite that did not exist. This doc
 > defines the test strategy that prevents a recurrence. **A feature without its tests
-> is not done** ([10_Roadmap.md](10_Roadmap.md) DoD).
+> is not done** ([10_Roadmap.md](../product/10_Roadmap.md) DoD).
 
 ## 1. Test pyramid
 

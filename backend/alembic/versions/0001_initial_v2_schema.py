@@ -1,4 +1,4 @@
-"""Initial v2 schema (docs/05_Data_and_API.md).
+"""Initial v2 schema (docs/architecture/05_Data_and_API.md).
 
 Single hand-authored baseline replacing the previous iteration's two stale
 migrations. Covers users, sessions, agent_logs (event stream), chat_messages,

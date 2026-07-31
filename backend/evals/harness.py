@@ -23,21 +23,31 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-# The graph imports app.config, which requires these — set safe defaults so `make eval`
-# works with zero setup in fake mode (no DB/Redis/keys are actually touched).
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://eval:eval@localhost:5432/eval")
-os.environ.setdefault("JWT_SECRET_KEY", "eval-secret-0123456789abcdef0123456789abcdef")
-os.environ.setdefault("LLM_MODE", "fake")
+from langgraph.checkpoint.memory import MemorySaver
 
-from langgraph.checkpoint.memory import MemorySaver  # noqa: E402
+from evals import metrics
+from research_engine.graph import build_graph
+from research_engine.local import load_env_file, run_config_from_env
+from research_engine.runconfig import set_process_default
+from research_engine.runner import initial_state
 
-from app.agent.graph import build_graph  # noqa: E402
-from app.config import settings  # noqa: E402
-from app.runtime import install_process_default  # noqa: E402
-from evals import metrics  # noqa: E402
-
-# The eval harness is a host: `app.agent` no longer reads `app.config` (docs/13 §2).
-install_process_default()
+# The harness is a host, so it installs the engine's config (docs/13 §2) — built straight
+# from the environment rather than through `app.config`. That is why an eval run now needs
+# no DATABASE_URL and no JWT_SECRET_KEY: the `os.environ.setdefault` block that used to sit
+# here was the clearest evidence the engine was wrongly coupled to the server, and deleting
+# it is M6's acceptance test (docs/12).
+# Mode is read from the *real* environment before `.env` is loaded, and `.env` supplies
+# keys only. This ordering is deliberate: a developer `.env` commonly carries
+# `LLM_MODE=real` for the app, and letting that reach the harness would silently turn
+# `make eval` — documented and relied on as the free, deterministic default — into a run
+# that spends money on every invocation. Spending is opt-in, per invocation:
+#
+#     make eval                    # always fake, whatever .env says
+#     LLM_MODE=real make eval      # explicit, and picks up keys from .env
+LLM_MODE = os.environ.get("LLM_MODE", "fake")
+load_env_file()
+RUN_CONFIG = run_config_from_env(fake=LLM_MODE != "real")
+set_process_default(RUN_CONFIG)
 
 EVALS_DIR = Path(__file__).resolve().parent
 RESULTS_DIR = EVALS_DIR / "results"
@@ -52,19 +62,12 @@ async def run_one(query: dict) -> dict:
     graph = build_graph(MemorySaver())
     thread_id = f"eval-{query['id']}"
     config = {"configurable": {"thread_id": thread_id}}
-    initial = {
-        "session_id": thread_id,
-        "user_id": "eval",
-        "original_query": query["query"],
-        "research_depth": query.get("depth", "balanced"),
-        "evidence": [],
-        "critic_retries": 0,
-        "rework_count": 0,
-        "cost_usd": 0.0,
-        "tokens_input": 0,
-        "tokens_output": 0,
-        "started_at": time.time(),
-    }
+    initial = initial_state(
+        session_id=thread_id,
+        user_id="eval",
+        query=query["query"],
+        depth=query.get("depth", "balanced"),
+    )
 
     started = time.time()
     error = None
@@ -99,7 +102,7 @@ async def run_one(query: dict) -> dict:
         **metrics.report_metrics(report, sources),
     }
 
-    if completed and settings.llm_mode == "real":
+    if completed and RUN_CONFIG.llm_mode == "real":
         result["citation_support_rate"] = await judge_citation_support(report, sources)
     return result
 
@@ -109,7 +112,7 @@ async def judge_citation_support(report: str, sources: list[dict]) -> float | No
     snippet it cites. Returns supported / cited-claims, or None if there are none."""
     from langchain_core.messages import HumanMessage, SystemMessage
 
-    from app.agent.llm_factory import get_llm
+    from research_engine.llm_factory import get_llm
 
     by_index = {s.get("index"): s for s in sources if isinstance(s, dict)}
     claims = [c for c in metrics.claim_lines(report) if metrics.CITE_RE.search(c)]
@@ -189,7 +192,7 @@ async def main() -> None:
     if args.limit:
         queries = queries[: args.limit]
 
-    print(f"Running {len(queries)} queries in LLM_MODE={settings.llm_mode}…")
+    print(f"Running {len(queries)} queries in LLM_MODE={RUN_CONFIG.llm_mode}…")
     rows = []
     for q in queries:
         row = await run_one(q)
@@ -205,12 +208,12 @@ async def main() -> None:
     payload = {
         "date": run_date,
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
-        "llm_mode": settings.llm_mode,
+        "llm_mode": RUN_CONFIG.llm_mode,
         "models": {
-            "planner": settings.model_planner,
-            "executor": settings.model_executor,
-            "critic": settings.model_critic,
-            "synthesizer": settings.model_synthesizer,
+            "planner": RUN_CONFIG.models["planner"],
+            "executor": RUN_CONFIG.models["executor"],
+            "critic": RUN_CONFIG.models["critic"],
+            "synthesizer": RUN_CONFIG.models["synthesizer"],
         },
         "aggregate": agg,
         "release_criteria": check_release_criteria(agg),
@@ -222,7 +225,14 @@ async def main() -> None:
     out.write_text(json.dumps(payload, indent=2) + "\n")
     print(f"\nAggregate: {json.dumps(agg)}")
     print(f"Release criteria: {json.dumps(payload['release_criteria'])}")
-    print(f"Wrote {out.relative_to(EVALS_DIR.parent)}")
+    # Show a repo-relative path when the output is inside the repo, and the plain path
+    # when it isn't — `relative_to` raises on an outside path, which used to crash the
+    # run *after* the results file had already been written.
+    try:
+        shown = out.relative_to(EVALS_DIR.parent)
+    except ValueError:
+        shown = out
+    print(f"Wrote {shown}")
 
 
 if __name__ == "__main__":

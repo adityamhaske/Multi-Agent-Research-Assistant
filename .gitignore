@@ -12,6 +12,9 @@ __pycache__/
 venv/
 env/
 .pytest_cache/
+# Build residue from `pip wheel ./backend/research_engine`
+*.egg-info/
+backend/research_engine/build/
 # Env
 .env
 .env.*
@@ -25,3 +28,6 @@ env/
 # Logs
 logs/
 *.log
+
+# Personal / not for publication
+docs/deep-dive/04_Interview_Defense.md

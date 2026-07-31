@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     max_critic_loops: int = 2
     max_cost_per_session_usd: float = 0.50
     max_wallclock_seconds: int = 600
+    # Research tasks run concurrently within a round (docs/12 M7). 1 = strictly
+    # sequential, which is the only setting where budget overshoot is impossible.
+    max_parallel_tasks: int = 4
     celery_task_timeout_seconds: int = 660
 
     # ── LangSmith (optional) ───────────────────────────────────────────────────
@@ -90,7 +93,7 @@ class Settings(BaseSettings):
             raise ValueError(
                 "JWT_SECRET_KEY must be >= 32 chars of real randomness "
                 "(generate with: openssl rand -hex 32). "
-                "Placeholder values are refused — see docs/06_Security.md §1."
+                "Placeholder values are refused — see docs/engineering/06_Security.md §1."
             )
         if self.llm_mode == "real" and self.environment == "production":
             routed_providers = {

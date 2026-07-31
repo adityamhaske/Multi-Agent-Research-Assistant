@@ -1,5 +1,5 @@
 """
-Atomic rate limiting (docs/06_Security.md §2).
+Atomic rate limiting (docs/engineering/06_Security.md §2).
 
 One Lua script does INCR + conditional EXPIRE atomically, so a counter can never
 exist without a TTL (the previous iteration's INCR-then-EXPIRE could strand a user

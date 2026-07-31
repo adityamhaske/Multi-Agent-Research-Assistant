@@ -1,5 +1,5 @@
 """
-Security-headers middleware (docs/06_Security.md §6).
+Security-headers middleware (docs/engineering/06_Security.md §6).
 
 Applied to every API response. The frontend sets its own headers via next.config
 (docs/07); these protect the API and any directly-served responses.

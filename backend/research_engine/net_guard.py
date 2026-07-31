@@ -1,5 +1,5 @@
 """
-SSRF guard for agent-controlled URL fetches (docs/06_Security.md §3).
+SSRF guard for agent-controlled URL fetches (docs/engineering/06_Security.md §3).
 
 The URL passed to read_webpage is influenced by an LLM steered by untrusted web
 content, so it is treated as hostile: scheme/port allowlist, resolve every

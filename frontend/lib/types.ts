@@ -115,3 +115,43 @@ export interface AgentEvent {
   detail?: Record<string, unknown> | null;
   data?: Record<string, unknown> | null;
 }
+
+// ─── Model catalog & routing (docs/12 M8) ────────────────────────────────────────
+
+export type AgentRole = "planner" | "executor" | "critic" | "synthesizer" | "chat";
+
+/** A per-role map of "provider:model" routes. */
+export type ModelRouting = Record<AgentRole, string>;
+
+export interface ModelInfo {
+  route: string;
+  provider: string;
+  model_id: string;
+  display_name: string;
+  /** null means the deployment must supply a price — such models can't be routed to. */
+  input_per_mtok: number | null;
+  output_per_mtok: number | null;
+  context_window: number | null;
+  max_output_tokens: number | null;
+  supports_tools: boolean;
+  supports_structured_output: boolean;
+  notes: string;
+  /** False when this user has no usable key for the provider. Shown disabled, not hidden. */
+  available: boolean;
+}
+
+export interface ModelCatalog {
+  roles: AgentRole[];
+  models: ModelInfo[];
+  presets: Record<string, Record<string, ModelRouting>>;
+  preset_names: string[];
+  available_providers: string[];
+  effective_routing: ModelRouting;
+  user_routing: ModelRouting | null;
+  deployment_routing: ModelRouting;
+}
+
+export interface RoutingResponse {
+  routing: ModelRouting | null;
+  effective_routing: ModelRouting;
+}

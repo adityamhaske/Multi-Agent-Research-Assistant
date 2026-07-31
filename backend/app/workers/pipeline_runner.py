@@ -1,40 +1,43 @@
 """
-Async engine that runs/resumes the LangGraph pipeline for a session
-(docs/02 §2/§6, docs/04). Celery tasks are thin wrappers over this.
+Server adapter for the research pipeline (docs/02 §2/§6, docs/13 §4–§5).
 
-Design guarantees:
-- One DB session scope for the whole run (no detached-object writes).
-- Token-based Redis lock with TTL > task timeout; released only by its owner.
-- LangGraph AsyncPostgresSaver checkpointing keyed by thread_id=session_id, so
-  approval/rework resumes from the gate — never re-runs the pipeline.
-- Every node event is persisted to agent_logs (durable SSE replay) then published
-  to Redis (live fan-out).
+The orchestration itself lives in `research_engine.runner`, which knows nothing about
+Postgres, Redis, Celery, or ORM models. This module supplies the server's half:
+
+- the run lock (a Redis token lock — Celery can redeliver, so double execution is a real
+  risk here in a way it is not in a single-process desktop app),
+- one DB session scope for the whole run (no detached-object writes),
+- the Postgres checkpointer, so approval/rework resumes from the gate rather than
+  re-running research the user already paid for,
+- the `agent_logs` + Redis event sink and the Redis search cache (`app/adapters.py`),
+- persisting the outcome and *then* emitting the lifecycle event, so a client acting on
+  COMPLETED never re-reads a stale RUNNING status.
 """
 
 from __future__ import annotations
 
-import time
 import uuid
+from dataclasses import replace
 
 import structlog
-from langgraph.types import Command
 from sqlalchemy import select
 
-from app.agent import events, llm_factory
-from app.agent.graph import build_graph
+from app import adapters
 from app.config import settings
 from app.db.base import AsyncSessionLocal, engine
 from app.db.redis import (
     acquire_session_lock,
     close_redis_pool,
     init_redis_pool,
-    publish_event,
     release_session_lock,
 )
-from app.models.agent_log import AgentLog
 from app.models.session import Session, SessionStatus
 from app.models.user import User
-from app.services import crypto
+from app.runtime import run_config_from_settings
+from app.services import crypto, model_routing
+from research_engine import events, runner
+from research_engine.runconfig import RunConfig
+from research_engine.runner import RunOutcome
 
 logger = structlog.get_logger()
 
@@ -42,25 +45,6 @@ logger = structlog.get_logger()
 def _checkpointer_dsn() -> str:
     # LangGraph's Postgres saver uses psycopg (sync-style DSN), not asyncpg.
     return settings.database_url.replace("postgresql+asyncpg://", "postgresql://")
-
-
-def _make_sink(db, session_id: str):
-    """Emitter that writes an agent_logs row then publishes to Redis (with the row id)."""
-
-    async def sink(sid: str, event: dict) -> None:
-        row = AgentLog(
-            session_id=uuid.UUID(session_id),
-            event_type=event.get("type", "agent_log"),
-            agent_name=event.get("agent"),
-            payload=event,
-        )
-        db.add(row)
-        await db.flush()
-        event["id"] = row.id
-        await db.commit()
-        await publish_event(session_id, event)
-
-    return sink
 
 
 async def _user_provider_keys(db, user_id: str) -> dict[str, str]:
@@ -82,7 +66,33 @@ async def _user_provider_keys(db, user_id: str) -> dict[str, str]:
     return {user.api_key_provider: plaintext}
 
 
-async def _run(session_id: str, user_id: str, *, resume_cmd: Command | None) -> None:
+async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
+    """The engine config for this run, with model routing resolved and snapshotted.
+
+    Resolution order is session → user → deployment. The session's own snapshot wins so a
+    resumed run (approve or rework) keeps the models it started with — the alternative is
+    a report whose first half was written by one model and second half by another, which
+    would quietly undermine the per-report attribution the snapshot exists to provide.
+    """
+    user = (
+        await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    ).scalar_one_or_none()
+
+    routing = model_routing.resolve(
+        session_routing=session.model_routing,
+        user_routing=(user.model_routing if user else None),
+    )
+
+    if session.model_routing != routing:
+        session.model_routing = routing
+        await db.commit()
+
+    return replace(run_config_from_settings(), models=routing)
+
+
+async def _execute(
+    session_id: str, user_id: str, *, resume: tuple[bool, str | None] | None
+) -> None:
     lock_token = uuid.uuid4().hex
     await init_redis_pool()
     try:
@@ -104,45 +114,44 @@ async def _run(session_id: str, user_id: str, *, resume_cmd: Command | None) -> 
                 session.status = SessionStatus.RUNNING
                 await db.commit()
 
-                # BYOK: install this user's own provider key for the run, scoped to
-                # this context so concurrent runs never see each other's key. Falls
-                # back to the server key when the user hasn't set one.
-                user_keys = await _user_provider_keys(db, user_id)
-                keys_token = llm_factory.set_user_keys(user_keys)
-                token = events.set_emitter(_make_sink(db, session_id))
-                try:
-                    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+                sink = adapters.agent_log_sink(db, session_id)
+                ports = {
+                    # BYOK: this user's own key, scoped to the run so concurrent runs in
+                    # one worker never see each other's key. Empty → the server key.
+                    "provider_keys": await _user_provider_keys(db, user_id),
+                    "event_sink": sink,
+                    "cache": adapters.RedisCache(),
+                    # Per-run model routing (docs/12 M8). This is the per-run RunConfig
+                    # override from M6 step 3 doing the job it was built for: a session
+                    # runs on its own models without touching the process default, so
+                    # concurrent runs on different models stay isolated.
+                    "run_config": await _run_config_for(db, session, user_id),
+                }
 
-                    async with AsyncPostgresSaver.from_conn_string(_checkpointer_dsn()) as saver:
-                        await saver.setup()
-                        graph = build_graph(saver)
-                        config = {"configurable": {"thread_id": session_id}}
+                from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-                        if resume_cmd is None:
-                            initial = {
-                                "session_id": session_id,
-                                "user_id": user_id,
-                                "original_query": session.prompt,
-                                "research_depth": session.research_depth,
-                                "evidence": [],
-                                "critic_retries": 0,
-                                "rework_count": 0,
-                                "cost_usd": 0.0,
-                                "tokens_input": 0,
-                                "tokens_output": 0,
-                                "started_at": time.time(),
-                            }
-                            result = await graph.ainvoke(initial, config)
-                        else:
-                            result = await graph.ainvoke(resume_cmd, config)
+                async with AsyncPostgresSaver.from_conn_string(_checkpointer_dsn()) as saver:
+                    await saver.setup()
+                    if resume is None:
+                        outcome = await runner.run(
+                            checkpointer=saver,
+                            session_id=session_id,
+                            user_id=user_id,
+                            query=session.prompt,
+                            depth=session.research_depth,
+                            **ports,
+                        )
+                    else:
+                        approved, feedback = resume
+                        outcome = await runner.resume(
+                            checkpointer=saver,
+                            session_id=session_id,
+                            approved=approved,
+                            feedback=feedback,
+                            **ports,
+                        )
 
-                        # Async checkpointer → must use the async state getter; the
-                        # sync get_state() raises from the main async thread.
-                        state = (await graph.aget_state(config)).values
-                        await _persist_outcome(db, session, session_id, result, state)
-                finally:
-                    events.reset_emitter(token)
-                    llm_factory.reset_user_keys(keys_token)
+                await _persist_outcome(db, session, session_id, outcome, sink)
         finally:
             await release_session_lock(session_id, lock_token)
     finally:
@@ -151,61 +160,60 @@ async def _run(session_id: str, user_id: str, *, resume_cmd: Command | None) -> 
 
 
 async def _persist_outcome(
-    db, session: Session, session_id: str, result: dict, state: dict
+    db, session: Session, session_id: str, outcome: RunOutcome, sink
 ) -> None:
-    session.total_cost_usd = round(state.get("cost_usd", 0.0), 6)
-    session.total_tokens_input = state.get("tokens_input", 0)
-    session.total_tokens_output = state.get("tokens_output", 0)
-    session.rework_count = state.get("rework_count", 0)
+    """Write the outcome, commit, then publish the lifecycle event — in that order."""
+    session.total_cost_usd = outcome.cost_usd
+    session.total_tokens_input = outcome.tokens_input
+    session.total_tokens_output = outcome.tokens_output
+    session.rework_count = outcome.rework_count
+    session.sources = outcome.sources
 
-    if "__interrupt__" in result:
-        # Paused at the HITL gate.
+    if outcome.status == "awaiting_approval":
         session.status = SessionStatus.AWAITING_APPROVAL
-        session.draft_report = state.get("draft_report")
-        session.sources = state.get("sources", [])
+        session.draft_report = outcome.draft_report
         await db.commit()
-        await events.emit(
+        await sink(
             session_id,
-            "HITL_READY",
-            data={
-                "word_count": len((state.get("draft_report") or "").split()),
-                "source_count": len(state.get("sources", [])),
-                "cost_usd": round(state.get("cost_usd", 0.0), 4),
-            },
+            events.make_event(
+                "HITL_READY",
+                data={
+                    "word_count": len((outcome.draft_report or "").split()),
+                    "source_count": len(outcome.sources),
+                    "cost_usd": round(outcome.cost_usd, 4),
+                },
+            ),
         )
         return
 
-    if state.get("error"):
+    if outcome.status == "failed":
         session.status = SessionStatus.FAILED
-        session.error_message = str(state["error"])[:500]
-        session.sources = state.get("sources", [])
+        session.error_message = outcome.error
         await db.commit()
-        await events.emit(session_id, "FAILED", data={"reason": session.error_message})
+        await sink(session_id, events.make_event("FAILED", data={"reason": outcome.error}))
         return
 
-    # Approved → finalized.
     session.status = SessionStatus.COMPLETED
-    session.final_report = state.get("final_report") or state.get("draft_report")
-    session.sources = state.get("sources", [])
-    session.elapsed_seconds = round(time.time() - state.get("started_at", time.time()), 2)
+    session.final_report = outcome.final_report
+    session.elapsed_seconds = outcome.elapsed_seconds
     await db.commit()
-    await events.emit(
+    await sink(
         session_id,
-        "COMPLETED",
-        data={
-            "elapsed_s": float(session.elapsed_seconds or 0),
-            "cost_usd": round(state.get("cost_usd", 0.0), 4),
-        },
+        events.make_event(
+            "COMPLETED",
+            data={
+                "elapsed_s": float(outcome.elapsed_seconds or 0),
+                "cost_usd": round(outcome.cost_usd, 4),
+            },
+        ),
     )
 
 
 async def run_pipeline(session_id: str, user_id: str) -> None:
-    await _run(session_id, user_id, resume_cmd=None)
+    await _execute(session_id, user_id, resume=None)
 
 
 async def resume_pipeline(
     session_id: str, user_id: str, approved: bool, feedback: str | None
 ) -> None:
-    await _run(
-        session_id, user_id, resume_cmd=Command(resume={"approved": approved, "feedback": feedback})
-    )
+    await _execute(session_id, user_id, resume=(approved, feedback))

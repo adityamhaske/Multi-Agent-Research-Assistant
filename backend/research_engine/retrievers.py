@@ -1,5 +1,5 @@
 """
-Search retriever chain (docs/03_Tech_Stack.md, docs/04 §4).
+Search retriever chain (docs/architecture/03_Tech_Stack.md, docs/04 §4).
 
 Ordered fallback: Tavily → Brave → DuckDuckGo. First success wins. DuckDuckGo is
 the keyless last resort (endemic rate-limiting — never the sole retriever).
@@ -16,7 +16,8 @@ import json
 import httpx
 import structlog
 
-from app.agent.runconfig import get_run_config
+from research_engine.cache import get_cache
+from research_engine.runconfig import get_run_config
 
 logger = structlog.get_logger()
 
@@ -83,19 +84,20 @@ _CHAIN = (("tavily", _tavily), ("brave", _brave), ("duckduckgo", _duckduckgo))
 async def search(query: str, max_results: int = 5) -> list[SearchResult]:
     """Run the retriever chain with Redis caching. Raises on total exhaustion."""
     if get_run_config().llm_mode == "fake":
-        from app.agent.fakes import fake_search
+        from research_engine.fakes import fake_search
 
         return fake_search(query, max_results)
 
-    # Cache lookup (best-effort; cache failures never break search).
+    # Cache lookup (best-effort; cache failures never break search). The backend is a
+    # host-supplied Cache port — Redis on the server, SQLite on the desktop, null by
+    # default (docs/13 §4).
+    cache = get_cache()
     cache_key = f"search:{max_results}:{query.strip().lower()}"
     try:
-        from app.db.redis import get_redis
-
-        cached = await get_redis().get(cache_key)
+        cached = await cache.get(cache_key)
         if cached:
             return json.loads(cached)
-    except Exception:
+    except Exception:  # noqa: BLE001 — an unavailable cache is not a search failure
         pass
 
     errors: list[str] = []
@@ -104,10 +106,8 @@ async def search(query: str, max_results: int = 5) -> list[SearchResult]:
             results = await fn(query, max_results)
             if results:
                 try:
-                    from app.db.redis import get_redis
-
-                    await get_redis().set(cache_key, json.dumps(results), ex=_CACHE_TTL)
-                except Exception:
+                    await cache.set(cache_key, json.dumps(results), _CACHE_TTL)
+                except Exception:  # noqa: BLE001 — see above
                     pass
                 logger.info("retriever_hit", retriever=name, count=len(results))
                 return results

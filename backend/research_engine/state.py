@@ -1,5 +1,5 @@
 """
-LangGraph pipeline state (docs/04_Agent_Design.md §2).
+LangGraph pipeline state (docs/architecture/04_Agent_Design.md §2).
 
 A plain TypedDict — LangGraph manages it and the Postgres checkpointer persists it
 at every step, so it must stay JSON-serializable (primitives/lists/dicts only).
@@ -21,12 +21,20 @@ class AgentState(TypedDict, total=False):
 
     # Planner
     tasks: list[dict[str, Any]]
-    current_task_index: int
 
-    # Executor / Critic loop
+    # Executor / Critic rounds. Tasks run concurrently, so progress is tracked per task
+    # rather than by a moving index (docs/12 M7).
+    #
+    # `evidence` is rebuilt every round in *task-definition order*, never in completion
+    # order — otherwise the synthesizer would number citations differently on every run.
+    # Each item carries its own `task_id`, so it is also the per-task store.
+    #
+    # `verdicts` and `retries` are keyed by `str(task_id)`: the checkpointer serializes
+    # state as JSON, where dict keys are always strings.
     evidence: list[dict[str, Any]]
-    critic_verdict: dict[str, Any] | None
-    critic_retries: int
+    verdicts: dict[str, dict[str, Any]]
+    retries: dict[str, int]
+    research_round: int
 
     # Synthesis / HITL
     draft_report: str | None

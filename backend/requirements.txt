@@ -16,6 +16,10 @@ celery>=5.4,<6.0
 # Agent orchestration (docs/03_Tech_Stack.md — real LangGraph, no hand-rolled loops)
 langgraph>=1.0
 langgraph-checkpoint-postgres>=2.0
+# SQLite checkpointing for the local host (research_engine.cli) and the desktop build
+# (docs/12 M9). Unused by the api/worker runtime, but kept here so CI exercises the
+# local-run tests that prove the engine works without Postgres.
+langgraph-checkpoint-sqlite>=3.0
 # AsyncPostgresSaver runs on psycopg (not asyncpg). [binary] bundles libpq so the
 # checkpointer works in the slim container without a system libpq — without this every
 # worker run fails with "no pq wrapper available" (found via docker-compose smoke test).
@@ -24,7 +28,10 @@ langchain-core>=0.3
 langchain-google-genai>=2.0
 # BYOK providers — enabled for Anthropic routing (MODEL_*=anthropic:...).
 langchain-anthropic>=0.3
-# langchain-openai
+# Required, not optional: OpenAI, OpenRouter, and Ollama all speak the OpenAI wire
+# protocol, so this one client covers three providers — including Ollama, which is the
+# offline/local-model story (docs/12 M8, docs/13 §6/§8).
+langchain-openai>=0.2
 
 # Web research (retriever chain: Tavily → Brave (httpx) → DuckDuckGo fallback)
 tavily-python>=0.5

@@ -6,13 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-from app.agent.llm_factory import validate_pricing
 from app.api.v1.router import api_router
 from app.config import settings
 from app.db.base import engine
 from app.db.redis import close_redis_pool, get_redis, init_redis_pool
 from app.runtime import install_process_default
 from app.services.security_headers import SecurityHeadersMiddleware
+from research_engine.llm_factory import validate_pricing
 
 logger = structlog.get_logger()
 
@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
     (docs/03, docs/05 §2). Config is validated fast at import; pricing is
     re-checked here so a mis-routed model fails before serving traffic.
 
-    The engine's RunConfig is installed before anything reads it: `app.agent` no
+    The engine's RunConfig is installed before anything reads it: `research_engine` no
     longer imports `app.config` (docs/13 §2), so the host must supply it.
     """
     logger.info("startup", message="Starting Multi-Agent Research Assistant API")

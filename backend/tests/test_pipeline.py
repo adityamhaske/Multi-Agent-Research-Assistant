@@ -6,30 +6,19 @@ no network, no API keys. They encode the product's core promise and would have
 caught the July 2026 fatal bugs.
 """
 
-import time
-
 import pytest
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
-from app.agent.events import emit
-from app.agent.graph import build_graph
+from research_engine.events import emit
+from research_engine.graph import build_graph
+from research_engine.runner import initial_state
 
 
 def _initial_state(query="What is the state of AI research assistants in 2026?"):
-    return {
-        "session_id": "test-session",
-        "user_id": "test-user",
-        "original_query": query,
-        "research_depth": "balanced",
-        "evidence": [],
-        "critic_retries": 0,
-        "rework_count": 0,
-        "cost_usd": 0.0,
-        "tokens_input": 0,
-        "tokens_output": 0,
-        "started_at": time.time(),
-    }
+    return initial_state(
+        session_id="test-session", user_id="test-user", query=query, depth="balanced"
+    )
 
 
 def _config():
@@ -103,7 +92,7 @@ async def test_events_are_emitted_for_each_agent():
     async def collector(session_id, event):
         collected.append(event)
 
-    from app.agent import events as ev
+    from research_engine import events as ev
 
     token = ev.set_emitter(collector)
     try:

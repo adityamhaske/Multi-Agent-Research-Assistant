@@ -1,17 +1,25 @@
 """
 The research agent pipeline as a real compiled LangGraph StateGraph
-(docs/04_Agent_Design.md). No hand-rolled loop, no fail-open behavior.
+(docs/architecture/04_Agent_Design.md). No hand-rolled loop, no fail-open behavior.
 
-    planner → executor(ToolNode loop) → critic ─┐
-                     ▲            (fail, retries) │
-                     └────────────────────────────┘
-    (pass / retries exhausted) → next task or → synthesizer → hitl_gate
+    planner → executor(all pending tasks, in parallel) → critic(all, in parallel) ─┐
+                     ▲                       (any task failed, retries remain)     │
+                     └─────────────────────────────────────────────────────────────┘
+    (every task passed or out of retries) → synthesizer → hitl_gate
     hitl_gate --interrupt--> (approve) finalizer / (reject) synthesizer
     budget/time breach anywhere → failer
+
+Research runs in *rounds* rather than per-task pipelines (docs/12 M7): a round researches
+every pending task concurrently, grades them all, and the failures retry together in the
+next round. A per-task pipeline would let a fast task start its retry while a slow one is
+still on its first pass, but it would also move the retry loop out of the graph and into
+hand-rolled orchestration. Rounds are capped at `max_critic_loops`, so the barrier costs
+little and the retry path stays a conditional edge in the compiled graph.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import time
@@ -21,13 +29,13 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
-from app.agent import prompts
-from app.agent.events import emit
-from app.agent.llm_factory import estimate_cost, get_llm, text_of, token_counts
-from app.agent.runconfig import get_run_config
-from app.agent.schemas import CriticVerdict, ExecutorOutput, PlannerOutput, Source
-from app.agent.state import AgentState
-from app.agent.tools import EXECUTOR_TOOLS
+from research_engine import prompts
+from research_engine.events import emit
+from research_engine.llm_factory import estimate_cost, get_llm, text_of, token_counts
+from research_engine.runconfig import get_run_config
+from research_engine.schemas import CriticVerdict, ExecutorOutput, PlannerOutput, Source
+from research_engine.state import AgentState
+from research_engine.tools import EXECUTOR_TOOLS
 
 logger = structlog.get_logger()
 
@@ -125,17 +133,76 @@ async def planner_node(state: AgentState) -> dict:
     )
     return {
         "tasks": tasks,
-        "current_task_index": 0,
         "evidence": [],
-        "critic_retries": 0,
+        "verdicts": {},
+        "retries": {},
+        "research_round": 0,
         **_acc(state, cost, i, o),
     }
 
 
-async def executor_node(state: AgentState) -> dict:
+# ── Parallel research rounds (docs/12 M7) ─────────────────────────────────────────
+
+
+class _BudgetGuard:
+    """Shared spend accounting for the tasks running in one round.
+
+    Concurrency and a hard spend cap are in tension: N tasks that each check the budget
+    before starting can all pass the check and then all spend. This guard narrows the
+    window as far as it can be narrowed without pre-reserving budget — every task adds
+    its cost the moment a model call returns, and every task re-checks before its next
+    tool round or before being dispatched at all.
+
+    So overshoot is *bounded by the calls already in flight*, not eliminated. Note the
+    sequential version had the same property, just with a window of one: `_over_budget`
+    was only consulted between tasks, after the spend had happened. Setting
+    `max_parallel_tasks=1` restores exactly that.
+    """
+
+    def __init__(self, spent: float, limit: float) -> None:
+        self._spent = spent
+        self._limit = limit
+        self._lock = asyncio.Lock()
+
+    async def add(self, cost: float) -> None:
+        async with self._lock:
+            self._spent += cost
+
+    def exceeded(self) -> bool:
+        return self._spent >= self._limit
+
+    @property
+    def spent(self) -> float:
+        return self._spent
+
+
+def _task_key(task: dict) -> str:
+    """Verdicts and retries are keyed by string — the checkpointer stores state as JSON."""
+    return str(task.get("id"))
+
+
+def _pending(state: AgentState, max_retries: int) -> list[dict]:
+    """Tasks still needing work: never passed, and not yet out of retries."""
+    verdicts = state.get("verdicts") or {}
+    retries = state.get("retries") or {}
+    out = []
+    for task in state.get("tasks") or []:
+        key = _task_key(task)
+        if (verdicts.get(key) or {}).get("passed"):
+            continue
+        if retries.get(key, 0) >= max_retries:
+            continue
+        out.append(task)
+    return out
+
+
+async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> dict:
+    """Gather evidence for a single task. Returns {evidence, cost, tokens_in, tokens_out}."""
     sid = state["session_id"]
-    idx = state["current_task_index"]
-    task = state["tasks"][idx]
+    feedback = ((state.get("verdicts") or {}).get(_task_key(task)) or {}).get(
+        "feedback_for_executor"
+    )
+
     await emit(
         sid,
         "agent_log",
@@ -149,20 +216,19 @@ async def executor_node(state: AgentState) -> dict:
         SystemMessage(content=prompts.EXECUTOR_PROMPT_V2),
         HumanMessage(content=f"Task {task['id']}: {task['query']}"),
     ]
-    verdict = state.get("critic_verdict")
-    if verdict and not verdict.get("passed"):
-        messages.append(
-            HumanMessage(
-                content=f"Previous attempt insufficient. Fix: "
-                f"{verdict.get('feedback_for_executor', '')}"
-            )
-        )
+    if feedback:
+        messages.append(HumanMessage(content=f"Previous attempt insufficient. Fix: {feedback}"))
 
     cost = 0.0
     i_tot = o_tot = 0
     for _round in range(_MAX_TOOL_ROUNDS):
+        if guard.exceeded():
+            logger.warning("executor_budget_stop", session_id=sid, task_id=task["id"])
+            break
         resp = await model.ainvoke(messages)
-        cost += estimate_cost(resp, "executor")
+        round_cost = estimate_cost(resp, "executor")
+        cost += round_cost
+        await guard.add(round_cost)
         di, do = token_counts(resp)
         i_tot += di
         o_tot += do
@@ -224,6 +290,7 @@ async def executor_node(state: AgentState) -> dict:
                 ExecutorOutput,
             )
             cost += c2
+            await guard.add(c2)
             i_tot += i2
             o_tot += o2
             if parsed is not None:
@@ -239,16 +306,74 @@ async def executor_node(state: AgentState) -> dict:
         message=f"Gathered {len(evidence)} source(s) for task {task['id']}",
         detail={"task_id": task["id"], "source_count": len(evidence)},
     )
-    return {"evidence": state.get("evidence", []) + evidence, **_acc(state, cost, i_tot, o_tot)}
+    return {"evidence": evidence, "cost": cost, "in": i_tot, "out": o_tot}
 
 
-async def critic_node(state: AgentState) -> dict:
+async def executor_node(state: AgentState) -> dict:
+    """Research every pending task concurrently, bounded by `max_parallel_tasks`."""
     sid = state["session_id"]
-    task = state["tasks"][state["current_task_index"]]
-    await emit(
-        sid, "agent_log", agent="critic", message=f"Evaluating evidence for task {task['id']}…"
-    )
-    task_evidence = [e for e in state.get("evidence", []) if e.get("task_id") == task["id"]]
+    cfg = get_run_config()
+    pending = _pending(state, cfg.max_critic_loops)
+    round_no = state.get("research_round", 0) + 1
+
+    if len(pending) > 1:
+        await emit(
+            sid,
+            "agent_log",
+            agent="executor",
+            message=f"Round {round_no}: researching {len(pending)} tasks in parallel",
+            detail={
+                "round": round_no,
+                "task_ids": [t["id"] for t in pending],
+                "max_parallel": cfg.max_parallel_tasks,
+            },
+        )
+
+    guard = _BudgetGuard(state.get("cost_usd", 0.0), cfg.max_cost_per_session_usd)
+    semaphore = asyncio.Semaphore(max(1, cfg.max_parallel_tasks))
+
+    async def bounded(task: dict) -> dict:
+        async with semaphore:
+            if guard.exceeded():
+                logger.warning("executor_not_dispatched", session_id=sid, task_id=task["id"])
+                return {"evidence": [], "cost": 0.0, "in": 0, "out": 0}
+            return await _research_one(state, task, guard)
+
+    # gather preserves argument order regardless of completion order, which is what keeps
+    # the merge below deterministic.
+    results = await asyncio.gather(*(bounded(t) for t in pending))
+
+    fresh = {_task_key(t): r["evidence"] for t, r in zip(pending, results, strict=True)}
+    previous = state.get("evidence") or []
+
+    # Rebuild the whole evidence list in task-definition order: a task researched this
+    # round contributes its new evidence, any other task keeps what it already had. Order
+    # must not depend on which task finished first or the synthesizer would renumber
+    # citations between otherwise identical runs.
+    merged: list[dict] = []
+    for task in state.get("tasks") or []:
+        key = _task_key(task)
+        if key in fresh:
+            merged.extend(fresh[key])
+        else:
+            merged.extend(e for e in previous if str(e.get("task_id")) == key)
+
+    cost = sum(r["cost"] for r in results)
+    i_tot = sum(r["in"] for r in results)
+    o_tot = sum(r["out"] for r in results)
+    return {
+        "evidence": merged,
+        "research_round": round_no,
+        **_acc(state, cost, i_tot, o_tot),
+    }
+
+
+async def _criticize_one(
+    state: AgentState, task: dict
+) -> tuple[str, CriticVerdict, float, int, int]:
+    task_evidence = [
+        e for e in state.get("evidence", []) if str(e.get("task_id")) == _task_key(task)
+    ]
     messages = [
         SystemMessage(content=prompts.CRITIC_PROMPT_V2),
         HumanMessage(
@@ -259,28 +384,64 @@ async def critic_node(state: AgentState) -> dict:
     parsed, cost, i, o = await _structured("critic", messages, CriticVerdict)
     if parsed is None:
         # Fail closed (docs/11 §1 rule 2): invalid critic output is a failure, not a pass.
-        verdict = CriticVerdict(
+        parsed = CriticVerdict(
             passed=False,
             confidence=0.0,
             reasons=["critic output invalid — failing closed"],
             feedback_for_executor="Re-gather clearer, well-cited evidence.",
         )
-    else:
-        verdict = parsed
+    return _task_key(task), parsed, cost, i, o
 
-    passed = verdict.passed
-    retries = state.get("critic_retries", 0) + (0 if passed else 1)
+
+async def critic_node(state: AgentState) -> dict:
+    """Grade every task researched this round, concurrently."""
+    sid = state["session_id"]
+    cfg = get_run_config()
+    pending = _pending(state, cfg.max_critic_loops)
+
     await emit(
         sid,
         "agent_log",
         agent="critic",
-        message=("✅ PASS" if passed else f"❌ FAIL (retry {retries})"),
-        detail=verdict.model_dump(),
+        message=f"Evaluating evidence for {len(pending)} task(s)…",
+        detail={"task_ids": [t["id"] for t in pending]},
     )
+
+    semaphore = asyncio.Semaphore(max(1, cfg.max_parallel_tasks))
+
+    async def bounded(task: dict):
+        async with semaphore:
+            return await _criticize_one(state, task)
+
+    results = await asyncio.gather(*(bounded(t) for t in pending))
+
+    verdicts = dict(state.get("verdicts") or {})
+    retries = dict(state.get("retries") or {})
+    cost, i_tot, o_tot = 0.0, 0, 0
+
+    for key, verdict, c, i, o in results:
+        verdicts[key] = verdict.model_dump()
+        if not verdict.passed:
+            retries[key] = retries.get(key, 0) + 1
+        cost += c
+        i_tot += i
+        o_tot += o
+        await emit(
+            sid,
+            "agent_log",
+            agent="critic",
+            message=(
+                f"✅ PASS task {key}"
+                if verdict.passed
+                else f"❌ FAIL task {key} (retry {retries[key]})"
+            ),
+            detail={"task_id": key, **verdict.model_dump()},
+        )
+
     return {
-        "critic_verdict": verdict.model_dump(),
-        "critic_retries": retries,
-        **_acc(state, cost, i, o),
+        "verdicts": verdicts,
+        "retries": retries,
+        **_acc(state, cost, i_tot, o_tot),
     }
 
 
@@ -387,23 +548,17 @@ def route_after_planner(state: AgentState) -> str:
 
 
 def route_after_critic(state: AgentState) -> str:
+    """Another research round, or synthesize.
+
+    A task leaves the pending set when it passes *or* runs out of retries — so a task
+    whose evidence never satisfies the critic still contributes what it found, exactly as
+    it did when tasks ran one at a time.
+    """
     if _over_budget(state):
         return "failer"
-    verdict = state.get("critic_verdict") or {}
-    max_retries = get_run_config().max_critic_loops
-    if not verdict.get("passed") and state.get("critic_retries", 0) < max_retries:
+    if _pending(state, get_run_config().max_critic_loops):
         return "executor"
-    if state["current_task_index"] + 1 < len(state["tasks"]):
-        return "next_task"
     return "synthesizer"
-
-
-def advance_task_node(state: AgentState) -> dict:
-    return {
-        "current_task_index": state["current_task_index"] + 1,
-        "critic_retries": 0,
-        "critic_verdict": None,
-    }
 
 
 def route_after_gate(state: AgentState) -> str:
@@ -420,7 +575,6 @@ def build_graph(checkpointer):
     g.add_node("planner", planner_node)
     g.add_node("executor", executor_node)
     g.add_node("critic", critic_node)
-    g.add_node("advance_task", advance_task_node)
     g.add_node("synthesizer", synthesizer_node)
     g.add_node("hitl_gate", hitl_gate_node)
     g.add_node("finalizer", finalizer_node)
@@ -436,12 +590,10 @@ def build_graph(checkpointer):
         route_after_critic,
         {
             "executor": "executor",
-            "next_task": "advance_task",
             "synthesizer": "synthesizer",
             "failer": "failer",
         },
     )
-    g.add_edge("advance_task", "executor")
     g.add_edge("synthesizer", "hitl_gate")
     g.add_conditional_edges(
         "hitl_gate", route_after_gate, {"finalizer": "finalizer", "synthesizer": "synthesizer"}

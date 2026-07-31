@@ -73,7 +73,7 @@ order, in `app/agent/net_guard.py`:
   followed and should be reported as suspicious.
 - The synthesizer may only cite evidence provided in state; markers are validated
   against the evidence list before the draft is accepted (fail-closed,
-  [04](04_Agent_Design.md) §3).
+  [04](../architecture/04_Agent_Design.md) §3).
 - Chat replays assistant turns as `AIMessage`, never `SystemMessage` — model output
   must not gain system authority. (Prevents: prior-output privilege escalation.)
 - The critic **fails closed** on unparseable output. (Prevents: "parse error →

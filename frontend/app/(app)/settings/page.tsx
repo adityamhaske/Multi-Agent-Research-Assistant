@@ -5,6 +5,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 
 import { AccountShell } from "@/components/account/AccountShell";
+import { ModelPicker } from "@/components/account/ModelPicker";
 import { Field, Section } from "@/components/account/Section";
 import {
   useDeleteApiKey,
@@ -319,6 +320,8 @@ export default function SettingsPage() {
       </Section>
 
       {/* ── Preferences ──────────────────────────────────────────────────── */}
+      <ModelPicker />
+
       <Section title="Appearance" description="Choose how the interface looks on this device.">
         <div
           className="segmented"

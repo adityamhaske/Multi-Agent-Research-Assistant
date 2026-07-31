@@ -1,9 +1,9 @@
 """
-Provider-pluggable LLM factory (docs/04_Agent_Design.md §7).
+Provider-pluggable LLM factory (docs/architecture/04_Agent_Design.md §7, docs/13 §6).
 
 Roles are resolved from "provider:model" config strings so BYOK users can point
-any role at any configured provider. A versioned price table drives cost
-accounting; a routed model with no price entry fails fast at startup.
+any role at any configured provider. Prices and per-model capabilities come from
+`research_engine.catalog`; a routed model with no price fails fast at startup.
 
 LLM_MODE=fake returns deterministic scripted models (no keys, no network).
 """
@@ -14,32 +14,8 @@ from contextvars import ContextVar
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from app.agent.runconfig import RunConfig, get_run_config
-
-# $ per 1M tokens. Review when models change (docs/03 upgrade policy).
-PRICE_TABLE: dict[str, dict[str, float]] = {
-    "gemini-2.5-pro": {"input": 1.25, "output": 5.00},
-    "gemini-2.5-flash": {"input": 0.075, "output": 0.30},
-    # Legacy fallbacks kept priced so mixed configs still boot.
-    "gemini-1.5-pro": {"input": 1.25, "output": 5.00},
-    "gemini-1.5-flash": {"input": 0.075, "output": 0.30},
-    # Anthropic (BYOK). Standard list prices; Sonnet 5 has intro $2/$10 through
-    # 2026-08-31 — the higher standard rate is kept here so the budget guard never
-    # under-estimates. Update alongside MODEL_* routing when Anthropic reprices.
-    "claude-opus-4-8": {"input": 5.00, "output": 25.00},
-    "claude-sonnet-5": {"input": 3.00, "output": 15.00},
-    "claude-haiku-4-5": {"input": 1.00, "output": 5.00},
-}
-
-# Opus 4.7+/Sonnet 5/Fable 5 reject temperature/top_p/top_k with a 400; only Haiku 4.5
-# and the 4.6 generation still accept sampling params (docs/03; verified against the
-# Anthropic API reference). Models here are built without a temperature.
-_ANTHROPIC_NO_SAMPLING = (
-    "claude-opus-4-8",
-    "claude-opus-4-7",
-    "claude-sonnet-5",
-    "claude-fable-5",
-)
+from research_engine import catalog
+from research_engine.runconfig import RunConfig, get_run_config
 
 # Roles → per-role generation config.
 _ROLE_CONFIG = {
@@ -82,26 +58,46 @@ def model_name_for(role: str) -> str:
 
 
 def validate_pricing(cfg: RunConfig | None = None) -> None:
-    """Fail fast if any routed model lacks a price entry (called at startup)."""
+    """Fail fast if any routed model has no price (called at startup).
+
+    An unpriced model is refused rather than defaulted to zero: the price feeds the budget
+    guard, and a silently-zero price turns the per-session spend cap into a no-op.
+    """
     cfg = cfg or get_run_config()
     if cfg.llm_mode == "fake":
         return
-    missing = {
-        name
-        for name in (cfg.model_for(role).split(":", 1)[-1] for role in cfg.models)
-        if name not in PRICE_TABLE
-    }
+    missing = sorted(
+        {
+            name
+            for name in (cfg.model_for(role).split(":", 1)[-1] for role in cfg.models)
+            if (spec := catalog.get(name)) is None or not spec.priced
+        }
+    )
     if missing:
         raise ValueError(
-            f"No price-table entry for routed model(s): {sorted(missing)}. "
-            f"Add them to app/agent/llm_factory.PRICE_TABLE (docs/04 §7)."
+            f"No price for routed model(s): {missing}. Add a ModelSpec to "
+            f"research_engine/catalog.py (or call catalog.register() at startup) with the "
+            f"provider's published per-1M-token prices — never estimated (docs/13 §6)."
         )
+
+
+def sampling_supported(model: str) -> bool:
+    """Whether this model accepts temperature/top_p/top_k.
+
+    Unknown models default to True, matching every provider's historical behaviour. The
+    cost of being wrong is asymmetric but recoverable in both directions: a needless
+    omission changes nothing observable, and a rejected parameter surfaces as a loud 400
+    rather than a silently degraded run.
+    """
+    spec = catalog.get(model)
+    return True if spec is None else spec.sampling_params_supported
 
 
 def _build(provider: str, model: str, role: str) -> BaseChatModel:
     cfg = _ROLE_CONFIG[role]
     key = api_key_for(provider)
-    if not key:
+    # Ollama runs locally and needs no key; every hosted provider does.
+    if not key and provider != "ollama":
         # Fail with an actionable message rather than a provider-side 401 buried
         # in a stack trace — this is what a BYOK user sees if they haven't added
         # a key and the deployment has none configured.
@@ -109,6 +105,7 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
             f"No API key available for provider '{provider}'. Add your own key in "
             f"Settings, or configure {provider.upper()}_API_KEY on the server."
         )
+
     if provider == "google":
         from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -118,36 +115,65 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
             temperature=cfg["temperature"],
             max_output_tokens=cfg["max_tokens"],
         )
+
     if provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
-        # Newer tiers reject a temperature; omit it there so structured-output and
-        # tool calls don't 400. max_tokens (the output cap) is accepted everywhere.
-        kwargs: dict = {
-            "model": model,
-            "api_key": key,
-            "max_tokens": cfg["max_tokens"],
-        }
-        if not any(model.startswith(p) for p in _ANTHROPIC_NO_SAMPLING):
+        # Newer tiers reject temperature/top_p/top_k with a 400; omit them there so
+        # structured output and tool calls still work. `max_tokens` (the output cap) is
+        # accepted everywhere. Which models reject is a catalog fact, not a prefix guess —
+        # the old prefix tuple is what let `claude-opus-5` slip through (docs/12 M8).
+        kwargs: dict = {"model": model, "api_key": key, "max_tokens": cfg["max_tokens"]}
+        if sampling_supported(model):
             kwargs["temperature"] = cfg["temperature"]
         return ChatAnthropic(**kwargs)
+
     if provider == "openai":
+        from langchain_openai import ChatOpenAI
+
+        kwargs = {"model": model, "api_key": key, "max_tokens": cfg["max_tokens"]}
+        if sampling_supported(model):
+            kwargs["temperature"] = cfg["temperature"]
+        return ChatOpenAI(**kwargs)
+
+    if provider == "openrouter":
+        # OpenRouter speaks the OpenAI wire protocol, so one base-URL override buys access
+        # to most frontier models on a single key — the largest BYOK ergonomics win
+        # available (docs/13 §6). Model ids are namespaced, e.g. "anthropic/claude-opus-5".
         from langchain_openai import ChatOpenAI
 
         return ChatOpenAI(
             model=model,
             api_key=key,
-            temperature=cfg["temperature"],
+            base_url="https://openrouter.ai/api/v1",
             max_tokens=cfg["max_tokens"],
+            temperature=cfg["temperature"],
         )
-    raise ValueError(f"Unknown LLM provider '{provider}' for role '{role}'")
+
+    if provider == "ollama":
+        # Local inference, also OpenAI-compatible. This is offline tier 2 (docs/13 §8):
+        # no key, no inference egress. The endpoint is overridable for a remote box.
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(
+            model=model,
+            api_key=key or "ollama",  # the client requires a non-empty value; unused
+            base_url=get_run_config().ollama_base_url,
+            max_tokens=cfg["max_tokens"],
+            temperature=cfg["temperature"],
+        )
+
+    raise ValueError(
+        f"Unknown LLM provider '{provider}' for role '{role}'. "
+        f"Known providers: {', '.join(catalog.KNOWN_PROVIDERS)}."
+    )
 
 
 def get_llm(role: str) -> BaseChatModel:
     """Return the chat model for an agent role."""
     cfg = get_run_config()
     if cfg.llm_mode == "fake":
-        from app.agent.fakes import fake_model
+        from research_engine.fakes import fake_model
 
         return fake_model()
     provider, _, model = cfg.model_for(role).partition(":")
@@ -180,12 +206,19 @@ def text_of(message_or_chunk) -> str:
 
 
 def estimate_cost(response, role: str) -> float:
-    """Cost of one response from its usage_metadata and the role's model price."""
+    """Cost of one response from its usage_metadata and the role's model price.
+
+    An unknown or unpriced model contributes 0. That is safe only because
+    `validate_pricing()` refuses to start a real run in that state — without that check
+    this fallback would quietly disable the budget guard.
+    """
     usage = getattr(response, "usage_metadata", None) or {}
     in_tok = usage.get("input_tokens", 0)
     out_tok = usage.get("output_tokens", 0)
-    price = PRICE_TABLE.get(model_name_for(role), {"input": 0.0, "output": 0.0})
-    return (in_tok / 1_000_000 * price["input"]) + (out_tok / 1_000_000 * price["output"])
+    spec = catalog.get(model_name_for(role))
+    if spec is None or not spec.priced:
+        return 0.0
+    return (in_tok / 1_000_000 * spec.input_per_mtok) + (out_tok / 1_000_000 * spec.output_per_mtok)
 
 
 def token_counts(response) -> tuple[int, int]:
