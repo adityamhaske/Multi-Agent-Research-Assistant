@@ -70,8 +70,15 @@ Existing per-operation rate limits handle abuse.
   N runs, X of Y citations failed to resolve; the UI flagged all X." Nobody publishes
   their failure rate. We built the ⚠ chip; lead with it.
 - **Hosted fake-mode demo live** at a real URL; set the repo `homepageUrl` (currently
-  empty).
-- **Tag `v1.0.0`** — `release.yml` exists and is waiting on a tag.
+  empty). Deployment is written and validated — [`deploy/README.md`](../../deploy/README.md)
+  plus [`deploy/docker-compose.demo.yml`](../../deploy/docker-compose.demo.yml) and
+  [`deploy/oracle-bootstrap.sh`](../../deploy/oracle-bootstrap.sh) — targeting an Oracle
+  Cloud Always Free VM at **$0/month**. Remaining: creating the instance and adding the
+  subnet ingress rules, both of which need the account owner's console.
+- **Tag `v1.0.0`** — `release.yml` exists and is waiting on a tag. It now publishes
+  multi-arch images (`linux/amd64` + `linux/arm64`; Always Free compute is Ampere ARM, and
+  an amd64-only image will not start there) and can be run manually to publish an `edge`
+  tag, so the demo box is not blocked on the `v1.0.0` decision.
 - **Run 20 real questions and read every output like a hostile reviewer.** Log every
   defect. **This reorders M11–M13.** Both strategic critiques of this project so far —
   including the one that produced this plan — reasoned about a system nobody had watched

@@ -2,54 +2,154 @@ name: Release
 
 # Tag a version to build and push the three images to GHCR and cut a GitHub Release
 # (docs/09 §8). Prerequisite: green CI on main (golden E2E included).
+#
+# Images are multi-arch (linux/amd64 + linux/arm64). arm64 is not a nicety: the free
+# hosting target is an Oracle Cloud Always Free VM, and those are Ampere ARM cores
+# (deploy/README.md). An amd64-only image simply will not start there.
+#
+# Two triggers, deliberately:
+#   • a v*.*.* tag  — builds images, moves `latest`, and cuts a public GitHub Release.
+#   • workflow_dispatch — builds and pushes images under a name you choose, and stops
+#     there. This exists so the demo box has something to pull without anyone having to
+#     cut a public 1.0.0 first; an untested build must never become `latest`.
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to publish (no GitHub Release is created)"
+        required: true
+        default: edge
 
 permissions:
   contents: write # create the GitHub Release
   packages: write # push images to GHCR
 
+env:
+  REGISTRY: ghcr.io
+
 jobs:
-  images:
-    runs-on: ubuntu-latest
+  build:
+    # One job per (image, platform). arm64 builds on GitHub's ARM runners — free for
+    # public repos — rather than under QEMU emulation, which turns a a few-minute
+    # Python/Node build into a ~30-minute one.
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     strategy:
+      fail-fast: false
       matrix:
-        include:
+        image:
           - { name: api, context: ./backend, target: api }
           - { name: worker, context: ./backend, target: worker }
           - { name: frontend, context: ./frontend, target: runtime }
+        platform: [linux/amd64, linux/arm64]
     steps:
       - uses: actions/checkout@v7
+      - name: Derive artifact-safe platform name
+        run: echo "PLATFORM_PAIR=${{ matrix.platform }}" | tr '/' '-' >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@v4
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.image.context }}
+          target: ${{ matrix.image.target }}
+          platforms: ${{ matrix.platform }}
+          # Deliberately untagged. Each arch is pushed as a bare digest and the `manifest`
+          # job stitches them into one multi-arch tag. If both arch jobs pushed the same
+          # tag they would race, and the loser's architecture would vanish from the tag.
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image.name }},push-by-digest=true,name-canonical=true,push=true
+          # Cache is scoped per image *and* per platform: a shared scope would have the
+          # two architectures continually evict each other's layers.
+          cache-from: type=gha,scope=${{ matrix.image.name }}-${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}-${{ env.PLATFORM_PAIR }}
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest='${{ steps.build.outputs.digest }}'
+          touch "/tmp/digests/${digest#sha256:}"
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.image.name }}-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  manifest:
+    # Combine the per-arch digests into a single multi-arch tag, so `docker pull` picks
+    # the right architecture automatically on both an x86 laptop and an Ampere VM.
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [api, worker, frontend]
+    steps:
+      - name: Download digests for this image
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-${{ matrix.image }}-*
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Image metadata
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository }}-${{ matrix.name }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.context }}
-          target: ${{ matrix.target }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+            type=raw,value=${{ inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+      - name: Create and push manifest list
+        working-directory: /tmp/digests
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          tag_args=()
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && tag_args+=(-t "$tag")
+          done <<< "$TAGS"
+          # Each file in this directory is named after one architecture's digest.
+          digest_args=()
+          for digest in *; do
+            digest_args+=("${IMAGE}@sha256:${digest}")
+          done
+          docker buildx imagetools create "${tag_args[@]}" "${digest_args[@]}"
+      - name: Verify both architectures are present
+        # Inspect whatever tag metadata-action actually produced rather than
+        # reconstructing one from the ref — the two triggers name images differently,
+        # and a wrong guess here would "pass" by inspecting a stale tag.
+        env:
+          FIRST_TAG: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+        run: |
+          set -euo pipefail
+          inspected=$(docker buildx imagetools inspect "$FIRST_TAG")
+          echo "$inspected"
+          for want in linux/amd64 linux/arm64; do
+            grep -q "$want" <<< "$inspected" || { echo "::error::$want missing from $FIRST_TAG"; exit 1; }
+          done
 
   release:
-    needs: images
+    # Tag pushes only — a manual image build must not cut a public Release.
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: manifest
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -61,7 +161,9 @@ jobs:
           # Changelog auto-generated from merged PRs / conventional commits.
           generate_release_notes: true
           body: |
-            Container images (linux/amd64) pushed to GHCR:
+            Multi-arch container images (linux/amd64, linux/arm64) pushed to GHCR:
             - `ghcr.io/${{ github.repository }}-api:${{ github.ref_name }}`
             - `ghcr.io/${{ github.repository }}-worker:${{ github.ref_name }}`
             - `ghcr.io/${{ github.repository }}-frontend:${{ github.ref_name }}`
+
+            Deploy the full stack on a free Oracle Cloud Ampere VM — see `deploy/README.md`.

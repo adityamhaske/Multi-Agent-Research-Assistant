@@ -1,0 +1,138 @@
+# Public demo stack — pre-built images, no source tree, no compiler on the box.
+#
+#   docker compose -f deploy/docker-compose.demo.yml up -d
+#
+# Differs from docker-compose.full.yml in three ways that matter on a free VM:
+#
+#   1. Images are *pulled* from GHCR rather than built. Building the Next.js and Python
+#      images on two Ampere cores takes tens of minutes and can OOM; the release workflow
+#      already publishes arm64 images, so the VM just pulls them.
+#   2. Caddy is part of the stack and is the only service that binds a host port. The
+#      frontend is reachable solely over the internal network, so nothing can bypass TLS.
+#   3. Memory limits are declared. The box has ~12 GB and no other tenant to steal from,
+#      but an unbounded worker retry storm shouldn't be able to take the database down
+#      with it.
+#
+# Configuration lives in ./.env next to this file — see deploy/README.md. The demo is
+# expected to run LLM_MODE=fake: deterministic scripted agents, no provider keys, no
+# spend, and therefore nothing an anonymous visitor can drain.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-research_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-research_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-research_user} -d ${POSTGRES_DB:-research_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits: { memory: 1g }
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits: { memory: 256m }
+
+  api:
+    image: ghcr.io/${GITHUB_REPOSITORY:-adityamhaske/multi-agent-research-assistant}-api:${IMAGE_TAG:-latest}
+    pull_policy: always
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-research_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-research_db}
+      REDIS_URL: redis://redis:6379/0
+      ENVIRONMENT: production
+      LLM_MODE: ${LLM_MODE:-fake}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits: { memory: 2g }
+
+  worker:
+    image: ghcr.io/${GITHUB_REPOSITORY:-adityamhaske/multi-agent-research-assistant}-worker:${IMAGE_TAG:-latest}
+    pull_policy: always
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-research_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-research_db}
+      REDIS_URL: redis://redis:6379/0
+      ENVIRONMENT: production
+      LLM_MODE: ${LLM_MODE:-fake}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      api: { condition: service_healthy } # migrations applied before the worker runs
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits: { memory: 3g }
+
+  frontend:
+    image: ghcr.io/${GITHUB_REPOSITORY:-adityamhaske/multi-agent-research-assistant}-frontend:${IMAGE_TAG:-latest}
+    pull_policy: always
+    environment:
+      BACKEND_ORIGIN: http://api:8000
+    # No `ports:` — Caddy is the only ingress. The published image already bakes
+    # BACKEND_ORIGIN=http://api:8000, matching the service name above.
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits: { memory: 1g }
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      # Caddy substitutes {$DOMAIN} at load time; see deploy/Caddyfile.
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env — e.g. 203-0-113-7.sslip.io}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates must survive `down`/`up`, or Let's Encrypt rate limits will bite.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits: { memory: 256m }
+
+volumes:
+  postgres_data:
+    name: mara_demo_postgres_data
+  redis_data:
+    name: mara_demo_redis_data
+  caddy_data:
+    name: mara_demo_caddy_data
+  caddy_config:
+    name: mara_demo_caddy_config

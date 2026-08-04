@@ -292,12 +292,19 @@ the shapes real models produce. Details in
 
 Single host plus a TLS reverse proxy in front of the frontend:
 
+- [`deploy/README.md`](deploy/README.md) — **host the whole stack for $0/month** on an
+  Oracle Cloud Always Free VM, HTTPS included, no domain required
+- [`deploy/docker-compose.demo.yml`](deploy/docker-compose.demo.yml) — pulls prebuilt
+  multi-arch images; nothing is compiled on the server
 - [`deploy/Caddyfile`](deploy/Caddyfile) — automatic-HTTPS reverse proxy
 - [`deploy/backup-postgres.sh`](deploy/backup-postgres.sh) — nightly `pg_dump` with cron
   and restore examples; one dump captures full state
 
 Tagging `vX.Y.Z` triggers [`release.yml`](.github/workflows/release.yml), which builds and
-pushes the api/worker/frontend images to GHCR and cuts a GitHub Release.
+pushes the api/worker/frontend images to GHCR and cuts a GitHub Release. Images are
+multi-arch (`linux/amd64` + `linux/arm64`), so the same tag runs on an x86 server and on
+a free Ampere VM. The workflow can also be run manually to publish images under a name of
+your choosing without cutting a release.
 
 ## Documentation
 
