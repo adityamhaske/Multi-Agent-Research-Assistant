@@ -4,7 +4,7 @@
 > human-in-the-loop approval gate and verifiable per-claim citations.
 
 [![CI](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml)
-[![eval](https://img.shields.io/badge/eval-fake--mode%20baseline-lightgrey)](backend/evals/results/)
+[![citation support](https://img.shields.io/badge/citation%20support-95.2%25-brightgreen)](backend/evals/results/eval-2026-08-03.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -236,10 +236,57 @@ verifies every routed model provider has a key.
 - **Frontend** — Vitest (SSE parser, citation renderer, derivations) + `next build`
 - **Golden E2E** — three Playwright journeys through the packaged stack in fake-LLM mode
 - **Evals** — `make eval` scores a fixed query set and writes dated JSON to
-  `backend/evals/results/`, so report quality is diffable over time. **The committed
-  baseline is a fake-mode run**: it pins the metric plumbing and structural numbers, not
-  model quality. Real-model runs (`LLM_MODE=real make eval`) additionally compute the
-  LLM-judged citation-support rate that the release criteria gate on
+  `backend/evals/results/`, so report quality is diffable over time. `make eval` runs in
+  fake mode (free, deterministic); `LLM_MODE=real make eval` measures real-model quality
+
+## Measured quality
+
+Most projects in this category claim citation fidelity. Here are the numbers, the method,
+and the failures — measured, not asserted.
+
+Latest real-model run: [`eval-2026-08-03.json`](backend/evals/results/eval-2026-08-03.json),
+10 queries across 10 domains.
+
+| Metric | Result |
+|---|---|
+| Reports completed | **10 / 10** |
+| Citation support rate | **95.2%** — cited sentences whose cited snippets actually support them |
+| Citation resolution rate | **96.2%** — inline `[n]` markers pointing at a real source |
+| Uncited claims | 5.9 per report (avg) |
+| Cost | **$0.026** per report |
+| Latency | 114 s per report |
+
+**Method.** Models: `gemini-2.5-flash` for every role. Search: Tavily. Citation support is
+judged per *sentence* by an LLM shown only the snippets that sentence cites, answering
+YES/NO. Every run records its own method block, and `metrics_version` is bumped whenever a
+definition changes so two runs are never silently compared across incompatible metrics.
+
+**Limitations, stated plainly.** The support rate is **self-judged** — the grader is the
+same model family that wrote the report, not a human and not an independent model. It is
+shown every snippet extracted from a cited source, so it answers "is this claim supported
+by what we extracted from the source it cites?", which is a weaker question than "is this
+claim true". Ten queries is a small set. Treat it as a regression signal, not a benchmark.
+
+### The failures
+
+In one of the ten runs, the synthesizer cited **21 source numbers that did not exist** —
+markers pointing past the 6 real sources it had. That is a 3.1% failure rate across 673
+total citations, and it is the single most important number here, because **every one of
+those 21 rendered as a visible ⚠ "unverified" chip** instead of a silent broken link. The
+system surfaced its own failure, which is the entire design goal.
+
+Three bugs were found by the *first* real-model run and fixed before these numbers were
+published — the run reported 32% support before any of them were known:
+
+| | Bug | Impact |
+|---|---|---|
+| D1 | `[1, 3]` grouped citations matched by no parser | 50% of citations invisible in the UI — **no chip, no link, and no ⚠ either** |
+| D3 | Only the first snippet per source was kept | A citation could show a quote supporting a *different* claim (~8 claims shared one snippet) |
+| D2 | Executor rarely returns parsable evidence first try | Open — costs an extra model call per task; recovers via fallback |
+
+Every one was invisible to a passing test suite, because the fake fixtures never produced
+the shapes real models produce. Details in
+[docs/12 → Defect log](docs/product/12_Launch_Plan.md).
 
 ## Deployment ([docs/09](docs/engineering/09_Deployment_and_Operations.md))
 

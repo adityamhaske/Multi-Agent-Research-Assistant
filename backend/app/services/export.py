@@ -37,7 +37,18 @@ pre { background: #f3f3f5; padding: 8pt; border-radius: 4px; overflow-x: auto; }
 .sources .snippet { color: #555; font-style: italic; }
 """
 
-_CITATION_RE = re.compile(r"\[(\d+)\]")
+# Matches single and grouped citation markers — `[1]` and `[1, 3]` alike.
+#
+# The third place the single-number-only pattern appeared (docs/12 M5, defect D1). Here it
+# meant a grouped citation silently lost its superscript styling in exported .md and .pdf
+# reports, so the exported artifact rendered citations inconsistently with the app that
+# produced it. Each number is superscripted separately, matching how the UI chips them.
+_CITATION_RE = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
+
+
+def _superscript_citations(match: re.Match[str]) -> str:
+    """`[1, 3]` → `<sup>[1]</sup><sup>[3]</sup>`, one marker per cited source."""
+    return "".join(f"<sup>[{part.strip()}]</sup>" for part in match.group(1).split(","))
 
 
 def _domain(url: str) -> str:
@@ -69,7 +80,7 @@ def render_html(
     """Full standalone HTML document for the report (used by the PDF renderer)."""
     # Render inline [n] markers as superscripts before markdown conversion so they
     # survive as <sup> in the output.
-    body_md = _CITATION_RE.sub(r"<sup>[\1]</sup>", report_markdown or "")
+    body_md = _CITATION_RE.sub(_superscript_citations, report_markdown or "")
     body_html = md.markdown(body_md, extensions=["extra", "sane_lists"])
     safe_title = html.escape(title)
     return (

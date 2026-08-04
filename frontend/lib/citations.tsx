@@ -37,23 +37,44 @@ type HastNode =
   | HastElement
   | { type: string; value?: string; children?: HastNode[]; properties?: Record<string, unknown>; tagName?: string };
 
-const CITE_TEST = /\[\d+\]/;
+/**
+ * Citation markers, including *grouped* ones.
+ *
+ * The synthesizer routinely writes `[1, 3]` or `[1, 2, 3, 4, 6]` when a sentence draws on
+ * several sources — standard academic style, and the prompt never forbade it. An earlier
+ * single-number-only pattern (`\[(\d+)\]`) silently failed to match those: the text stayed
+ * inert, no chip rendered, no link, and — worst of all — no ⚠ either, so a citation could
+ * fail to resolve without the UI ever admitting it. On a measured real report, 42% of all
+ * citation references were inside grouped brackets and therefore invisible.
+ *
+ * Matching the group and emitting one chip per number is what keeps "every claim is
+ * traceable, and we show you when it isn't" true rather than aspirational.
+ */
+const CITE_TEST = /\[\d+(?:\s*,\s*\d+)*\]/;
+const CITE_RE = /\[(\d+(?:\s*,\s*\d+)*)\]/g;
 const SKIP_TAGS = new Set(["code", "pre", "cite", "a"]);
+
+function citeNode(n: number, resolved: Set<number>): HastNode {
+  return {
+    type: "element",
+    tagName: "cite",
+    properties: { dataIndex: String(n), dataResolved: resolved.has(n) ? "1" : "0" },
+    children: [{ type: "text", value: `[${n}]` }],
+  };
+}
 
 function splitCitations(value: string, resolved: Set<number>): HastNode[] {
   const out: HastNode[] = [];
-  const re = /\[(\d+)\]/g;
+  CITE_RE.lastIndex = 0;
   let last = 0;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(value)) !== null) {
+  while ((m = CITE_RE.exec(value)) !== null) {
     if (m.index > last) out.push({ type: "text", value: value.slice(last, m.index) });
-    const n = Number(m[1]);
-    out.push({
-      type: "element",
-      tagName: "cite",
-      properties: { dataIndex: String(n), dataResolved: resolved.has(n) ? "1" : "0" },
-      children: [{ type: "text", value: m[0] }],
-    });
+    // `[1, 3]` becomes two independent chips, so each source gets its own popover and
+    // each unresolved number gets its own ⚠ rather than one verdict for the whole group.
+    for (const part of m[1].split(",")) {
+      out.push(citeNode(Number(part.trim()), resolved));
+    }
     last = m.index + m[0].length;
   }
   if (last < value.length) out.push({ type: "text", value: value.slice(last) });
@@ -89,7 +110,19 @@ export function domainOf(url: string): string {
   }
 }
 
+/**
+ * Every snippet this source contributed, newest schema first.
+ *
+ * Falls back to the single legacy `snippet` for sessions stored before `snippets` existed
+ * (docs/12 M5, defect D3), so an old report still renders its citation popovers.
+ */
+export function snippetsOf(source: Source): string[] {
+  if (source.snippets?.length) return source.snippets;
+  return source.snippet ? [source.snippet] : [];
+}
+
 function CitationChip({ source }: { source: Source }) {
+  const snippets = snippetsOf(source);
   return (
     <span className="group relative inline-block align-baseline">
       <button
@@ -107,11 +140,14 @@ function CitationChip({ source }: { source: Source }) {
           {source.title || domainOf(source.url)}
         </span>
         <span className="mt-0.5 block text-[0.7rem] text-text-muted">{domainOf(source.url)}</span>
-        {source.snippet && (
-          <span className="mt-2 block border-l-2 border-border pl-2 text-xs italic text-text-secondary">
-            &ldquo;{source.snippet}&rdquo;
+        {snippets.map((text, i) => (
+          <span
+            key={i}
+            className="mt-2 block border-l-2 border-border pl-2 text-xs italic text-text-secondary"
+          >
+            &ldquo;{text}&rdquo;
           </span>
-        )}
+        ))}
         <a
           href={source.url}
           target="_blank"
@@ -203,11 +239,11 @@ export function SourcesPanel({ sources }: { sources: Source[] }) {
                 {s.title || domainOf(s.url)}
               </a>
               <span className="ml-2 text-xs text-text-muted">{domainOf(s.url)}</span>
-              {s.snippet && (
-                <p className="mt-1 line-clamp-3 text-xs italic text-text-secondary">
-                  &ldquo;{s.snippet}&rdquo;
+              {snippetsOf(s).map((text, i) => (
+                <p key={i} className="mt-1 line-clamp-3 text-xs italic text-text-secondary">
+                  &ldquo;{text}&rdquo;
                 </p>
-              )}
+              ))}
             </div>
           </li>
         ))}

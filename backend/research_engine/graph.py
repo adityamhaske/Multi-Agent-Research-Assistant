@@ -450,18 +450,37 @@ async def synthesizer_node(state: AgentState) -> dict:
     await emit(sid, "agent_log", agent="synthesizer", message="Compiling the report…")
 
     # Build a numbered source list from unique evidence URLs; the draft cites [n].
+    #
+    # Every distinct snippet from a source is kept, not just the first (docs/12 M5, D3).
+    # One page commonly backs several different facts and the executor extracts a separate
+    # verbatim quote for each; retaining only one meant a citation chip could display text
+    # unrelated to the claim it was attached to — the same source is cited for roughly
+    # eight different claims per report.
     sources: list[dict] = []
     seen: dict[str, int] = {}
     for e in state.get("evidence", []):
         url = e.get("source_url", "")
-        if url and url not in seen:
+        if not url:
+            continue
+        snippet = (e.get("snippet") or "").strip()
+        if url not in seen:
             n = len(sources) + 1
             seen[url] = n
             sources.append(
                 Source(
-                    index=n, url=url, title=e.get("source_title", ""), snippet=e.get("snippet", "")
+                    index=n,
+                    url=url,
+                    title=e.get("source_title", ""),
+                    snippet=snippet,
+                    snippets=[snippet] if snippet else [],
                 ).model_dump()
             )
+        elif snippet:
+            existing = sources[seen[url] - 1]
+            if snippet not in existing["snippets"]:
+                existing["snippets"].append(snippet)
+            if not existing["snippet"]:
+                existing["snippet"] = snippet
 
     numbered_evidence = [
         {
