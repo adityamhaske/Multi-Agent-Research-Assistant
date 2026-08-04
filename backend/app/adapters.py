@@ -14,6 +14,7 @@ Kept separate from `app/runtime.py`, which maps settings → RunConfig and nothi
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 
 from app.db.redis import publish_event
@@ -50,8 +51,18 @@ def agent_log_sink(db, session_id: str) -> EventSink:
 
     Bound to a caller-supplied DB session so the whole run shares one session scope; the
     detached-object writes that caused the July 2026 worker bug came from not doing this.
+
+    Serialised by a per-run lock, because an `AsyncSession` is *not* safe for concurrent
+    use. Once M7 gave the executor parallel tasks, two of them could reach `flush()` on
+    this shared session at the same time and the run died with "Session is already
+    flushing" — reliably, on every parallel run, in fake mode as much as real. The lock
+    spans the publish as well as the write so that events reach Redis in the same order
+    they were committed; `Last-Event-ID` replay hands clients a monotonic cursor, and
+    publishing out of order would let a reconnecting client skip an event whose id is
+    lower than one it has already seen.
     """
     session_uuid = uuid.UUID(session_id)
+    write_lock = asyncio.Lock()
 
     async def sink(sid: str, event: dict) -> None:  # noqa: ARG001 - port shape
         row = AgentLog(
@@ -60,10 +71,11 @@ def agent_log_sink(db, session_id: str) -> EventSink:
             agent_name=event.get("agent"),
             payload=event,
         )
-        db.add(row)
-        await db.flush()
-        event["id"] = row.id
-        await db.commit()
-        await publish_event(session_id, event)
+        async with write_lock:
+            db.add(row)
+            await db.flush()
+            event["id"] = row.id
+            await db.commit()
+            await publish_event(session_id, event)
 
     return sink
