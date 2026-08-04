@@ -161,6 +161,39 @@ all of them.
 Pinned by [`test_source_snippets.py`](../../backend/tests/test_source_snippets.py) and four
 frontend cases including the legacy-shape fallback.
 
+#### D4 — parallel executor tasks killed every run ✅ fixed
+
+**The single worst defect found so far: no research run completed at all, and CI had been
+red for two weeks without anyone reading the traceback.**
+
+[`agent_log_sink`](../../backend/app/adapters.py) binds one `AsyncSession` to a whole run —
+deliberately; that is what fixed an earlier detached-object bug. Sound while the graph was
+sequential. **M7 gave the executor parallel tasks**, each emitting its own progress events,
+so two coroutines reached `flush()` on the shared session at once:
+
+```
+InvalidRequestError: Session is already flushing
+```
+
+The user saw a `FAILED` session with no partial output. It reproduces in **fake mode** as
+readily as real, so the hosted demo would have failed on its first visitor.
+
+**Why nothing caught it.** Every other test drives the sink from a single coroutine — the
+one case that works. The golden E2E *did* catch it and had been failing since M7 landed,
+but [`ci.yml`](../../.github/workflows/ci.yml) backgrounds uvicorn and celery with `&`, so
+the worker traceback went nowhere and the only visible symptom was the UI reporting
+`Waiting for the pipeline to start…`. **A test that fails invisibly is worth little more
+than no test** — worth fixing in CI independently of this defect.
+
+**Fix:** a per-run `asyncio.Lock` around the write, spanning the publish too so events
+reach Redis in commit order; `Last-Event-ID` replay hands clients a monotonic cursor, and
+publishing out of order would let a reconnecting client resume past an event it never saw.
+The sink is the only db-bound dependency crossing into the graph, so this is the complete
+fix rather than a symptom patch.
+
+Pinned by [`test_sink_concurrency.py`](../../backend/tests/test_sink_concurrency.py), whose
+three cases fail with the production error when the lock is removed.
+
 #### D2 — executor rarely returns parsable evidence first time ⬜ open
 
 `executor_wrapup reason=no_parsable_evidence` fires on **nearly every task** in real mode:
