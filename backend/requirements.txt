@@ -37,7 +37,7 @@ langchain-openai>=0.2
 tavily-python>=0.5
 ddgs
 httpx>=0.27
-beautifulsoup4>=4.12
+beautifulsoup4>=4.15.0
 lxml>=5.2
 
 # Auth (bcrypt direct — passlib is unmaintained and incompatible with bcrypt>=4.1)
