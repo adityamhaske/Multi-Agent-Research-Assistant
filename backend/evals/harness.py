@@ -123,7 +123,16 @@ async def judge_citation_support(report: str, sources: list[dict]) -> float | No
     supported = 0
     for claim in claims:
         cited = [by_index.get(n) for n in metrics.extract_citations(claim)]
-        snippets = "\n".join(f"- {s.get('snippet', '')}" for s in cited if s)
+        # Show every snippet extracted from each cited source, not just the first
+        # (docs/12 M5, D3). A source backs ~8 claims per report; judging each against a
+        # single stored snippet measured a snippet-retention bug rather than the model's
+        # citation quality.
+        snippets = "\n".join(
+            f"- {text}"
+            for s in cited
+            if s
+            for text in (s.get("snippets") or ([s["snippet"]] if s.get("snippet") else []))
+        )
         messages = [
             SystemMessage(
                 content="You judge whether a claim is supported by the cited evidence. "
@@ -165,6 +174,22 @@ def aggregate(rows: list[dict]) -> dict:
         "avg_latency_s": mean("latency_s"),
         "citation_support_rate": citation_support,
     }
+
+
+def _retriever_in_use() -> str:
+    """Which search backend this run actually had available.
+
+    Recorded because it materially changes the evidence a report is built from, and the
+    keyless DuckDuckGo fallback is rate-limited enough to depress quality on its own — a
+    published number without this is not reproducible.
+    """
+    if RUN_CONFIG.llm_mode == "fake":
+        return "fixtures (no network)"
+    if RUN_CONFIG.tavily_api_key:
+        return "tavily (→ brave → duckduckgo fallback)"
+    if RUN_CONFIG.brave_api_key:
+        return "brave (→ duckduckgo fallback)"
+    return "duckduckgo (keyless fallback — rate-limited)"
 
 
 def check_release_criteria(agg: dict) -> dict:
@@ -214,6 +239,21 @@ async def main() -> None:
             "executor": RUN_CONFIG.models["executor"],
             "critic": RUN_CONFIG.models["critic"],
             "synthesizer": RUN_CONFIG.models["synthesizer"],
+        },
+        # Enough context to reproduce the run and to know what the numbers mean. A
+        # published figure is only meaningful alongside its method: which metric
+        # definitions produced it (see metrics.METRICS_VERSION — v2 numbers are not
+        # comparable to v1), which retriever supplied the evidence, and how the
+        # citation-support rate was judged.
+        "method": {
+            "metrics_version": metrics.METRICS_VERSION,
+            "retriever": _retriever_in_use(),
+            "citation_support_judge": (
+                f"LLM-judged per sentence by the 'critic' role "
+                f"({RUN_CONFIG.models['critic']}); each cited sentence is shown only the "
+                f"snippets it cites and answered YES/NO. Self-judged, not human-rated."
+            ),
+            "query_set": "evals/queries.json",
         },
         "aggregate": agg,
         "release_criteria": check_release_criteria(agg),

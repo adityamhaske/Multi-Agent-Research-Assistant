@@ -58,7 +58,17 @@ export interface Source {
   index: number;
   url: string;
   title: string;
+  /** First extracted snippet. Kept for sessions stored before `snippets` existed. */
   snippet: string;
+  /**
+   * Every verbatim snippet extracted from this source (docs/12 M5, defect D3).
+   *
+   * One page commonly backs several distinct facts and the same source is cited for ~8
+   * different claims per report. Showing only the first snippet meant hovering a citation
+   * could surface text unrelated to the sentence it was attached to. Optional because
+   * sessions stored before the fix only carry `snippet`.
+   */
+  snippets?: string[];
 }
 
 export interface SessionSummary {

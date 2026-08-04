@@ -11,10 +11,23 @@ from __future__ import annotations
 
 import re
 
-CITE_RE = re.compile(r"\[(\d+)\]")
+# Matches a citation marker and captures its numbers, including *grouped* markers.
+#
+# The synthesizer routinely writes `[1, 3]` or `[1, 2, 3, 4, 6]` when a sentence draws on
+# several sources. A single-number-only pattern silently treated those as prose: they
+# counted as neither cited nor unresolved, so a report could be 42% invisible to this
+# module while still reporting a perfect resolution rate (measured on a real run —
+# docs/12 M5). `extract_citations` flattens a group into its individual indices, so
+# `[1, 3]` counts as two citations, exactly as `[1][3]` would.
+CITE_RE = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
 HEADING_RE = re.compile(r"^#{1,6}\s")
 SOURCES_HEADING_RE = re.compile(r"^#{1,6}\s*(sources|references|citations|bibliography)\b", re.I)
 _LIST_MARKER_RE = re.compile(r"^(?:[-*+]\s+|\d+[.)]\s+)")
+# Sentence boundary: terminator + whitespace, not preceded by a common abbreviation or a
+# bare initial. Deliberately conservative — over-splitting a claim is worse than
+# under-splitting it, because each fragment then gets judged against too little evidence.
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z(\[])")
+_ABBREV_TAIL_RE = re.compile(r"\b(?:e\.g|i\.e|vs|etc|Dr|Mr|Ms|Inc|Ltd|Fig|No|approx|cf)\.$", re.I)
 
 
 def body_before_sources(text: str) -> str:
@@ -28,8 +41,15 @@ def body_before_sources(text: str) -> str:
 
 
 def extract_citations(text: str) -> list[int]:
-    """Every [n] citation marker, in order (duplicates kept)."""
-    return [int(m.group(1)) for m in CITE_RE.finditer(text or "")]
+    """Every cited source index, in order, duplicates kept.
+
+    A grouped marker contributes each of its numbers: `[1, 3]` yields `[1, 3]`, so it is
+    counted and resolution-checked identically to `[1][3]`.
+    """
+    out: list[int] = []
+    for m in CITE_RE.finditer(text or ""):
+        out.extend(int(part) for part in m.group(1).split(","))
+    return out
 
 
 def source_indices(sources: list[dict]) -> set[int]:
@@ -55,9 +75,33 @@ def citation_stats(text: str, sources: list[dict]) -> dict:
     }
 
 
+def split_sentences(text: str) -> list[str]:
+    """Split a block of prose into sentences, rejoining common abbreviation false splits."""
+    parts = _SENTENCE_SPLIT_RE.split(text)
+    if len(parts) < 2:
+        return [text]
+    merged: list[str] = [parts[0]]
+    for part in parts[1:]:
+        # "…supported by Dr. Smith" must not become two sentences.
+        if _ABBREV_TAIL_RE.search(merged[-1]):
+            merged[-1] = f"{merged[-1]} {part}"
+        else:
+            merged.append(part)
+    return merged
+
+
 def claim_lines(text: str) -> list[str]:
-    """Content lines that assert something — paragraph/bullet text before the sources
-    section, excluding headings and trivially short lines. Used to find uncited claims."""
+    """Individually assertable claims from the report body, one per sentence.
+
+    Sentences, not raw lines. The synthesizer emits each paragraph as a single unwrapped
+    line, so a line-per-claim split made a four-sentence paragraph one "claim" carrying
+    the union of its citations — and the citation-support judge then had to rule on all
+    four assertions against all four sources at once, scoring a NO if any part was
+    unsupported by any snippet. That conflation was measured depressing the support rate
+    independently of the actual research quality (docs/12 M5).
+
+    Headings, list markers, and trivially short fragments are still excluded.
+    """
     out: list[str] = []
     for raw in (text or "").splitlines():
         line = raw.strip()
@@ -68,15 +112,27 @@ def claim_lines(text: str) -> list[str]:
         if HEADING_RE.match(line):
             continue
         content = _LIST_MARKER_RE.sub("", line)
-        if len(content) < 15 or not re.search(r"[A-Za-z]", content):
-            continue
-        out.append(content)
+        for sentence in split_sentences(content):
+            sentence = sentence.strip()
+            if len(sentence) < 15 or not re.search(r"[A-Za-z]", sentence):
+                continue
+            out.append(sentence)
     return out
 
 
 def uncited_claim_count(text: str) -> int:
     """Assertive lines carrying no [n] citation — a proxy for unsupported claims."""
     return sum(1 for c in claim_lines(text) if not CITE_RE.search(c))
+
+
+# Bumped whenever a metric's *definition* changes, so two committed runs are never
+# silently compared across incompatible definitions. Recorded in every results file.
+#
+#   1 — original: citations matched `[n]` only; claims were raw lines.
+#   2 — grouped markers `[1, 3]` counted as separate citations; claims split on sentences
+#       (docs/12 M5, defect D1). Both enlarge the denominator, so a v2 number is NOT
+#       comparable to a v1 number.
+METRICS_VERSION = 2
 
 
 def report_metrics(text: str, sources: list[dict]) -> dict:

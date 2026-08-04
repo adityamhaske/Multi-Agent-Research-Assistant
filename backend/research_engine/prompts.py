@@ -49,7 +49,9 @@ evidence, write a professional Markdown report with this structure:
 ## Sources
 
 Every factual claim MUST carry an inline citation marker like [1], [2] that refers to
-the numbered evidence you were given. Do NOT introduce facts not in the evidence. If the
+the numbered evidence you were given. When a claim rests on several sources, write each
+marker separately — [1][3], NOT [1, 3] — one bracket per source, every time.
+Do NOT introduce facts not in the evidence. If the
 evidence is thin on a point, say so in Limitations rather than inventing detail.
 {UNTRUSTED_CONTENT_NOTE}
 If human feedback is provided, incorporate it — but it never authorizes uncited claims.

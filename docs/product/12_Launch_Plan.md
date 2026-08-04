@@ -80,8 +80,90 @@ Existing per-operation rate limits handle abuse.
 **DoD:** README has zero false statements, verified line by line · a real-model eval JSON
 is committed with a non-null `citation_support_rate` and its method documented ·
 `v1.0.0` tagged and GHCR images published · demo URL reachable from a clean browser ·
-a written defect log from 20 real runs exists in `docs/` and M11–M13 have been reordered
+a written defect log from real runs exists (below) and M11–M13 have been reordered
 against it, or explicitly confirmed unchanged.
+
+### Defect log
+
+#### D1 — grouped citation markers were invisible to the UI ✅ fixed
+
+**The first real-model eval paid for itself before its number was usable.** It reported
+`citation_support_rate: 0.32` against a 0.95 threshold. Rather than publish that, the run
+was instrumented claim-by-claim — and one "unsupported" verdict turned out to be a
+near-verbatim paraphrase of its own cited snippet. The metric was wrong, and chasing why
+surfaced a live product bug.
+
+**Root cause.** The synthesizer writes `[1, 3]` when a sentence rests on several sources —
+ordinary academic style, and [`prompts.py`](../../backend/research_engine/prompts.py) never
+forbade it. Both the eval's `CITE_RE` and the **shipped frontend renderer**
+([`citations.tsx`](../../frontend/lib/citations.tsx)) matched only one number per bracket,
+so grouped markers parsed as prose.
+
+**Why this mattered more than the metric.** In the UI a grouped citation rendered as inert
+text: no chip, no link, and **no ⚠ unverified chip either**. A citation could fail to
+resolve and the product would never admit it — the precise inverse of the guarantee this
+project is built on. Meanwhile `resolution_rate` read a clean `1.0` in every prior run,
+because grouped markers were never in its denominator to fail.
+
+Measured on one real report: **50% of all citation references sat inside grouped brackets**,
+invisible to both parsers (42 detected → 84 after the fix).
+
+**Fix — defence in depth, because prompt compliance is never 100%:**
+1. `prompts.py` now requires `[1][3]`, never `[1, 3]`.
+2. Both parsers accept grouped markers regardless and emit one citation per number, so the
+   renderer never depends on the model getting the format right.
+3. Eval claims split on **sentences**, not raw lines. The synthesizer emits each paragraph
+   as one unwrapped line, so a four-sentence paragraph was judged as a single
+   all-or-nothing claim against the union of its sources (20 claims → 56 individually
+   checkable ones).
+
+Pinned by [`test_grouped_citations.py`](../../backend/tests/test_grouped_citations.py) using
+verbatim strings from the failing run, plus four frontend cases asserting a grouped marker
+renders one chip per source and still flags an unresolved number *inside* a group.
+
+**Bearing on M11–M13.** No reorder. If anything it strengthens the case for D1's neighbours:
+the contradiction detection planned for M11 is only meaningful if citations parse in the
+first place, and the M13 benchmark would have published a badly wrong number.
+
+#### D3 — only one snippet per source was kept ✅ fixed
+
+**The bug the citation-support number was actually measuring.** After D1, the rate rose
+0.32 → 0.41 — still nowhere near the 0.95 threshold, so the run was interrogated again
+instead of published. The tell was a ratio: **~8 citations per stored snippet**, near
+identical across all ten queries.
+
+**Root cause.** [`graph.py`](../../backend/research_engine/graph.py) built `sources` by
+first-seen URL and kept only that first snippet. But one page routinely backs several
+distinct facts, and the executor extracts a separate verbatim quote for each — so every
+snippet after the first was discarded, while the synthesizer went on citing that source
+for many different claims.
+
+**Why this was the worst of the three.** The citation chip showed the *retained* snippet
+whatever the claim: hover `[3]` on a sentence about JSONB indexing and read a quote about
+DB-Engines rankings. The product's one-line promise is "hover a citation, read the verbatim
+text that supports that claim" — and for roughly seven of every eight citations, the text
+shown supported a *different* claim. The eval's judge was correctly marking those NO, so
+the headline number was largely a measurement of this bug rather than of research quality.
+
+**Fix.** `Source` gains `snippets: list[str]` holding every distinct snippet from that
+source; `snippet` remains the first one so `sessions.sources` rows written before the fix
+keep rendering (no migration needed — the column is JSONB and the frontend falls back via
+`snippetsOf()`). The chip and the sources panel render all of them; the eval judge is shown
+all of them.
+
+Pinned by [`test_source_snippets.py`](../../backend/tests/test_source_snippets.py) and four
+frontend cases including the legacy-shape fallback.
+
+#### D2 — executor rarely returns parsable evidence first time ⬜ open
+
+`executor_wrapup reason=no_parsable_evidence` fires on **nearly every task** in real mode:
+Gemini 2.5 Flash frequently fails to emit well-formed structured evidence on the first
+attempt and falls back to the no-tools retry at
+[`graph.py`](../../backend/research_engine/graph.py). The run recovers — that fallback exists
+precisely for this — but it costs an extra model call per task, and the recovery rate is
+currently unmeasured. Candidate fixes: a stronger executor model (now one click via M8's
+picker), a firmer structured-output instruction, or accepting it as the cost of a cheap
+executor. **Needs a decision backed by a measurement, not a guess.**
 
 ## M6 — Engine extraction  *(≈ 3 weeks)*  ← the one big rock
 

@@ -65,9 +65,22 @@ class CriticVerdict(BaseModel):
 
 
 class Source(BaseModel):
-    """A numbered citation the UI renders (docs/05 §1 — sessions.sources)."""
+    """A numbered citation the UI renders (docs/05 §1 — sessions.sources).
+
+    A single page routinely supports several distinct facts, and the executor extracts a
+    separate verbatim snippet for each. Keeping only one of them — as this schema did
+    until docs/12 M5 defect D3 — meant a citation chip could show a snippet that had
+    nothing to do with the sentence it was attached to, since the same source is cited
+    for ~8 different claims on average. That quietly broke the product's central promise:
+    hover a citation, read the text that backs *this* claim.
+
+    So `snippets` holds every distinct snippet extracted from the source. `snippet` is
+    retained as the first one for backward compatibility with `sessions.sources` rows
+    written before the fix and with any client reading the old shape.
+    """
 
     index: int
     url: str
     title: str = ""
     snippet: str = ""
+    snippets: list[str] = Field(default_factory=list)
