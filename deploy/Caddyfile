@@ -1,22 +1,34 @@
 # Production TLS reverse proxy (docs/09 §2). Caddy terminates HTTPS (automatic Let's
-# Encrypt certs) and forwards to the frontend container — the only public service. The
-# frontend in turn proxies /api/* to the api over the internal Docker network, so cookies
-# stay first-party and the api/postgres/redis are never exposed.
+# Encrypt certs) and forwards to the frontend — the only public service. The frontend in
+# turn proxies /api/* to the api over the internal Docker network, so cookies stay
+# first-party and the api/postgres/redis are never exposed.
 #
-# Usage: replace research.example.com with your domain, run Caddy on the same host as the
-# compose stack (or add it as a service), and set ENVIRONMENT=production in .env so the
-# app issues Secure cookies and disables /docs.
+# Both placeholders read from the environment, so this file is deployment-agnostic:
 #
-#   caddy run --config ./deploy/Caddyfile
+#   DOMAIN             the public hostname. No domain of your own? Use sslip.io — the
+#                      hostname 203-0-113-7.sslip.io resolves to 203.0.113.7, and Let's
+#                      Encrypt issues a real certificate for it. No registrar, no cost.
+#   FRONTEND_UPSTREAM  where the Next.js server listens. Defaults to the compose service
+#                      name; set localhost:3000 when running Caddy on the host instead of
+#                      as a container.
+#
+# Usage (containerised — deploy/docker-compose.demo.yml runs Caddy this way):
+#   docker compose -f deploy/docker-compose.demo.yml up -d
+#
+# Usage (on the host, alongside docker-compose.full.yml):
+#   DOMAIN=research.example.com FRONTEND_UPSTREAM=localhost:3000 \
+#     caddy run --config ./deploy/Caddyfile
+#
+# Set ENVIRONMENT=production in .env so the app issues Secure cookies and disables /docs.
 #
 # SSE note: research streaming is Server-Sent Events; Caddy's reverse_proxy streams by
 # default and does not buffer, so the live feed works without extra config.
 
-research.example.com {
+{$DOMAIN} {
 	encode gzip
 
 	# The frontend serves the app and proxies /api/* onward.
-	reverse_proxy localhost:3000
+	reverse_proxy {$FRONTEND_UPSTREAM:frontend:3000}
 
 	header {
 		# HSTS: force HTTPS for a year (the app also sets its own security headers).
@@ -25,6 +37,6 @@ research.example.com {
 	}
 
 	log {
-		output file /var/log/caddy/research.access.log
+		output stderr
 	}
 }
