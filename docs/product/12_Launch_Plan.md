@@ -70,11 +70,20 @@ Existing per-operation rate limits handle abuse.
   N runs, X of Y citations failed to resolve; the UI flagged all X." Nobody publishes
   their failure rate. We built the ⚠ chip; lead with it.
 - **Hosted fake-mode demo live** at a real URL; set the repo `homepageUrl` (currently
-  empty). Deployment is written and validated — [`deploy/README.md`](../../deploy/README.md)
+  empty). Deployment is written and smoke-tested — [`deploy/README.md`](../../deploy/README.md)
   plus [`deploy/docker-compose.demo.yml`](../../deploy/docker-compose.demo.yml) and
   [`deploy/oracle-bootstrap.sh`](../../deploy/oracle-bootstrap.sh) — targeting an Oracle
-  Cloud Always Free VM at **$0/month**. Remaining: creating the instance and adding the
-  subnet ingress rules, both of which need the account owner's console.
+  Cloud Always Free VM at **$0/month**.
+
+  **Proven:** multi-arch `edge` images publish to GHCR and are anonymously pullable; the
+  published **arm64** images (same architecture as Ampere) run the whole stack on
+  `docker-compose.demo.yml` — migrations apply, all five services report healthy, and a
+  session goes register → research → `AWAITING_APPROVAL` → approve → `COMPLETED` through
+  the frontend's same-origin `/api` proxy.
+
+  **Not proven:** anything Oracle-specific — instance provisioning, the two-layer firewall,
+  and Caddy obtaining a real certificate. Those need the account owner's console, and the
+  bootstrap's `iptables` and sslip.io paths have never executed on an actual OCI image.
 - **Tag `v1.0.0`** — `release.yml` exists and is waiting on a tag. It now publishes
   multi-arch images (`linux/amd64` + `linux/arm64`; Always Free compute is Ampere ARM, and
   an amd64-only image will not start there) and can be run manually to publish an `edge`
