@@ -45,8 +45,14 @@ jobs:
         platform: [linux/amd64, linux/arm64]
     steps:
       - uses: actions/checkout@v7
-      - name: Derive artifact-safe platform name
-        run: echo "PLATFORM_PAIR=${{ matrix.platform }}" | tr '/' '-' >> "$GITHUB_ENV"
+      - name: Derive image name and artifact-safe platform name
+        # `github.repository` preserves the repo's capitalisation, but Docker refs must be
+        # lowercase — pushing with it raw fails on "must be lowercase". metadata-action
+        # normalises case on its own, so only the paths that bypass it (the push-by-digest
+        # output here, and imagetools in the manifest job) need this.
+        run: |
+          echo "IMAGE_BASE=${REGISTRY}/${GITHUB_REPOSITORY,,}-${{ matrix.image.name }}" >> "$GITHUB_ENV"
+          echo "PLATFORM_PAIR=${{ matrix.platform }}" | tr '/' '-' >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@v4
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -64,7 +70,7 @@ jobs:
           # Deliberately untagged. Each arch is pushed as a bare digest and the `manifest`
           # job stitches them into one multi-arch tag. If both arch jobs pushed the same
           # tag they would race, and the loser's architecture would vanish from the tag.
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image.name }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.IMAGE_BASE }},push-by-digest=true,name-canonical=true,push=true
           # Cache is scoped per image *and* per platform: a shared scope would have the
           # two architectures continually evict each other's layers.
           cache-from: type=gha,scope=${{ matrix.image.name }}-${{ env.PLATFORM_PAIR }}
@@ -92,6 +98,10 @@ jobs:
       matrix:
         image: [api, worker, frontend]
     steps:
+      - name: Derive image name
+        # Same lowercasing as the build job — imagetools bypasses metadata-action's
+        # normalisation, so a capitalised repo name would fail the push here too.
+        run: echo "IMAGE_BASE=${REGISTRY}/${GITHUB_REPOSITORY,,}-${{ matrix.image }}" >> "$GITHUB_ENV"
       - name: Download digests for this image
         uses: actions/download-artifact@v4
         with:
@@ -109,7 +119,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image }}
+          images: ${{ env.IMAGE_BASE }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -118,7 +128,7 @@ jobs:
       - name: Create and push manifest list
         working-directory: /tmp/digests
         env:
-          IMAGE: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image }}
+          IMAGE: ${{ env.IMAGE_BASE }}
           TAGS: ${{ steps.meta.outputs.tags }}
         run: |
           set -euo pipefail
@@ -155,6 +165,10 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - name: Derive image prefix
+        # Lowercased for the same reason as the build job — these lines get copy-pasted
+        # into `docker pull`, and the capitalised form is rejected as a malformed ref.
+        run: echo "IMAGE_PREFIX=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -162,8 +176,8 @@ jobs:
           generate_release_notes: true
           body: |
             Multi-arch container images (linux/amd64, linux/arm64) pushed to GHCR:
-            - `ghcr.io/${{ github.repository }}-api:${{ github.ref_name }}`
-            - `ghcr.io/${{ github.repository }}-worker:${{ github.ref_name }}`
-            - `ghcr.io/${{ github.repository }}-frontend:${{ github.ref_name }}`
+            - `${{ env.IMAGE_PREFIX }}-api:${{ github.ref_name }}`
+            - `${{ env.IMAGE_PREFIX }}-worker:${{ github.ref_name }}`
+            - `${{ env.IMAGE_PREFIX }}-frontend:${{ github.ref_name }}`
 
             Deploy the full stack on a free Oracle Cloud Ampere VM — see `deploy/README.md`.
