@@ -170,7 +170,7 @@ jobs:
         # into `docker pull`, and the capitalised form is rejected as a malformed ref.
         run: echo "IMAGE_PREFIX=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           # Changelog auto-generated from merged PRs / conventional commits.
           generate_release_notes: true
