@@ -20,7 +20,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.base import get_db
+from app.db.base import AsyncSessionLocal, get_db
 from app.db.redis import get_redis
 from app.dependencies import enforce_research_rate_limit, get_current_user
 from app.models.agent_log import AgentLog
@@ -128,27 +128,34 @@ async def stream_events(
     last_event_id = request.headers.get("last-event-id")
     after_id = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
 
-    # Snapshot the backlog to replay before subscribing to live events.
-    backlog = (
-        (
-            await db.execute(
-                select(AgentLog)
-                .where(AgentLog.session_id == session_id, AgentLog.id > after_id)
-                .order_by(AgentLog.id.asc())
-            )
-        )
-        .scalars()
-        .all()
-    )
-    replay = [(row.id, row.payload) for row in backlog]
-
     async def gen() -> AsyncGenerator[str, None]:
         channel = f"session:{session_id}:events"
         pubsub = redis.pubsub()
+        # Subscribe BEFORE snapshotting the backlog. Any event published in the gap
+        # between the snapshot and the subscribe would otherwise be lost from both —
+        # which stranded fast resume→COMPLETED runs on the monitor. Now such an event
+        # is queued on the pubsub and deduped against the backlog by its durable id.
         await pubsub.subscribe(channel)
         seen_max = after_id
         try:
             yield f"data: {json.dumps({'type': 'connected'})}\n\n"
+
+            # Snapshot the backlog AFTER subscribing. Uses a fresh session because the
+            # request-scoped one is closed once the endpoint returns and streaming begins.
+            async with AsyncSessionLocal() as sdb:
+                backlog = (
+                    (
+                        await sdb.execute(
+                            select(AgentLog)
+                            .where(AgentLog.session_id == session_id, AgentLog.id > after_id)
+                            .order_by(AgentLog.id.asc())
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                replay = [(row.id, row.payload) for row in backlog]
+
             for eid, payload in replay:
                 seen_max = max(seen_max, eid or 0)
                 yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"

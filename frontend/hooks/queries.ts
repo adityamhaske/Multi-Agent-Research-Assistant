@@ -128,13 +128,21 @@ export function useSession(id: string) {
     queryKey: queryKeys.session(id),
     queryFn: () => apiFetch<SessionDetail>(`/research/${id}`),
     enabled: Boolean(id),
-    // Poll only while a run is in flight. SSE is the fast path for live events;
-    // this guarantees the page still converges if a terminal event is ever missed
-    // (dropped stream, proxy hiccup) instead of hanging on the monitor forever.
+    // Poll until the session reaches a terminal state. SSE is the fast path for live
+    // events; this is the safety net that guarantees the page converges if a terminal
+    // event is ever missed (dropped stream, proxy hiccup, or a fast resume→COMPLETED
+    // that races the re-subscribe). Polling through AWAITING_APPROVAL — not stopping at
+    // it — means the interval is never torn down mid-run, so approve→finalize is always
+    // caught even without SSE. Stops only on COMPLETED/FAILED (or before the first load).
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      return status === "PENDING" || status === "RUNNING" ? 5000 : false;
+      if (!status) return false;
+      return status === "COMPLETED" || status === "FAILED" ? false : 5000;
     },
+    // The safety net must fire even when the tab is backgrounded — otherwise a run
+    // that finishes while the user is on another tab is never reflected until they
+    // refocus. (Default is to pause interval polling when hidden.)
+    refetchIntervalInBackground: true,
   });
 }
 

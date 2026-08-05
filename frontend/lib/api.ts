@@ -70,6 +70,8 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
   const send = () =>
     fetch(`${API_BASE}${path}`, {
       credentials: "include",
+      // Never serve a poll from the HTTP cache — status transitions must be seen.
+      cache: "no-store",
       headers: {
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...headers,
