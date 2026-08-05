@@ -123,13 +123,17 @@ Own a domain? Point an `A` record at the VM and run:
 DOMAIN=research.yourdomain.com ./deploy/oracle-bootstrap.sh
 ```
 
-### Images must exist first
+### Which image tag
 
-The stack pulls from GHCR, and images are published only by the **Release** workflow. To
-publish without cutting a public release, run it manually — Actions → **Release** → *Run
-workflow* → tag `edge`. Then on the VM set `IMAGE_TAG=edge` in `deploy/.env`.
+The stack pulls prebuilt images from GHCR. Multi-arch `edge` images are **already
+published and public**, so the bootstrap defaults to `IMAGE_TAG=edge` and works as-is.
 
-Once you tag a real `v1.0.0`, switch back to `IMAGE_TAG=latest`.
+`latest` is deliberately *not* moved by manual builds — only a `v*.*.*` tag sets it — so
+it does not exist yet and pulling it would fail with `manifest unknown`. Once you tag a
+release, switch `IMAGE_TAG=latest` in `deploy/.env`.
+
+To republish `edge` after merging changes: Actions → **Release** → *Run workflow* → tag
+`edge`.
 
 ---
 
