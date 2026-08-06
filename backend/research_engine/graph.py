@@ -64,7 +64,14 @@ async def _structured(role: str, messages: list, schema):
         return parsed, cost, i, o
 
     structured = model.with_structured_output(schema, include_raw=True)
-    result = await structured.ainvoke(messages)
+    try:
+        result = await structured.ainvoke(messages)
+    except Exception:  # noqa: BLE001
+        # with_structured_output can RAISE (not just set parsing_error) when a model
+        # returns output the schema rejects — e.g. a local 7B emitting an out-of-range
+        # field. Treat that as an unparseable result so the calling node fails CLOSED
+        # (docs/11 §1), instead of letting the exception crash the whole pipeline.
+        return None, 0.0, 0, 0
     raw = result.get("raw")
     cost = estimate_cost(raw, role) if raw is not None else 0.0
     i, o = token_counts(raw) if raw is not None else (0, 0)

@@ -19,6 +19,10 @@ _PLACEHOLDER_SECRETS = {
     "dev-secret",
 }
 
+# Providers that run without an API key (local inference), so the production
+# key-presence check must not demand one for them.
+_KEYLESS_PROVIDERS = {"ollama"}
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -44,6 +48,12 @@ class Settings(BaseSettings):
     model_critic: str = "google:gemini-2.5-flash"
     model_synthesizer: str = "google:gemini-2.5-pro"
     model_chat: str = "google:gemini-2.5-flash"
+
+    # ── Local LLM (Ollama) ─────────────────────────────────────────────────────
+    # OpenAI-compatible endpoint of a local (or LAN) Ollama server. When the app
+    # runs in Docker, use http://host.docker.internal:11434/v1 to reach an Ollama
+    # running on the host machine (localhost inside a container is the container).
+    ollama_base_url: str = "http://localhost:11434/v1"
 
     # ── Search retrievers ──────────────────────────────────────────────────────
     tavily_api_key: str = ""
@@ -112,6 +122,8 @@ class Settings(BaseSettings):
                 "openai": self.openai_api_key,
             }
             for provider in routed_providers:
+                if provider in _KEYLESS_PROVIDERS:
+                    continue  # local inference (e.g. Ollama) needs no key
                 if not provider_keys.get(provider, ""):
                     raise ValueError(
                         f"Model routing uses provider '{provider}' but no API key is "

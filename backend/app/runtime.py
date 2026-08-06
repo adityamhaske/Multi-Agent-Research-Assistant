@@ -34,6 +34,7 @@ def run_config_from_settings(s: Settings | None = None) -> RunConfig:
         },
         tavily_api_key=s.tavily_api_key,
         brave_api_key=s.brave_api_key,
+        ollama_base_url=s.ollama_base_url,
         max_critic_loops=s.max_critic_loops,
         max_cost_per_session_usd=s.max_cost_per_session_usd,
         max_wallclock_seconds=s.max_wallclock_seconds,

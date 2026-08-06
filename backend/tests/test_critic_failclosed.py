@@ -59,6 +59,17 @@ async def test_critic_fails_closed_for_every_task_in_a_parallel_round(monkeypatc
     assert out["retries"] == {"1": 1, "2": 1, "3": 1}
 
 
+def test_confidence_percentage_is_normalized_not_rejected():
+    """Regression: a model returning confidence as 0–100 (e.g. Ollama qwen2.5 emitting
+    60) must be coerced to a 0–1 probability, not crash the run with a ValidationError.
+    """
+    assert CriticVerdict(passed=True, confidence=60).confidence == 0.6
+    assert CriticVerdict(passed=True, confidence=0.6).confidence == 0.6
+    assert CriticVerdict(passed=True, confidence=150).confidence == 1.0  # clamped
+    assert CriticVerdict(passed=True, confidence=-5).confidence == 0.0  # clamped
+    assert CriticVerdict(passed=True, confidence="high").confidence == 0.5  # neutral default
+
+
 def test_over_budget_routes_to_failer():
     state = {
         "cost_usd": 999.0,

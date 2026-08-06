@@ -51,6 +51,10 @@ services:
       REDIS_URL: redis://redis:6379/0
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LLM_MODE: ${LLM_MODE:-real}
+    # Lets OLLAMA_BASE_URL=http://host.docker.internal:11434 reach an Ollama running
+    # on the host (portable across Docker Desktop and Linux).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -73,6 +77,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LLM_MODE: ${LLM_MODE:-real}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

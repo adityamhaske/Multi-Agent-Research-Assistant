@@ -55,6 +55,21 @@ class CriticVerdict(BaseModel):
     reasons: list[str] = Field(default_factory=list)
     feedback_for_executor: str | None = None
 
+    @field_validator("confidence", mode="before")
+    @classmethod
+    def _normalize_confidence(cls, v):
+        # Models routinely express confidence as a 0–100 percentage (e.g. 60) rather
+        # than a 0–1 probability. Coerce and clamp instead of rejecting: a benign scale
+        # difference must not discard an otherwise-valid verdict (or, worse, crash the
+        # run). Non-numeric input falls back to the neutral default.
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return 0.5
+        if f > 1.0:
+            f = f / 100.0
+        return min(max(f, 0.0), 1.0)
+
     @field_validator("feedback_for_executor")
     @classmethod
     def _feedback_required_on_fail(cls, v: str | None, info) -> str | None:
