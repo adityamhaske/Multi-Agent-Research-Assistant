@@ -165,3 +165,28 @@ export interface RoutingResponse {
   routing: ModelRouting | null;
   effective_routing: ModelRouting;
 }
+
+/** One model installed on the user's local Ollama server (docs/12 M15). */
+export interface LocalModelInfo {
+  name: string;
+  size_bytes: number | null;
+  /** The "provider:model" route to select this model in the picker. */
+  route: string | null;
+  in_catalog: boolean;
+  /** Name suggests a parameter count the research pipeline handles poorly. */
+  likely_underpowered: boolean;
+  /** Embedding model — powers retrieval, cannot fill an agent role. */
+  is_embedding: boolean;
+  /** Parameter count in billions, when the tag states one. */
+  params_b: number | null;
+}
+
+export interface LocalLLMStatus {
+  configured_base_url: string;
+  reachable: boolean;
+  /** Reachable AND has at least one model. */
+  usable: boolean;
+  models: LocalModelInfo[];
+  error: string | null;
+  hint: string | null;
+}

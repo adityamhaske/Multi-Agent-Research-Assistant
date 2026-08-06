@@ -37,6 +37,7 @@ docs/
 | 04 | [Agent Design](architecture/04_Agent_Design.md) | LangGraph graph, node contracts, prompts, tools, structured outputs, budgets |
 | 05 | [Data & API](architecture/05_Data_and_API.md) | Database schema, migration policy, REST + SSE contracts |
 | 13 | [Local-First Architecture](architecture/13_Local_First_Architecture.md) | **[PLANNED]** Engine extraction, ports/adapters, desktop packaging, offline tiers |
+| 14 | [Projects & Project Memory](architecture/14_Projects_and_Memory.md) | **[PLANNED]** Project containers, project-scoped chat, retrieval over approved research |
 
 ### Engineering (`engineering/`)
 

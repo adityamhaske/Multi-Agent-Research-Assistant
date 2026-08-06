@@ -6,6 +6,7 @@ import { ApiError, apiFetch } from "@/lib/api";
 import type {
   ApiKeyProvider,
   ChatMessage,
+  LocalLLMStatus,
   ModelCatalog,
   ModelRouting,
   ProfileUpdate,
@@ -30,6 +31,7 @@ export const queryKeys = {
   session: (id: string) => ["session", id] as const,
   chat: (id: string) => ["chat", id] as const,
   models: ["models"] as const,
+  localLLM: ["local-llm-status"] as const,
 };
 
 // ─── Auth ────────────────────────────────────────────────────────────────────────
@@ -187,6 +189,20 @@ export function useModelCatalog() {
     queryKey: queryKeys.models,
     queryFn: () => apiFetch<ModelCatalog>("/models"),
     staleTime: 60_000,
+  });
+}
+
+/**
+ * Live probe of the local model server (docs/12 M15). Kept out of `useModelCatalog`
+ * because it does real network I/O and can legitimately time out — the catalog must
+ * stay instant. Not retried: "nothing is running" is an answer, not a failure.
+ */
+export function useLocalLLMStatus() {
+  return useQuery({
+    queryKey: queryKeys.localLLM,
+    queryFn: () => apiFetch<LocalLLMStatus>("/models/local/status"),
+    retry: false,
+    staleTime: 15_000,
   });
 }
 

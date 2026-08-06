@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_current_user, get_db
 from app.models.user import User
-from app.services import model_routing
+from app.services import local_llm, model_routing
 from research_engine import catalog
 from research_engine.runconfig import ROLES
 
@@ -49,6 +49,25 @@ class CatalogResponse(BaseModel):
     # None when the user has no preference of their own and is on the deployment default.
     user_routing: dict[str, str] | None
     deployment_routing: dict[str, str]
+
+
+class LocalModelInfo(BaseModel):
+    name: str
+    size_bytes: int | None
+    route: str | None
+    in_catalog: bool
+    likely_underpowered: bool
+    is_embedding: bool
+    params_b: float | None
+
+
+class LocalLLMStatusResponse(BaseModel):
+    configured_base_url: str
+    reachable: bool
+    usable: bool
+    models: list[LocalModelInfo]
+    error: str | None
+    hint: str | None
 
 
 class RoutingRequest(BaseModel):
@@ -98,6 +117,35 @@ async def get_catalog(current_user: User = Depends(get_current_user)):
         effective_routing=model_routing.resolve(session_routing=None, user_routing=user_routing),
         user_routing=user_routing,
         deployment_routing=deployment,
+    )
+
+
+@router.get("/local/status", response_model=LocalLLMStatusResponse)
+async def local_llm_status(_current_user: User = Depends(get_current_user)):
+    """Probe the configured local model server (docs/12 M15).
+
+    Separate from `GET /models` because it does live I/O: the catalog must stay instant
+    and always renderable, while this can legitimately time out when nothing is running.
+    """
+    status_ = await local_llm.probe()
+    return LocalLLMStatusResponse(
+        configured_base_url=status_.configured_base_url,
+        reachable=status_.reachable,
+        usable=status_.usable,
+        models=[
+            LocalModelInfo(
+                name=m.name,
+                size_bytes=m.size_bytes,
+                route=m.route,
+                in_catalog=m.in_catalog,
+                likely_underpowered=m.likely_underpowered,
+                is_embedding=m.is_embedding,
+                params_b=m.params_b,
+            )
+            for m in status_.models
+        ],
+        error=status_.error,
+        hint=status_.hint,
     )
 
 

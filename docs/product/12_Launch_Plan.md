@@ -433,9 +433,54 @@ honest version of "dynamic agents": capability composition, not invented labels;
 only realistic way to raise the evidence ceiling above generic web search)
 ☐ Audit replay — step through a completed run like a debugger; the trace and checkpoints
 already exist, so this is mostly UI
-☐ Research memory across sessions — **only now**, with real users and real corpora to
-learn from
+✅ Research memory across sessions — **promoted to M16/M17** (see below). The original
+deferral was right to fear unfiltered memory; what changed is finding the filter: only
+*approved* reports enter it, so the HITL gate curates the corpus. Organizing work into
+projects is also needed regardless of memory.
 ☐ Hosted workspaces, shared reports, reviewer roles
+
+## M15 — Local LLM, first-class in the UI  *(≈ 1 week)*
+
+◐ The engine already routes to Ollama; nothing in the product *tells* a user that, and
+`available_providers()` optimistically reports Ollama usable even with no server running.
+
+- ☐ Settings card: connection status, detected local models, base-URL override
+- ☐ **Real connection probe** (`GET /models/local/status`) — reachable? which models are
+  actually installed? which map to catalog routes?
+- ☐ Honest capability warning. Measured 2026-08-06: `qwen2.5:7b` plans and calls the
+  search tool correctly but fails the executor's structured-evidence step
+  (`no_parsable_evidence`) — small models are weak at strict schemas and tool-calling.
+  Ship the warning with the feature, not after the support tickets.
+- ☐ User guide ([guides/Local_LLM_Setup.md](../guides/Local_LLM_Setup.md))
+
+**DoD:** a user with Ollama installed can connect, see their models detected, and be told
+plainly which are viable · a user *without* Ollama sees "not detected" rather than a model
+that silently fails at run time.
+
+## M16 — Projects as containers  *(≈ 1 week)*
+
+☐ Per [14_Projects_and_Memory.md](../architecture/14_Projects_and_Memory.md) §3/§7. No
+memory yet — organization only, which is most of the day-to-day value.
+
+- ☐ `projects` CRUD; `sessions.project_id`; migration backfilling a `General` project
+- ☐ History and dashboard scoped per project; project switcher in the shell
+
+**DoD:** every existing session still opens/chats/exports after migration · history is
+per project · deleting a project cascades cleanly.
+
+## M17 — Project memory & project chat  *(≈ 2–3 weeks)*
+
+☐ The differentiator. Per [14_Projects_and_Memory.md](../architecture/14_Projects_and_Memory.md) §2/§4/§5.
+
+- ☐ pgvector prerequisite (`pgvector/pgvector:pg16` + `CREATE EXTENSION`)
+- ☐ `EmbeddingsPort` injected like every other engine port; Ollama `nomic-embed-text`
+  locally, provider embeddings for cloud
+- ☐ Ingestion hooked to the **approval** transition only
+- ☐ `chat_threads` — chat no longer bound to a single report
+- ☐ Retrieval filtered in SQL by `project_id`; answers cite `[R1]` → report → sources
+
+**DoD:** the §9 checklist in doc 14 passes verbatim — including the automated
+**cross-project isolation test** and proof that rejected drafts never surface.
 
 ---
 
