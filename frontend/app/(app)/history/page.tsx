@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { useActiveProject } from "@/components/ActiveProject";
 import { SessionCard } from "@/components/SessionCard";
 import { useSessions } from "@/hooks/queries";
 import type { SessionStatus } from "@/lib/types";
@@ -24,10 +25,12 @@ export default function HistoryPage() {
   // archived *or* active, and mixing them would defeat the point of getting one
   // out of the way. Switching views resets paging.
   const [showArchived, setShowArchived] = useState(false);
+  const { activeId, active } = useActiveProject();
   const { data, isLoading, isError, refetch, isFetching } = useSessions(
     page,
     LIMIT,
-    showArchived
+    showArchived,
+    activeId
   );
 
   const rows = data?.sessions ?? [];
@@ -37,9 +40,16 @@ export default function HistoryPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-text-primary">
-          {showArchived ? "Archived" : "History"}
-        </h1>
+        <div>
+          <h1 className="text-xl font-semibold text-text-primary">
+            {showArchived ? "Archived" : "History"}
+          </h1>
+          {active && (
+            <p className="mt-0.5 text-xs text-text-muted">
+              in <span className="text-text-secondary">{active.name}</span>
+            </p>
+          )}
+        </div>
         <div className="flex flex-wrap gap-1" role="tablist" aria-label="Filter by status">
           {FILTERS.map((f) => (
             <button
@@ -96,7 +106,9 @@ export default function HistoryPage() {
             </p>
           ) : (
             <>
-              <p className="text-sm text-text-secondary">No research sessions yet.</p>
+              <p className="text-sm text-text-secondary">
+                No research in {active ? `“${active.name}”` : "this project"} yet.
+              </p>
               <Link
                 href="/dashboard"
                 className="mt-2 inline-block text-sm text-accent hover:underline"

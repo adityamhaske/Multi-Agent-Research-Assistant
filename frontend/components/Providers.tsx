@@ -5,6 +5,8 @@ import { ThemeProvider } from "next-themes";
 import { useState } from "react";
 import { Toaster } from "react-hot-toast";
 
+import { ActiveProjectProvider } from "./ActiveProject";
+
 /**
  * App-wide client providers (docs/03: TanStack Query owns all server state;
  * next-themes owns the class-based theme; react-hot-toast replaces hand-rolled
@@ -31,7 +33,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       {/* Light is the product default (docs/07 §1); enableSystem=false so a
           dark-OS user still lands on the intended default until they toggle. */}
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-        {children}
+        {/* Inside the query provider — the active project is derived from a query. */}
+        <ActiveProjectProvider>{children}</ActiveProjectProvider>
         <Toaster
           position="bottom-right"
           toastOptions={{

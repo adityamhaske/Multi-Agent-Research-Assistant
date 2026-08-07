@@ -71,8 +71,24 @@ export interface Source {
   snippets?: string[];
 }
 
+/** A container for research (docs/14 §3). */
+export interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+  archived_at: string | null;
+  created_at: string;
+  session_count: number;
+}
+
+export interface ProjectListResponse {
+  projects: Project[];
+  total: number;
+}
+
 export interface SessionSummary {
   session_id: string;
+  project_id: string;
   status: SessionStatus;
   prompt: string;
   research_depth: string;

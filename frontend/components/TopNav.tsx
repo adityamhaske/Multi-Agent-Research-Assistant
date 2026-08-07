@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import type { User } from "@/lib/types";
 
 import { AccountMenu } from "./AccountMenu";
+import { ProjectSwitcher } from "./ProjectSwitcher";
 
 function NavLink({ href, label }: { href: string; label: string }) {
   const pathname = usePathname();
@@ -53,6 +54,11 @@ export function TopNav({ user }: { user?: User }) {
         {/* Only the two working surfaces live here; account lives in the menu. */}
         <NavLink href="/dashboard" label="Dashboard" />
         <NavLink href="/history" label="History" />
+
+        {/* Scope selector sits with the nav: every surface below it is project-scoped. */}
+        <div className="ml-3 hidden sm:block">
+          <ProjectSwitcher />
+        </div>
 
         <div className="ml-auto flex items-center">
           {user ? (

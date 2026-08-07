@@ -9,6 +9,8 @@ import type {
   LocalLLMStatus,
   ModelCatalog,
   ModelRouting,
+  Project,
+  ProjectListResponse,
   ProfileUpdate,
   ResearchDepth,
   ResearchStartResponse,
@@ -28,7 +30,9 @@ import type {
 export const queryKeys = {
   me: ["me"] as const,
   usage: ["usage"] as const,
-  sessions: (page: number, archived = false) => ["sessions", page, archived] as const,
+  projects: (archived = false) => ["projects", archived] as const,
+  sessions: (page: number, archived = false, projectId?: string | null) =>
+    ["sessions", page, archived, projectId ?? null] as const,
   session: (id: string) => ["session", id] as const,
   chat: (id: string) => ["chat", id] as const,
   models: ["models"] as const,
@@ -119,13 +123,58 @@ export function useLogout() {
 
 // ─── Research sessions ─────────────────────────────────────────────────────────────
 
-export function useSessions(page = 1, limit = 20, archived = false) {
+export function useSessions(page = 1, limit = 20, archived = false, projectId?: string | null) {
   return useQuery({
-    queryKey: queryKeys.sessions(page, archived),
-    queryFn: () =>
-      apiFetch<SessionListResponse>(
-        `/research?page=${page}&limit=${limit}&archived=${archived}`
-      ),
+    queryKey: queryKeys.sessions(page, archived, projectId),
+    queryFn: () => {
+      const scope = projectId ? `&project_id=${projectId}` : "";
+      return apiFetch<SessionListResponse>(
+        `/research?page=${page}&limit=${limit}&archived=${archived}${scope}`
+      );
+    },
+    // Don't fetch an unscoped list while the active project is still loading — it
+    // would flash every project's sessions before snapping to the right ones.
+    enabled: projectId !== undefined,
+  });
+}
+
+// ─── Projects (docs/14) ────────────────────────────────────────────────────────────
+
+export function useProjects(archived = false) {
+  return useQuery({
+    queryKey: queryKeys.projects(archived),
+    queryFn: () => apiFetch<ProjectListResponse>(`/projects?archived=${archived}`),
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; description?: string | null }) =>
+      apiFetch<Project>("/projects", { method: "POST", body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
+  });
+}
+
+export function useUpdateProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; name?: string; description?: string | null; archived?: boolean }) =>
+      apiFetch<Project>(`/projects/${id}`, { method: "PATCH", body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
+  });
+}
+
+/** Deleting a project deletes the research inside it — the UI must confirm first. */
+export function useDeleteProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/projects/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["projects"] });
+      qc.invalidateQueries({ queryKey: ["sessions"] });
+    },
   });
 }
 
@@ -188,6 +237,8 @@ export function useStartResearch() {
     mutationFn: (body: {
       query: string;
       depth: ResearchDepth;
+      /** Which project the research belongs to. Omit to use the default project. */
+      project_id?: string | null;
       /** Per-run model choice. Omit to use saved settings (docs/12 M8). */
       model_routing?: ModelRouting | null;
     }) => apiFetch<ResearchStartResponse>("/research", { method: "POST", body }),

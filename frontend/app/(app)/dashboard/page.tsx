@@ -6,6 +6,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 
 import { SessionCard } from "@/components/SessionCard";
+import { useActiveProject } from "@/components/ActiveProject";
 import { StartModelPicker } from "@/components/StartModelPicker";
 import { useSessions, useStartResearch } from "@/hooks/queries";
 import { ApiError } from "@/lib/api";
@@ -30,7 +31,8 @@ export default function DashboardPage() {
   // null = use the saved per-role routing (user preference, else deployment default).
   const [modelRouting, setModelRouting] = useState<ModelRouting | null>(null);
   const start = useStartResearch();
-  const { data, isLoading, isError, refetch } = useSessions(1, 5);
+  const { activeId, active } = useActiveProject();
+  const { data, isLoading, isError, refetch } = useSessions(1, 5, false, activeId);
 
   const trimmed = query.trim();
   const tooShort = trimmed.length > 0 && trimmed.length < MIN_QUERY;
@@ -40,7 +42,12 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!canSubmit) return;
     try {
-      const res = await start.mutateAsync({ query: trimmed, depth, model_routing: modelRouting });
+      const res = await start.mutateAsync({
+        query: trimmed,
+        depth,
+        project_id: activeId ?? null,
+        model_routing: modelRouting,
+      });
       router.push(`/session/${res.session_id}`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not start research.");
@@ -58,7 +65,12 @@ export default function DashboardPage() {
         </h1>
         <p className="mb-5 max-w-2xl text-sm leading-relaxed text-text-muted">
           Describe what you want to know. The agents plan, gather cited evidence, and draft a report
-          for your review.
+          for your review.{" "}
+          {active && (
+            <>
+              Saved to <strong className="text-text-secondary">{active.name}</strong>.
+            </>
+          )}
         </p>
 
         <form onSubmit={submit} className="card space-y-5 p-5 sm:p-6">
