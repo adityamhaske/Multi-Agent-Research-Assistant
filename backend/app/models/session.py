@@ -28,6 +28,14 @@ class Session(Base):
         nullable=False,
         index=True,
     )
+    # Every session lives in a project (docs/14 §3). Existing rows were backfilled into
+    # a per-user "General" project by migration 0005, which is why this is NOT NULL.
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     prompt: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[SessionStatus] = mapped_column(
         SAEnum(SessionStatus, name="session_status"),
@@ -66,6 +74,7 @@ class Session(Base):
     # Relationships. passive_deletes lets the DB-level ON DELETE CASCADE do the work
     # instead of the ORM loading every child row (docs/05 §5).
     user: Mapped["User"] = relationship("User", back_populates="sessions")  # noqa: F821
+    project: Mapped["Project"] = relationship("Project", back_populates="sessions")  # noqa: F821
     agent_logs: Mapped[list["AgentLog"]] = relationship(  # noqa: F821
         "AgentLog",
         back_populates="session",

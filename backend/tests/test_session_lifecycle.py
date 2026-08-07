@@ -44,6 +44,7 @@ def test_archived_at_defaults_to_none():
 
     summary = SessionSummary(
         id="3f2504e0-4f89-11d3-9a0c-0305e82c3301",
+        project_id="6ba7b810-9dad-11d1-80b4-00c04fd430c8",
         status="COMPLETED",
         prompt="q",
         research_depth="fast",

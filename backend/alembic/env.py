@@ -17,6 +17,7 @@ from app.models import (  # noqa: F401
     agent_log,
     audit_log,
     chat_message,
+    project,
     refresh_token,
     session,
     user,

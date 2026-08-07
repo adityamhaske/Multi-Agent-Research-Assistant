@@ -13,6 +13,9 @@ class ResearchStartRequest(BaseModel):
 
     query: str = Field(..., min_length=10, max_length=2000)
     depth: str = Field(default="balanced", pattern="^(fast|balanced|comprehensive)$")
+    # Which project this research belongs to. None → the user's default project, so a
+    # brand-new account is never blocked from starting a run (docs/14 §7).
+    project_id: UUID | None = None
     # Per-run model choice. None → fall back to the user's saved preference, then the
     # deployment default (docs/12 M8). Whatever is resolved is snapshotted on the
     # session, so a resumed run keeps the models it started with.
@@ -59,6 +62,7 @@ class SessionSummary(BaseModel):
     """Slim row for list/history — no report bodies (docs/05 §3)."""
 
     session_id: UUID = Field(validation_alias="id")
+    project_id: UUID
     status: SessionStatus
     prompt: str
     research_depth: str

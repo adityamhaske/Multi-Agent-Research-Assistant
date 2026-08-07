@@ -21,6 +21,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.projects import resolve_project
 from app.db.base import AsyncSessionLocal, get_db
 from app.db.redis import get_redis
 from app.dependencies import enforce_research_rate_limit, get_current_user
@@ -75,8 +76,13 @@ async def start_research(
         except model_routing.InvalidRouting as e:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
 
+    # Resolve the target project (404s if it isn't this user's), or fall back to their
+    # default so a first-time account can start research without creating one first.
+    project = await resolve_project(db, current_user.id, payload.project_id)
+
     session = Session(
         user_id=current_user.id,
+        project_id=project.id,
         prompt=payload.query,
         status=SessionStatus.PENDING,
         research_depth=payload.depth,
@@ -96,20 +102,28 @@ async def list_sessions(
     page: int = 1,
     limit: int = 20,
     archived: bool = False,
+    project_id: uuid.UUID | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List this user's sessions.
+    """List this user's sessions, optionally scoped to one project.
 
     `archived` selects one list or the other rather than merging them: archiving exists
     to get a session *out* of the way, so the default view must never include it, and
     the archive is a deliberate destination rather than a filter people stumble into.
+
+    `project_id` is validated for ownership before it reaches the query, so it can never
+    be used to read another user's project.
     """
     limit = max(1, min(limit, 100))
-    base = select(Session).where(
+    filters = [
         Session.user_id == current_user.id,
         Session.archived_at.is_not(None) if archived else Session.archived_at.is_(None),
-    )
+    ]
+    if project_id is not None:
+        project = await resolve_project(db, current_user.id, project_id)
+        filters.append(Session.project_id == project.id)
+    base = select(Session).where(*filters)
     total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
     rows = (
         (
