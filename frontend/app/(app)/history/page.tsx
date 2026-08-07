@@ -20,7 +20,15 @@ const FILTERS: { value: SessionStatus | "ALL"; label: string }[] = [
 export default function HistoryPage() {
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<SessionStatus | "ALL">("ALL");
-  const { data, isLoading, isError, refetch, isFetching } = useSessions(page, LIMIT);
+  // Archived is a separate destination, not another status filter — a session is
+  // archived *or* active, and mixing them would defeat the point of getting one
+  // out of the way. Switching views resets paging.
+  const [showArchived, setShowArchived] = useState(false);
+  const { data, isLoading, isError, refetch, isFetching } = useSessions(
+    page,
+    LIMIT,
+    showArchived
+  );
 
   const rows = data?.sessions ?? [];
   const visible = filter === "ALL" ? rows : rows.filter((s) => s.status === filter);
@@ -29,7 +37,9 @@ export default function HistoryPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-text-primary">History</h1>
+        <h1 className="text-xl font-semibold text-text-primary">
+          {showArchived ? "Archived" : "History"}
+        </h1>
         <div className="flex flex-wrap gap-1" role="tablist" aria-label="Filter by status">
           {FILTERS.map((f) => (
             <button
@@ -47,6 +57,21 @@ export default function HistoryPage() {
               {f.label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => {
+              setShowArchived((v) => !v);
+              setPage(1);
+            }}
+            aria-pressed={showArchived}
+            className={`ml-1 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              showArchived
+                ? "bg-accent-muted text-accent"
+                : "bg-bg-elevated text-text-muted hover:text-text-secondary"
+            }`}
+          >
+            {showArchived ? "← Back to History" : "Archived"}
+          </button>
         </div>
       </div>
 
@@ -65,10 +90,21 @@ export default function HistoryPage() {
         </div>
       ) : rows.length === 0 ? (
         <div className="card text-center">
-          <p className="text-sm text-text-secondary">No research sessions yet.</p>
-          <Link href="/dashboard" className="mt-2 inline-block text-sm text-accent hover:underline">
-            Start your first research →
-          </Link>
+          {showArchived ? (
+            <p className="text-sm text-text-secondary">
+              Nothing archived. Archiving moves a session out of History without deleting it.
+            </p>
+          ) : (
+            <>
+              <p className="text-sm text-text-secondary">No research sessions yet.</p>
+              <Link
+                href="/dashboard"
+                className="mt-2 inline-block text-sm text-accent hover:underline"
+              >
+                Start your first research →
+              </Link>
+            </>
+          )}
         </div>
       ) : visible.length === 0 ? (
         <div className="card text-center text-sm text-text-muted">

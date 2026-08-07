@@ -15,6 +15,7 @@ import type {
   RoutingResponse,
   SessionDetail,
   SessionListResponse,
+  SessionSummary,
   Usage,
   User,
 } from "@/lib/types";
@@ -27,7 +28,7 @@ import type {
 export const queryKeys = {
   me: ["me"] as const,
   usage: ["usage"] as const,
-  sessions: (page: number) => ["sessions", page] as const,
+  sessions: (page: number, archived = false) => ["sessions", page, archived] as const,
   session: (id: string) => ["session", id] as const,
   chat: (id: string) => ["chat", id] as const,
   models: ["models"] as const,
@@ -118,10 +119,43 @@ export function useLogout() {
 
 // ─── Research sessions ─────────────────────────────────────────────────────────────
 
-export function useSessions(page = 1, limit = 20) {
+export function useSessions(page = 1, limit = 20, archived = false) {
   return useQuery({
-    queryKey: queryKeys.sessions(page),
-    queryFn: () => apiFetch<SessionListResponse>(`/research?page=${page}&limit=${limit}`),
+    queryKey: queryKeys.sessions(page, archived),
+    queryFn: () =>
+      apiFetch<SessionListResponse>(
+        `/research?page=${page}&limit=${limit}&archived=${archived}`
+      ),
+  });
+}
+
+/**
+ * Archive / unarchive / delete. All three invalidate every session list because a row
+ * moves between the active and archived views (or disappears), and the counts on both
+ * sides change — invalidating only the current page would leave the other list stale.
+ */
+export function useArchiveSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, archived }: { id: string; archived: boolean }) =>
+      apiFetch<SessionSummary>(`/research/${id}/${archived ? "archive" : "unarchive"}`, {
+        method: "POST",
+      }),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["sessions"] });
+      qc.invalidateQueries({ queryKey: queryKeys.session(id) });
+    },
+  });
+}
+
+export function useDeleteSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/research/${id}`, { method: "DELETE" }),
+    onSuccess: (_data, id) => {
+      qc.removeQueries({ queryKey: queryKeys.session(id) });
+      qc.invalidateQueries({ queryKey: ["sessions"] });
+    },
   });
 }
 
@@ -151,8 +185,12 @@ export function useSession(id: string) {
 export function useStartResearch() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { query: string; depth: ResearchDepth }) =>
-      apiFetch<ResearchStartResponse>("/research", { method: "POST", body }),
+    mutationFn: (body: {
+      query: string;
+      depth: ResearchDepth;
+      /** Per-run model choice. Omit to use saved settings (docs/12 M8). */
+      model_routing?: ModelRouting | null;
+    }) => apiFetch<ResearchStartResponse>("/research", { method: "POST", body }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
   });
 }

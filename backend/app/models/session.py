@@ -47,6 +47,10 @@ class Session(Base):
     total_tokens_output: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     elapsed_seconds: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
     rework_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Archiving is reversible and keeps the row; deletion is a separate, hard action.
+    # Timestamp rather than a boolean so "when did this leave the active list" is
+    # answerable without a second column.
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Which models actually produced this report (docs/12 M8). Snapshotted at run time
     # rather than read back from the user's current preference, because a preference can

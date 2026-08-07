@@ -82,6 +82,8 @@ export interface SessionSummary {
   elapsed_seconds: number | null;
   rework_count: number;
   created_at: string;
+  /** Set when the session is archived (out of the active list, fully recoverable). */
+  archived_at: string | null;
 }
 
 export interface SessionDetail extends SessionSummary {

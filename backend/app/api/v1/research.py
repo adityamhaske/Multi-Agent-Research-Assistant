@@ -13,6 +13,7 @@ import hashlib
 import json
 import uuid
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -35,7 +36,7 @@ from app.schemas.research import (
     SessionListResponse,
     SessionSummary,
 )
-from app.services import export, usage
+from app.services import checkpoints, export, model_routing, usage
 from app.services.sse import SSE_HEADERS
 from app.workers.tasks import resume_agent_pipeline, run_agent_pipeline
 
@@ -64,11 +65,22 @@ async def start_research(
                 ),
             )
 
+    # Per-run model choice, validated here so an unroutable model is rejected before a
+    # session exists rather than failing inside the worker minutes later. None means
+    # "use my saved settings", which the runner resolves (user → deployment).
+    routing = None
+    if payload.model_routing:
+        try:
+            routing = model_routing.validate(payload.model_routing)
+        except model_routing.InvalidRouting as e:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
+
     session = Session(
         user_id=current_user.id,
         prompt=payload.query,
         status=SessionStatus.PENDING,
         research_depth=payload.depth,
+        model_routing=routing,
     )
     db.add(session)
     await db.commit()
@@ -83,11 +95,21 @@ async def start_research(
 async def list_sessions(
     page: int = 1,
     limit: int = 20,
+    archived: bool = False,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """List this user's sessions.
+
+    `archived` selects one list or the other rather than merging them: archiving exists
+    to get a session *out* of the way, so the default view must never include it, and
+    the archive is a deliberate destination rather than a filter people stumble into.
+    """
     limit = max(1, min(limit, 100))
-    base = select(Session).where(Session.user_id == current_user.id)
+    base = select(Session).where(
+        Session.user_id == current_user.id,
+        Session.archived_at.is_not(None) if archived else Session.archived_at.is_(None),
+    )
     total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
     rows = (
         (
@@ -269,6 +291,68 @@ async def approve_or_rework(
         str(session.id), str(current_user.id), payload.approved, payload.feedback
     )
     return {"message": "Approved. Finalizing." if payload.approved else "Rework requested."}
+
+
+@router.post("/{session_id}/archive", response_model=SessionSummary)
+async def archive_session(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Move a session out of the active list. Reversible, loses nothing."""
+    session = await _authorized_session(db, session_id, current_user.id)
+    if session.archived_at is None:
+        session.archived_at = datetime.now(UTC)
+        await db.commit()
+        await db.refresh(session)
+    return SessionSummary.model_validate(session)
+
+
+@router.post("/{session_id}/unarchive", response_model=SessionSummary)
+async def unarchive_session(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    session = await _authorized_session(db, session_id, current_user.id)
+    if session.archived_at is not None:
+        session.archived_at = None
+        await db.commit()
+        await db.refresh(session)
+    return SessionSummary.model_validate(session)
+
+
+@router.delete("/{session_id}", status_code=204)
+async def delete_session(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Permanently delete a session and everything derived from it.
+
+    Agent logs, chat messages, and audit rows go with it via ON DELETE CASCADE. The
+    LangGraph checkpoints are keyed by thread id in tables we do not own, so they are
+    dropped explicitly — otherwise "delete" would leave the full agent state (including
+    fetched page content) behind, which is exactly what a user deleting a session is
+    asking us not to do.
+    """
+    session = await _authorized_session(db, session_id, current_user.id)
+    if session.status == SessionStatus.RUNNING:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="This session is still running. Wait for it to finish before deleting.",
+        )
+
+    await db.delete(session)
+    await db.commit()
+
+    try:
+        await checkpoints.delete_thread(str(session_id))
+    except Exception as e:  # noqa: BLE001 — the user's rows are gone; log and move on
+        logger.warning("checkpoint_cleanup_failed", session_id=str(session_id), error=str(e))
+
+    logger.info("session_deleted", session_id=str(session_id))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 async def _authorized_session(

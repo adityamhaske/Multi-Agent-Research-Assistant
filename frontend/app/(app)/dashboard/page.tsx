@@ -6,9 +6,10 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 
 import { SessionCard } from "@/components/SessionCard";
+import { StartModelPicker } from "@/components/StartModelPicker";
 import { useSessions, useStartResearch } from "@/hooks/queries";
 import { ApiError } from "@/lib/api";
-import type { ResearchDepth } from "@/lib/types";
+import type { ModelRouting, ResearchDepth } from "@/lib/types";
 
 const MIN_QUERY = 10;
 const MAX_QUERY = 2000;
@@ -26,6 +27,8 @@ export default function DashboardPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [depth, setDepth] = useState<ResearchDepth>("balanced");
+  // null = use the saved per-role routing (user preference, else deployment default).
+  const [modelRouting, setModelRouting] = useState<ModelRouting | null>(null);
   const start = useStartResearch();
   const { data, isLoading, isError, refetch } = useSessions(1, 5);
 
@@ -37,7 +40,7 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!canSubmit) return;
     try {
-      const res = await start.mutateAsync({ query: trimmed, depth });
+      const res = await start.mutateAsync({ query: trimmed, depth, model_routing: modelRouting });
       router.push(`/session/${res.session_id}`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not start research.");
@@ -111,6 +114,8 @@ export default function DashboardPage() {
               ))}
             </div>
           </fieldset>
+
+          <StartModelPicker value={modelRouting} onChange={setModelRouting} />
 
           <button type="submit" disabled={!canSubmit} className="btn btn-primary">
             {start.isPending && <span className="spinner" />}

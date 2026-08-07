@@ -13,6 +13,13 @@ class ResearchStartRequest(BaseModel):
 
     query: str = Field(..., min_length=10, max_length=2000)
     depth: str = Field(default="balanced", pattern="^(fast|balanced|comprehensive)$")
+    # Per-run model choice. None → fall back to the user's saved preference, then the
+    # deployment default (docs/12 M8). Whatever is resolved is snapshotted on the
+    # session, so a resumed run keeps the models it started with.
+    model_routing: dict[str, str] | None = Field(
+        default=None,
+        description='Role → "provider:model". Omit to use your saved settings.',
+    )
 
 
 class ApprovalRequest(BaseModel):
@@ -61,6 +68,7 @@ class SessionSummary(BaseModel):
     elapsed_seconds: float | None = None
     rework_count: int = 0
     created_at: datetime
+    archived_at: datetime | None = None
 
     model_config = {"from_attributes": True, "populate_by_name": True}
 
