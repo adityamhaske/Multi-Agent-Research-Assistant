@@ -10,7 +10,7 @@ asyncpg>=0.30
 alembic>=1.14
 
 # Cache / Queue
-redis[hiredis]>=5.2
+redis[hiredis]>=8.1.0
 celery>=5.4,<6.0
 
 # Agent orchestration (docs/03_Tech_Stack.md — real LangGraph, no hand-rolled loops)
