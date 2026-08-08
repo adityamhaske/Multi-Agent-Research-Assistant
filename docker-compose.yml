@@ -2,7 +2,9 @@ version: "3.9"
 
 services:
   postgres:
-    image: postgres:15-alpine
+    # pgvector image (stock Postgres + the vector extension) — required by project
+    # memory (docs/14 §3). Major version matches the existing data volume.
+    image: pgvector/pgvector:pg15
     container_name: research_postgres
     environment:
       POSTGRES_USER: research_user

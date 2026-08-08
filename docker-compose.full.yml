@@ -14,7 +14,9 @@
 
 services:
   postgres:
-    image: postgres:16-alpine
+    # pgvector image (stock Postgres + the vector extension) — required by project
+    # memory (docs/14 §3). Major version matches the existing data volume.
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-research_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-research_pass}
