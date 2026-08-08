@@ -6,8 +6,12 @@ Redis-backed versions (`app/adapters.py`); the desktop build (docs/12 M9) suppli
 SQLite and in-process ones. `research_engine` depends on these shapes and nothing else,
 which is what lets one graph run in both places.
 
-Two ports, not the four the first draft of docs/13 listed. The two that were dropped
-were interfaces where data was sufficient:
+Three ports. Two came from docs/13 (EventSink, Cache); Embeddings arrived with project
+memory (docs/14 §4) and is a port for the same reason — the server embeds through Ollama
+or a hosted provider, the desktop build through a local model, and the engine should not
+know which.
+
+The two candidates that were dropped were interfaces where data was sufficient:
 
 - **KeyProvider** — provider keys are resolved by the host *before* a run (the server
   decrypts them from `users.api_key_encrypted`) and handed over as a plain
@@ -50,3 +54,26 @@ class Cache(Protocol):
     async def get(self, key: str) -> str | None: ...
 
     async def set(self, key: str, value: str, ttl: int) -> None: ...
+
+
+@runtime_checkable
+class Embeddings(Protocol):
+    """Turns text into vectors for project memory (docs/14 §4).
+
+    A third port rather than a direct client call, for the same reason as the other two:
+    the server embeds through Ollama or a hosted provider, and the desktop build embeds
+    locally with no key at all. The engine states the shape; hosts supply the client.
+
+    `model_id` and `dimensions` are part of the contract, not decoration. Vectors from
+    different models are not comparable even when their dimensions match, so every stored
+    chunk records the model that produced it and retrieval filters on it — mixing them
+    silently would return confident nonsense (docs/14 §4).
+    """
+
+    @property
+    def model_id(self) -> str: ...
+
+    @property
+    def dimensions(self) -> int: ...
+
+    async def embed(self, texts: list[str]) -> list[list[float]]: ...

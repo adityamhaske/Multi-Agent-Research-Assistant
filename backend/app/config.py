@@ -55,6 +55,18 @@ class Settings(BaseSettings):
     # running on the host machine (localhost inside a container is the container).
     ollama_base_url: str = "http://localhost:11434/v1"
 
+    # ── Project memory / embeddings (docs/14 §4) ───────────────────────────────
+    # Which provider turns approved reports into vectors. "auto" prefers a local
+    # Ollama — free, no egress, and the reason a fully local deployment can still
+    # do private retrieval — and falls back to whichever hosted provider has a key.
+    # "none" disables ingestion and project chat rather than degrading them.
+    embeddings_provider: Literal["auto", "ollama", "google", "openai", "none"] = "auto"
+    # Blank means the provider's documented default. Changing this makes existing
+    # chunks invisible until they are re-indexed: vectors from different models are
+    # not comparable even at equal width, so retrieval filters on the model that
+    # produced them. `GET /projects/{id}/memory/status` reports the mismatch.
+    embeddings_model: str = ""
+
     # ── Search retrievers ──────────────────────────────────────────────────────
     tavily_api_key: str = ""
     brave_api_key: str = ""

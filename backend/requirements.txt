@@ -8,6 +8,10 @@ pydantic-settings>=2.6
 sqlalchemy[asyncio]>=2.0.51,<2.1
 asyncpg>=0.31.0
 alembic>=1.14
+# pgvector's SQLAlchemy type + asyncpg codec for `memory_chunks.embedding` (docs/14 §3).
+# The server-side extension is a separate prerequisite: migration 0006 enables it, and the
+# compose files pin pgvector/pgvector:pgNN because stock postgres images do not ship it.
+pgvector>=0.3
 
 # Cache / Queue
 redis[hiredis]>=8.1.0
