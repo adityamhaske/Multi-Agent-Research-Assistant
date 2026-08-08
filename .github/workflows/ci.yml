@@ -13,6 +13,9 @@ jobs:
         working-directory: backend
     services:
       postgres:
+        # pgvector, not stock postgres: migration 0006 enables the extension and 0007
+        # creates a vector column, so a stock image fails the migration step outright
+        # (docs/14 §3). Same pin as the compose files, for the same reason.
         image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: ci
@@ -108,6 +111,9 @@ jobs:
     needs: [backend, frontend]
     services:
       postgres:
+        # pgvector, not stock postgres: migration 0006 enables the extension and 0007
+        # creates a vector column, so a stock image fails the migration step outright
+        # (docs/14 §3). Same pin as the compose files, for the same reason.
         image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: ci

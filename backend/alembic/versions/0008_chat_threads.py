@@ -62,9 +62,7 @@ def upgrade() -> None:
             nullable=True,
         ),
     )
-    op.create_index(
-        "ix_chat_messages_thread_created", "chat_messages", ["thread_id", "created_at"]
-    )
+    op.create_index("ix_chat_messages_thread_created", "chat_messages", ["thread_id", "created_at"])
     # Which reports an answer cited, resolved at write time. Storing it means the chips
     # still resolve when the history is re-read, without re-running retrieval.
     op.add_column("chat_messages", sa.Column("citations", postgresql.JSONB(), nullable=True))

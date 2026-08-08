@@ -248,7 +248,9 @@ async def _local_embedding_model() -> str | None:
     # first embedding model the server reports.
     chosen = None
     if status.reachable:
-        if configured and any(name.split(":", 1)[0] == configured.split(":", 1)[0] for name in installed):
+        if configured and any(
+            name.split(":", 1)[0] == configured.split(":", 1)[0] for name in installed
+        ):
             chosen = configured
         elif installed:
             chosen = installed[0]

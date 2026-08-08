@@ -186,9 +186,7 @@ async def _ingest_into_project_memory(db, session: Session, provider_keys: dict[
         embedder = await adapters.embeddings_for(provider_keys)
         result = await memory.ingest_session(db, session, embedder)
         if result.skipped:
-            logger.info(
-                "memory_ingest_skipped", session_id=str(session.id), reason=result.reason
-            )
+            logger.info("memory_ingest_skipped", session_id=str(session.id), reason=result.reason)
     except Exception as e:  # noqa: BLE001 — see docstring: never fail a completed run
         await db.rollback()
         logger.warning(

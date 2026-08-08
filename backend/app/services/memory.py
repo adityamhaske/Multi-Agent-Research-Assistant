@@ -174,7 +174,9 @@ async def retrieve(
             .limit(limit)
         )
     ).all()
-    return [Retrieved(chunk=chunk, distance=float(dist), session=sess) for chunk, dist, sess in rows]
+    return [
+        Retrieved(chunk=chunk, distance=float(dist), session=sess) for chunk, dist, sess in rows
+    ]
 
 
 @dataclass(frozen=True)
@@ -196,9 +198,7 @@ class MemoryStatus:
     stale_models: list[str]
 
 
-async def status(
-    db: AsyncSession, *, project_id: uuid.UUID, current_model: str
-) -> MemoryStatus:
+async def status(db: AsyncSession, *, project_id: uuid.UUID, current_model: str) -> MemoryStatus:
     """Make memory legible rather than magic (docs/14 §8)."""
     by_model = (
         await db.execute(

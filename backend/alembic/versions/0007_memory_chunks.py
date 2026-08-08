@@ -43,9 +43,11 @@ _MIN_PGVECTOR = (0, 5, 0)
 
 
 def _assert_hnsw_available() -> None:
-    version = op.get_bind().execute(
-        sa.text("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
-    ).scalar()
+    version = (
+        op.get_bind()
+        .execute(sa.text("SELECT extversion FROM pg_extension WHERE extname = 'vector'"))
+        .scalar()
+    )
     if version is None:
         raise RuntimeError(
             "The pgvector extension is not installed. Migration 0006 enables it; a stock "
@@ -86,9 +88,7 @@ def upgrade() -> None:
     )
 
     op.create_index("ix_memory_chunks_project_id", "memory_chunks", ["project_id"])
-    op.create_index(
-        "ix_memory_chunks_source_session_id", "memory_chunks", ["source_session_id"]
-    )
+    op.create_index("ix_memory_chunks_source_session_id", "memory_chunks", ["source_session_id"])
     # Re-ingestion lands on these rows rather than duplicating them.
     op.create_index(
         "uq_memory_chunks_session_chunk",
