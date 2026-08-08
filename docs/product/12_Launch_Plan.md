@@ -441,7 +441,8 @@ projects is also needed regardless of memory.
 
 ## M15 — Local LLM, first-class in the UI  *(≈ 1 week)*
 
-◐ The engine already routes to Ollama; nothing in the product *tells* a user that, and
+✅ **Code complete** (commit a9b50ef). The engine already routed to Ollama; nothing in the
+product *told* a user that, and
 `available_providers()` optimistically reports Ollama usable even with no server running.
 
 - ☐ Settings card: connection status, detected local models, base-URL override
@@ -459,8 +460,15 @@ that silently fails at run time.
 
 ## M16 — Projects as containers  *(≈ 1 week)*
 
-☐ Per [14_Projects_and_Memory.md](../architecture/14_Projects_and_Memory.md) §3/§7. No
-memory yet — organization only, which is most of the day-to-day value.
+✅ **Code complete** (commits 2ad2ca5 backend, 1566c43 frontend). Per
+[14_Projects_and_Memory.md](../architecture/14_Projects_and_Memory.md) §3/§7. No memory
+yet — organization only, which is most of the day-to-day value.
+
+Verified against the live database: the three-phase backfill migration (0005) moved 19
+existing sessions into 12 per-user "General" projects with 0 orphans and 0 cross-user
+mismatches. Isolation, cross-user 404s (read *and* delete), case-insensitive duplicate
+names (409), the running-session delete guard, and full delete cascade (project →
+sessions → LangGraph checkpoints) were each exercised end to end.
 
 - ☐ `projects` CRUD; `sessions.project_id`; migration backfilling a `General` project
 - ☐ History and dashboard scoped per project; project switcher in the shell
@@ -470,9 +478,14 @@ per project · deleting a project cascades cleanly.
 
 ## M17 — Project memory & project chat  *(≈ 2–3 weeks)*
 
-☐ The differentiator. Per [14_Projects_and_Memory.md](../architecture/14_Projects_and_Memory.md) §2/§4/§5.
+◐ **In progress — step 1 of 5 done.** The differentiator. Per
+[14_Projects_and_Memory.md](../architecture/14_Projects_and_Memory.md) §2/§4/§5.
 
-- ☐ pgvector prerequisite (`pgvector/pgvector:pg16` + `CREATE EXTENSION`)
+- ✅ pgvector prerequisite (commit fa102f9): each compose file pinned to the
+  `pgvector/pgvector:pgNN` image matching its own volume's major version, plus migration
+  0006 enabling the extension on its own so a stock-image deployment fails at the
+  prerequisite rather than midway. Verified live: Postgres recreated over the existing
+  volume, extension installed, all 12 projects / 19 sessions / 14 users intact.
 - ☐ `EmbeddingsPort` injected like every other engine port; Ollama `nomic-embed-text`
   locally, provider embeddings for cloud
 - ☐ Ingestion hooked to the **approval** transition only
