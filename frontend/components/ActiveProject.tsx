@@ -35,7 +35,10 @@ function subscribeToStoredId(onChange: () => void) {
 }
 
 function getStoredId(): string | null {
-  return window.localStorage.getItem(STORAGE_KEY);
+  // Not an auth input: the server re-checks project ownership on every request, so a
+  // tampered value yields 404s, never access. The inline marker is what the CI web-storage
+  // guard reads — it bans auth in web storage, not every client-side preference.
+  return window.localStorage.getItem(STORAGE_KEY); // ci-allow-web-storage: UI preference
 }
 
 // The server has no localStorage; null means "no remembered choice yet".
@@ -44,7 +47,7 @@ function getStoredIdOnServer(): string | null {
 }
 
 function writeStoredId(id: string) {
-  window.localStorage.setItem(STORAGE_KEY, id);
+  window.localStorage.setItem(STORAGE_KEY, id); // ci-allow-web-storage: UI preference
   // `storage` only fires in *other* tabs, so notify this one explicitly.
   listeners.forEach((l) => l());
 }

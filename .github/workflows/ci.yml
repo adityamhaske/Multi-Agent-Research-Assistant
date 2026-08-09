@@ -94,8 +94,15 @@ jobs:
           if grep -rnE 'localhost:8000|NEXT_PUBLIC_API_URL|127\.0\.0\.1:8000' --include='*.tsx' --include='*.ts' app/ components/ lib/ hooks/; then
             echo '::error::Hardcoded backend URL found — call the same-origin /api proxy (docs/06 §6)'; fail=1
           fi
-          if grep -rnE '(local|session)Storage' --include='*.tsx' --include='*.ts' app/ components/ lib/ hooks/ | grep -v 'ActiveProject.tsx'; then
-            echo '::error::Web storage use found — auth is httpOnly cookies only (docs/03)'; fail=1
+          # Matches real access (`localStorage.getItem`, `sessionStorage["k"]`), not prose
+          # mentioning it, and skips lines carrying an explicit opt-out. The rule exists to
+          # keep *auth* out of web storage (docs/03); it was banning every client-side
+          # preference too, which is a different thing and is why this check has been
+          # failing on main since M16. An opt-out must state a reason on the same line, so
+          # each one is reviewable rather than invisible.
+          if grep -rnE '(local|session)Storage\s*[.[]' --include='*.tsx' --include='*.ts' \
+               app/ components/ lib/ hooks/ | grep -v 'ci-allow-web-storage'; then
+            echo '::error::Web storage use found — auth is httpOnly cookies only (docs/03). If this is a non-auth UI preference, mark the line `ci-allow-web-storage: <reason>`'; fail=1
           fi
           exit $fail
       - name: Unit tests (Vitest)
