@@ -50,12 +50,64 @@ Index: `(session_id, id)`.
 | Column | Type | Notes |
 |---|---|---|
 | id | UUID PK | |
-| session_id | UUID FK sessions ON DELETE CASCADE | |
+| session_id | UUID FK sessions ON DELETE CASCADE, **nullable** | Set for per-report chat |
+| thread_id | UUID FK chat_threads ON DELETE CASCADE, nullable | Set for project chat (0008) |
 | role | text NOT NULL CHECK in (`user`,`assistant`) | |
 | content | text NOT NULL | |
+| citations | JSONB | Resolved `[R{n}]` markers on a thread reply |
 | created_at | timestamptz | |
 
-Index: `(session_id, created_at)`.
+Indexes: `(session_id, created_at)`, `(thread_id, created_at)`.
+
+`CHECK ((session_id IS NOT NULL) <> (thread_id IS NOT NULL))` — a message belongs to a
+report **or** a thread, never both and never neither. Two nullable parents would permit a
+row that appears in no history at all, whose first symptom is a user's question vanishing.
+
+### projects  — the container research lives in (docs/14 §3)
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| user_id | UUID FK users ON DELETE CASCADE | |
+| name | varchar(120) NOT NULL | |
+| description | text | |
+| archived_at | timestamptz | Archive hides; delete removes |
+| created_at / updated_at | timestamptz | |
+
+`UNIQUE (user_id, lower(name))` — "Thesis" and "thesis" as separate projects is a UI trap,
+not a feature. Migration 0005 backfilled existing sessions into a per-user `General`
+project before making `sessions.project_id` NOT NULL.
+
+### chat_threads  — project-scoped conversations (docs/14 §3)
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| project_id | UUID FK projects ON DELETE CASCADE | |
+| title | varchar(200) NOT NULL | Derived from the first message |
+| created_at | timestamptz | |
+| last_message_at | timestamptz | Ordering key — "recent" means last *used* |
+
+Index: `(project_id, last_message_at DESC)`.
+
+### memory_chunks  — embedded slices of approved reports (docs/14 §2)
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| project_id | UUID FK projects ON DELETE CASCADE | The isolation boundary |
+| source_session_id | UUID FK sessions ON DELETE CASCADE | Resolves `[R{n}]` back to its report |
+| chunk_index | integer NOT NULL | |
+| text | text NOT NULL | |
+| embedding | `vector(768)` NOT NULL | Requires pgvector (0006) |
+| embedding_model | varchar(120) NOT NULL | Equal width is not equal meaning |
+| created_at | timestamptz | |
+
+Indexes: `(project_id)`, `(source_session_id)`, `UNIQUE (source_session_id, chunk_index)`,
+and HNSW on `embedding` with `vector_cosine_ops`. Rows are written from exactly one place
+— the COMPLETED transition in `pipeline_runner._persist_outcome`, reachable only through
+the human approval gate. The unique index makes re-ingestion idempotent rather than
+duplicating the corpus.
+
+**Requires `pgvector/pgvector:pgNN`, not a stock postgres image** — every compose file and
+both CI service blocks are pinned accordingly.
 
 ### audit_log  — the compliance trail
 | Column | Type | Notes |
@@ -119,6 +171,22 @@ All endpoints cookie-authed unless noted. Errors follow RFC-7807-style
 |---|---|---|
 | `GET /research/{id}/chat` | — | message list |
 | `POST /research/{id}/chat` | `{message (1..4000 chars)}` | SSE stream: `chunk`* → `done{message_id}`; chat-specific rate limit |
+
+### Projects & project chat (docs/14 §8)
+| Endpoint | Req | Resp |
+|---|---|---|
+| `GET/POST /projects` | `{name, description?}` | list / 201; 409 on a case-insensitive duplicate name |
+| `PATCH/DELETE /projects/{id}` | `{name?, description?, archived?}` | delete cascades sessions, threads and memory; 409 while a session is RUNNING |
+| `GET/POST /projects/{id}/threads` | `{title?}` | thread list / 201 |
+| `DELETE /threads/{id}` | — | 204; messages cascade |
+| `GET /threads/{id}/messages` | — | message list with resolved citations |
+| `POST /threads/{id}/messages` | `{message (1..4000 chars)}` | SSE: `connected{citations}` → `chunk`* → `done{message_id, citations}`; **503** when no embeddings provider is reachable |
+| `GET /projects/{id}/memory/status` | — | chunk/report counts, current + stale embedding models, pending count |
+
+`POST /threads/{id}/messages` sends citations on `connected`, before the first token:
+they describe what was *retrieved*, which is settled when the query runs. It returns 503
+rather than an ungrounded answer when embeddings are unavailable — this endpoint's
+contract is that answers come from approved research.
 
 ## 4. SSE event contract
 
