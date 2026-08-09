@@ -50,30 +50,50 @@ type HastNode =
  * Matching the group and emitting one chip per number is what keeps "every claim is
  * traceable, and we show you when it isn't" true rather than aspirational.
  */
-const CITE_TEST = /\[\d+(?:\s*,\s*\d+)*\]/;
-const CITE_RE = /\[(\d+(?:\s*,\s*\d+)*)\]/g;
 const SKIP_TAGS = new Set(["code", "pre", "cite", "a"]);
 
-function citeNode(n: number, resolved: Set<number>): HastNode {
+/**
+ * Marker patterns, parameterised by prefix.
+ *
+ * Report citations are bare numbers (`[1]`); project-chat answers cite retrieved
+ * excerpts with an `R` prefix (`[R1]`, docs/14 §5). Both need identical treatment —
+ * group splitting, skip-tags, the ⚠ fallback — so the machinery is shared and only the
+ * prefix differs. Duplicating it for the second marker type is how one of them would
+ * quietly lose the grouped-marker fix below.
+ */
+function markerPatterns(prefix: string) {
+  const one = `${prefix}\\d+`;
+  return {
+    test: new RegExp(`\\[${one}(?:\\s*,\\s*${one})*\\]`),
+    all: new RegExp(`\\[(${one}(?:\\s*,\\s*${one})*)\\]`, "g"),
+  };
+}
+
+function citeNode(n: number, prefix: string, resolved: Set<number>): HastNode {
   return {
     type: "element",
     tagName: "cite",
     properties: { dataIndex: String(n), dataResolved: resolved.has(n) ? "1" : "0" },
-    children: [{ type: "text", value: `[${n}]` }],
+    children: [{ type: "text", value: `[${prefix}${n}]` }],
   };
 }
 
-function splitCitations(value: string, resolved: Set<number>): HastNode[] {
+function splitCitations(
+  value: string,
+  prefix: string,
+  resolved: Set<number>,
+  all: RegExp,
+): HastNode[] {
   const out: HastNode[] = [];
-  CITE_RE.lastIndex = 0;
+  all.lastIndex = 0;
   let last = 0;
   let m: RegExpExecArray | null;
-  while ((m = CITE_RE.exec(value)) !== null) {
+  while ((m = all.exec(value)) !== null) {
     if (m.index > last) out.push({ type: "text", value: value.slice(last, m.index) });
     // `[1, 3]` becomes two independent chips, so each source gets its own popover and
     // each unresolved number gets its own ⚠ rather than one verdict for the whole group.
     for (const part of m[1].split(",")) {
-      out.push(citeNode(Number(part.trim()), resolved));
+      out.push(citeNode(Number(part.trim().replace(prefix, "")), prefix, resolved));
     }
     last = m.index + m[0].length;
   }
@@ -81,15 +101,16 @@ function splitCitations(value: string, resolved: Set<number>): HastNode[] {
   return out;
 }
 
-function makeCitationPlugin(resolved: Set<number>) {
+export function makeMarkerPlugin(resolved: Set<number>, prefix = "") {
+  const { test, all } = markerPatterns(prefix);
   const transform = (node: HastNode): void => {
     if (node.type === "element" && SKIP_TAGS.has((node as HastElement).tagName)) return;
     const children = (node as HastElement).children;
     if (!Array.isArray(children)) return;
     const next: HastNode[] = [];
     for (const child of children) {
-      if (child.type === "text" && typeof child.value === "string" && CITE_TEST.test(child.value)) {
-        next.push(...splitCitations(child.value, resolved));
+      if (child.type === "text" && typeof child.value === "string" && test.test(child.value)) {
+        next.push(...splitCitations(child.value, prefix, resolved, all));
       } else {
         transform(child);
         next.push(child);
@@ -161,14 +182,15 @@ function CitationChip({ source }: { source: Source }) {
   );
 }
 
-function UnverifiedChip({ n }: { n: number }) {
+export function UnverifiedChip({ n, prefix = "" }: { n: number; prefix?: string }) {
   return (
     <span
-      title={`Citation [${n}] does not resolve to a source — unverified`}
+      title={`Citation [${prefix}${n}] does not resolve to a source — unverified`}
       className="mx-0.5 inline-flex items-center gap-0.5 rounded-sm px-1 align-super text-[0.65em] font-semibold text-danger"
       style={{ backgroundColor: "color-mix(in srgb, var(--danger) 15%, transparent)" }}
     >
-      ⚠[{n}]
+      ⚠[{prefix}
+      {n}]
     </span>
   );
 }
@@ -181,7 +203,7 @@ export function Report({ markdown, sources }: { markdown: string; sources: Sourc
   }, [sources]);
 
   const resolved = useMemo(() => new Set(sourceByIndex.keys()), [sourceByIndex]);
-  const rehypePlugins = useMemo(() => [makeCitationPlugin(resolved)], [resolved]);
+  const rehypePlugins = useMemo(() => [makeMarkerPlugin(resolved)], [resolved]);
 
   const components = useMemo<Components>(
     () => ({

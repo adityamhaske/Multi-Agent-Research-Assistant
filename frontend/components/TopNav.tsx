@@ -51,9 +51,10 @@ export function TopNav({ user }: { user?: User }) {
           <span className="hidden sm:inline">Research Assistant</span>
         </Link>
 
-        {/* Only the two working surfaces live here; account lives in the menu. */}
+        {/* Only the working surfaces live here; account lives in the menu. */}
         <NavLink href="/dashboard" label="Dashboard" />
         <NavLink href="/history" label="History" />
+        <NavLink href="/chat" label="Chat" />
 
         {/* Scope selector sits with the nav: every surface below it is project-scoped. */}
         <div className="ml-3 hidden sm:block">

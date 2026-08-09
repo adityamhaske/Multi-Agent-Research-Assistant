@@ -6,7 +6,9 @@ import { ApiError, apiFetch } from "@/lib/api";
 import type {
   ApiKeyProvider,
   ChatMessage,
+  ChatThread,
   LocalLLMStatus,
+  MemoryStatus,
   ModelCatalog,
   ModelRouting,
   Project,
@@ -18,6 +20,8 @@ import type {
   SessionDetail,
   SessionListResponse,
   SessionSummary,
+  ThreadListResponse,
+  ThreadMessage,
   Usage,
   User,
 } from "@/lib/types";
@@ -35,6 +39,9 @@ export const queryKeys = {
     ["sessions", page, archived, projectId ?? null] as const,
   session: (id: string) => ["session", id] as const,
   chat: (id: string) => ["chat", id] as const,
+  threads: (projectId: string) => ["threads", projectId] as const,
+  threadMessages: (threadId: string) => ["thread-messages", threadId] as const,
+  memoryStatus: (projectId: string) => ["memory-status", projectId] as const,
   models: ["models"] as const,
   localLLM: ["local-llm-status"] as const,
 };
@@ -263,6 +270,64 @@ export function useChatHistory(id: string, enabled = true) {
     queryFn: () => apiFetch<ChatMessage[]>(`/research/${id}/chat`),
     enabled: enabled && Boolean(id),
     staleTime: Infinity,
+  });
+}
+
+// ─── Project chat threads & memory (docs/14 §8) ──────────────────────────────────
+
+export function useThreads(projectId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.threads(projectId ?? ""),
+    queryFn: () => apiFetch<ThreadListResponse>(`/projects/${projectId}/threads`),
+    // Same guard as useSessions: don't fetch before the active project is known, or the
+    // list flashes the wrong project's threads.
+    enabled: Boolean(projectId),
+  });
+}
+
+export function useCreateThread(projectId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { title?: string | null }) =>
+      apiFetch<ChatThread>(`/projects/${projectId}/threads`, { method: "POST", body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.threads(projectId ?? "") }),
+  });
+}
+
+export function useDeleteThread(projectId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (threadId: string) =>
+      apiFetch<void>(`/threads/${threadId}`, { method: "DELETE" }),
+    onSuccess: (_data, threadId) => {
+      qc.removeQueries({ queryKey: queryKeys.threadMessages(threadId) });
+      qc.invalidateQueries({ queryKey: queryKeys.threads(projectId ?? "") });
+    },
+  });
+}
+
+export function useThreadMessages(threadId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.threadMessages(threadId ?? ""),
+    queryFn: () => apiFetch<ThreadMessage[]>(`/threads/${threadId}/messages`),
+    enabled: Boolean(threadId),
+    staleTime: Infinity,
+  });
+}
+
+/**
+ * Whether this project's memory is usable, and how complete it is.
+ *
+ * Not retried: "no embedding provider configured" is an answer the UI must show, not a
+ * failure worth spinning on — the same reasoning as the local-LLM probe above.
+ */
+export function useMemoryStatus(projectId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.memoryStatus(projectId ?? ""),
+    queryFn: () => apiFetch<MemoryStatus>(`/projects/${projectId}/memory/status`),
+    enabled: Boolean(projectId),
+    retry: false,
+    staleTime: 30_000,
   });
 }
 
