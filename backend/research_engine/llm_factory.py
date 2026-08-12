@@ -22,7 +22,7 @@ _ROLE_CONFIG = {
     "planner": {"temperature": 0.1, "max_tokens": 2000},
     "executor": {"temperature": 0.2, "max_tokens": 4000},
     "critic": {"temperature": 0.0, "max_tokens": 1000},
-    "synthesizer": {"temperature": 0.4, "max_tokens": 6000},
+    "synthesizer": {"temperature": 0.2, "max_tokens": 6000},
     "chat": {"temperature": 0.3, "max_tokens": 2000},
 }
 

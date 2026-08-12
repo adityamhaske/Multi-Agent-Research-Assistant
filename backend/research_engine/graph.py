@@ -467,13 +467,27 @@ async def synthesizer_node(state: AgentState) -> dict:
         }
         for e in state.get("evidence", [])
     ]
+
+    evidence_lines: list[str] = []
+    for ev in numbered_evidence:
+        evidence_lines.append(
+            f"[{ev['n']}] Fact: \"{ev['key_fact']}\""
+        )
+        evidence_lines.append(
+            f"    Source: {ev['url']}"
+        )
+        evidence_lines.append(
+            f"    Snippet: \"{ev['snippet']}...\""
+        )
+        evidence_lines.append("")  # blank separator
+    evidence_text = "Evidence for citation:\n" + "\n".join(evidence_lines)
+
     fb = state.get("human_feedback")
     human = f"\n\nHuman feedback to incorporate: {fb}" if fb else ""
     messages = [
         SystemMessage(content=prompts.SYNTHESIZER_PROMPT_V2),
         HumanMessage(
-            content=f"Original query: {state['original_query']}\n\nNumbered evidence:\n"
-            f"{json.dumps(numbered_evidence, indent=2)}{human}"
+            content=f"Original query: {state['original_query']}\n\n{evidence_text}{human}"
         ),
     ]
     model = get_llm("synthesizer")
@@ -481,6 +495,39 @@ async def synthesizer_node(state: AgentState) -> dict:
     draft = text_of(resp)
     cost = estimate_cost(resp, "synthesizer")
     i, o = token_counts(resp)
+
+    # Citation repair pass: fix uncited claims if any exist.
+    # Inline uncited-count to avoid a cross-package dependency on evals.metrics:
+    # count sentences that contain assertive text but carry no [n] marker.
+    _claim_re = re.compile(r"\[\d+\]")
+    uncited = 0
+    for _sentence in re.split(r"(?<=[.!?])\s+", draft):
+        s = _sentence.strip()
+        if len(s) < 15 or not re.search(r"[A-Za-z]", s):
+            continue
+        if not _claim_re.search(s):
+            uncited += 1
+    if uncited > 0:
+        repair_messages = [
+            SystemMessage(content=prompts.SYNTHESIZER_REPAIR_PROMPT),
+            HumanMessage(
+                content=f"Draft report with {uncited} uncited sentences:\n\n{draft}\n\n"
+                f"Numbered evidence:\n{evidence_text}"
+            ),
+        ]
+        repair_resp = await model.ainvoke(repair_messages)
+        draft = text_of(repair_resp)
+        repair_cost = estimate_cost(repair_resp, "synthesizer")
+        ri, ro = token_counts(repair_resp)
+        cost += repair_cost
+        i += ri
+        o += ro
+        await emit(
+            sid,
+            "agent_log",
+            agent="synthesizer",
+            message=f"Citation repair: fixed {uncited} uncited claims",
+        )
 
     await emit(
         sid,

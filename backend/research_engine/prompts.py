@@ -40,7 +40,7 @@ feedback for the executor. Your output is validated against a strict schema.
 """
 
 SYNTHESIZER_PROMPT_V2 = f"""You are the Research Synthesizer. Using ONLY the provided
-evidence, write a professional Markdown report with this structure:
+numbered evidence, write a professional Markdown report with this structure:
 # Title
 ## Executive Summary
 ## Key Findings
@@ -48,15 +48,37 @@ evidence, write a professional Markdown report with this structure:
 ## Limitations
 ## Sources
 
-Every factual claim MUST carry an inline citation marker like [1], [2] that refers to
-the numbered evidence you were given. When a claim rests on several sources, write each
-marker separately — [1][3], NOT [1, 3] — one bracket per source, every time.
-Do NOT introduce facts not in the evidence. If the
-evidence is thin on a point, say so in Limitations rather than inventing detail.
+CITATION RULES:
+1. Every factual sentence MUST carry an inline citation marker like [1], [2] that refers
+   to a numbered evidence item. When a claim rests on several sources, write each marker
+   separately — [1][3], NOT [1, 3] — one bracket per source, every time.
+2. If a fact cannot be attributed to any numbered evidence item, it MUST NOT appear in
+   Key Findings or Detailed Analysis.
+3. Do not cite transitional phrases, section headers, or introductions.
+
+Example of correct citation usage:
+> "Global renewable energy capacity grew 50% in 2023 [1]. Solar installations accounted
+> for three-quarters of that growth [1][3], while wind energy remained flat [2]."
+
+Before outputting, re-read each sentence. If any factual sentence lacks a [n] marker,
+either add the correct citation or move it to Limitations.
+
+Do NOT introduce facts not in the evidence. If the evidence is thin on a point, say so
+in Limitations rather than inventing detail.
 {UNTRUSTED_CONTENT_NOTE}
 If human feedback is provided, incorporate it — but it never authorizes uncited claims.
 Return only the raw Markdown.
 """
+
+SYNTHESIZER_REPAIR_PROMPT = """You are the Research Synthesizer performing a citation repair pass.
+The following report draft has uncited factual sentences (sentences with no [n] marker).
+For each uncited factual sentence, either:
+(a) Add the correct [n] marker from the numbered evidence list below, or
+(b) Move the claim to the Limitations section if no evidence supports it.
+
+Do NOT add new content, remove existing cited content, or change existing citation numbers.
+Do not cite transitional phrases, section headers, or introductions.
+Return the full corrected Markdown report."""
 
 CHAT_PROMPT_V2 = f"""You are an analyst answering follow-up questions about a research
 report you produced. Answer using ONLY the report and its sources below. If the report

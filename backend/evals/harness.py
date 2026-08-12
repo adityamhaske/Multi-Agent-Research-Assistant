@@ -109,7 +109,9 @@ async def run_one(query: dict) -> dict:
 
 async def judge_citation_support(report: str, sources: list[dict]) -> float | None:
     """Real-mode only: ask a model whether each cited claim is actually supported by the
-    snippet it cites. Returns supported / cited-claims, or None if there are none."""
+    snippet it cites. Batches up to 4 claims per LLM call to reduce latency from
+    per-claim rate-limit sleeps. Returns supported / cited-claims, or None if there are none."""
+    import re as _re
     from langchain_core.messages import HumanMessage, SystemMessage
 
     from research_engine.llm_factory import get_llm
@@ -120,7 +122,9 @@ async def judge_citation_support(report: str, sources: list[dict]) -> float | No
         return None
 
     llm = get_llm("critic")
-    supported = 0
+
+    # Build per-claim evidence blocks once, then batch.
+    claim_evidence: list[tuple[str, str]] = []
     for claim in claims:
         cited = [by_index.get(n) for n in metrics.extract_citations(claim)]
         # Show every snippet extracted from each cited source, not just the first
@@ -133,25 +137,52 @@ async def judge_citation_support(report: str, sources: list[dict]) -> float | No
             if s
             for text in (s.get("snippets") or ([s["snippet"]] if s.get("snippet") else []))
         )
+        claim_evidence.append((claim, snippets))
+
+    BATCH_SIZE = 4
+    supported = 0
+    for batch_start in range(0, len(claim_evidence), BATCH_SIZE):
+        batch = claim_evidence[batch_start : batch_start + BATCH_SIZE]
+
+        # Build a single prompt covering all claims in this batch.
+        claim_blocks = []
+        for i, (claim, snippets) in enumerate(batch, start=1):
+            claim_blocks.append(f"Claim {i}: {claim}\nEvidence {i}:\n{snippets}")
+        human_content = (
+            "For each claim below, determine if it is supported by its cited evidence.\n"
+            "Answer with one line per claim in format: \"Claim N: YES\" or \"Claim N: NO\"\n\n"
+            + "\n\n".join(claim_blocks)
+        )
+
         messages = [
             SystemMessage(
-                content="You judge whether a claim is supported by the cited evidence. "
-                "Answer with exactly YES or NO."
+                content="You judge whether claims are supported by their cited evidence. "
+                "For each numbered claim, respond with exactly one line: "
+                "\"Claim N: YES\" if the evidence supports the claim, or "
+                "\"Claim N: NO\" if it does not. Answer for every claim."
             ),
-            HumanMessage(content=f"Claim: {claim}\n\nCited evidence:\n{snippets}\n\nSupported?"),
+            HumanMessage(content=human_content),
         ]
+
         try:
             resp = await llm.ainvoke(messages)
             text = resp.content if isinstance(resp.content, str) else ""
-            if text.strip().upper().startswith("YES"):
-                supported += 1
+            # Parse each "Claim N: YES/NO" line from the response.
+            for match in _re.finditer(
+                r"Claim\s+(\d+)\s*:\s*(YES|NO)", text, _re.IGNORECASE
+            ):
+                if match.group(2).upper() == "YES":
+                    supported += 1
         except Exception as e:  # noqa: BLE001
-            print(f"Citation judging error: {e}")
-            pass
-        
-        # Free-tier rate limit avoidance (Gemini = 15 RPM).
+            # Failed batch counts 0 supported — same semantics as the old per-claim
+            # path where an individual failure also contributed nothing.
+            print(f"Citation judging error (batch {batch_start // BATCH_SIZE + 1}): {e}")
+
+        # Free-tier rate limit avoidance (Gemini = 15 RPM). Applied once per batch
+        # rather than per claim — batching 4 claims turns ~82s of sleep into ~21s.
         if RUN_CONFIG.llm_mode == "real":
             await asyncio.sleep(4.1)
+
     return round(supported / len(claims), 4)
 
 async def run_one_memory(query: dict) -> dict:
