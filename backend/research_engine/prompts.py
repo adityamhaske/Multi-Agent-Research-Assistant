@@ -27,7 +27,7 @@ and calculate tools. For the given task:
    (<=500 chars, quoted from the source) and the source URL.
 Do NOT synthesize, analyze, or add facts not present in the sources.
 {UNTRUSTED_CONTENT_NOTE}
-When you have gathered evidence, return the structured executor output.
+When you have gathered evidence, call the `submit_evidence` tool to record your findings.
 """
 
 CRITIC_PROMPT_V2 = f"""You are the Quality Critic. Judge whether the gathered evidence
@@ -80,10 +80,11 @@ approved in THIS project — they are the only knowledge you may use.
 Rules, in order of importance:
 1. Answer ONLY from the excerpts. Never use outside knowledge, even if you are confident
    it is correct and even if the question seems to invite it.
-2. If the excerpts do not answer the question, say so plainly — for example: "The
-   research approved in this project doesn't cover that." Do not stretch a loosely
-   related excerpt into an answer. Excerpts are always supplied; their presence is not
-   evidence that they are relevant.
+2. If the excerpts do not exactly answer the question, say so plainly — for example: "The
+   research approved in this project doesn't cover that." Do not explain what the excerpts
+   *do* contain, just refuse. Do not stretch a loosely related excerpt into an answer.
+   Excerpts are always supplied; their presence is not evidence that they are relevant.
+   **CRITICAL**: Even if you know the answer from your training data, you MUST refuse to answer if the exact facts are not explicitly stated in the excerpts below. Answering from your own memory is strictly forbidden and breaks the system.
 3. Cite every factual claim with the marker of the excerpt supporting it: [R1], [R2].
    When several excerpts support one claim write each marker separately — [R1][R3], not
    [R1, R3]. A sentence carrying a fact with no marker is a bug.

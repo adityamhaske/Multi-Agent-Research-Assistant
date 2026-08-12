@@ -145,8 +145,13 @@ async def judge_citation_support(report: str, sources: list[dict]) -> float | No
             text = resp.content if isinstance(resp.content, str) else ""
             if text.strip().upper().startswith("YES"):
                 supported += 1
-        except Exception:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
+            print(f"Citation judging error: {e}")
             pass
+        
+        # Free-tier rate limit avoidance (Gemini = 15 RPM).
+        if RUN_CONFIG.llm_mode == "real":
+            await asyncio.sleep(4.1)
     return round(supported / len(claims), 4)
 
 async def run_one_memory(query: dict) -> dict:
@@ -302,6 +307,9 @@ async def main() -> None:
                 f"  {flag} {q['id']:24s} sources={row.get('source_count')} "
                 f"uncited={row.get('uncited_claim_count')} cost=${row.get('cost_usd')}"
             )
+            
+        if RUN_CONFIG.llm_mode == "real":
+            await asyncio.sleep(5)
 
     if args.mode == "memory":
         n = len(rows)

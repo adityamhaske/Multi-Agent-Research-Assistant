@@ -88,6 +88,72 @@
         {"index": "R1", "text": "Carbon-14 is a radioactive isotope of carbon with an atomic nucleus containing 6 protons and 8 neutrons."},
         {"index": "R2", "text": "Its presence in organic materials is the basis of the radiocarbon dating method. It has a half-life of 5,730 years."}
       ]
+    },
+    {
+      "id": "mem-11",
+      "type": "unsupported",
+      "query": "When did the first human land on Mars?",
+      "excerpts": [
+        {"index": "R1", "text": "The first human landed on the Moon in 1969 during the Apollo 11 mission. NASA plans to send humans to Mars by the late 2030s."}
+      ]
+    },
+    {
+      "id": "mem-12",
+      "type": "unsupported",
+      "query": "What is the total budget of the JWST?",
+      "excerpts": [
+        {"index": "R1", "text": "The James Webb Space Telescope (JWST) was launched on December 25, 2021. It conducts infrared astronomy."}
+      ]
+    },
+    {
+      "id": "mem-13",
+      "type": "supported",
+      "query": "Why is Rust considered memory safe?",
+      "excerpts": [
+        {"index": "R1", "text": "Rust is a multi-paradigm, general-purpose programming language. It is beloved by many developers for its performance and modern syntax."},
+        {"index": "R2", "text": "Rust achieves memory safety without a garbage collector by using a strict ownership model and a borrow checker that validates references at compile time."},
+        {"index": "R3", "text": "Many operating systems are beginning to integrate Rust components to reduce the attack surface of memory vulnerabilities."}
+      ]
+    },
+    {
+      "id": "mem-14",
+      "type": "unsupported",
+      "query": "What does the borrow checker in Rust do?",
+      "excerpts": [
+        {"index": "R1", "text": "Rust is a multi-paradigm, general-purpose programming language. It is beloved by many developers for its performance and modern syntax. It has a steep learning curve due to its unique memory management model."}
+      ]
+    },
+    {
+      "id": "mem-15",
+      "type": "supported",
+      "query": "What is the function of mitochondria?",
+      "excerpts": [
+        {"index": "R1", "text": "Mitochondria are membrane-bound cell organelles that generate most of the chemical energy needed to power the cell's biochemical reactions."}
+      ]
+    },
+    {
+      "id": "mem-16",
+      "type": "unsupported",
+      "query": "What is the name of the chemical energy molecule produced by mitochondria?",
+      "excerpts": [
+        {"index": "R1", "text": "Mitochondria are membrane-bound cell organelles that generate most of the chemical energy needed to power the cell's biochemical reactions."}
+      ]
+    },
+    {
+      "id": "mem-17",
+      "type": "supported",
+      "query": "When did the Western Roman Empire fall?",
+      "excerpts": [
+        {"index": "R1", "text": "The fall of the Western Roman Empire occurred in 476 AD when Odoacer deposed the Emperor Romulus Augustulus."}
+      ]
+    },
+    {
+      "id": "mem-18",
+      "type": "unsupported",
+      "query": "Who was the first emperor of the Roman Empire?",
+      "excerpts": [
+        {"index": "R1", "text": "The fall of the Western Roman Empire occurred in 476 AD when Odoacer deposed the Emperor Romulus Augustulus."}
+      ]
     }
   ]
 }

@@ -29,11 +29,13 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
+from pydantic import BaseModel, Field
+
 from research_engine import prompts
 from research_engine.events import emit
 from research_engine.llm_factory import estimate_cost, get_llm, text_of, token_counts
 from research_engine.runconfig import get_run_config
-from research_engine.schemas import CriticVerdict, ExecutorOutput, PlannerOutput, Source
+from research_engine.schemas import CriticVerdict, EvidenceChunk, ExecutorOutput, PlannerOutput, Source
 from research_engine.state import AgentState
 from research_engine.tools import EXECUTOR_TOOLS
 
@@ -79,27 +81,7 @@ async def _structured(role: str, messages: list, schema):
     return parsed, cost, i, o
 
 
-def _parse_evidence(text: str) -> list[dict]:
-    """Parse ExecutorOutput from a model answer, tolerating markdown fences/prose.
 
-    Models frequently wrap JSON in ```json fences or add a sentence around it.
-    A strict model_validate_json would reject those and we'd silently lose the
-    whole task's evidence, so fall back to the outermost {...} span.
-    """
-    candidates = [text]
-    fenced = re.search(r"```(?:json)?\s*(.+?)```", text, re.DOTALL)
-    if fenced:
-        candidates.append(fenced.group(1))
-    start, end = text.find("{"), text.rfind("}")
-    if start != -1 and end > start:
-        candidates.append(text[start : end + 1])
-
-    for candidate in candidates:
-        try:
-            return [e.model_dump() for e in ExecutorOutput.model_validate_json(candidate).evidence]
-        except Exception:  # noqa: BLE001 — try the next shape
-            continue
-    return []
 
 
 def _acc(state: AgentState, cost: float, i: int, o: int) -> dict:
@@ -203,6 +185,10 @@ def _pending(state: AgentState, max_retries: int) -> list[dict]:
     return out
 
 
+class submit_evidence(BaseModel):
+    """Submit the final gathered evidence for the task."""
+    evidence: list[EvidenceChunk] = Field(default_factory=list, description="List of cited facts")
+
 async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> dict:
     """Gather evidence for a single task. Returns {evidence, cost, tokens_in, tokens_out}."""
     sid = state["session_id"]
@@ -218,7 +204,7 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
         detail={"task_id": task["id"]},
     )
 
-    model = get_llm("executor").bind_tools(EXECUTOR_TOOLS)
+    model = get_llm("executor").bind_tools(EXECUTOR_TOOLS + [submit_evidence])
     messages: list = [
         SystemMessage(content=prompts.EXECUTOR_PROMPT_V2),
         HumanMessage(content=f"Task {task['id']}: {task['query']}"),
@@ -228,6 +214,7 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
 
     cost = 0.0
     i_tot = o_tot = 0
+    evidence: list[dict] = []
     for _round in range(_MAX_TOOL_ROUNDS):
         if guard.exceeded():
             logger.warning("executor_budget_stop", session_id=sid, task_id=task["id"])
@@ -243,7 +230,28 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
         tool_calls = getattr(resp, "tool_calls", None) or []
         if not tool_calls:
             break
+        is_done = False
         for call in tool_calls:
+            if call["name"] == "submit_evidence":
+                try:
+                    parsed = submit_evidence.model_validate(call["args"])
+                    evidence = [e.model_dump() for e in parsed.evidence]
+                    await emit(
+                        sid,
+                        "agent_log",
+                        agent="executor",
+                        message="Submitted evidence",
+                        detail={"task_id": task["id"]},
+                    )
+                    is_done = True
+                    break
+                except Exception as e:
+                    observation = f"submit_evidence validation error: {e}"
+                    messages.append(
+                        ToolMessage(content=json.dumps(observation, default=str), tool_call_id=call["id"])
+                    )
+                    continue
+
             tool = _TOOLS_BY_NAME.get(call["name"])
             try:
                 observation = (
@@ -261,47 +269,8 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
             messages.append(
                 ToolMessage(content=json.dumps(observation, default=str), tool_call_id=call["id"])
             )
-
-    # Convert the final answer into structured evidence.
-    final = messages[-1]
-    evidence: list[dict] = []
-    final_text = text_of(final) if isinstance(final, AIMessage) else ""
-    if final_text.strip():
-        evidence = _parse_evidence(final_text)
-
-    # The tool loop can finish without a parseable answer in two ways: it exhausted
-    # _MAX_TOOL_ROUNDS while still calling tools (so the last message is a
-    # ToolMessage, not the model's summary), or the model wrapped its JSON in prose.
-    # Either way the observations are already in hand — ask once more, with no tools
-    # bound, so the model must return them as structured output. Without this the run
-    # silently yields zero evidence and the report reads "no evidence was provided".
-    if not evidence:
-        observations = "\n\n".join(
-            text_of(m)[:4000] for m in messages if isinstance(m, ToolMessage)
-        )[:24000]
-        if observations.strip():
-            logger.info(
-                "executor_wrapup", session_id=sid, task_id=task["id"], reason="no_parsable_evidence"
-            )
-            parsed, c2, i2, o2 = await _structured(
-                "executor",
-                [
-                    SystemMessage(content=prompts.EXECUTOR_PROMPT_V2),
-                    HumanMessage(
-                        content=f"Task {task['id']}: {task['query']}\n\n"
-                        "You already gathered the observations below. Return them as "
-                        "structured evidence — do not call any more tools.\n\n"
-                        f"<untrusted_web_content>\n{observations}\n</untrusted_web_content>"
-                    ),
-                ],
-                ExecutorOutput,
-            )
-            cost += c2
-            await guard.add(c2)
-            i_tot += i2
-            o_tot += o2
-            if parsed is not None:
-                evidence = [e.model_dump() for e in parsed.evidence]
+        if is_done:
+            break
 
     for e in evidence:
         e["task_id"] = task["id"]
