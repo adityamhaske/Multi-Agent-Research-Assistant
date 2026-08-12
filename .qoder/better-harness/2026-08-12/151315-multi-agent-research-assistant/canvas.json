@@ -1,6 +1,5 @@
 {
-  "schemaVersion": 1,
-  "summaryFactsSchemaVersion": 1,
+  "schemaVersion": 2,
   "summary": {
     "evidenceMode": "session-limited",
     "evidenceBoundary": {
@@ -123,8 +122,49 @@
       "interventions": []
     },
     "aiAgentPractice": {
-      "inspectedSurfaces": [],
+      "inspectedSurfaces": [
+        "Rules"
+      ],
       "coverageRows": [
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 123,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/react-native/accessibility.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/common/agents.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/common/code-review.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/angular/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/arkts/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/common/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/cpp/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/csharp/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/dart/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/fsharp/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/golang/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/java/coding-style.md"
+          ]
+        },
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 2,
+          "paths": [
+            ".github/workflows/ci.yml",
+            ".github/workflows/release.yml"
+          ]
+        },
+        {
+          "surface": "Memories",
+          "scopes": [
+            "Project"
+          ],
+          "count": 4
+        },
         {
           "surface": "Rules",
           "scopes": [
@@ -235,17 +275,6 @@
           ]
         },
         {
-          "surface": "Workflows",
-          "scopes": [
-            "Project"
-          ],
-          "count": 2,
-          "paths": [
-            ".github/workflows/ci.yml",
-            ".github/workflows/release.yml"
-          ]
-        },
-        {
           "surface": "Plugins",
           "scopes": [
             "Plugin"
@@ -265,13 +294,6 @@
             "~/.qoder/plugins/cache/qoder-marketplace/qmind/0.1.0/.qoder-plugin/plugin.json",
             "~/.qoder/plugins/cache/qoder-bundler/qoder-create-plugin"
           ]
-        },
-        {
-          "surface": "Memories",
-          "scopes": [
-            "Project"
-          ],
-          "count": 4
         }
       ],
       "repositorySourceRows": [],
@@ -357,8 +379,83 @@
         "comparableModelOutcomeEvidence": false,
         "recommendation": "controlled-a-b-required"
       }
-    }
+    },
+    "projectName": "Multi-Agent Research Assistant",
+    "locale": "en",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 26,
+    "overview": "The project has a strong validation route with real-database tests, CI quality gates with actionable fix messages, and structured health checks, but session evidence is too thin to confirm task behavior. Two mechanisms need wiring into ordinary work: structlog is imported across 14 files but never configured, leaving async-boundary debugging without a correlation ID, and the backend source tree lacks agent-instruction guidance.",
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "Task Understanding",
+        "score": 62,
+        "summary": "Frontend AGENTS.md, architecture docs, and OpenAPI route agents to owners, but the backend source tree has no agent-instruction file and session evidence cannot confirm task acceptance.",
+        "findingRefs": [
+          "backend-agent-guidance-gap"
+        ]
+      },
+      {
+        "id": "controlled-execution",
+        "label": "Controlled Execution",
+        "score": 70,
+        "summary": "Makefile setup, docker infra, and /health/ready provide a strong runnable baseline, while no CLI doctor command and partly implicit permission behavior keep the dimension from exercising.",
+        "findingRefs": []
+      },
+      {
+        "id": "change-validation",
+        "label": "Change Validation",
+        "score": 56,
+        "summary": "Thirty-two test files, ruff, eslint, and CI gates cover the main change path, but structlog is never configured and no correlation ID propagates across the async boundary, leaving failure diagnosis partial.",
+        "findingRefs": [
+          "logging-correlation-gap"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "Reliable Delivery",
+        "score": 58,
+        "summary": "CI runs on PR and push with a protected main branch per docs, and archive and delete guards provide recovery, but no delivery was observed in the session window and branch protection is not statically verifiable.",
+        "findingRefs": []
+      },
+      {
+        "id": "learning-capture",
+        "label": "Learning Capture",
+        "score": 38,
+        "summary": "The 30-day window yielded one read-only episode with no changes or checks, so Pattern Detection is insufficient-episodes and the review cannot reach a clean no-candidate decision.",
+        "findingRefs": []
+      }
+    ],
+    "assignmentSummaries": []
   },
-  "dimensions": [],
-  "findings": []
+  "findings": [
+    {
+      "id": "logging-correlation-gap",
+      "title": "Failed research runs cannot be correlated by request ID across the async SSE and Celery boundary",
+      "severity": "Medium",
+      "reason": "structlog is imported and get_logger() is called across 14 project files including backend/app/main.py and backend/app/api/v1/research.py, but no structlog.configure() call exists anywhere in the project's own code (only in .venv site-packages). No request or trace correlation ID is propagated for log correlation across the API to Celery to research-engine boundary; contextvars is used for engine state in research_engine/events.py and runconfig.py but not bound to a request-scoped log correlation ID. An agent debugging a failed research run can rely on session_id passed explicitly on some events and the durable AgentLog store, but cannot join the trigger, decision boundary, failure or recovery, and result under one correlation identity across the async boundary, leaving the Failure Diagnosis and Repair check partial.",
+      "dimensionRefs": [
+        "change-validation"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nConfigure structlog and add a request-scoped correlation ID that propagates across the API, Celery worker, and research-engine boundary.\n\n## Discovery\n\n- Confirm no structlog.configure call exists in project code: grep -rn 'structlog.configure' backend/ --include='*.py' (exclude .venv)\n- Confirm no log correlation binding exists: grep -rn 'correlation_id\\|trace_id\\|request_id' backend/app/ --include='*.py'\n- Review backend/app/main.py startup and backend/app/api/v1/research.py SSE handler for the current logger usage\n\n## Repair\n\n- Add structlog.configure() with a timestamper and key-value processor in backend/app/main.py startup\n- Bind a request-scoped correlation ID via contextvars in the API middleware and propagate it into Celery task headers and the research-engine logger context\n- Include the correlation ID in every log event alongside the existing session_id\n\n## Validation\n\n- Run make test-backend and confirm existing tests pass\n- Start a research request via make backend-dev and make worker, then confirm log lines across the API, worker, and engine share one correlation ID",
+      "expectedArtifact": "Code",
+      "expectedOutput": [
+        "Update the existing Code owner identified by the reviewed evidence and retain a focused validation result."
+      ]
+    },
+    {
+      "id": "backend-agent-guidance-gap",
+      "title": "Agents working in the backend must infer boundaries and conventions without module-local guidance",
+      "severity": "Low",
+      "reason": "frontend/AGENTS.md exists to flag a known Next.js version trap and route agents to authoritative docs, but no AGENTS.md or equivalent agent-instruction file exists for the backend. The backend is the hottest path in git history (backend/app: 23 commits, 46 source files; research_engine: 20 files), and the project-profile agentInstructions show rootCount 0 and nestedSourceFileCoveragePercent 40 with frontend-only coverage. An agent reaching backend/app or research_engine has no module-local guidance on boundaries, conventions, or traps; architecture docs exist in docs/architecture/ but are not agent-routed. The declared AGENTS.md pattern in frontend, the active backend core entrypoint, and the missing connection satisfy the three legs of a configured-wiring gap.",
+      "dimensionRefs": [
+        "task-understanding"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nAdd the smallest agent-instruction file for the backend that routes agents to the authoritative owners and states the few always-needed constraints.\n\n## Discovery\n\n- Confirm only one AGENTS.md exists: find . -name AGENTS.md -not -path '*/node_modules/*' -not -path '*/.venv/*'\n- Review frontend/AGENTS.md for the established pattern and tone\n- Review docs/architecture/02_System_Architecture.md and docs/architecture/04_Agent_Design.md for backend boundary and convention owners to route to\n\n## Repair\n\n- Create backend/AGENTS.md that routes agents to the canonical architecture docs, states the backend stack (FastAPI, Celery, Alembic, pgvector), and names the few always-needed constraints (LLM_MODE, migration workflow via make migrate, test isolation via conftest)\n\n## Validation\n\n- Confirm the file exists and routes to real owners\n- Run make test-backend and confirm no regression",
+      "expectedArtifact": "Rule",
+      "expectedOutput": [
+        "Update the existing Rule owner identified by the reviewed evidence and retain a focused validation result."
+      ]
+    }
+  ]
 }
