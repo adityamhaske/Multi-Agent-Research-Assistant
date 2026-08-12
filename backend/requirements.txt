@@ -50,7 +50,7 @@ cryptography>=43.0
 structlog>=24.4
 
 # Export: Markdown → HTML (python-markdown) → PDF (WeasyPrint)
-markdown>=3.5
+markdown>=3.10.3
 weasyprint>=69.0
 
 # Testing
