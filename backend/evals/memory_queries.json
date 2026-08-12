@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "description": "Fixed eval query set for project memory chat. Tests retrieval citation support and out-of-bounds refusals.",
+  "queries": [
+    {
+      "id": "mem-1",
+      "type": "supported",
+      "query": "What is the capital of France?",
+      "excerpts": [
+        {"index": "R1", "text": "France is a country in Western Europe. Its capital is Paris, which is famous for the Eiffel Tower and the Louvre."}
+      ]
+    },
+    {
+      "id": "mem-2",
+      "type": "unsupported",
+      "query": "Who won the 1998 World Cup?",
+      "excerpts": [
+        {"index": "R1", "text": "France is a country in Western Europe. Its capital is Paris, which is famous for the Eiffel Tower and the Louvre."}
+      ]
+    },
+    {
+      "id": "mem-3",
+      "type": "supported",
+      "query": "What are the key ingredients in a traditional Margherita pizza?",
+      "excerpts": [
+        {"index": "R1", "text": "A traditional Margherita pizza is made with San Marzano tomatoes, mozzarella cheese, fresh basil, salt, and extra-virgin olive oil."},
+        {"index": "R2", "text": "Pepperoni pizza is a popular variant in the United States."}
+      ]
+    },
+    {
+      "id": "mem-4",
+      "type": "unsupported",
+      "query": "How do you make a deep dish pizza?",
+      "excerpts": [
+        {"index": "R1", "text": "A traditional Margherita pizza is made with San Marzano tomatoes, mozzarella cheese, fresh basil, salt, and extra-virgin olive oil."}
+      ]
+    },
+    {
+      "id": "mem-5",
+      "type": "supported",
+      "query": "When was the James Webb Space Telescope launched?",
+      "excerpts": [
+        {"index": "R1", "text": "The James Webb Space Telescope (JWST) is a space telescope designed to conduct infrared astronomy."},
+        {"index": "R2", "text": "It was launched on December 25, 2021 on an Ariane 5 rocket from Kourou, French Guiana."}
+      ]
+    },
+    {
+      "id": "mem-6",
+      "type": "unsupported",
+      "query": "What is the maximum resolution of the JWST cameras?",
+      "excerpts": [
+        {"index": "R1", "text": "The James Webb Space Telescope (JWST) is a space telescope designed to conduct infrared astronomy."},
+        {"index": "R2", "text": "It was launched on December 25, 2021 on an Ariane 5 rocket from Kourou, French Guiana."}
+      ]
+    },
+    {
+      "id": "mem-7",
+      "type": "supported",
+      "query": "What language is the Linux kernel primarily written in?",
+      "excerpts": [
+        {"index": "R1", "text": "The Linux kernel is a free and open-source, monolithic, modular, multitasking, Unix-like operating system kernel."},
+        {"index": "R2", "text": "It is written primarily in C, with some assembly language."}
+      ]
+    },
+    {
+      "id": "mem-8",
+      "type": "unsupported",
+      "query": "Who created the first version of the Linux kernel?",
+      "excerpts": [
+        {"index": "R1", "text": "The Linux kernel is a free and open-source, monolithic, modular, multitasking, Unix-like operating system kernel."},
+        {"index": "R2", "text": "It is written primarily in C, with some assembly language."}
+      ]
+    },
+    {
+      "id": "mem-9",
+      "type": "supported",
+      "query": "What is the half-life of Carbon-14?",
+      "excerpts": [
+        {"index": "R1", "text": "Carbon-14 is a radioactive isotope of carbon with an atomic nucleus containing 6 protons and 8 neutrons."},
+        {"index": "R2", "text": "Its presence in organic materials is the basis of the radiocarbon dating method. It has a half-life of 5,730 years."}
+      ]
+    },
+    {
+      "id": "mem-10",
+      "type": "unsupported",
+      "query": "How much Carbon-14 is present in the atmosphere?",
+      "excerpts": [
+        {"index": "R1", "text": "Carbon-14 is a radioactive isotope of carbon with an atomic nucleus containing 6 protons and 8 neutrons."},
+        {"index": "R2", "text": "Its presence in organic materials is the basis of the radiocarbon dating method. It has a half-life of 5,730 years."}
+      ]
+    }
+  ]
+}

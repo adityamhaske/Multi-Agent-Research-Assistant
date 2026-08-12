@@ -1,0 +1,141 @@
+{
+  "date": "2026-08-12",
+  "generated_at": "2026-08-12T19:31:26+00:00",
+  "llm_mode": "real",
+  "mode": "memory",
+  "models": {
+    "planner": "google:gemini-2.5-flash",
+    "executor": "google:gemini-2.5-flash",
+    "critic": "google:gemini-2.5-flash",
+    "synthesizer": "google:gemini-2.5-flash",
+    "chat": "google:gemini-2.5-flash"
+  },
+  "method": {
+    "metrics_version": 2,
+    "retriever": "none (static memory)",
+    "query_set": "evals/memory_queries.json"
+  },
+  "aggregate": {
+    "queries": 10,
+    "pass_rate": 1.0,
+    "avg_latency_s": 1.167
+  },
+  "release_criteria": {
+    "pass_rate_ok": true,
+    "thresholds": {
+      "min_pass_rate": 0.9
+    }
+  },
+  "results": [
+    {
+      "id": "mem-1",
+      "type": "supported",
+      "completed": true,
+      "error": null,
+      "latency_s": 1.28,
+      "response": "The capital of France is Paris [R1].",
+      "has_citations": true,
+      "is_refusal": false,
+      "pass_test": true
+    },
+    {
+      "id": "mem-2",
+      "type": "unsupported",
+      "completed": true,
+      "error": null,
+      "latency_s": 1.05,
+      "response": "The research approved in this project doesn't cover that.",
+      "has_citations": false,
+      "is_refusal": true,
+      "pass_test": true
+    },
+    {
+      "id": "mem-3",
+      "type": "supported",
+      "completed": true,
+      "error": null,
+      "latency_s": 1.16,
+      "response": "A traditional Margherita pizza is made with San Marzano tomatoes, mozzarella cheese, fresh basil, salt, and extra-virgin olive oil [R1].",
+      "has_citations": true,
+      "is_refusal": false,
+      "pass_test": true
+    },
+    {
+      "id": "mem-4",
+      "type": "unsupported",
+      "completed": true,
+      "error": null,
+      "latency_s": 0.99,
+      "response": "The research approved in this project doesn't cover that.",
+      "has_citations": false,
+      "is_refusal": true,
+      "pass_test": true
+    },
+    {
+      "id": "mem-5",
+      "type": "supported",
+      "completed": true,
+      "error": null,
+      "latency_s": 1.01,
+      "response": "The James Webb Space Telescope was launched on December 25, 2021 [R2].",
+      "has_citations": true,
+      "is_refusal": false,
+      "pass_test": true
+    },
+    {
+      "id": "mem-6",
+      "type": "unsupported",
+      "completed": true,
+      "error": null,
+      "latency_s": 1.45,
+      "response": "The research approved in this project doesn't cover that.",
+      "has_citations": false,
+      "is_refusal": true,
+      "pass_test": true
+    },
+    {
+      "id": "mem-7",
+      "type": "supported",
+      "completed": true,
+      "error": null,
+      "latency_s": 0.79,
+      "response": "The Linux kernel is written primarily in C, with some assembly language [R2].",
+      "has_citations": true,
+      "is_refusal": false,
+      "pass_test": true
+    },
+    {
+      "id": "mem-8",
+      "type": "unsupported",
+      "completed": true,
+      "error": null,
+      "latency_s": 1.47,
+      "response": "The research approved in this project doesn't cover that.",
+      "has_citations": false,
+      "is_refusal": true,
+      "pass_test": true
+    },
+    {
+      "id": "mem-9",
+      "type": "supported",
+      "completed": true,
+      "error": null,
+      "latency_s": 0.82,
+      "response": "Carbon-14 has a half-life of 5,730 years [R2].",
+      "has_citations": true,
+      "is_refusal": false,
+      "pass_test": true
+    },
+    {
+      "id": "mem-10",
+      "type": "unsupported",
+      "completed": true,
+      "error": null,
+      "latency_s": 1.65,
+      "response": "The research approved in this project doesn't cover that.",
+      "has_citations": false,
+      "is_refusal": true,
+      "pass_test": true
+    }
+  ]
+}
