@@ -25,17 +25,21 @@ import re
 import time
 
 import structlog
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
-
 from pydantic import BaseModel, Field
 
 from research_engine import prompts
 from research_engine.events import emit
 from research_engine.llm_factory import estimate_cost, get_llm, text_of, token_counts
 from research_engine.runconfig import get_run_config
-from research_engine.schemas import CriticVerdict, EvidenceChunk, ExecutorOutput, PlannerOutput, Source
+from research_engine.schemas import (
+    CriticVerdict,
+    EvidenceChunk,
+    PlannerOutput,
+    Source,
+)
 from research_engine.state import AgentState
 from research_engine.tools import EXECUTOR_TOOLS
 
@@ -79,9 +83,6 @@ async def _structured(role: str, messages: list, schema):
     i, o = token_counts(raw) if raw is not None else (0, 0)
     parsed = None if result.get("parsing_error") else result.get("parsed")
     return parsed, cost, i, o
-
-
-
 
 
 def _acc(state: AgentState, cost: float, i: int, o: int) -> dict:
@@ -187,7 +188,9 @@ def _pending(state: AgentState, max_retries: int) -> list[dict]:
 
 class submit_evidence(BaseModel):
     """Submit the final gathered evidence for the task."""
+
     evidence: list[EvidenceChunk] = Field(default_factory=list, description="List of cited facts")
+
 
 async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> dict:
     """Gather evidence for a single task. Returns {evidence, cost, tokens_in, tokens_out}."""
@@ -248,7 +251,9 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
                 except Exception as e:
                     observation = f"submit_evidence validation error: {e}"
                     messages.append(
-                        ToolMessage(content=json.dumps(observation, default=str), tool_call_id=call["id"])
+                        ToolMessage(
+                            content=json.dumps(observation, default=str), tool_call_id=call["id"]
+                        )
                     )
                     continue
 
@@ -470,15 +475,9 @@ async def synthesizer_node(state: AgentState) -> dict:
 
     evidence_lines: list[str] = []
     for ev in numbered_evidence:
-        evidence_lines.append(
-            f"[{ev['n']}] Fact: \"{ev['key_fact']}\""
-        )
-        evidence_lines.append(
-            f"    Source: {ev['url']}"
-        )
-        evidence_lines.append(
-            f"    Snippet: \"{ev['snippet']}...\""
-        )
+        evidence_lines.append(f'[{ev["n"]}] Fact: "{ev["key_fact"]}"')
+        evidence_lines.append(f"    Source: {ev['url']}")
+        evidence_lines.append(f'    Snippet: "{ev["snippet"]}..."')
         evidence_lines.append("")  # blank separator
     evidence_text = "Evidence for citation:\n" + "\n".join(evidence_lines)
 

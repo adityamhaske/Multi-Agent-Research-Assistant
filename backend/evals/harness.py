@@ -112,6 +112,7 @@ async def judge_citation_support(report: str, sources: list[dict]) -> float | No
     snippet it cites. Batches up to 4 claims per LLM call to reduce latency from
     per-claim rate-limit sleeps. Returns supported / cited-claims, or None if there are none."""
     import re as _re
+
     from langchain_core.messages import HumanMessage, SystemMessage
 
     from research_engine.llm_factory import get_llm
@@ -150,7 +151,7 @@ async def judge_citation_support(report: str, sources: list[dict]) -> float | No
             claim_blocks.append(f"Claim {i}: {claim}\nEvidence {i}:\n{snippets}")
         human_content = (
             "For each claim below, determine if it is supported by its cited evidence.\n"
-            "Answer with one line per claim in format: \"Claim N: YES\" or \"Claim N: NO\"\n\n"
+            'Answer with one line per claim in format: "Claim N: YES" or "Claim N: NO"\n\n'
             + "\n\n".join(claim_blocks)
         )
 
@@ -158,8 +159,8 @@ async def judge_citation_support(report: str, sources: list[dict]) -> float | No
             SystemMessage(
                 content="You judge whether claims are supported by their cited evidence. "
                 "For each numbered claim, respond with exactly one line: "
-                "\"Claim N: YES\" if the evidence supports the claim, or "
-                "\"Claim N: NO\" if it does not. Answer for every claim."
+                '"Claim N: YES" if the evidence supports the claim, or '
+                '"Claim N: NO" if it does not. Answer for every claim.'
             ),
             HumanMessage(content=human_content),
         ]
@@ -168,9 +169,7 @@ async def judge_citation_support(report: str, sources: list[dict]) -> float | No
             resp = await llm.ainvoke(messages)
             text = resp.content if isinstance(resp.content, str) else ""
             # Parse each "Claim N: YES/NO" line from the response.
-            for match in _re.finditer(
-                r"Claim\s+(\d+)\s*:\s*(YES|NO)", text, _re.IGNORECASE
-            ):
+            for match in _re.finditer(r"Claim\s+(\d+)\s*:\s*(YES|NO)", text, _re.IGNORECASE):
                 if match.group(2).upper() == "YES":
                     supported += 1
         except Exception as e:  # noqa: BLE001
@@ -185,25 +184,25 @@ async def judge_citation_support(report: str, sources: list[dict]) -> float | No
 
     return round(supported / len(claims), 4)
 
+
 async def run_one_memory(query: dict) -> dict:
-    from langchain_core.messages import HumanMessage, SystemMessage
-    from research_engine.llm_factory import get_llm
-    from research_engine import prompts
     import re
-    
+
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    from research_engine import prompts
+    from research_engine.llm_factory import get_llm
+
     started = time.time()
     sources_json = json.dumps(query["excerpts"], indent=2)
-    
+
     system = (
         f"{prompts.PROJECT_CHAT_PROMPT}\n\n"
         f"--- EXCERPTS ---\n<untrusted_web_content>\n{sources_json}\n</untrusted_web_content>"
     )
-    
-    messages = [
-        SystemMessage(content=system),
-        HumanMessage(content=query["query"])
-    ]
-    
+
+    messages = [SystemMessage(content=system), HumanMessage(content=query["query"])]
+
     llm = get_llm("chat")
     error = None
     response_text = ""
@@ -212,25 +211,25 @@ async def run_one_memory(query: dict) -> dict:
         response_text = resp.content if isinstance(resp.content, str) else ""
     except Exception as e:
         error = str(e)[:300]
-        
+
     latency = round(time.time() - started, 2)
-    
+
     cite_re = re.compile(r"\[R\d+\]")
     has_citations = bool(cite_re.search(response_text))
-    
+
     is_refusal = not has_citations and (
-        "not cover" in response_text.lower() or 
-        "doesn't cover" in response_text.lower() or 
-        "does not cover" in response_text.lower() or 
-        "not answer" in response_text.lower() or
-        "does not mention" in response_text.lower() or
-        "no excerpts" in response_text.lower() or
-        "not found" in response_text.lower() or
-        "cannot answer" in response_text.lower() or
-        "not explicitly mentioned" in response_text.lower() or
-        "do not contain" in response_text.lower()
+        "not cover" in response_text.lower()
+        or "doesn't cover" in response_text.lower()
+        or "does not cover" in response_text.lower()
+        or "not answer" in response_text.lower()
+        or "does not mention" in response_text.lower()
+        or "no excerpts" in response_text.lower()
+        or "not found" in response_text.lower()
+        or "cannot answer" in response_text.lower()
+        or "not explicitly mentioned" in response_text.lower()
+        or "do not contain" in response_text.lower()
     )
-    
+
     if query["type"] == "supported":
         pass_test = has_citations
     else:
@@ -245,7 +244,7 @@ async def run_one_memory(query: dict) -> dict:
         "response": response_text,
         "has_citations": has_citations,
         "is_refusal": is_refusal,
-        "pass_test": pass_test
+        "pass_test": pass_test,
     }
 
 
@@ -305,7 +304,12 @@ def check_release_criteria(agg: dict) -> dict:
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Run the report-quality eval suite.")
-    parser.add_argument("--mode", choices=["report", "memory"], default="report", help="Which eval to run (report or memory)")
+    parser.add_argument(
+        "--mode",
+        choices=["report", "memory"],
+        default="report",
+        help="Which eval to run (report or memory)",
+    )
     parser.add_argument("--limit", type=int, default=None, help="run only the first N queries")
     parser.add_argument(
         "--out", type=str, default=None, help="output path (default results/eval-<date>.json)"
@@ -338,7 +342,7 @@ async def main() -> None:
                 f"  {flag} {q['id']:24s} sources={row.get('source_count')} "
                 f"uncited={row.get('uncited_claim_count')} cost=${row.get('cost_usd')}"
             )
-            
+
         if RUN_CONFIG.llm_mode == "real":
             await asyncio.sleep(5)
 

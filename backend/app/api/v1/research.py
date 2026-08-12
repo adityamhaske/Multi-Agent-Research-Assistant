@@ -25,6 +25,7 @@ from app.api.v1.projects import resolve_project
 from app.db.base import AsyncSessionLocal, get_db
 from app.db.redis import get_redis
 from app.dependencies import enforce_research_rate_limit, get_current_user
+from app.logconfig import bind_run_context
 from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
 from app.models.session import Session, SessionStatus
@@ -93,6 +94,9 @@ async def start_research(
     await db.refresh(session)
 
     run_agent_pipeline.delay(str(session.id), str(current_user.id))
+    # Bind the run's correlation identity so the trigger log joins with the Celery
+    # task and engine logs under one correlation_id (= session_id).
+    bind_run_context(str(session.id), user_id=str(current_user.id))
     logger.info("research_started", session_id=str(session.id))
     return ResearchStartResponse(session_id=session.id, status=session.status)
 
@@ -303,6 +307,12 @@ async def approve_or_rework(
 
     resume_agent_pipeline.delay(
         str(session.id), str(current_user.id), payload.approved, payload.feedback
+    )
+    bind_run_context(str(session.id), user_id=str(current_user.id))
+    logger.info(
+        "research_resumed",
+        session_id=str(session.id),
+        approved=payload.approved,
     )
     return {"message": "Approved. Finalizing." if payload.approved else "Rework requested."}
 

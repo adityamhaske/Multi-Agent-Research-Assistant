@@ -12,6 +12,7 @@ import asyncio
 
 import structlog
 
+from app.logconfig import bind_run_context, clear_run_context
 from app.workers.celery_app import celery_app
 
 logger = structlog.get_logger()
@@ -21,13 +22,17 @@ logger = structlog.get_logger()
 def run_agent_pipeline(session_id: str, user_id: str) -> None:
     from app.workers.pipeline_runner import run_pipeline
 
-    log = logger.bind(session_id=session_id, user_id=user_id)
-    log.info("pipeline_task_started")
+    # Clear first: workers are long-lived processes, and one run's identity must
+    # never leak into the next task's logs. The bound correlation_id (= session_id)
+    # rides along every log this task and the engine emit under asyncio.run.
+    clear_run_context()
+    bind_run_context(session_id, user_id=user_id)
+    logger.info("pipeline_task_started")
     try:
         asyncio.run(run_pipeline(session_id, user_id))
-        log.info("pipeline_task_finished")
+        logger.info("pipeline_task_finished")
     except Exception as exc:  # noqa: BLE001
-        log.error("pipeline_task_failed", error=str(exc), exc_info=True)
+        logger.error("pipeline_task_failed", error=str(exc), exc_info=True)
         asyncio.run(_mark_failed(session_id, str(exc)))
 
 
@@ -37,13 +42,14 @@ def resume_agent_pipeline(
 ) -> None:
     from app.workers.pipeline_runner import resume_pipeline
 
-    log = logger.bind(session_id=session_id, user_id=user_id, approved=approved)
-    log.info("resume_task_started")
+    clear_run_context()
+    bind_run_context(session_id, user_id=user_id, approved=approved)
+    logger.info("resume_task_started")
     try:
         asyncio.run(resume_pipeline(session_id, user_id, approved, feedback))
-        log.info("resume_task_finished")
+        logger.info("resume_task_finished")
     except Exception as exc:  # noqa: BLE001
-        log.error("resume_task_failed", error=str(exc), exc_info=True)
+        logger.error("resume_task_failed", error=str(exc), exc_info=True)
         asyncio.run(_mark_failed(session_id, str(exc)))
 
 

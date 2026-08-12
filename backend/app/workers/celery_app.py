@@ -3,7 +3,13 @@
 from celery import Celery
 
 from app.config import settings
+from app.logconfig import configure_logging
 from app.runtime import install_process_default
+
+# Worker processes never import app.main, so structlog is configured here too
+# — same merge_contextvars pipeline the API uses, so a run's correlation_id joins
+# logs across the API → Celery boundary.
+configure_logging(json_output=settings.is_production)
 
 # `research_engine` does not read `app.config` (docs/13 §2) — the worker process installs
 # the engine's baseline config here, before any task can import the graph.
