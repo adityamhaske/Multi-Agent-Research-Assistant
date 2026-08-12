@@ -94,7 +94,9 @@ class SessionListResponse(BaseModel):
 
 class ChatMessageSchema(BaseModel):
     id: UUID
-    session_id: UUID
+    # Nullable since 0008: a chat message belongs to either a report or a project thread.
+    # This endpoint only ever returns report-bound messages, so it is set in practice.
+    session_id: UUID | None = None
     role: str
     content: str
     created_at: datetime

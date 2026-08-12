@@ -124,10 +124,77 @@ export interface ResearchStartResponse {
 
 export interface ChatMessage {
   id: string;
-  session_id: string;
+  /** Null for project-thread messages — a message has one parent, never both (docs/14 §3). */
+  session_id: string | null;
   role: "user" | "assistant";
   content: string;
   created_at: string;
+}
+
+// ─── Project memory & chat threads (docs/14) ─────────────────────────────────────
+
+/** A conversation scoped to a project rather than to one report. */
+export interface ChatThread {
+  id: string;
+  project_id: string;
+  title: string;
+  message_count: number;
+  created_at: string;
+  last_message_at: string;
+}
+
+export interface ThreadListResponse {
+  threads: ChatThread[];
+  total: number;
+}
+
+/**
+ * One `[R{n}]` marker resolved to the approved report it came from.
+ *
+ * `excerpt` is the retrieved chunk verbatim, so a reader can check the claim against the
+ * exact text behind it — the same standard report citations meet with their snippets.
+ */
+export interface MemoryCitation {
+  marker: string;
+  session_id: string;
+  title: string;
+  created_at: string;
+  excerpt: string;
+}
+
+export interface ThreadMessage {
+  id: string;
+  thread_id: string | null;
+  role: "user" | "assistant";
+  content: string;
+  citations: MemoryCitation[] | null;
+  created_at: string;
+}
+
+export interface MemoryModelBreakdown {
+  embedding_model: string;
+  chunks: number;
+  reports: number;
+}
+
+/**
+ * What a project remembers, and what it is missing (docs/14 §8).
+ *
+ * `pending_reports` and `stale_models` are the two ways memory can quietly be
+ * incomplete — an ingestion that failed, and chunks written by an embedding model that
+ * is no longer configured. Both are surfaced rather than left to be discovered as
+ * "chat can't find my research".
+ */
+export interface MemoryStatus {
+  available: boolean;
+  chunk_count: number;
+  indexed_reports: number;
+  approved_reports: number;
+  pending_reports: number;
+  current_model: string;
+  models: MemoryModelBreakdown[];
+  stale_models: string[];
+  last_ingest_at: string | null;
 }
 
 /**

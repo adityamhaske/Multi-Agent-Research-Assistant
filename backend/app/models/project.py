@@ -46,6 +46,23 @@ class Project(Base):
         passive_deletes=True,
         lazy="select",
     )
+    # Memory follows the project it belongs to. The database enforces this too (0007's
+    # ON DELETE CASCADE); "no orphan vectors after a delete" is a DoD item, so it is
+    # guaranteed in both layers rather than trusted to either.
+    memory_chunks: Mapped[list["MemoryChunk"]] = relationship(  # noqa: F821
+        "MemoryChunk",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="select",
+    )
+    chat_threads: Mapped[list["ChatThread"]] = relationship(  # noqa: F821
+        "ChatThread",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="select",
+    )
 
     def __repr__(self) -> str:
         return f"<Project id={self.id} name={self.name!r}>"

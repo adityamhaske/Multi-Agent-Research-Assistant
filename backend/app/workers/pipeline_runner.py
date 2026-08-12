@@ -151,7 +151,9 @@ async def _execute(
                             **ports,
                         )
 
-                await _persist_outcome(db, session, session_id, outcome, sink)
+                await _persist_outcome(
+                    db, session, session_id, outcome, sink, ports["provider_keys"]
+                )
         finally:
             await release_session_lock(session_id, lock_token)
     finally:
@@ -159,8 +161,49 @@ async def _execute(
         await engine.dispose()
 
 
+async def _ingest_into_project_memory(db, session: Session, provider_keys: dict[str, str]) -> None:
+    """Add this approved report to its project's memory (docs/14 §2).
+
+    The single ingestion point in the system, and it sits on the *approval* transition on
+    purpose: the human gate is the quality filter that keeps drafts and rejected work out
+    of retrieval, which is what makes memory here trustworthy in a way "remember
+    everything" features are not.
+
+    Runs after the COMPLETED event has been published, not before. Embedding costs a round
+    trip — a cold local model can take tens of seconds — and blocking the event the client
+    is waiting on would trade a visible delay for an invisible benefit. Memory being a
+    second behind the report is fine; the report appearing a second late is not.
+
+    Never raises. The run has already succeeded and been committed; failing it
+    retroactively because an embedding provider was down would destroy work in order to
+    report a gap. The gap is reported instead, by `memory/status`, which counts approved
+    reports against indexed ones and self-heals on the next re-index.
+    """
+    try:
+        from app import adapters
+        from app.services import memory
+
+        embedder = await adapters.embeddings_for(provider_keys)
+        result = await memory.ingest_session(db, session, embedder)
+        if result.skipped:
+            logger.info("memory_ingest_skipped", session_id=str(session.id), reason=result.reason)
+    except Exception as e:  # noqa: BLE001 — see docstring: never fail a completed run
+        await db.rollback()
+        logger.warning(
+            "memory_ingest_failed",
+            session_id=str(session.id),
+            project_id=str(session.project_id),
+            error=str(e),
+        )
+
+
 async def _persist_outcome(
-    db, session: Session, session_id: str, outcome: RunOutcome, sink
+    db,
+    session: Session,
+    session_id: str,
+    outcome: RunOutcome,
+    sink,
+    provider_keys: dict[str, str] | None = None,
 ) -> None:
     """Write the outcome, commit, then publish the lifecycle event — in that order."""
     session.total_cost_usd = outcome.cost_usd
@@ -207,6 +250,8 @@ async def _persist_outcome(
             },
         ),
     )
+    # The one place approved research enters project memory (docs/14 §2).
+    await _ingest_into_project_memory(db, session, provider_keys or {})
 
 
 async def run_pipeline(session_id: str, user_id: str) -> None:

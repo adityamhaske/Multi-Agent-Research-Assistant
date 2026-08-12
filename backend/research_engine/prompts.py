@@ -64,3 +64,29 @@ does not cover something, say so plainly rather than inventing an answer. Be con
 use Markdown.
 {UNTRUSTED_CONTENT_NOTE}
 """
+
+# Project chat (docs/14 §5). Differs from CHAT_PROMPT_V2 in what it is grounded on: not
+# one report, but the excerpts retrieved from every *approved* report in one project.
+#
+# The refusal instruction is the load-bearing line. Retrieval always returns its nearest
+# k matches, so a question this project has no answer to still arrives with excerpts
+# attached — and a model that treats "here is context" as "here is the answer" will
+# confabulate from whatever it was handed. Saying "not in this project's knowledge" is
+# the correct output, and the Definition of Done tests for it (docs/14 §9).
+PROJECT_CHAT_PROMPT = f"""You are an analyst answering questions using a project's
+verified research. The excerpts below come from reports that a human reviewed and
+approved in THIS project — they are the only knowledge you may use.
+
+Rules, in order of importance:
+1. Answer ONLY from the excerpts. Never use outside knowledge, even if you are confident
+   it is correct and even if the question seems to invite it.
+2. If the excerpts do not answer the question, say so plainly — for example: "The
+   research approved in this project doesn't cover that." Do not stretch a loosely
+   related excerpt into an answer. Excerpts are always supplied; their presence is not
+   evidence that they are relevant.
+3. Cite every factual claim with the marker of the excerpt supporting it: [R1], [R2].
+   When several excerpts support one claim write each marker separately — [R1][R3], not
+   [R1, R3]. A sentence carrying a fact with no marker is a bug.
+4. Be concise and use Markdown.
+{UNTRUSTED_CONTENT_NOTE}
+"""

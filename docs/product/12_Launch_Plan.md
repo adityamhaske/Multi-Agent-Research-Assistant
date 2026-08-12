@@ -445,14 +445,14 @@ projects is also needed regardless of memory.
 product *told* a user that, and
 `available_providers()` optimistically reports Ollama usable even with no server running.
 
-- ☐ Settings card: connection status, detected local models, base-URL override
-- ☐ **Real connection probe** (`GET /models/local/status`) — reachable? which models are
+- ✅ Settings card: connection status, detected local models, base-URL override
+- ✅ **Real connection probe** (`GET /models/local/status`) — reachable? which models are
   actually installed? which map to catalog routes?
-- ☐ Honest capability warning. Measured 2026-08-06: `qwen2.5:7b` plans and calls the
+- ✅ Honest capability warning. Measured 2026-08-06: `qwen2.5:7b` plans and calls the
   search tool correctly but fails the executor's structured-evidence step
   (`no_parsable_evidence`) — small models are weak at strict schemas and tool-calling.
   Ship the warning with the feature, not after the support tickets.
-- ☐ User guide ([guides/Local_LLM_Setup.md](../guides/Local_LLM_Setup.md))
+- ✅ User guide ([guides/Local_LLM_Setup.md](../guides/Local_LLM_Setup.md))
 
 **DoD:** a user with Ollama installed can connect, see their models detected, and be told
 plainly which are viable · a user *without* Ollama sees "not detected" rather than a model
@@ -470,15 +470,15 @@ mismatches. Isolation, cross-user 404s (read *and* delete), case-insensitive dup
 names (409), the running-session delete guard, and full delete cascade (project →
 sessions → LangGraph checkpoints) were each exercised end to end.
 
-- ☐ `projects` CRUD; `sessions.project_id`; migration backfilling a `General` project
-- ☐ History and dashboard scoped per project; project switcher in the shell
+- ✅ `projects` CRUD; `sessions.project_id`; migration backfilling a `General` project
+- ✅ History and dashboard scoped per project; project switcher in the shell
 
 **DoD:** every existing session still opens/chats/exports after migration · history is
 per project · deleting a project cascades cleanly.
 
 ## M17 — Project memory & project chat  *(≈ 2–3 weeks)*
 
-◐ **In progress — step 1 of 5 done.** The differentiator. Per
+✅ **Code complete.** The differentiator. Per
 [14_Projects_and_Memory.md](../architecture/14_Projects_and_Memory.md) §2/§4/§5.
 
 - ✅ pgvector prerequisite (commit fa102f9): each compose file pinned to the
@@ -486,14 +486,30 @@ per project · deleting a project cascades cleanly.
   0006 enabling the extension on its own so a stock-image deployment fails at the
   prerequisite rather than midway. Verified live: Postgres recreated over the existing
   volume, extension installed, all 12 projects / 19 sessions / 14 users intact.
-- ☐ `EmbeddingsPort` injected like every other engine port; Ollama `nomic-embed-text`
-  locally, provider embeddings for cloud
-- ☐ Ingestion hooked to the **approval** transition only
-- ☐ `chat_threads` — chat no longer bound to a single report
-- ☐ Retrieval filtered in SQL by `project_id`; answers cite `[R1]` → report → sources
+  *(CI was still on stock `postgres:16-alpine` and would have failed the next migration —
+  both service blocks now pin the pgvector image too.)*
+- ✅ `Embeddings` port in `research_engine/ports.py`; Ollama `nomic-embed-text` locally,
+  Google/OpenAI for cloud, all at 768 dimensions. Passed explicitly rather than through a
+  ContextVar — nothing in the graph embeds, so an ambient holder would have no reader
+  (recorded as a deviation in doc 14 §4).
+- ✅ Ingestion hooked to the **approval** transition only — the COMPLETED branch of
+  `_persist_outcome`, which is reachable only through the gate.
+- ✅ `chat_threads` — chat no longer bound to a single report; legacy per-report chat
+  untouched, with a CHECK enforcing exactly one parent per message.
+- ✅ Retrieval filtered in SQL by `project_id` **and** `embedding_model`; answers cite
+  `[R1]` → report → sources, with the existing ⚠ chip for markers that don't resolve.
+- ✅ `/chat` UI: project-scoped threads, citation chips carrying the retrieved excerpt,
+  and a memory-status card that names the two ways memory can be quietly incomplete.
 
-**DoD:** the §9 checklist in doc 14 passes verbatim — including the automated
-**cross-project isolation test** and proof that rejected drafts never surface.
+**DoD:** the §9 checklist in doc 14 passes — the automated **cross-project isolation
+test** (including two projects owned by the same user) and proof that rejected drafts
+never surface, both against real Postgres + pgvector. 231 backend and 57 frontend tests.
+
+**Still unmeasured, and the reason this is "code complete" rather than "done":** whether a
+real model, handed correct excerpts, reliably refuses when they don't support an answer
+and cites accurately when they do. Fake-mode CI cannot show it. This needs an eval run
+against a real model — the same blocker as the M5 eval line above, and the thing to do
+first once a working model is available.
 
 ---
 
