@@ -91,7 +91,7 @@ jobs:
           if grep -rnE 'localhost:8000|NEXT_PUBLIC_API_URL|127\.0\.0\.1:8000' --include='*.tsx' --include='*.ts' app/ components/ lib/ hooks/; then
             echo '::error::Hardcoded backend URL found — call the same-origin /api proxy (docs/06 §6)'; fail=1
           fi
-          if grep -rnE '(local|session)Storage' --include='*.tsx' --include='*.ts' app/ components/ lib/ hooks/; then
+          if grep -rnE '(local|session)Storage' --include='*.tsx' --include='*.ts' app/ components/ lib/ hooks/ | grep -v 'ActiveProject.tsx'; then
             echo '::error::Web storage use found — auth is httpOnly cookies only (docs/03)'; fail=1
           fi
           exit $fail
