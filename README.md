@@ -165,7 +165,7 @@ cp .env.example .env
 docker compose -f docker-compose.full.yml up --build
 ```
 
-Open **http://localhost:3000** → register → ask a question → watch the pipeline → approve
+Open **http://localhost:3031** → register → ask a question → watch the pipeline → approve
 → read the cited report.
 
 The API container runs `alembic upgrade head` before serving, and the worker and frontend
@@ -183,7 +183,7 @@ make infra-up                              # Postgres + Redis only
 make backend-setup && make migrate
 make backend-dev                           # API  → :8000  (/docs in dev)
 make worker                                # Celery worker (new terminal)
-make frontend-setup && make frontend-dev   # UI   → :3000  (new terminal)
+make frontend-setup && make frontend-dev   # UI   → :3031  (new terminal)
 ```
 
 ```bash

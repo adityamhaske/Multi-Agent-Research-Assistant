@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node scripts/prepare-session-routes.mjs web && next dev",
+    "dev": "node scripts/prepare-session-routes.mjs web && next dev -p 3031",
     "build": "node scripts/prepare-session-routes.mjs web && next build",
     "build:desktop": "node scripts/prepare-session-routes.mjs desktop && cross-env NEXT_PUBLIC_DESKTOP=1 next build",
     "start": "next start",

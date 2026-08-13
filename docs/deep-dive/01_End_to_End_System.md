@@ -91,7 +91,7 @@ cp .env.example .env
 docker compose -f docker-compose.full.yml up --build
 ```
 
-Open `http://localhost:3000`. The API container applies migrations before serving; the
+Open `http://localhost:3031`. The API container applies migrations before serving; the
 worker and frontend gate on its `/health/ready`. The frontend is the only published
 service and proxies `/api/*` internally, so cookies stay first-party.
 

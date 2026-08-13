@@ -27,7 +27,7 @@ FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
-    PORT=3000 \
+    PORT=3031 \
     HOSTNAME=0.0.0.0
 # Also set at runtime in case the config re-reads it on server start.
 ARG BACKEND_ORIGIN=http://api:8000
@@ -40,7 +40,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 USER nextjs
-EXPOSE 3000
+EXPOSE 3031
 HEALTHCHECK --interval=15s --timeout=5s --start-period=25s --retries=5 \
-    CMD curl -fsS http://localhost:3000/login || exit 1
+    CMD curl -fsS http://localhost:3031/login || exit 1
 CMD ["node", "server.js"]

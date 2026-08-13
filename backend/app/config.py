@@ -107,7 +107,7 @@ class Settings(BaseSettings):
     langchain_project: str = "multi-agent-research-assistant"
 
     # ── Frontend origin (dev only; prod uses the same-origin proxy) ────────────
-    frontend_url: str = "http://localhost:3000"
+    frontend_url: str = "http://localhost:3031"
 
     @model_validator(mode="after")
     def _validate_secrets(self) -> "Settings":

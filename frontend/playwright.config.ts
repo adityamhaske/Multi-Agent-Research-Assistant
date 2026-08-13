@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3031";
 
 /**
  * Golden E2E config (docs/08 §2). Runs against the real stack with the backend in

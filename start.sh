@@ -11,14 +11,14 @@
 #   ./start.sh --reset      # stop AND delete the database volume (destroys all data)
 #
 # Everything runs in Docker, so this does not collide with anything you have
-# installed natively — the only host port used is the frontend's (3000 by default).
+# installed natively — the only host port used is the frontend's (3031 by default).
 
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 COMPOSE_FILE="docker-compose.full.yml"
-FRONTEND_PORT="${FRONTEND_PORT:-3000}"
+FRONTEND_PORT="${FRONTEND_PORT:-3031}"
 URL="http://localhost:${FRONTEND_PORT}"
 
 # ── Pretty output ─────────────────────────────────────────────────────────────

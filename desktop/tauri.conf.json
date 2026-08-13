@@ -5,7 +5,7 @@
   "identifier": "dev.researchengine.desktop",
   "build": {
     "beforeDevCommand": "npm --prefix ../frontend run dev",
-    "devUrl": "http://localhost:3000",
+    "devUrl": "http://localhost:3031",
     "beforeBuildCommand": "npm --prefix ../frontend run build:desktop",
     "frontendDist": "../frontend/out"
   },

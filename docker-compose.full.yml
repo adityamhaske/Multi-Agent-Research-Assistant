@@ -95,7 +95,7 @@ services:
     environment:
       BACKEND_ORIGIN: http://api:8000
     ports:
-      - "${FRONTEND_PORT:-3000}:3000" # the only publicly exposed service
+      - "${FRONTEND_PORT:-3031}:3031" # the only publicly exposed service
     depends_on:
       api: { condition: service_healthy }
     restart: unless-stopped

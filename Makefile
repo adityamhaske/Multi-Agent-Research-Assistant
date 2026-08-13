@@ -18,7 +18,7 @@ infra-clean:
 ## ─── Full stack (docs/09 §2): one command → the whole app ───────────────────────
 compose-up:
 	docker compose -f docker-compose.full.yml up --build -d
-	@echo "✅ Full stack up. Frontend: http://localhost:$${FRONTEND_PORT:-3000}"
+	@echo "✅ Full stack up. Frontend: http://localhost:$${FRONTEND_PORT:-3031}"
 
 compose-down:
 	docker compose -f docker-compose.full.yml down
