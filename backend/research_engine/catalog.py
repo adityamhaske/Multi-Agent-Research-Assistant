@@ -237,6 +237,16 @@ _OLLAMA = [
         output_per_mtok=0.0,
         notes="Runs locally via Ollama.",
     ),
+    _spec(
+        "ollama",
+        "deepseek-r1",
+        "DeepSeek R1 (local)",
+        input_per_mtok=0.0,
+        output_per_mtok=0.0,
+        supports_tools=False,
+        sampling_params_supported=False,
+        notes="Reasoning model; runs locally via Ollama. Does not support tool calling.",
+    ),
 ]
 
 CATALOG: dict[str, ModelSpec] = {spec.model_id: spec for spec in (*_ANTHROPIC, *_GOOGLE, *_OLLAMA)}

@@ -738,7 +738,8 @@ async def contradiction_detector_node(state: AgentState) -> dict:
         )
         return {"contradictions": [], **_acc(state, cost, i, o)}
 
-    found = contradictions.validate_pairs(parsed.pairs, by_source)
+    normalized = contradictions.normalize_pairs(parsed.pairs, set(by_source))
+    found = contradictions.validate_pairs(normalized, by_source)
     await emit(
         sid,
         "agent_log",

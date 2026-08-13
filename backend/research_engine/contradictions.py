@@ -75,6 +75,37 @@ def build_detector_input(by_source: dict[str, list[str]]) -> str:
     return "\n\n".join(blocks)
 
 
+def normalize_pairs(
+    pairs: list[ContradictionPair], known_urls: set[str]
+) -> list[ContradictionPair]:
+    """Best-effort field-shift repair for weaker models (docs/12 M11).
+
+    deepseek-r1:14b correctly identifies contradictions but mis-fills the structured
+    fields: it puts URLs into snippet_* and "Source: <url>" into source_*. This narrow
+    normalization fixes the two observed patterns:
+
+    1. Strip a leading "Source: " prefix from source_a / source_b.
+    2. If source_* is still not a known URL but the corresponding snippet_* IS, swap them.
+
+    The result is still fed to validate_pairs, so no hallucinated URL can sneak through.
+    """
+    out: list[ContradictionPair] = []
+    for p in pairs:
+        d = p.model_dump()
+        for side in ("a", "b"):
+            src_key, snip_key = f"source_{side}", f"snippet_{side}"
+            # Strip "Source: " prefix (case-insensitive).
+            src = d[src_key].strip()
+            if src.lower().startswith("source:"):
+                src = src[len("source:"):].strip()
+            d[src_key] = src
+            # If source is not a known URL but snippet is, swap them.
+            if d[src_key] not in known_urls and d[snip_key].strip() in known_urls:
+                d[src_key], d[snip_key] = d[snip_key].strip(), d[src_key]
+        out.append(ContradictionPair(**d))
+    return out
+
+
 def validate_pairs(
     pairs: list[ContradictionPair], by_source: dict[str, list[str]]
 ) -> list[dict]:

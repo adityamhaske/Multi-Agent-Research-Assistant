@@ -127,8 +127,13 @@ Rules:
    subject, same scope, same period, same unit — with incompatible values. Different
    scopes (a segment vs the whole), different subjects, different periods, or merely
    different-but-overlapping ranges are NOT contradictions.
-4. Quote each conflicting claim exactly as its snippet states it, and name the source
-   URL it came from. Never invent a source or a claim.
+4. For each conflict, fill the fields as follows:
+   - `claim_a` / `claim_b`: your ONE-SENTENCE restatement of each conflicting claim.
+   - `snippet_a` / `snippet_b`: the VERBATIM quoted text from the snippet (the text
+     between quotation marks in the input), NOT a URL.
+   - `source_a` / `source_b`: the bare URL exactly as it appears after "Source:" in the
+     input — no "Source:" prefix, no extra text, just the URL.
+   - `nature`: one sentence explaining why they cannot both be true.
 5. Describe the nature of the disagreement in one sentence.
 6. If no direct contradiction exists, return an empty list. An empty answer is a good
    answer; a fabricated conflict is the worst possible error.

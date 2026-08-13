@@ -503,7 +503,7 @@ your laptop"), Product Hunt, r/selfhosted, r/LocalLLaMA.
 
 ## M11 — Contradiction detection  *(≈ 2 weeks)*
 
-☐ The only trust feature on the table that is **observable** rather than oracular: two
+✅ The only trust feature on the table that is **observable** rather than oracular: two
 sources assert incompatible things, and that is checkable without a truth model.
 
 - Detect conflicting claims across evidence; surface in the report as a first-class block
@@ -514,6 +514,9 @@ sources assert incompatible things, and that is checkable without a truth model.
 with ≤ 10% false-positive rate on a known-consistent control set · conflicts render in
 report, export, and PDF · a new eval metric `contradictions_surfaced` is recorded in the
 baseline.
+
+**Result (2026-08-13, deepseek-r1:14b):** recall = 1.0, false_positive_rate = 0.0833.
+Both bars cleared. Baseline: `evals/results/contradictions_2026-08-13_183819.json`.
 
 ## M12 — The research bundle + offline verifier  *(≈ 2 weeks)*
 

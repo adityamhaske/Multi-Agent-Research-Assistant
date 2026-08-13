@@ -98,6 +98,39 @@ def test_validation_drops_unknown_self_and_duplicate_pairs():
     assert out[0]["source_a"] == URL_A and out[0]["source_b"] == URL_B
 
 
+def test_normalize_strips_source_prefix():
+    """deepseek-r1 emits 'Source: <url>' in source fields — strip the prefix."""
+    known = {URL_A, URL_B}
+    pair = _pair(source_a=f"Source: {URL_A}", source_b=f"source: {URL_B}")
+    [fixed] = contradictions.normalize_pairs([pair], known)
+    assert fixed.source_a == URL_A
+    assert fixed.source_b == URL_B
+
+
+def test_normalize_swaps_url_in_snippet_to_source():
+    """deepseek-r1 puts the URL in snippet and text in source — swap them."""
+    known = {URL_A, URL_B}
+    pair = _pair(
+        snippet_a=URL_A, source_a="the output was 42 units",
+        snippet_b=URL_B, source_b="the output was 17 units",
+    )
+    [fixed] = contradictions.normalize_pairs([pair], known)
+    assert fixed.source_a == URL_A
+    assert fixed.snippet_a == "the output was 42 units"
+    assert fixed.source_b == URL_B
+    assert fixed.snippet_b == "the output was 17 units"
+
+
+def test_normalize_passthrough_when_fields_are_correct():
+    """Already-correct pairs pass through unchanged."""
+    known = {URL_A, URL_B}
+    pair = _pair()
+    [fixed] = contradictions.normalize_pairs([pair], known)
+    assert fixed.source_a == URL_A
+    assert fixed.source_b == URL_B
+    assert fixed.snippet_a == "the output was 42 units"
+
+
 def test_block_quotes_both_sides_and_refuses_to_resolve():
     by_source = contradictions.group_snippets_by_source(EVIDENCE)
     [pair] = contradictions.validate_pairs([_pair()], by_source)
