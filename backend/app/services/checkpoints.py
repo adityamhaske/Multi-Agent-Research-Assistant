@@ -29,3 +29,16 @@ async def delete_thread(thread_id: str) -> None:
     async with AsyncPostgresSaver.from_conn_string(_dsn()) as saver:
         await saver.adelete_thread(thread_id)
     logger.info("checkpoints_deleted", thread_id=thread_id)
+
+
+async def get_thread_state(thread_id: str) -> dict:
+    """Read the latest pipeline state from the checkpointer."""
+    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+    from research_engine.graph import build_graph
+
+    async with AsyncPostgresSaver.from_conn_string(_dsn()) as saver:
+        graph = build_graph(saver)
+        # aget_state gives us the StateSnapshot, we want its .values
+        snapshot = await graph.aget_state({"configurable": {"thread_id": thread_id}})
+        return snapshot.values if snapshot else {}

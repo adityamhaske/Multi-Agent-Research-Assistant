@@ -273,6 +273,87 @@ async def export_pdf(
     )
 
 
+@router.get("/{session_id}/export.bundle.json")
+async def export_bundle_json(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    session = await _authorized_session(db, session_id, current_user.id)
+    if session.status != SessionStatus.COMPLETED:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="Bundle export is only available for COMPLETED sessions.",
+        )
+
+    report = _report_or_404(session)
+
+    agent_logs = (
+        (
+            await db.execute(
+                select(AgentLog)
+                .where(AgentLog.session_id == session.id)
+                .order_by(AgentLog.id.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    trace = [log.payload for log in agent_logs]
+
+    audit_logs = (
+        (
+            await db.execute(
+                select(AuditLog)
+                .where(AuditLog.session_id == session.id)
+                .order_by(AuditLog.id.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    approval_chain = [
+        {
+            "action": al.action,
+            "feedback": al.feedback,
+            "draft_hash": al.draft_hash,
+            "timestamp": al.created_at.isoformat(),
+        }
+        for al in audit_logs
+    ]
+
+    state = await checkpoints.get_thread_state(str(session.id))
+    evidence = state.get("evidence", [])
+    contradictions = state.get("contradictions", [])
+
+    from research_engine import bundle
+
+    manifest = bundle.assemble(
+        session_id=str(session.id),
+        query=session.prompt,
+        report=report,
+        evidence=evidence,
+        sources=session.sources or [],
+        contradictions=contradictions,
+        models=session.model_routing or {},
+        cost_usd=float(session.total_cost_usd),
+        tokens_input=session.total_tokens_input,
+        tokens_output=session.total_tokens_output,
+        elapsed_seconds=float(session.elapsed_seconds) if session.elapsed_seconds else None,
+        research_depth=session.research_depth,
+        approval_chain=approval_chain,
+        trace=trace,
+        trace_available=True,
+    )
+
+    filename = f"research-{str(session.id)[:8]}.bundle.json"
+    return Response(
+        content=bundle.serialize(manifest),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.post("/{session_id}/approve", status_code=200)
 async def approve_or_rework(
     session_id: uuid.UUID,
