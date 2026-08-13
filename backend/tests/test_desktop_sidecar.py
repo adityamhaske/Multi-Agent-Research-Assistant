@@ -244,3 +244,23 @@ def test_sidecar_import_tree_excludes_weasyprint():
         check=False,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_shell_watchdog_predicate():
+    """The sidecar must not outlive a hard-killed shell (docs/13 §7).
+
+    The shell passes --shell-pid and a watchdog thread exits when that PID is gone;
+    this covers the predicate the watchdog polls.
+    """
+    import subprocess
+    import sys
+
+    from desktop.sidecar import shell_alive
+
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        assert shell_alive(child.pid)
+    finally:
+        child.kill()
+    child.wait()
+    assert not shell_alive(child.pid)

@@ -1,0 +1,24 @@
+[package]
+name = "research-desktop"
+version = "0.1.0"
+description = "Local-first research, no login, no server (docs/12 M9, docs/13 §7)"
+authors = ["Research Engine"]
+edition = "2021"
+
+# The shell is deliberately thin: spawn + supervise the Python sidecar, hand the
+# handshake to the WebView, stay out of everything else. No tauri plugins yet —
+# keychain access lives in the sidecar, auto-update lands with the release pipeline.
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+# Smaller signed binaries matter for the desktop download size (docs/13 §7).
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

@@ -42,6 +42,13 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
+# Launched as a plain script (Tauri shell, PyInstaller entry point), so make the
+# backend packages importable regardless of the working directory. In a frozen
+# build the modules resolve through PyInstaller's importer and this is a no-op.
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent
+if str(_BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_ROOT))
+
 import structlog
 import uvicorn
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response, status
@@ -1010,6 +1017,32 @@ def create_sidecar_app(
 # ── Entry point ──────────────────────────────────────────────────────────────────
 
 
+def shell_alive(pid: int) -> bool:
+    """True while a process with this PID exists and we may signal it."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:  # pragma: no cover — exists but not ours anymore
+        return True
+
+
+def _watch_shell(shell_pid: int) -> None:
+    """Die when the launching shell disappears.
+
+    The shell kills the sidecar on graceful exit, but a hard kill (kill -9, crash,
+    OS force-quit) never runs that path — so the sidecar supervises back and never
+    outlives its parent by more than one poll interval.
+    """
+    import time
+
+    while True:
+        time.sleep(2.0)
+        if not shell_alive(shell_pid):
+            os._exit(0)
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
 
@@ -1018,12 +1051,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=0, help="0 = ephemeral (the default)")
     parser.add_argument("--fake", action="store_true", help="scripted models, no keys needed")
+    parser.add_argument(
+        "--shell-pid",
+        type=int,
+        default=None,
+        help="exit automatically when this PID disappears (Tauri shell supervision)",
+    )
     args = parser.parse_args(argv)
 
     if args.host != "127.0.0.1":
         # The token threat model assumes loopback only. Refuse rather than weaken.
         print("error: the sidecar binds 127.0.0.1 only (docs/13 §7)", file=sys.stderr)
         return 2
+
+    if args.shell_pid:
+        import threading
+
+        threading.Thread(target=_watch_shell, args=(args.shell_pid,), daemon=True).start()
 
     token = secrets.token_urlsafe(32)
     app = create_sidecar_app(data_dir=args.data_dir, token=token, fake=args.fake)
