@@ -2,16 +2,16 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+from app.models.types import JsonType, UuidType
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(UuidType, primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     hashed_pw: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -42,7 +42,7 @@ class User(Base):
     # NULL means "use the deployment's MODEL_* routing" — the default, and what every
     # existing user keeps until they choose otherwise. Validated against the catalog
     # on write, so an unroutable or unpriced model can never be persisted here.
-    model_routing: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    model_routing: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
 
     sessions: Mapped[list["Session"]] = relationship(  # noqa: F821
         "Session",

@@ -12,10 +12,10 @@ from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+from app.models.types import UuidType
 
 # The stored vector width. Mirrored in migration 0007 and app.adapters, where the
 # providers are configured to match it.
@@ -25,9 +25,9 @@ EMBEDDING_DIMENSIONS = 768
 class MemoryChunk(Base):
     __tablename__ = "memory_chunks"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(UuidType, primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        UuidType,
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -35,7 +35,7 @@ class MemoryChunk(Base):
     # The report this text came from. Retrieval resolves citations back through it to the
     # report's own sources, which is the whole provenance chain (docs/14 §5).
     source_session_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        UuidType,
         ForeignKey("sessions.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

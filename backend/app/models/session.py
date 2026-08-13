@@ -4,10 +4,10 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+from app.models.types import JsonType, UuidType
 
 
 class SessionStatus(enum.StrEnum):
@@ -21,9 +21,9 @@ class SessionStatus(enum.StrEnum):
 class Session(Base):
     __tablename__ = "sessions"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(UuidType, primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        UuidType,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -31,7 +31,7 @@ class Session(Base):
     # Every session lives in a project (docs/14 §3). Existing rows were backfilled into
     # a per-user "General" project by migration 0005, which is why this is NOT NULL.
     project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        UuidType,
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -47,7 +47,7 @@ class Session(Base):
     draft_report: Mapped[str | None] = mapped_column(Text, nullable=True)
     final_report: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Numbered citation table the UI renders: [{index, url, title, snippet}] (docs/05 §1).
-    sources: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    sources: Mapped[list | None] = mapped_column(JsonType, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Money as Numeric — never float (docs/05 §5).
     total_cost_usd: Mapped[float] = mapped_column(Numeric(10, 6), nullable=False, default=0)
@@ -64,7 +64,7 @@ class Session(Base):
     # rather than read back from the user's current preference, because a preference can
     # change afterwards and a report has to stay attributable to what wrote it — the same
     # reason the approval decision is recorded in the audit log.
-    model_routing: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    model_routing: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

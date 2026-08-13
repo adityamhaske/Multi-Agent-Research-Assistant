@@ -11,10 +11,10 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, func
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+from app.models.types import UuidType
 
 # Titles are derived from the first message rather than asked for: naming a thread before
 # writing in it is a chore, and a model call to summarise it would be spend for cosmetics.
@@ -24,9 +24,9 @@ TITLE_MAX_CHARS = 60
 class ChatThread(Base):
     __tablename__ = "chat_threads"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(UuidType, primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        UuidType,
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

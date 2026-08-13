@@ -2,10 +2,10 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+from app.models.types import JsonType, UuidType
 
 
 class ChatMessage(Base):
@@ -25,15 +25,15 @@ class ChatMessage(Base):
         ),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(UuidType, primary_key=True, default=uuid.uuid4)
     session_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
+        UuidType,
         ForeignKey("sessions.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
     thread_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
+        UuidType,
         ForeignKey("chat_threads.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
@@ -43,7 +43,7 @@ class ChatMessage(Base):
     # For thread messages: the reports this answer cited, as [{marker, session_id, title,
     # created_at}]. Resolved at write time so the citation chips still work after the
     # retrieval that produced them is long gone (docs/14 §5).
-    citations: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    citations: Mapped[list | None] = mapped_column(JsonType, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships

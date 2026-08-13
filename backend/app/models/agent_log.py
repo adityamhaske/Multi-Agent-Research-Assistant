@@ -9,19 +9,19 @@ nothing; the bigserial id doubles as the SSE Last-Event-ID cursor.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+from app.models.types import BigIntAutoType, JsonType, UuidType
 
 
 class AgentLog(Base):
     __tablename__ = "agent_logs"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntAutoType, primary_key=True, autoincrement=True)
     session_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        UuidType,
         ForeignKey("sessions.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -30,7 +30,7 @@ class AgentLog(Base):
         String(40), nullable=False
     )  # agent_log|HITL_READY|COMPLETED|FAILED
     agent_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict] = mapped_column(JsonType, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
