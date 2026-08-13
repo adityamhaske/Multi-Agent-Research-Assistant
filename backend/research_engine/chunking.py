@@ -26,6 +26,8 @@ answer resolve through the report to the original sources it cites (docs/14 §5)
 from __future__ import annotations
 
 import re
+from bisect import bisect_left, bisect_right
+from dataclasses import dataclass
 
 # ~1200 characters is roughly 300 tokens: large enough to hold a complete claim with its
 # supporting sentence, small enough that eight of them (the retrieval default) stay a
@@ -178,5 +180,119 @@ def chunk_report(
     if len(chunks) > 1 and len(chunks[-1]) < min_chars:
         tail = chunks.pop()
         chunks[-1] = f"{chunks[-1]}\n\n{tail}"
+
+    return chunks
+
+
+# ── Corpus documents (docs/12 M10) ──────────────────────────────────────────────
+#
+# Reports are our own Markdown and get heading-aware chunks above. Ingested corpus
+# documents are arbitrary prose, and their requirement is different: every chunk must
+# cite an EXACT location in its source (docs/12 M10 DoD). So a corpus chunk is a
+# verbatim span [start, end) of the extracted text — no carried headings, no
+# reassembled openers — which makes "text[start:end] is the chunk" true by
+# construction rather than by convention.
+
+
+@dataclass(frozen=True)
+class DocumentChunk:
+    """One chunk of an ingested document, with its exact location in the source.
+
+    `text == source[start:end]` holds verbatim. `page` is the 1-based page the chunk
+    starts on (PDFs), or None when the source has no page structure (MD/TXT) — the
+    offsets are the universal locator, the page is the human-readable one.
+    """
+
+    text: str
+    start: int
+    end: int
+    page: int | None
+
+
+# Where a new chunk may begin: the start of a paragraph, or the whitespace run after
+# a sentence terminator. Splitting only on these points keeps chunks starting at
+# sentence boundaries instead of mid-claim.
+_PIECE_BREAK_RE = re.compile(r"\n\s*\n|[.!?][\"')\]]*\s+")
+
+
+def _split_points(text: str) -> list[int]:
+    """Offsets at which a piece of text can legally start."""
+    return [m.end() for m in _PIECE_BREAK_RE.finditer(text)]
+
+
+def _page_for(page_starts: list[int], offset: int) -> int | None:
+    """1-based page number containing `offset`, or None without page structure."""
+    if len(page_starts) <= 1:
+        return None
+    return bisect_right(page_starts, offset)
+
+
+def chunk_document(
+    text: str,
+    *,
+    page_starts: list[int] | None = None,
+    target_chars: int = TARGET_CHARS,
+    overlap_chars: int = OVERLAP_CHARS,
+    min_chars: int = MIN_CHARS,
+) -> list[DocumentChunk]:
+    """Split an ingested document into verbatim, overlapping, offset-tracked chunks.
+
+    Deterministic like `chunk_report`, and idempotency-friendly: the same extracted
+    text always yields the same spans. Overlap is implemented by starting the next
+    chunk at most `overlap_chars` before the previous end, snapped to a piece
+    boundary — so the overlap region belongs verbatim to BOTH chunks' spans.
+    """
+    body = text or ""
+    first_nonws = len(body) - len(body.lstrip())
+    if first_nonws >= len(body):
+        return []
+
+    pages = page_starts or []
+    points = _split_points(body)
+    chunks: list[DocumentChunk] = []
+    start = first_nonws
+
+    while start < len(body):
+        if start + target_chars >= len(body):
+            raw_end = len(body)
+        else:
+            # Snap to the last piece boundary inside the window. When there is none
+            # (one enormous sentence / table row) cut at the limit — a chunk that
+            # cannot fit whole beats a chunk that never ends.
+            lo = bisect_right(points, start)
+            hi = bisect_right(points, start + target_chars)
+            raw_end = points[hi - 1] if hi > lo else start + target_chars
+
+        # Trim surrounding whitespace WITHOUT leaving the verbatim span: the chunk
+        # text is exactly body[start:end].
+        end = raw_end
+        while start < end and body[start].isspace():
+            start += 1
+        while end > start and body[end - 1].isspace():
+            end -= 1
+        if start >= end:
+            break
+
+        chunks.append(
+            DocumentChunk(text=body[start:end], start=start, end=end, page=_page_for(pages, start))
+        )
+
+        if raw_end >= len(body):
+            break
+
+        # Next chunk opens within the overlap window, at the first piece boundary —
+        # or right after this chunk when the window holds none (progress is mandatory).
+        floor = max(raw_end - overlap_chars, start + 1)
+        idx = bisect_left(points, floor)
+        nxt = points[idx] if idx < len(points) else None
+        start = nxt if nxt is not None and nxt < raw_end else raw_end
+
+    # A runt tail carries no claim of its own; fold its span into the predecessor.
+    if len(chunks) > 1 and (chunks[-1].end - chunks[-1].start) < min_chars:
+        tail = chunks.pop()
+        prev = chunks[-1]
+        chunks[-1] = DocumentChunk(
+            text=body[prev.start : tail.end], start=prev.start, end=tail.end, page=prev.page
+        )
 
     return chunks

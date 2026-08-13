@@ -196,6 +196,109 @@ async def test_key_delete_forgets_the_keychain_entry(sidecar, monkeypatch):
     assert unknown.status_code == 422
 
 
+# ── The airgapped corpus (docs/12 M10) ──────────────────────────────────────────
+
+
+def _install_fake_embedder(app_holder) -> None:
+    """Swap the Ollama-backed embedder for the deterministic test fake.
+
+    The sidecar's lifespan builds the store before tests can touch it, so the
+    embedder is replaced in place — the store is the contract under test.
+    """
+    from tests.test_corpus_store import FakeEmbeddings
+
+    # `app_holder` is the httpx client; the app hangs off its transport.
+    app = app_holder._transport.app  # noqa: SLF001 — test-internal access
+    app.state.sidecar["corpus"]._embedder = FakeEmbeddings()  # noqa: SLF001
+
+
+# The scripted planner's two task queries are fixed strings (fakes.py); a corpus
+# document containing those words is therefore guaranteed to be retrieved in
+# fake-mode runs, keeping the end-to-end assertion non-vacuous.
+CORPUS_DOC = (
+    "Background and definitions: retrieval-augmented generation grounds a model in "
+    "documents. Current state and data: adoption has grown steadily, and the current "
+    "evidence shows grounded answers beat ungrounded ones on factual benchmarks."
+)
+
+
+async def test_corpus_upload_list_delete_round_trip(sidecar):
+    _install_fake_embedder(sidecar)
+
+    upload = await sidecar.post(
+        "/api/v1/corpus/documents",
+        params={"filename": "notes.txt"},
+        headers=_auth(),
+        content=CORPUS_DOC.encode(),
+    )
+    assert upload.status_code == 201
+    body = upload.json()
+    assert body["doc_id"] and body["chunks_written"] >= 1 and not body["skipped"]
+
+    # Same bytes again: deduped, not doubled.
+    again = await sidecar.post(
+        "/api/v1/corpus/documents",
+        params={"filename": "notes.txt"},
+        headers=_auth(),
+        content=CORPUS_DOC.encode(),
+    )
+    assert again.json()["skipped"] is True
+
+    docs = await sidecar.get("/api/v1/corpus/documents", headers=_auth())
+    assert [d["filename"] for d in docs.json()["documents"]] == ["notes.txt"]
+
+    # A format we cannot locate quotes in never enters a citation-grade corpus.
+    rejected = await sidecar.post(
+        "/api/v1/corpus/documents",
+        params={"filename": "archive.zip"},
+        headers=_auth(),
+        content=b"PK\x03\x04",
+    )
+    assert rejected.status_code == 422
+
+    delete = await sidecar.delete(f"/api/v1/corpus/documents/{body['doc_id']}", headers=_auth())
+    assert delete.status_code == 204
+    gone = await sidecar.delete(f"/api/v1/corpus/documents/{body['doc_id']}", headers=_auth())
+    assert gone.status_code == 404
+
+
+async def test_corpus_only_run_cites_corpus_locations(sidecar, tmp_path):
+    """The desktop's M10 DoD: with corpus-only mode switched on, a run's sources
+    are corpus:// locations — not a single web URL — and the switch persists."""
+    _install_fake_embedder(sidecar)
+
+    mode = await sidecar.put("/api/v1/corpus/mode", headers=_auth(), json={"corpus_only": True})
+    assert mode.json() == {"corpus_only": True}
+    assert (tmp_path / "corpus.json").exists()
+
+    status_resp = await sidecar.get("/api/v1/corpus/status", headers=_auth())
+    assert status_resp.json()["corpus_only"] is True
+
+    upload = await sidecar.post(
+        "/api/v1/corpus/documents",
+        params={"filename": "notes.txt"},
+        headers=_auth(),
+        content=CORPUS_DOC.encode(),
+    )
+    assert upload.status_code == 201
+
+    start = await sidecar.post(
+        "/api/v1/research",
+        headers=_auth(),
+        json={"query": "What does the corpus say about RAG?", "depth": "fast"},
+    )
+    assert start.status_code == 202
+    detail = await _until(sidecar, start.json()["session_id"], "AWAITING_APPROVAL")
+
+    assert detail["sources"], "corpus evidence must surface as sources"
+    for source in detail["sources"]:
+        assert source["url"].startswith("corpus://"), source["url"]
+
+    # Switching back off persists too.
+    off = await sidecar.put("/api/v1/corpus/mode", headers=_auth(), json={"corpus_only": False})
+    assert off.json() == {"corpus_only": False}
+
+
 async def test_stream_replays_to_the_terminal_event(sidecar):
     start = await sidecar.post(
         "/api/v1/research",

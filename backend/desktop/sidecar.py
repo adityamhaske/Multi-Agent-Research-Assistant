@@ -22,8 +22,9 @@ What differs from the server host, and nothing else:
 - Celery → `asyncio.create_task`; Redis pub/sub → an in-process per-session fan-out.
   Events are still persisted to `agent_logs`, so SSE replay after reconnect works the
   same way (Last-Event-ID honored).
-- `memory_chunks` is excluded from `create_all` — its pgvector column is Postgres-only
-  until M10 ships local embeddings. Project memory is the one feature absent on desktop.
+- `memory_chunks` is excluded from `create_all` — its pgvector column is Postgres-only.
+  Project memory (approved-report ingestion) is the one feature absent on desktop;
+  the airgapped corpus (docs/12 M10) has its own SQLite store and local embeddings.
 - PDF export answers 501 by design: the desktop renders PDF via the WebView's
   print-to-PDF (docs/13 §7), and WeasyPrint's GTK chain stays out of the bundle.
 """
@@ -75,6 +76,9 @@ from app.schemas.research import (
 )
 from app.services.sse import SSE_HEADERS
 from research_engine import catalog
+from research_engine.corpus import CorpusStore
+from research_engine.documents import MAX_DOCUMENT_BYTES
+from research_engine.embeddings import EmbeddingsUnavailable, LocalEmbeddings
 from research_engine.events import make_event
 from research_engine.local import SqliteCache, load_env_file
 from research_engine.runconfig import DEFAULT_MODELS, ROLES, RunConfig
@@ -269,6 +273,52 @@ def save_routing(data_dir: str | Path, routing: dict[str, str] | None) -> None:
     path.write_text(json.dumps(routing, indent=2), encoding="utf-8")
 
 
+# ── Corpus mode (docs/12 M10) ─────────────────────────────────────────────────
+#
+# The airgapped switch lives in one JSON file next to routing.json. When on, every
+# run's evidence comes ONLY from the installed corpus — no web search, no fetches —
+# and the engine enforces that itself (retrievers.search delegates, read_webpage
+# refuses). Persisted so the choice survives restarts, exactly like the routing.
+
+
+def _corpus_config_path(data_dir: str | Path) -> Path:
+    return Path(data_dir) / "corpus.json"
+
+
+def corpus_only_enabled(data_dir: str | Path | None) -> bool:
+    """Whether corpus-only mode is switched on. A corrupt file degrades to off."""
+    if data_dir is None:
+        return False
+    try:
+        raw = json.loads(_corpus_config_path(data_dir).read_text(encoding="utf-8"))
+        return bool(raw.get("corpus_only"))
+    except FileNotFoundError:
+        return False
+    except Exception:  # noqa: BLE001 — bad JSON must not sink launch
+        return False
+
+
+def save_corpus_config(data_dir: str | Path, *, corpus_only: bool) -> None:
+    _corpus_config_path(data_dir).write_text(
+        json.dumps({"corpus_only": corpus_only}, indent=2), encoding="utf-8"
+    )
+
+
+def make_corpus_store(data_dir: str | Path) -> CorpusStore:
+    """The desktop's corpus: SQLite vectors + local embeddings via Ollama.
+
+    `LocalEmbeddings` rather than the server's adapter because `app/adapters.py`
+    imports `app.config` (and redis), neither of which belongs in the frozen bundle.
+    Same `ollama:<model>` id scheme, so a corpus indexed on one host reads as the
+    same model on the other.
+    """
+    embedder = LocalEmbeddings(
+        model=os.environ.get("CORPUS_EMBEDDINGS_MODEL", "nomic-embed-text"),
+        base_url=os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+    )
+    return CorpusStore(Path(data_dir) / "corpus.sqlite", embedder)
+
+
 def sidecar_run_config(*, fake: bool, data_dir: str | Path | None = None) -> RunConfig:
     """The desktop's RunConfig: env keys merged with keychain keys (keychain wins).
 
@@ -277,7 +327,7 @@ def sidecar_run_config(*, fake: bool, data_dir: str | Path | None = None) -> Run
     keychain is consulted at every launch (docs/12 M9: keys in the OS keychain).
     """
     if fake:
-        return RunConfig(llm_mode="fake")
+        return RunConfig(llm_mode="fake", corpus_mode=corpus_only_enabled(data_dir))
 
     load_env_file()
     env_names = {
@@ -317,6 +367,7 @@ def sidecar_run_config(*, fake: bool, data_dir: str | Path | None = None) -> Run
         provider_keys=keys,
         tavily_api_key=os.environ.get("TAVILY_API_KEY", ""),
         brave_api_key=os.environ.get("BRAVE_API_KEY", ""),
+        corpus_mode=corpus_only_enabled(data_dir),
         max_critic_loops=_int_env("MAX_CRITIC_LOOPS", 2),
         max_cost_per_session_usd=_float_env("MAX_COST_PER_SESSION_USD", 0.50),
         max_wallclock_seconds=_int_env("MAX_WALLCLOCK_SECONDS", 600),
@@ -360,6 +411,7 @@ def create_sidecar_app(
         "bus": bus,
         "saver": None,
         "cache": None,
+        "corpus": None,
     }
 
     async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -381,8 +433,9 @@ def create_sidecar_app(
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
-        # The pgvector-backed table cannot exist on SQLite until M10 (local embeddings);
-        # everything else in the schema is dialect-portable (app/models/types.py).
+        # The pgvector-backed table cannot exist on SQLite; the corpus keeps its own
+        # store (docs/12 M10). Everything else in the schema is dialect-portable
+        # (app/models/types.py).
         tables = [t for t in Base.metadata.sorted_tables if t.name != MemoryChunk.__tablename__]
         async with engine.begin() as conn:
             await conn.run_sync(
@@ -394,6 +447,10 @@ def create_sidecar_app(
         await state["saver"].setup()
         state["_saver_cm"] = saver
         state["cache"] = SqliteCache(data_path / "cache.sqlite")
+        # The airgapped corpus (docs/12 M10). Creating the store only makes a SQLite
+        # file — no network until something ingests or searches, and even then the
+        # only call leaves for the local Ollama server.
+        state["corpus"] = make_corpus_store(data_path)
 
         # Seed the single local user and their default project on first launch.
         async with session_factory() as db:
@@ -641,7 +698,12 @@ def create_sidecar_app(
             payload["id"] = sidecar["bus"].append(str(session_id), payload)
             return
 
-        ports = {"event_sink": sink, "cache": sidecar["cache"], "run_config": config}
+        ports = {
+            "event_sink": sink,
+            "cache": sidecar["cache"],
+            "run_config": config,
+            "corpus": sidecar["corpus"],
+        }
         try:
             if approved is None:
                 async with session_factory() as db:
@@ -1009,6 +1071,76 @@ def create_sidecar_app(
             }
             for provider in ("google", "anthropic", "openai")
         }
+
+    # -- corpus (airgapped mode, docs/12 M10) -----------------------------------
+
+    def _corpus() -> CorpusStore:
+        store = app.state.sidecar.get("corpus")
+        if store is None:  # pragma: no cover — lifespan installs it before serving
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="Corpus not ready.")
+        return store
+
+    @api.post("/corpus/documents", status_code=201)
+    async def upload_document(request: Request, filename: str):
+        """Ingest one PDF/MD/TXT into the corpus.
+
+        Raw bytes in the body, name in the query — deliberately not multipart, so the
+        frozen bundle needs no python-multipart. Errors stay fail-closed: an
+        unsupported format or an unreachable embedding server is a 4xx/5xx, never a
+        silent skip.
+        """
+        clean_name = Path(filename).name  # the name is metadata only; never a path
+        if not clean_name:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, detail="filename is required."
+            )
+        body = await request.body()
+        if not body:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The document body is empty."
+            )
+        if len(body) > MAX_DOCUMENT_BYTES:
+            raise HTTPException(
+                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"Document is {len(body)} bytes; the limit is {MAX_DOCUMENT_BYTES}.",
+            )
+        try:
+            result = await _corpus().ingest(clean_name, body)
+        except ValueError as e:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
+        except EmbeddingsUnavailable as e:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
+        return {
+            "doc_id": result.doc_id,
+            "filename": result.filename,
+            "chunks_written": result.chunks_written,
+            "skipped": result.skipped,
+            "reason": result.reason,
+        }
+
+    @api.get("/corpus/documents")
+    async def list_corpus_documents():
+        return {"documents": await _corpus().documents()}
+
+    @api.delete("/corpus/documents/{doc_id}", status_code=204)
+    async def delete_corpus_document(doc_id: str):
+        if not await _corpus().delete(doc_id):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Document not found.")
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @api.get("/corpus/status")
+    async def corpus_status():
+        info = await _corpus().status()
+        info["corpus_only"] = corpus_only_enabled(app.state.data_dir)
+        return info
+
+    @api.put("/corpus/mode")
+    async def set_corpus_mode(payload: dict):
+        """Flip corpus-only mode. Persisted; the next run picks it up via RunConfig."""
+        corpus_only = bool(payload.get("corpus_only"))
+        save_corpus_config(app.state.data_dir, corpus_only=corpus_only)
+        logger.info("sidecar_corpus_mode", corpus_only=corpus_only)
+        return {"corpus_only": corpus_only}
 
     app.include_router(api)
     return app

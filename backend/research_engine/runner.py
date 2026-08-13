@@ -35,8 +35,9 @@ from langgraph.types import Command
 
 from research_engine import events, llm_factory
 from research_engine.cache import reset_cache, set_cache
+from research_engine.corpus import reset_corpus, set_corpus
 from research_engine.graph import build_graph
-from research_engine.ports import Cache, EventSink
+from research_engine.ports import Cache, Corpus, EventSink
 from research_engine.runconfig import RunConfig, reset_run_config, set_run_config
 
 RunStatus = Literal["awaiting_approval", "completed", "failed"]
@@ -72,6 +73,7 @@ def _installed(
     provider_keys: dict[str, str] | None,
     event_sink: EventSink | None,
     cache: Cache | None,
+    corpus: Corpus | None,
 ):
     """Install the run's context, then unwind it in reverse order.
 
@@ -89,6 +91,8 @@ def _installed(
             undo.append((events.reset_emitter, events.set_emitter(event_sink)))
         if cache is not None:
             undo.append((reset_cache, set_cache(cache)))
+        if corpus is not None:
+            undo.append((reset_corpus, set_corpus(corpus)))
         yield
     finally:
         for reset, token in reversed(undo):
@@ -154,9 +158,10 @@ async def _drive(
     provider_keys: dict[str, str] | None,
     event_sink: EventSink | None,
     cache: Cache | None,
+    corpus: Corpus | None,
 ) -> RunOutcome:
     config = {"configurable": {"thread_id": session_id}}
-    with _installed(run_config, provider_keys, event_sink, cache):
+    with _installed(run_config, provider_keys, event_sink, cache, corpus):
         graph = build_graph(checkpointer)
         result = await graph.ainvoke(payload, config)
         # An async checkpointer requires the async state getter; the sync `get_state()`
@@ -176,6 +181,7 @@ async def run(
     provider_keys: dict[str, str] | None = None,
     event_sink: EventSink | None = None,
     cache: Cache | None = None,
+    corpus: Corpus | None = None,
 ) -> RunOutcome:
     """Run a fresh research session up to its first stop (the review gate, or failure)."""
     return await _drive(
@@ -186,6 +192,7 @@ async def run(
         provider_keys=provider_keys,
         event_sink=event_sink,
         cache=cache,
+        corpus=corpus,
     )
 
 
@@ -199,6 +206,7 @@ async def resume(
     provider_keys: dict[str, str] | None = None,
     event_sink: EventSink | None = None,
     cache: Cache | None = None,
+    corpus: Corpus | None = None,
 ) -> RunOutcome:
     """Resume a session paused at the gate. Enters at the checkpoint — never replans."""
     return await _drive(
@@ -209,4 +217,5 @@ async def resume(
         provider_keys=provider_keys,
         event_sink=event_sink,
         cache=cache,
+        corpus=corpus,
     )

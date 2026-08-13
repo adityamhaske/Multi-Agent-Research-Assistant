@@ -151,7 +151,61 @@ class _ScriptedModel(FakeMessagesListChatModel):
     async def _agenerate(self, messages, stop=None, run_manager=None, **kwargs: Any):
         from langchain_core.outputs import ChatGeneration, ChatResult
 
-        return ChatResult(generations=[ChatGeneration(message=self._reply(messages))])
+        message = await self._reply_async(messages)
+        return ChatResult(generations=[ChatGeneration(message=message)])
+
+    async def _reply_async(self, messages: list[BaseMessage]) -> AIMessage:
+        """Async-first reply: only the corpus-mode executor needs an await."""
+        from research_engine.runconfig import get_run_config
+
+        system = "\n".join(str(m.content) for m in messages if getattr(m, "type", "") == "system")
+        if "Research Executor" in system and get_run_config().corpus_mode:
+            return await self._corpus_evidence(messages)
+        return self._reply(messages)
+
+    async def _corpus_evidence(self, messages: list[BaseMessage]) -> AIMessage:
+        """Corpus-mode executor: search, then submit exactly what came back.
+
+        The real executor's contract in one line — and it keeps a fake corpus run
+        HONEST: the submitted evidence carries real `corpus://` locations from the
+        installed store, so the synthesized source list's citations resolve to exact
+        document positions (docs/12 M10 DoD). Fixture URLs would prove nothing here.
+        """
+        from research_engine.retrievers import search
+
+        task_id, query = 1, ""
+        for m in messages:
+            if getattr(m, "type", "") == "human":
+                match = re.match(r"Task (\d+): (.+)", str(m.content).strip())
+                if match:
+                    task_id, query = int(match.group(1)), match.group(2)
+        try:
+            results = await search(query or "corpus", max_results=2)
+        except Exception:  # noqa: BLE001 — fail closed: empty evidence, not fake URLs
+            results = []
+        evidence = [
+            {
+                "task_id": task_id,
+                "source_url": r["url"],
+                "source_title": r["title"],
+                # EvidenceChunk caps snippets at 500 chars (schemas.py).
+                "snippet": r["snippet"][:480],
+                "key_fact": r["snippet"][:80],
+                "retrieved_at": "2026-01-01T00:00:00Z",
+            }
+            for r in results
+        ]
+        return AIMessage(
+            content="",
+            tool_calls=[
+                {
+                    "name": "submit_evidence",
+                    "args": {"evidence": evidence},
+                    "id": "fake-submit-evidence-corpus",
+                }
+            ],
+            usage_metadata={"input_tokens": 100, "output_tokens": 50, "total_tokens": 150},
+        )
 
 
 def fake_model() -> _ScriptedModel:

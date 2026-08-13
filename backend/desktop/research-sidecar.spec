@@ -46,6 +46,10 @@ hiddenimports = [
     "langchain_openai",
     # pydantic[email] used by app.schemas.
     "email_validator",
+    # Airgapped corpus (docs/12 M10) — both imported lazily inside functions,
+    # which PyInstaller's module-level scan does not see.
+    "pypdf",
+    "numpy",
 ]
 
 # OS keychain backends are chosen at runtime by keyring; ship them all and let

@@ -1,10 +1,11 @@
 # 13. Local-First Architecture — the engine extraction
 
-> **Status: partly built.** **§3, §4 and §5 are shipped** — M6 is code complete, so the
+> **Status: largely built.** **§3, §4 and §5 are shipped** — M6 is code complete, so the
 > engine is extracted, host-independent, and runs a full pipeline locally through
-> `research-engine`. §2 is kept as the measurement record of the coupling that removal
-> resolved. **[PLANNED]:** §6 the model layer (M8), §7 the desktop shell (M9), §8 the
-> offline tiers (M9–M10) — each section says which.
+> `research-engine`. **§7 is shipped** (M9: Tauri shell + PyInstaller sidecar, per-launch
+> token, SQLite) and **§8's tier 3 is shipped** (M10: airgapped corpus mode, proven
+> zero-egress). §2 is kept as the measurement record of the coupling that removal
+> resolved. **[PLANNED]:** §6's model layer is delivered incrementally with M8.
 > Design contract for M6–M10 in [12_Launch_Plan.md](../product/12_Launch_Plan.md); per
 > [00_INDEX.md](../00_INDEX.md), code that ships must match this doc or this doc changes in
 > the same PR.
@@ -340,9 +341,24 @@ unverified chip — works **better** on a closed corpus than on the open web, be
 snippet provenance is exact.
 
 Implementation is a retrieval connector, not a new pipeline: ingest (PDF/MD/TXT) →
-chunk → local embeddings (`sentence-transformers`, bundled) → SQLite vector store →
-a `search`-shaped adapter behind the same interface `retrievers.search()` exposes. The
-graph does not change.
+verbatim-span chunking → embeddings → SQLite vector store → a `Corpus` port
+(`search(query) -> hits`, `read(url) -> excerpt`) installed behind `retrievers.search()`
+and `tools.read_webpage` via a per-run `RunConfig.corpus_mode` flag. The graph does not
+change: corpus hits carry `corpus://<doc-id>#chars=<start>-<end>` URLs, and the
+synthesizer's existing source-assembly turns them into ordinary `[n]` citations whose
+snippets resolve back to the exact character range (and page, for PDFs) in the source
+document. In corpus-only mode the web is refused outright — fail closed, not fall back.
+
+**Embeddings go through the existing `Embeddings` port, not bundled
+`sentence-transformers`.** The earlier plan to bundle sentence-transformers was dropped:
+its torch dependency alone would exceed the 150–300 MB bundle budget (§7), and tier 3
+already requires Ollama on the machine for LLM inference. `LocalEmbeddings` (engine-local,
+keyless, OpenAI-compatible wire format, defaults to `nomic-embed-text`) talks to the same
+Ollama instance, so the frozen sidecar adds only `pypdf` + `numpy`. A corpus indexed on
+desktop reads as "same model" on the hosted side because both use the `ollama:<model>`
+embedding-id scheme. Ingestion runs in a background thread and never blocks the event
+loop; the 500-document ingest DoD is covered by `tests/test_corpus_store.py`, and zero
+network egress is proven by `tests/test_corpus_egress.py` (socket + DNS guard).
 
 ## 9. What explicitly does not change
 

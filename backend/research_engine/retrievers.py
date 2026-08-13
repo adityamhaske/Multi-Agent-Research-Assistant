@@ -6,6 +6,11 @@ the keyless last resort (endemic rate-limiting — never the sole retriever).
 Results are normalized to {title, url, snippet} and cached in Redis (24h).
 
 In LLM_MODE=fake a deterministic fixture retriever is used so tests need no network.
+
+In corpus mode (docs/12 M10) the chain is replaced outright: the installed Corpus
+port answers every search, and nothing else runs — that exclusivity IS the airgap.
+The delegation sits before the fake-mode shortcut so a corpus is honoured even under
+scripted models (the egress test relies on that).
 """
 
 from __future__ import annotations
@@ -17,6 +22,7 @@ import httpx
 import structlog
 
 from research_engine.cache import get_cache
+from research_engine.corpus import get_corpus
 from research_engine.runconfig import get_run_config
 
 logger = structlog.get_logger()
@@ -83,6 +89,12 @@ _CHAIN = (("tavily", _tavily), ("brave", _brave), ("duckduckgo", _duckduckgo))
 
 async def search(query: str, max_results: int = 5) -> list[SearchResult]:
     """Run the retriever chain with Redis caching. Raises on total exhaustion."""
+    if get_run_config().corpus_mode:
+        # Corpus-only: the port answers exclusively. NoCorpus raises, and the raise is
+        # deliberate — an airgapped run with no corpus must fail visibly, not fall
+        # through to the web chain (docs/12 M10 DoD: no network calls at all).
+        return await get_corpus().search(query, max_results)
+
     if get_run_config().llm_mode == "fake":
         from research_engine.fakes import fake_search
 

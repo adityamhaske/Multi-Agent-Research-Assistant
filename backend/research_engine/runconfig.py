@@ -67,6 +67,12 @@ class RunConfig:
     tavily_api_key: str = ""
     brave_api_key: str = ""
 
+    # Airgapped corpus mode (docs/12 M10): evidence comes ONLY from the installed
+    # Corpus port. `retrievers.search` delegates to it exclusively and `read_webpage`
+    # refuses every non-corpus URL — no network call of any kind. A run with this set
+    # and no corpus installed fails closed rather than silently degrading to the web.
+    corpus_mode: bool = False
+
     # Where a local Ollama server listens (docs/13 §6). Overridable so the desktop build
     # can point at a remote box on the LAN instead of the machine it runs on.
     ollama_base_url: str = "http://localhost:11434/v1"

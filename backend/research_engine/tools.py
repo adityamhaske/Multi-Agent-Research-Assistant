@@ -4,6 +4,10 @@ Agent tools — each with one responsibility (docs/architecture/04_Agent_Design.
 web_search   → retriever chain (Tavily → Brave → DuckDuckGo), Redis-cached
 read_webpage → SSRF-guarded fetch + main-text extraction
 calculate    → AST-restricted arithmetic
+
+In corpus mode (docs/12 M10) the fetch half of that contract changes: `read_webpage`
+resolves `corpus://` locations from the installed corpus and refuses every other URL,
+so the executor's tool surface makes zero network calls.
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ import httpx
 from bs4 import BeautifulSoup
 from langchain_core.tools import tool
 
+from research_engine.corpus import get_corpus
 from research_engine.net_guard import SSRFBlocked, validate_url
 from research_engine.retrievers import search
 from research_engine.runconfig import get_run_config
@@ -44,7 +49,27 @@ async def read_webpage(url: str) -> dict:
 
     Use after web_search to read a promising page. SSRF-guarded: internal,
     loopback, and cloud-metadata addresses are refused. Not for PDFs/videos.
+    In corpus-only mode, only corpus:// locations can be read.
     """
+    if url.startswith("corpus://"):
+        # A corpus location is a file offset, not a fetch. Resolved before the
+        # fake-mode shortcut so scripted runs exercise the real store too.
+        try:
+            return await get_corpus().read(url)
+        except Exception as e:  # noqa: BLE001 — surface a usable message to the agent
+            return {"url": url, "title": "", "text": "", "error": str(e)}
+
+    if get_run_config().corpus_mode:
+        # Fail closed: an airgapped run must not fetch anything, however plausible the
+        # URL. Returning an error dict (not raising) keeps the executor able to finish
+        # its task with corpus evidence instead of looping on a dead tool.
+        return {
+            "url": url,
+            "title": "",
+            "text": "",
+            "error": "blocked: corpus-only mode — network access is disabled",
+        }
+
     if get_run_config().llm_mode == "fake":
         from research_engine.fakes import fake_read_webpage
 

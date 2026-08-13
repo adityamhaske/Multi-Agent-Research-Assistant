@@ -77,3 +77,23 @@ class Embeddings(Protocol):
     def dimensions(self) -> int: ...
 
     async def embed(self, texts: list[str]) -> list[list[float]]: ...
+
+
+@runtime_checkable
+class Corpus(Protocol):
+    """A closed document corpus as a search source (docs/12 M10, docs/13 §8).
+
+    The airgapped tier's retrieval connector. `search` returns exactly the shape
+    `retrievers.search` returns — `{title, url, snippet}` — so the executor needs no
+    branch and the graph does not change; `read` resolves one of those URLs back to
+    the text at that exact document location, replacing `read_webpage`'s fetch.
+
+    Installed via `corpus.set_corpus` and selected per-run by `RunConfig.corpus_mode`:
+    when that flag is set, `retrievers.search` delegates here exclusively and
+    `read_webpage` refuses every non-corpus URL — no network call of any kind
+    (docs/12 M10 DoD).
+    """
+
+    async def search(self, query: str, max_results: int) -> list[dict]: ...
+
+    async def read(self, url: str) -> dict: ...
