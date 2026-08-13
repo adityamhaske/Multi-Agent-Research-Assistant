@@ -22,8 +22,20 @@ from research_engine import graph as graph_mod
 from research_engine.schemas import PlannerOutput
 
 SOURCES = [
-    {"index": 1, "url": "https://a", "title": "A", "snippet": "Solar grew 50%", "snippets": ["Solar grew 50%"]},
-    {"index": 2, "url": "https://b", "title": "B", "snippet": "Wind was flat", "snippets": ["Wind was flat"]},
+    {
+        "index": 1,
+        "url": "https://a",
+        "title": "A",
+        "snippet": "Solar grew 50%",
+        "snippets": ["Solar grew 50%"],
+    },
+    {
+        "index": 2,
+        "url": "https://b",
+        "title": "B",
+        "snippet": "Wind was flat",
+        "snippets": ["Wind was flat"],
+    },
 ]
 
 DRAFT = (
@@ -86,12 +98,20 @@ async def test_planner_reports_provider_errors_not_parse_failures(monkeypatch):
     """A 429 from the provider must read as a provider error, not 'invalid task list'."""
 
     async def raising(role, messages, schema):
-        raise RuntimeError("429 RESOURCE_EXHAUSTED. Your project has exceeded its monthly spending cap.")
+        raise RuntimeError(
+            "429 RESOURCE_EXHAUSTED. Your project has exceeded its monthly spending cap."
+        )
 
     monkeypatch.setattr(graph_mod, "_structured", raising)
 
     out = await graph_mod.planner_node(
-        {"session_id": "s", "original_query": "q", "cost_usd": 0.0, "tokens_input": 0, "tokens_output": 0}
+        {
+            "session_id": "s",
+            "original_query": "q",
+            "cost_usd": 0.0,
+            "tokens_input": 0,
+            "tokens_output": 0,
+        }
     )
     assert out["error"].startswith("planner: provider error")
     assert "spending cap" in out["error"]
@@ -105,12 +125,20 @@ async def test_planner_does_not_retry_a_dead_quota(monkeypatch):
     async def raising(role, messages, schema):
         nonlocal calls
         calls += 1
-        raise RuntimeError("429 RESOURCE_EXHAUSTED. Your project has exceeded its monthly spending cap.")
+        raise RuntimeError(
+            "429 RESOURCE_EXHAUSTED. Your project has exceeded its monthly spending cap."
+        )
 
     monkeypatch.setattr(graph_mod, "_structured", raising)
 
     await graph_mod.planner_node(
-        {"session_id": "s", "original_query": "q", "cost_usd": 0.0, "tokens_input": 0, "tokens_output": 0}
+        {
+            "session_id": "s",
+            "original_query": "q",
+            "cost_usd": 0.0,
+            "tokens_input": 0,
+            "tokens_output": 0,
+        }
     )
     assert calls == 1
 
@@ -128,7 +156,13 @@ async def test_planner_still_retries_a_plain_parse_failure(monkeypatch):
     monkeypatch.setattr(graph_mod, "_structured", none_twice)
 
     out = await graph_mod.planner_node(
-        {"session_id": "s", "original_query": "q", "cost_usd": 0.0, "tokens_input": 0, "tokens_output": 0}
+        {
+            "session_id": "s",
+            "original_query": "q",
+            "cost_usd": 0.0,
+            "tokens_input": 0,
+            "tokens_output": 0,
+        }
     )
     assert calls == 2
     assert out["error"] == "planner: could not produce a valid task list"
@@ -152,8 +186,13 @@ async def test_number_absent_from_snippets_is_stripped_without_asking_the_model(
         "## Sources\n[1] https://a\n"
     )
     sources = [
-        {"index": 1, "url": "https://a", "title": "A",
-         "snippet": "Solar grew 50%", "snippets": ["Solar grew 50%"]},
+        {
+            "index": 1,
+            "url": "https://a",
+            "title": "A",
+            "snippet": "Solar grew 50%",
+            "snippets": ["Solar grew 50%"],
+        },
     ]
     result, *_ = await graph_mod._verify_citation_fidelity("s", draft, sources)
     assert "Solar grew 50% [1]." in result
@@ -184,15 +223,23 @@ async def test_deictic_cited_sentence_is_stripped_deterministically(monkeypatch)
         "This is detailed in Article 55 of the AI Act [1].\n## Sources\n[1] https://a\n"
     )
     sources = [
-        {"index": 1, "url": "https://a", "title": "A",
-         "snippet": "Providers must assess risks and report serious incidents (Article 55 AI Act).",
-         "snippets": ["Providers must assess risks and report serious incidents (Article 55 AI Act)."]},
+        {
+            "index": 1,
+            "url": "https://a",
+            "title": "A",
+            "snippet": "Providers must assess risks and report serious incidents (Article 55 AI Act).",
+            "snippets": [
+                "Providers must assess risks and report serious incidents (Article 55 AI Act)."
+            ],
+        },
     ]
     result, *_ = await graph_mod._verify_citation_fidelity("s", draft, sources)
     body = result.split("## Sources")[0]
     # The note ends with a terminator so the judge's sentence split never merges it
     # into the NEXT sentence (measured corrupting a supported claim in run #3).
-    assert "This is detailed in Article 55 of the AI Act *(citation could not be verified)*." in body
+    assert (
+        "This is detailed in Article 55 of the AI Act *(citation could not be verified)*." in body
+    )
     assert "document serious incidents under the AI Act [1]." in body
 
 
@@ -211,12 +258,20 @@ async def test_bold_labelled_sentence_is_stripped_deterministically(monkeypatch)
         "Solar grew 50% [1].\n## Sources\n[1] https://a\n"
     )
     sources = [
-        {"index": 1, "url": "https://a", "title": "A",
-         "snippet": "Solar grew 50%", "snippets": ["Solar grew 50%"]},
+        {
+            "index": 1,
+            "url": "https://a",
+            "title": "A",
+            "snippet": "Solar grew 50%",
+            "snippets": ["Solar grew 50%"],
+        },
     ]
     result, *_ = await graph_mod._verify_citation_fidelity("s", draft, sources)
     body = result.split("## Sources")[0]
-    assert "**Cost**: Prices fell sharply across the sector *(citation could not be verified)*." in body
+    assert (
+        "**Cost**: Prices fell sharply across the sector *(citation could not be verified)*."
+        in body
+    )
     assert "Solar grew 50% [1]." in body
 
 

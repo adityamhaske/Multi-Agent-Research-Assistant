@@ -577,7 +577,7 @@ def _cited_claims(draft: str) -> list[str]:
 
 
 async def _verifier_verdicts(
-    claim_evidence: list[tuple[str, str]]
+    claim_evidence: list[tuple[str, str]],
 ) -> tuple[list[bool], float, int, int]:
     """Ask the critic model whether each claim is supported by its evidence.
     Returns (verdicts, cost, tokens_in, tokens_out).
