@@ -119,6 +119,12 @@ class _ScriptedModel(FakeMessagesListChatModel):
                 "## Limitations\nFixture data only.\n\n"
                 "## Sources\n[1] https://example.com/fixture/1\n[2] https://example.com/fixture/2\n"
             )
+        elif "verify whether claims are supported" in system:
+            # The citation-fidelity verifier (graph._verify_citation_fidelity) asks for one
+            # YES/NO line per claim. Fixture claims all resolve, so rule YES for as many
+            # claims as the request carries — keeps fake-mode drafts byte-identical.
+            n_claims = len(re.findall(r"Claim \d+:", human)) or 1
+            content = "\n".join(f"Claim {i}: YES" for i in range(1, n_claims + 1))
         elif "Research Synthesizer" in system:
             content = (
                 "# Fixture Report\n\n## Executive Summary\nDeterministic summary [1].\n\n"

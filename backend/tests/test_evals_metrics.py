@@ -38,9 +38,29 @@ def test_resolution_rate_is_none_without_citations():
     assert metrics.citation_stats("No citations here.", FAKE_SOURCES)["resolution_rate"] is None
 
 
-def test_uncited_claim_count_counts_only_the_limitations_line():
-    # Every line carries a citation except "Fixture data only." (Sources section excluded).
-    assert metrics.uncited_claim_count(FAKE_REPORT) == 1
+def test_uncited_claim_count_excludes_limitations_and_sources():
+    # Every line carries a citation; "Fixture data only." sits in Limitations, which is
+    # hedging rather than a factual claim (metrics v3, D5) — so nothing is uncited.
+    assert metrics.uncited_claim_count(FAKE_REPORT) == 0
+
+
+def test_limitations_lines_are_not_claims_even_when_cited():
+    """The citation-support judge measures factual claims. A cited sentence in
+    Limitations — 'the evidence does not cover X [1]' — is exactly the honesty the
+    synthesizer is instructed to write, and must not be judged against snippets."""
+    text = (
+        "A real cited claim about the topic [1].\n\n"
+        "## Limitations\nThe snippets do not cover the follow-up question, as outlined in [1].\n\n"
+        "## Sources\n[1] https://x\n"
+    )
+    claims = metrics.claim_lines(text)
+    assert claims == ["A real cited claim about the topic [1]."]
+    # A later section after Limitations is claims again (the skip is scoped to the section).
+    text2 = (
+        "## Limitations\nHedging sentence here.\n\n## Detailed Analysis\n"
+        "A real cited claim about the topic [1].\n"
+    )
+    assert metrics.claim_lines(text2) == ["A real cited claim about the topic [1]."]
 
 
 def test_uncited_claim_ignores_headings_and_short_lines():
@@ -58,6 +78,6 @@ def test_sources_after_heading_are_not_claims():
 def test_report_metrics_shape():
     m = metrics.report_metrics(FAKE_REPORT, FAKE_SOURCES)
     assert m["source_count"] == 2
-    assert m["uncited_claim_count"] == 1
+    assert m["uncited_claim_count"] == 0
     assert m["resolution_rate"] == 1.0
     assert m["word_count"] > 0

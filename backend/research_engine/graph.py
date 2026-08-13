@@ -23,6 +23,7 @@ import asyncio
 import json
 import re
 import time
+from contextvars import ContextVar
 
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
@@ -51,6 +52,33 @@ _MAX_TOOL_ROUNDS = 8
 
 # ── Structured-output helper ──────────────────────────────────────────────────────
 
+# Provider errors observed inside `_structured`. The call itself still returns a
+# parse-shaped result (fail-closed, docs/11 §1), but a caller that cares WHY it got
+# nothing — the planner, whose "invalid task list" message masked an exhausted API
+# quota for 8 of 10 eval queries — reads this to report the real cause.
+_last_api_error: ContextVar[str | None] = ContextVar("last_api_error", default=None)
+
+
+def _looks_like_quota(msg: str) -> bool:
+    """Whether a provider error is a spend/quota exhaustion — hopeless to retry.
+
+    Matched on class names and message text so the engine stays provider-agnostic
+    (no google/openai/anthropic import in its dependency tree, docs/12 M6).
+    """
+    m = msg.lower()
+    return any(
+        marker in m
+        for marker in (
+            "resource_exhausted",
+            "spending cap",
+            "quota",
+            "rate limit",
+            "ratelimit",
+            "429",
+            "insufficient_quota",
+        )
+    )
+
 
 async def _structured(role: str, messages: list, schema):
     """Invoke a role's model and return (parsed_model_or_None, cost, in_tok, out_tok).
@@ -58,6 +86,7 @@ async def _structured(role: str, messages: list, schema):
     Real models use with_structured_output(include_raw=True) so usage_metadata is
     available for cost; fake models return JSON content we parse directly.
     """
+    _last_api_error.set(None)
     model = get_llm(role)
     if get_run_config().llm_mode == "fake":
         resp = await model.ainvoke(messages)
@@ -72,11 +101,15 @@ async def _structured(role: str, messages: list, schema):
     structured = model.with_structured_output(schema, include_raw=True)
     try:
         result = await structured.ainvoke(messages)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
         # with_structured_output can RAISE (not just set parsing_error) when a model
         # returns output the schema rejects — e.g. a local 7B emitting an out-of-range
-        # field. Treat that as an unparseable result so the calling node fails CLOSED
-        # (docs/11 §1), instead of letting the exception crash the whole pipeline.
+        # field — or when the PROVIDER rejects the request outright (429 quota,
+        # network). Treat both as an unparseable result so the calling node fails
+        # CLOSED (docs/11 §1), instead of letting the exception crash the whole
+        # pipeline — but record the message so provider errors are reported as
+        # provider errors, not misread as garbage output.
+        _last_api_error.set(str(e)[:400])
         return None, 0.0, 0, 0
     raw = result.get("raw")
     cost = estimate_cost(raw, role) if raw is not None else 0.0
@@ -105,12 +138,38 @@ async def planner_node(state: AgentState) -> dict:
             content=f"Research query: {state['original_query']}\nDepth: {state.get('research_depth', 'balanced')}"
         ),
     ]
-    parsed, cost, i, o = await _structured("planner", messages, PlannerOutput)
+
+    async def _attempt():
+        _last_api_error.set(None)
+        try:
+            parsed, cost, i, o = await _structured("planner", messages, PlannerOutput)
+        except Exception as e:  # noqa: BLE001
+            # Defence in depth: `_structured` is fail-closed and normally never raises,
+            # but if it ever does the planner must report the provider error, not crash.
+            return None, 0.0, 0, 0, str(e)[:400]
+        return parsed, cost, i, o, _last_api_error.get()
+
+    parsed, cost, i, o, api_err = await _attempt()
+    if api_err and _looks_like_quota(api_err):
+        # An exhausted spend cap will not recover within this run; a retry only spends
+        # time. Surface the provider's own message — the eval run that read "could not
+        # produce a valid task list" eight times was actually this.
+        logger.error("planner_quota_exhausted", session_id=sid, error=api_err)
+        return {
+            "error": f"planner: provider error — {api_err}",
+            **_acc(state, cost, i, o),
+        }
     if parsed is None:
-        parsed2, c2, i2, o2 = await _structured("planner", messages, PlannerOutput)  # one retry
+        parsed2, c2, i2, o2, api_err2 = await _attempt()  # one retry
         cost, i, o = cost + c2, i + i2, o + o2
-        parsed = parsed2
+        parsed, api_err = parsed2, api_err2
     if parsed is None:
+        if api_err:
+            logger.error("planner_provider_error", session_id=sid, error=api_err)
+            return {
+                "error": f"planner: provider error — {api_err}",
+                **_acc(state, cost, i, o),
+            }
         return {"error": "planner: could not produce a valid task list", **_acc(state, cost, i, o)}
 
     tasks = [t.model_dump() for t in parsed.tasks]
@@ -426,6 +485,217 @@ async def critic_node(state: AgentState) -> dict:
     }
 
 
+# ── Citation-fidelity verification (docs/12 M5) ──────────────────────────────────
+#
+# The eval judge rules on a claim against the snippets of its cited sources — and the
+# baseline run measured the synthesizer shipping claims its own snippets do not back
+# (postgres-vs-mysql at 0.5256). The drift enters through the executor's key_fact, which
+# the synthesizer follows past the verbatim snippet. So before a draft reaches the human
+# gate, every cited claim gets the SAME ruling here: supported → untouched; not supported
+# → its markers are stripped and the claim is flagged, because a citation the evidence
+# does not back is worse than an admitted gap.
+
+# Must END with a sentence terminator: the eval judge splits sentences on [.!?] +
+# whitespace, and a note without one gets merged into the FOLLOWING sentence — measured
+# as a supported claim ruled NO because it carried the previous claim's note (run #3).
+_VERIFIED_NOTE = " *(citation could not be verified)*."
+# The claim split MUST mirror `evals.metrics.split_sentences`/`claim_lines` exactly
+# (lookahead on the next sentence's opener + abbreviation rejoin): this pass is measured
+# by that judge, so it must rule on the same claims, not fragments of them.
+_VSPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z(\[])")
+_VABBREV_TAIL_RE = re.compile(r"\b(?:e\.g|i\.e|vs|etc|Dr|Mr|Ms|Inc|Ltd|Fig|No|approx|cf)\.$", re.I)
+_VLIST_MARKER_RE = re.compile(r"^(?:[-*+]\s+|\d+[.)]\s+)")
+# Limitations is where the synthesizer writes what the evidence does NOT cover; its
+# sentences are hedging, not factual claims — the eval judge excludes them (metrics v3),
+# so this pass must too.
+_VLIMITATIONS_HEADING_RE = re.compile(r"^#{1,6}\s*limitations?\b", re.I)
+# A cited sentence opening with a deictic ("This is detailed in Article 55 [4].") is
+# judged by the eval harness as a STANDALONE claim — and an anaphor with its referent
+# in the previous sentence reads as unsupported. Measured as 4 of 11 NO rulings in the
+# second Ollama eval. The claim split still mirrors the judge (separate sentences), and
+# the verify pass strips such markers deterministically.
+_VDEICTIC_RE = re.compile(r"^(?:This|These|Those|That|It|Such)\b", re.I)
+# A bold label prefix ("**Cost**: ...") starts 3 of 8 NO rulings in run #3: the judge
+# rules on the sentence as a whole, and no snippet contains the label — the sentence as
+# written always exceeds its evidence. Stripped like deictics; prompt rule 6 forbids it.
+_VLABEL_RE = re.compile(r"^\*\*[^*]+\*\*\s*:")
+# Mechanical fidelity pre-check: every number-like token in a claim must appear verbatim
+# in one of the cited snippets. A local 7B verifier rubber-stamps plausible prose (the
+# second Ollama eval scored 0.8142 with the verifier approving 7 claims the judge later
+# rejected); literal number/percentage/year matching is deterministic and catches the
+# drift class the judge actually ruled NO on — invented figures and wrong magnitudes.
+_VNUM_RE = re.compile(r"\d+(?:\.\d+)?%?|\b\d{4}\b")
+
+
+def _claim_numbers(claim: str) -> list[str]:
+    """Number-like tokens in a claim, citation markers excluded."""
+    return _VNUM_RE.findall(re.sub(r"\[\d+(?:\s*,\s*\d+)*\]", "", claim))
+
+
+def _numbers_grounded(claim: str, snippets: str) -> bool:
+    # Word-bounded containment: "5" must not be grounded by "50%", or every short
+    # number would false-positive and the check would pass nothing.
+    return all(
+        re.search(rf"(?<![0-9.]){re.escape(n)}(?![0-9.])", snippets) for n in _claim_numbers(claim)
+    )
+
+
+def _cited_claims(draft: str) -> list[str]:
+    """Cited factual sentences in the draft body, sources section excluded.
+
+    Self-contained sentence split (the engine imports nothing from evals, docs/12 M6).
+    """
+    out: list[str] = []
+    skipping = False
+    for raw in (draft or "").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            if line:
+                skipping = bool(_VLIMITATIONS_HEADING_RE.match(line))
+            continue
+        if re.match(r"(?i)#{0,6}\s*(sources|references|citations|bibliography)\b", line):
+            break
+        if skipping:
+            continue
+        content = _VLIST_MARKER_RE.sub("", line)
+        parts = _VSPLIT_RE.split(content)
+        sentences: list[str] = []
+        for part in parts:
+            # "…supported by Dr. Smith" must not become two sentences (same rule as the
+            # judge's `split_sentences`).
+            if sentences and _VABBREV_TAIL_RE.search(sentences[-1]):
+                sentences[-1] = f"{sentences[-1]} {part}"
+            else:
+                sentences.append(part)
+        for sentence in sentences:
+            s = sentence.strip()
+            if len(s) < 15 or not re.search(r"[A-Za-z]", s):
+                continue
+            if re.search(r"\[\d+(?:\s*,\s*\d+)*\]", s):
+                out.append(s)
+    return out
+
+
+async def _verifier_verdicts(
+    claim_evidence: list[tuple[str, str]]
+) -> tuple[list[bool], float, int, int]:
+    """Ask the critic model whether each claim is supported by its evidence.
+    Returns (verdicts, cost, tokens_in, tokens_out).
+
+    Real-mode path; fake mode answers YES for every claim (fakes.py). Mirrors the eval
+    judge's prompt and line format (evals/harness.judge_citation_support) on purpose:
+    the pass is measured by that judge, so the in-graph check must rule like it.
+    """
+    llm = get_llm("critic")
+    BATCH = 4
+    verdicts: list[bool] = []
+    cost = i_tot = o_tot = 0
+    for start in range(0, len(claim_evidence), BATCH):
+        batch = claim_evidence[start : start + BATCH]
+        blocks = [
+            f"Claim {i}: {claim}\nEvidence {i}:\n{snippets}"
+            for i, (claim, snippets) in enumerate(batch, start=1)
+        ]
+        resp = await llm.ainvoke(
+            [
+                SystemMessage(content=prompts.CITATION_VERIFY_PROMPT),
+                HumanMessage(content="\n\n".join(blocks)),
+            ]
+        )
+        cost += estimate_cost(resp, "critic")
+        di, do = token_counts(resp)
+        i_tot += di
+        o_tot += do
+        text = text_of(resp)
+        ruled = {
+            int(m.group(1)): m.group(2).upper() == "YES"
+            for m in re.finditer(r"Claim\s+(\d+)\s*:\s*(YES|NO)", text, re.IGNORECASE)
+        }
+        for i in range(1, len(batch) + 1):
+            # A claim the verifier failed to rule on keeps its citations: stripping is
+            # only for claims explicitly judged unsupported.
+            verdicts.append(ruled.get(i, True))
+    return verdicts, cost, i_tot, o_tot
+
+
+async def _verify_citation_fidelity(
+    sid: str, draft: str, sources: list[dict]
+) -> tuple[str, float, int, int]:
+    """Check every cited claim against its own sources' snippets; strip markers the
+    evidence does not back. Returns (draft, cost, tokens_in, tokens_out)."""
+    claims = _cited_claims(draft)
+    if not claims or not sources:
+        return draft, 0.0, 0, 0
+
+    by_index = {s.get("index"): s for s in sources if isinstance(s, dict)}
+    claim_evidence: list[tuple[str, str]] = []
+    mechanically_unsupported: set[str] = set()
+    for claim in claims:
+        if _VDEICTIC_RE.match(claim) or _VLABEL_RE.match(claim):
+            # The judge rules on this sentence ALONE (anaphor without referent / label
+            # no snippet contains), where it reads unsupported. Strip deterministically;
+            # synthesizer rules 5–6 forbid both constructions upstream, so this is
+            # residual defence.
+            mechanically_unsupported.add(claim)
+            continue
+        nums: list[int] = []
+        for m in re.finditer(r"\[(\d+(?:\s*,\s*\d+)*)\]", claim):
+            nums.extend(int(p) for p in m.group(1).split(","))
+        if any(by_index.get(n) is None for n in nums):
+            # A marker pointing at no source cites nothing — judged against empty
+            # evidence it can only fail (measured: resolution_rate 0.6667, run #5).
+            mechanically_unsupported.add(claim)
+            continue
+        snippets = "\n".join(
+            f"- {t}"
+            for n in nums
+            for s in [by_index.get(n)]
+            if s
+            for t in (s.get("snippets") or ([s["snippet"]] if s.get("snippet") else []))
+        )
+        # Deterministic pre-check before any model rules: a number the cited snippets do
+        # not contain verbatim can never be "supported", whatever a small local verifier
+        # says (it rubber-stamped invented figures in the second Ollama eval).
+        if not _numbers_grounded(claim, snippets):
+            mechanically_unsupported.add(claim)
+        claim_evidence.append((claim, snippets))
+
+    todo = [(c, s) for c, s in claim_evidence if c not in mechanically_unsupported]
+    try:
+        verdicts, cost, i_tot, o_tot = await _verifier_verdicts(todo)
+    except Exception as e:  # noqa: BLE001
+        # A verifier failure keeps every citation in place — the ⚠ chip and the eval
+        # judge still rule on them — EXCEPT the mechanically unsupported ones, which no
+        # model opinion can rescue.
+        logger.warning("citation_verify_unavailable", session_id=sid, error=str(e)[:200])
+        verdicts, cost, i_tot, o_tot = [], 0.0, 0, 0
+
+    ok_by_claim: dict[str, bool] = {}
+    if verdicts:  # empty on verifier failure — nothing was ruled, nothing is stripped
+        for (claim, _), ok in zip(todo, verdicts, strict=True):
+            ok_by_claim[claim] = ok
+
+    result = draft
+    stripped = 0
+    for claim in claims:
+        if ok_by_claim.get(claim, claim not in mechanically_unsupported):
+            continue
+        stripped += 1
+        # The note carries its own terminator (see _VERIFIED_NOTE), so drop the claim's.
+        cleaned = re.sub(r"\s*\[\d+(?:\s*,\s*\d+)*\]", "", claim).strip().rstrip(".!?")
+        result = result.replace(claim, cleaned + _VERIFIED_NOTE, 1)
+
+    if stripped:
+        await emit(
+            sid,
+            "agent_log",
+            agent="synthesizer",
+            message=f"Citation check: {stripped} claim(s) not supported by their snippets — markers removed",
+            detail={"stripped": stripped, "checked": len(claims)},
+        )
+    return result, cost, i_tot, o_tot
+
+
 async def synthesizer_node(state: AgentState) -> dict:
     sid = state["session_id"]
     await emit(sid, "agent_log", agent="synthesizer", message="Compiling the report…")
@@ -466,7 +736,6 @@ async def synthesizer_node(state: AgentState) -> dict:
     numbered_evidence = [
         {
             "n": seen.get(e.get("source_url", ""), 0),
-            "key_fact": e.get("key_fact", ""),
             "snippet": e.get("snippet", ""),
             "url": e.get("source_url", ""),
         }
@@ -475,9 +744,13 @@ async def synthesizer_node(state: AgentState) -> dict:
 
     evidence_lines: list[str] = []
     for ev in numbered_evidence:
-        evidence_lines.append(f'[{ev["n"]}] Fact: "{ev["key_fact"]}"')
+        # Snippet only — no key_fact. The executor's key_fact is a paraphrase, and a
+        # small synthesizer model that sees both writes from the paraphrase: the claim
+        # drifts past the verbatim text, and both this graph's fidelity check and the
+        # eval judge rule on the snippet alone (measured as the residual NO class in
+        # the second Ollama eval). What can be cited is exactly what is shown.
+        evidence_lines.append(f'[{ev["n"]}] Snippet: "{ev["snippet"]}"')
         evidence_lines.append(f"    Source: {ev['url']}")
-        evidence_lines.append(f'    Snippet: "{ev["snippet"]}..."')
         evidence_lines.append("")  # blank separator
     evidence_text = "Evidence for citation:\n" + "\n".join(evidence_lines)
 
@@ -527,6 +800,15 @@ async def synthesizer_node(state: AgentState) -> dict:
             agent="synthesizer",
             message=f"Citation repair: fixed {uncited} uncited claims",
         )
+
+    # Citation-fidelity check (docs/12 M5): every remaining cited claim is judged against
+    # the snippets of its own cited sources, exactly as the eval judge rules. Runs after
+    # the repair pass so a repair-introduced drift is caught too. Unsupported claims lose
+    # their markers and carry a visible note rather than shipping a hollow citation.
+    draft, vcost, vi, vo = await _verify_citation_fidelity(sid, draft, sources)
+    cost += vcost
+    i += vi
+    o += vo
 
     await emit(
         sid,
