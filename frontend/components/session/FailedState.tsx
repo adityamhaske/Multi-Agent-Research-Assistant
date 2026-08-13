@@ -19,6 +19,8 @@ export function FailedState({ session }: { session: SessionDetail }) {
       const res = await start.mutateAsync({
         query: session.prompt,
         depth: (session.research_depth as ResearchDepth) ?? "balanced",
+        project_id: session.project_id ?? null,
+        corpus_mode: session.corpus_mode,
       });
       router.push(sessionHref(res.session_id));
     } catch (err) {

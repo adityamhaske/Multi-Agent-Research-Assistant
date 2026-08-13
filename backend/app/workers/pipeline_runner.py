@@ -130,6 +130,29 @@ async def _execute(
 
                 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
+                if session.corpus_mode:
+                    from research_engine.corpus import CorpusStore
+                    from pathlib import Path
+
+                    embedder = await adapters.embeddings_for(ports["provider_keys"])
+                    # Egress guard: require local embedder for airgapped mode
+                    if not (embedder.model_id.startswith("ollama:") or embedder.model_id.startswith("local:")):
+                        session.status = SessionStatus.FAILED
+                        session.error_message = f"Corpus mode requires a local embedder (Ollama), but got {embedder.model_id}."
+                        await db.commit()
+                        await sink(session_id, events.make_event("FAILED", data={"reason": session.error_message}))
+                        return
+
+                    db_path = Path(settings.corpus_dir) / f"corpus_{session.project_id}.sqlite"
+                    if not db_path.exists():
+                        session.status = SessionStatus.FAILED
+                        session.error_message = f"Corpus database not found for project {session.project_id}. Ingest documents first."
+                        await db.commit()
+                        await sink(session_id, events.make_event("FAILED", data={"reason": session.error_message}))
+                        return
+                    
+                    ports["corpus"] = CorpusStore(db_path, embedder)
+
                 async with AsyncPostgresSaver.from_conn_string(_checkpointer_dsn()) as saver:
                     await saver.setup()
                     if resume is None:

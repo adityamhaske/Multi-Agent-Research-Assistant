@@ -74,6 +74,7 @@ class Settings(BaseSettings):
     # ── Data stores ────────────────────────────────────────────────────────────
     database_url: str
     redis_url: str = "redis://localhost:6379/0"
+    corpus_dir: str = "data/corpus"
 
     # ── Auth ───────────────────────────────────────────────────────────────────
     jwt_secret_key: str

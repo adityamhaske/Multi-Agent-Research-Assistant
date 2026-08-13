@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError, apiFetch } from "@/lib/api";
+import { apiBase, authHeaders, isDesktop } from "@/lib/desktop";
 import type {
   ApiKeyProvider,
   ChatMessage,
@@ -284,9 +285,9 @@ export function useStartResearch() {
       query: string;
       depth: ResearchDepth;
       /** Which project the research belongs to. Omit to use the default project. */
-      project_id?: string | null;
-      /** Per-run model choice. Omit to use saved settings (docs/12 M8). */
-      model_routing?: ModelRouting | null;
+      project_id: string | null;
+      model_routing?: Record<string, string> | null;
+      corpus_mode?: boolean;
     }) => apiFetch<ResearchStartResponse>("/research", { method: "POST", body }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
   });
@@ -413,5 +414,82 @@ export function useResetModelRouting() {
   return useMutation({
     mutationFn: () => apiFetch<RoutingResponse>("/models/routing", { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.models }),
+  });
+}
+
+// ─── Corpus ────────────────────────────────────────────────────────────────────
+
+export interface CorpusDocument {
+  id: string;
+  filename: string;
+  chunks: number;
+  created_at?: string;
+}
+
+export interface CorpusStatus {
+  documents: number;
+  chunks: number;
+  chunks_by_model: Record<string, number>;
+  current_model: string;
+}
+
+export function useCorpusDocuments(projectId?: string | null) {
+  return useQuery({
+    queryKey: ["corpus", projectId, "documents"],
+    queryFn: () => {
+      if (!projectId) return Promise.resolve([]);
+      return apiFetch<CorpusDocument[]>(`/projects/${projectId}/corpus/documents`);
+    },
+    enabled: !!projectId,
+  });
+}
+
+export function useCorpusStatus(projectId?: string | null) {
+  return useQuery({
+    queryKey: ["corpus", projectId, "status"],
+    queryFn: () => {
+      if (!projectId) return Promise.reject(new Error("No active project"));
+      return apiFetch<CorpusStatus>(`/projects/${projectId}/corpus/status`);
+    },
+    enabled: !!projectId,
+  });
+}
+
+
+export function useUploadDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ projectId, file }: { projectId: string; file: File }) => {
+      const form = new FormData();
+      form.append("file", file);
+      
+      const res = await fetch(`${apiBase()}/projects/${projectId}/corpus/documents`, {
+        method: "POST",
+        credentials: isDesktop ? "omit" : "include",
+        headers: {
+          ...authHeaders(),
+        },
+        body: form,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new ApiError(res.status, err.detail || "Upload failed");
+      }
+      return res.json() as Promise<CorpusDocument>;
+    },
+    onSuccess: (_, { projectId }) => {
+      qc.invalidateQueries({ queryKey: ["corpus", projectId] });
+    },
+  });
+}
+
+export function useDeleteDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, docId }: { projectId: string; docId: string }) =>
+      apiFetch<void>(`/projects/${projectId}/corpus/documents/${docId}`, { method: "DELETE" }),
+    onSuccess: (_, { projectId }) => {
+      qc.invalidateQueries({ queryKey: ["corpus", projectId] });
+    },
   });
 }

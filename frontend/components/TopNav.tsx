@@ -55,6 +55,7 @@ export function TopNav({ user }: { user?: User }) {
         {/* Only the working surfaces live here; account lives in the menu. Chat is
             web-only until the sidecar grows its endpoints (docs/12 M9). */}
         <NavLink href="/dashboard" label="Dashboard" />
+        <NavLink href="/corpus" label="Corpus" />
         <NavLink href="/history" label="History" />
         {!isDesktop && <NavLink href="/chat" label="Chat" />}
 

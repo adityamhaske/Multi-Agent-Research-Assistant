@@ -66,6 +66,9 @@ class Session(Base):
     # reason the approval decision is recorded in the audit log.
     model_routing: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
 
+    # Airgapped corpus mode (docs/12 M10).
+    corpus_mode: Mapped[bool] = mapped_column(nullable=False, server_default="false")
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

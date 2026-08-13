@@ -29,6 +29,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [depth, setDepth] = useState<ResearchDepth>("balanced");
+  const [corpusMode, setCorpusMode] = useState(false);
   // null = use the saved per-role routing (user preference, else deployment default).
   const [modelRouting, setModelRouting] = useState<ModelRouting | null>(null);
   const start = useStartResearch();
@@ -48,6 +49,7 @@ export default function DashboardPage() {
         depth,
         project_id: activeId ?? null,
         model_routing: modelRouting,
+        corpus_mode: corpusMode,
       });
       router.push(sessionHref(res.session_id));
     } catch (err) {
@@ -126,6 +128,22 @@ export default function DashboardPage() {
                 </label>
               ))}
             </div>
+          </fieldset>
+
+          <fieldset>
+            <legend className="mb-2 text-sm font-medium text-text-secondary">Airgapped Corpus Mode</legend>
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={corpusMode}
+                onChange={(e) => setCorpusMode(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 accent-[var(--accent)]"
+              />
+              <div>
+                <span className="block text-sm font-medium text-text-primary">Restrict research to uploaded corpus</span>
+                <span className="block text-xs text-text-muted">Disables web search. Enforces local embedding and LLM.</span>
+              </div>
+            </label>
           </fieldset>
 
           <StartModelPicker value={modelRouting} onChange={setModelRouting} />

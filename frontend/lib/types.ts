@@ -111,6 +111,7 @@ export interface SessionSummary {
   created_at: string;
   /** Set when the session is archived (out of the active list, fully recoverable). */
   archived_at: string | null;
+  corpus_mode: boolean;
 }
 
 export interface SessionDetail extends SessionSummary {

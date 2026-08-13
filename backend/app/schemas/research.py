@@ -23,6 +23,9 @@ class ResearchStartRequest(BaseModel):
         default=None,
         description='Role → "provider:model". Omit to use your saved settings.',
     )
+    # Airgapped corpus mode (docs/12 M10): research is performed exclusively over the
+    # installed corpus with no outbound network calls.
+    corpus_mode: bool = False
 
 
 class ApprovalRequest(BaseModel):
