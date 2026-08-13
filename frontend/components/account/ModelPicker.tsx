@@ -67,7 +67,7 @@ export function ModelPicker() {
   if (isLoading || !catalog || !current) {
     return (
       <Section title="Models" description="Choose which model runs each stage of the pipeline.">
-        <div className="h-24 animate-pulse rounded-lg bg-bg-base" />
+        <div className="h-24 animate-pulse border border-border bg-bg-surface" />
       </Section>
     );
   }
@@ -139,14 +139,14 @@ export function ModelPicker() {
     >
       {/* Presets */}
       {presetProviders.length === 0 ? (
-        <p className="rounded-lg border border-border bg-bg-base px-4 py-3 text-[0.8125rem] text-text-secondary">
+        <p className="border border-border bg-bg-surface px-4 py-3 font-mono text-xs text-text-secondary">
           No provider is configured yet. Add an API key above, or run a local model with
           Ollama, and presets will appear here.
         </p>
       ) : (
         presetProviders.map((provider) => (
           <div key={provider} className="mb-5 last:mb-0">
-            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
+            <div className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-text-muted">
               {provider}
             </div>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -161,15 +161,15 @@ export function ModelPicker() {
                     disabled={busy}
                     onClick={() => applyRouting(mapping)}
                     aria-pressed={active}
-                    className="rounded-lg border px-3.5 py-3 text-left transition-colors disabled:opacity-60"
+                    className="border px-3.5 py-3 text-left transition-colors disabled:opacity-60"
                     style={{
                       borderColor: active ? "var(--accent)" : "var(--border)",
                       backgroundColor: active
-                        ? "color-mix(in srgb, var(--accent) 8%, transparent)"
-                        : "var(--bg-base)",
+                        ? "var(--accent-muted)"
+                        : "var(--bg-surface)",
                     }}
                   >
-                    <div className="text-[0.8125rem] font-semibold capitalize text-text-primary">
+                    <div className="font-serif text-sm font-bold capitalize text-text-primary">
                       {name}
                     </div>
                     <div className="mt-0.5 text-xs leading-relaxed text-text-muted">

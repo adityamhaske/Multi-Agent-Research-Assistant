@@ -62,7 +62,7 @@ export default function CorpusPage() {
       <section aria-labelledby="corpus-management">
         <h1
           id="corpus-management"
-          className="mb-1 text-2xl font-semibold tracking-[-0.02em] text-text-primary"
+          className="mb-1 font-serif text-2xl font-bold tracking-tight text-text-primary"
         >
           Corpus Management
         </h1>
@@ -81,7 +81,7 @@ export default function CorpusPage() {
                 id="file-upload"
                 type="file"
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="block w-full text-sm text-text-muted file:mr-4 file:rounded-full file:border-0 file:bg-[var(--accent-muted)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[var(--accent)] hover:file:bg-[var(--accent-hover)]"
+                className="block w-full font-mono text-xs text-text-muted file:mr-4 file:border file:border-border file:bg-bg-elevated file:px-3 file:py-2 file:text-xs file:font-mono file:font-semibold file:text-text-primary hover:file:bg-border"
               />
               <button
                 type="submit"
@@ -97,21 +97,21 @@ export default function CorpusPage() {
 
         <div className="grid gap-6 md:grid-cols-3">
           <div className="md:col-span-2 space-y-4">
-            <h2 className="text-lg font-medium text-text-primary">Documents</h2>
+            <h2 className="font-serif text-lg font-bold text-text-primary">Documents</h2>
             {docsLoading ? (
-              <div className="h-20 animate-pulse rounded-lg bg-bg-elevated" />
+              <div className="h-20 animate-pulse bg-bg-elevated border border-border" />
             ) : docs && docs.length > 0 ? (
-              <ul className="divide-y divide-border rounded-lg border border-border bg-bg-base">
+              <ul className="divide-y divide-border border border-border bg-bg-surface">
                 {docs.map((doc) => (
                   <li key={doc.id} className="flex items-center justify-between p-4 hover:bg-bg-elevated">
                     <div>
-                      <p className="text-sm font-medium text-text-primary">{doc.filename}</p>
-                      <p className="text-xs text-text-muted">{doc.chunks} chunks · {new Date(doc.created_at || "").toLocaleString()}</p>
+                      <p className="font-serif text-sm font-semibold text-text-primary">{doc.filename}</p>
+                      <p className="font-mono text-xs text-text-muted">{doc.chunks} chunks · {new Date(doc.created_at || "").toLocaleString()}</p>
                     </div>
                     <button
                       onClick={() => handleDelete(doc.id, doc.filename)}
                       disabled={del.isPending}
-                      className="text-xs font-medium text-[var(--danger)] hover:underline"
+                      className="font-mono text-xs font-medium text-danger border border-transparent hover:border-danger/30 px-2 py-0.5"
                     >
                       Delete
                     </button>
@@ -119,26 +119,26 @@ export default function CorpusPage() {
                 ))}
               </ul>
             ) : (
-              <div className="rounded-lg border border-border border-dashed p-8 text-center text-sm text-text-muted">
+              <div className="border border-border border-dashed p-8 text-center text-sm text-text-muted bg-bg-surface">
                 No documents uploaded yet.
               </div>
             )}
           </div>
 
           <div className="space-y-4">
-            <h2 className="text-lg font-medium text-text-primary">Status</h2>
-            <div className="rounded-lg border border-border bg-bg-base p-5 space-y-4">
+            <h2 className="font-serif text-lg font-bold text-text-primary">Telemetry Status</h2>
+            <div className="border border-border bg-bg-surface p-5 space-y-4">
               <div>
-                <div className="text-xs text-text-muted uppercase tracking-wider">Total Documents</div>
-                <div className="text-2xl font-semibold">{status?.documents || 0}</div>
+                <div className="font-mono text-xs text-text-muted uppercase tracking-wider">Total Documents</div>
+                <div className="font-mono text-2xl font-semibold tabular-nums mt-0.5">{status?.documents || 0}</div>
               </div>
               <div>
-                <div className="text-xs text-text-muted uppercase tracking-wider">Total Chunks</div>
-                <div className="text-2xl font-semibold">{status?.chunks || 0}</div>
+                <div className="font-mono text-xs text-text-muted uppercase tracking-wider">Total Chunks</div>
+                <div className="font-mono text-2xl font-semibold tabular-nums mt-0.5">{status?.chunks || 0}</div>
               </div>
               <div>
-                <div className="text-xs text-text-muted uppercase tracking-wider">Embedding Model</div>
-                <div className="text-sm font-medium mt-1 truncate">{status?.current_model || "None"}</div>
+                <div className="font-mono text-xs text-text-muted uppercase tracking-wider">Embedding Model</div>
+                <div className="font-mono text-sm font-medium mt-1 truncate text-accent">{status?.current_model || "None"}</div>
               </div>
             </div>
           </div>

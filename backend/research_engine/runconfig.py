@@ -73,6 +73,9 @@ class RunConfig:
     # and no corpus installed fails closed rather than silently degrading to the web.
     corpus_mode: bool = False
 
+    # SSRF guard (docs/06). Strict on server, relaxed on desktop (to allow local Ollama).
+    enforce_ssrf_guards: bool = True
+
     # Where a local Ollama server listens (docs/13 §6). Overridable so the desktop build
     # can point at a remote box on the LAN instead of the machine it runs on.
     ollama_base_url: str = "http://localhost:11434/v1"

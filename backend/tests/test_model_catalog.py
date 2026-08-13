@@ -139,6 +139,23 @@ def test_fake_mode_skips_pricing_validation():
     llm_factory.validate_pricing(cfg)  # must not raise
 
 
+def test_openrouter_and_custom_providers_bypass_pricing_validation():
+    """Docs/12 M9: These providers carry $0 catalog price, so usage tracks counts without throwing validation errors."""
+    cfg = RunConfig(
+        llm_mode="real",
+        models={r: "custom:anything-here" for r in ROLES},
+        provider_keys={"custom": "sk-test"}
+    )
+    llm_factory.validate_pricing(cfg)  # must not raise
+
+    cfg = RunConfig(
+        llm_mode="real",
+        models={r: "openrouter:some/model" for r in ROLES},
+        provider_keys={"openrouter": "sk-test"}
+    )
+    llm_factory.validate_pricing(cfg)  # must not raise
+
+
 def test_register_adds_a_model_at_runtime():
     """The escape hatch for a model the catalog doesn't ship."""
     spec = catalog.ModelSpec(

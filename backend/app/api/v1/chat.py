@@ -112,6 +112,8 @@ async def send_message(
         plaintext = crypto.decrypt(current_user.api_key_encrypted)
         if plaintext:
             user_keys = {current_user.api_key_provider: plaintext}
+            if current_user.api_key_base_url:
+                user_keys[f"{current_user.api_key_provider}_base_url"] = current_user.api_key_base_url
 
     async def gen() -> AsyncGenerator[str, None]:
         keys_token = set_user_keys(user_keys)

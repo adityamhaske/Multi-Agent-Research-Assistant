@@ -17,7 +17,7 @@ function DraftSkeleton() {
   return (
     <div className="space-y-3" aria-hidden>
       {[90, 100, 80, 95, 70, 100, 85].map((w, i) => (
-        <div key={i} className="h-3.5 animate-pulse rounded bg-bg-elevated" style={{ width: `${w}%` }} />
+        <div key={i} className="h-3.5 animate-pulse bg-bg-elevated" style={{ width: `${w}%` }} />
       ))}
     </div>
   );
@@ -72,9 +72,9 @@ export function ApprovalGate({ session }: { session: SessionDetail }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
       {/* Draft */}
-      <section aria-labelledby="draft-heading" className="card min-w-0">
-        <h2 id="draft-heading" className="mb-4 text-sm font-semibold text-text-primary">
-          Draft report
+      <section aria-labelledby="draft-heading" className="card min-w-0 p-6">
+        <h2 id="draft-heading" className="mb-4 font-serif text-lg font-bold text-text-primary">
+          Draft Report
         </h2>
         {session.draft_report ? (
           <Report markdown={session.draft_report} sources={sources} />
@@ -85,26 +85,26 @@ export function ApprovalGate({ session }: { session: SessionDetail }) {
 
       {/* Decision panel */}
       <aside className="lg:sticky lg:top-20 lg:self-start">
-        <div className="card space-y-4">
+        <div className="card space-y-4 p-5">
           <div>
-            <h2 className="text-sm font-semibold text-text-primary">Review gate</h2>
+            <h2 className="font-serif text-base font-bold text-text-primary">Review Gate</h2>
             <p className="mt-1 text-xs text-text-muted">
               Approve to finalize, or request a targeted revision.
             </p>
           </div>
 
-          <dl className="space-y-2 text-sm">
+          <dl className="space-y-2 text-sm border-y border-border py-3">
             <div className="flex justify-between">
               <dt className="text-text-muted">Sources</dt>
-              <dd className="text-text-primary tabular-nums">{sources.length}</dd>
+              <dd className="font-mono text-text-primary tabular-nums">{sources.length}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-text-muted">Cost so far</dt>
-              <dd className="text-text-primary tabular-nums">{formatCost(session.total_cost_usd)}</dd>
+              <dd className="font-mono text-text-primary tabular-nums">{formatCost(session.total_cost_usd)}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-text-muted">Rework rounds</dt>
-              <dd className="text-text-primary tabular-nums">
+              <dd className="font-mono text-text-primary tabular-nums">
                 {reworksUsed} of {MAX_REWORK} used
               </dd>
             </div>

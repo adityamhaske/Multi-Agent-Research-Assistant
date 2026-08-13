@@ -66,17 +66,19 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-md animate-slide-up">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-muted text-3xl">
-            🔬
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border border-border bg-accent-muted text-2xl font-serif text-accent font-bold">
+            §
           </div>
-          <h1 className="text-2xl font-bold text-text-primary">Research Assistant</h1>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-text-primary">
+            Research Assistant
+          </h1>
           <p className="mt-1 text-sm text-text-muted">
             Plan, gather cited evidence, and synthesize a reviewable report.
           </p>
         </div>
 
         <div className="card">
-          <div role="tablist" aria-label="Authentication mode" className="mb-6 flex rounded-lg bg-bg-elevated p-1">
+          <div role="tablist" aria-label="Authentication mode" className="segmented mb-6">
             {(["login", "register"] as Mode[]).map((m) => (
               <button
                 key={m}
@@ -87,13 +89,11 @@ export default function LoginPage() {
                   setMode(m);
                   setError(null);
                 }}
-                className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
-                  mode === m
-                    ? "bg-bg-surface text-text-primary shadow-sm"
-                    : "text-text-muted hover:text-text-secondary"
+                className={`segmented-item font-mono text-xs uppercase tracking-wider ${
+                  mode === m ? "font-bold text-text-primary" : ""
                 }`}
               >
-                {m === "login" ? "Sign in" : "Create account"}
+                {m === "login" ? "Sign In" : "Create Account"}
               </button>
             ))}
           </div>
@@ -101,7 +101,7 @@ export default function LoginPage() {
           <form onSubmit={submit} className="space-y-4" noValidate>
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-text-secondary">
-                Email
+                Email Address
               </label>
               <input
                 id="email"
@@ -109,7 +109,7 @@ export default function LoginPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder="researcher@institution.edu"
                 className="input-base"
                 required
               />
@@ -126,7 +126,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={mode === "register" ? `At least ${MIN_PASSWORD} characters` : "••••••••••••"}
-                className="input-base"
+                className="input-base font-mono"
                 required
                 minLength={mode === "register" ? MIN_PASSWORD : undefined}
               />
@@ -135,12 +135,7 @@ export default function LoginPage() {
             {error && (
               <p
                 role="alert"
-                className="rounded-lg border px-3 py-2 text-sm"
-                style={{
-                  color: "var(--danger)",
-                  backgroundColor: "color-mix(in srgb, var(--danger) 10%, transparent)",
-                  borderColor: "color-mix(in srgb, var(--danger) 30%, transparent)",
-                }}
+                className="border border-danger/40 bg-danger/10 px-3 py-2 font-mono text-xs text-danger"
               >
                 {error}
               </p>
@@ -153,7 +148,9 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="mt-6 text-center text-xs text-text-muted">Multi-Agent Research Assistant</p>
+        <p className="mt-6 text-center font-mono text-xs text-text-muted">
+          Multi-Agent Research Assistant · Academic Edition
+        </p>
       </div>
     </div>
   );

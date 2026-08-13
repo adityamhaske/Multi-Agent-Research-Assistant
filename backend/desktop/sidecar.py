@@ -192,7 +192,7 @@ def stored_keys() -> dict[str, str]:
     keys: dict[str, str] = {}
     if kr is None:
         return keys
-    for provider in ("google", "anthropic", "openai"):
+    for provider in ("google", "anthropic", "openai", "openrouter", "custom"):
         try:
             value = kr.get_password(_KEYRING_SERVICE, provider)
         except Exception:  # noqa: BLE001 — one locked backend must not sink the rest
@@ -273,6 +273,30 @@ def save_routing(data_dir: str | Path, routing: dict[str, str] | None) -> None:
     path.write_text(json.dumps(routing, indent=2), encoding="utf-8")
 
 
+# ── Custom Endpoint ──────────────────────────────────────────────────────────────
+
+def _custom_endpoint_path(data_dir: str | Path) -> Path:
+    return Path(data_dir) / "custom_endpoint.json"
+
+
+def stored_custom_endpoint(data_dir: str | Path) -> str | None:
+    try:
+        raw = json.loads(_custom_endpoint_path(data_dir).read_text(encoding="utf-8"))
+        return raw.get("base_url")
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return None
+
+
+def save_custom_endpoint(data_dir: str | Path, url: str | None) -> None:
+    path = _custom_endpoint_path(data_dir)
+    if url is None:
+        path.unlink(missing_ok=True)
+        return
+    path.write_text(json.dumps({"base_url": url}, indent=2), encoding="utf-8")
+
+
 # ── Corpus mode (docs/12 M10) ─────────────────────────────────────────────────
 #
 # The airgapped switch lives in one JSON file next to routing.json. When on, every
@@ -334,9 +358,16 @@ def sidecar_run_config(*, fake: bool, data_dir: str | Path | None = None) -> Run
         "google": "GOOGLE_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
         "openai": "OPENAI_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+        "custom": "CUSTOM_API_KEY",
     }
     keys = {p: os.environ[e] for p, e in env_names.items() if os.environ.get(e)}
     keys.update(stored_keys())
+    
+    if data_dir is not None:
+        custom_base_url = stored_custom_endpoint(data_dir)
+        if custom_base_url:
+            keys["custom_base_url"] = custom_base_url
 
     models = {role: os.environ.get(f"MODEL_{role.upper()}", DEFAULT_MODELS[role]) for role in ROLES}
     if data_dir is not None:
@@ -368,6 +399,7 @@ def sidecar_run_config(*, fake: bool, data_dir: str | Path | None = None) -> Run
         tavily_api_key=os.environ.get("TAVILY_API_KEY", ""),
         brave_api_key=os.environ.get("BRAVE_API_KEY", ""),
         corpus_mode=corpus_only_enabled(data_dir),
+        enforce_ssrf_guards=False,
         max_critic_loops=_int_env("MAX_CRITIC_LOOPS", 2),
         max_cost_per_session_usd=_float_env("MAX_COST_PER_SESSION_USD", 0.50),
         max_wallclock_seconds=_int_env("MAX_WALLCLOCK_SECONDS", 600),
@@ -1032,7 +1064,7 @@ def create_sidecar_app(
     @api.put("/desktop/keys/{provider}", status_code=204)
     async def set_key(provider: str, request: Request):
         """Store a pasted provider key in the OS keychain (docs/12 M9)."""
-        if provider not in ("google", "anthropic", "openai"):
+        if provider not in ("google", "anthropic", "openai", "openrouter", "custom"):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown provider.")
         body = await request.json()
         key = (body.get("key") or "").strip()
@@ -1047,7 +1079,7 @@ def create_sidecar_app(
     @api.delete("/desktop/keys/{provider}", status_code=204)
     async def remove_key(provider: str):
         """Forget a stored key from the OS keychain (the env-derived ones are read-only)."""
-        if provider not in ("google", "anthropic", "openai"):
+        if provider not in ("google", "anthropic", "openai", "openrouter", "custom"):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown provider.")
         try:
             delete_key(provider)
@@ -1063,14 +1095,27 @@ def create_sidecar_app(
             "google": "GOOGLE_API_KEY",
             "anthropic": "ANTHROPIC_API_KEY",
             "openai": "OPENAI_API_KEY",
+            "openrouter": "OPENROUTER_API_KEY",
+            "custom": "CUSTOM_API_KEY",
         }
         return {
             provider: {
                 "keychain": provider in present,
                 "environment": bool(os.environ.get(env_names[provider])),
             }
-            for provider in ("google", "anthropic", "openai")
+            for provider in ("google", "anthropic", "openai", "openrouter", "custom")
         }
+
+    @api.put("/desktop/keys/custom_endpoint", status_code=204)
+    async def set_custom_endpoint(request: Request):
+        body = await request.json()
+        base_url = (body.get("base_url") or "").strip()
+        save_custom_endpoint(app.state.data_dir, base_url if base_url else None)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @api.get("/desktop/keys/custom_endpoint")
+    async def get_custom_endpoint():
+        return {"base_url": stored_custom_endpoint(app.state.data_dir)}
 
     # -- corpus (airgapped mode, docs/12 M10) -----------------------------------
 

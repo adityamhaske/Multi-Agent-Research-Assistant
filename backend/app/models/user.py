@@ -29,6 +29,7 @@ class User(Base):
     # hint is a display-only tail ("…aB3d") so users can tell which key is stored.
     api_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     api_key_provider: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    api_key_base_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     api_key_hint: Mapped[str | None] = mapped_column(String(16), nullable=True)
     api_key_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

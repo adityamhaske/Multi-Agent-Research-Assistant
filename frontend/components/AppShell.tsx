@@ -7,7 +7,7 @@ import { useMe } from "@/hooks/queries";
 import { ApiError } from "@/lib/api";
 import { isDesktop } from "@/lib/desktop";
 
-import { TopNav } from "./TopNav";
+import { SideNav } from "./SideNav";
 
 /**
  * Client half of the auth shell. The server layout ((app)/layout.tsx) already
@@ -44,9 +44,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <TopNav user={user} />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
+    <div className="flex h-screen flex-col md:flex-row overflow-hidden bg-bg-base">
+      <SideNav user={user} />
+      <main className="flex-1 overflow-y-auto w-full">
+        <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

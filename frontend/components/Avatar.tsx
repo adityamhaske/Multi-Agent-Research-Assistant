@@ -43,7 +43,7 @@ export function Avatar({
         alt=""
         onError={() => setFailed(true)}
         style={dimension}
-        className={`shrink-0 rounded-full object-cover ${className}`}
+        className={`shrink-0 object-cover border border-border ${className}`}
       />
     );
   }
@@ -52,7 +52,7 @@ export function Avatar({
     <span
       aria-hidden
       style={{ ...dimension, fontSize: Math.max(11, size * 0.4) }}
-      className={`flex shrink-0 select-none items-center justify-center rounded-full bg-accent-muted font-semibold text-accent ${className}`}
+      className={`flex shrink-0 select-none items-center justify-center border border-border bg-accent-muted font-mono font-semibold text-accent ${className}`}
     >
       {initialsFor(user)}
     </span>

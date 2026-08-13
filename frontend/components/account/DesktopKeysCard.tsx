@@ -3,7 +3,7 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 
-import { useDeleteDesktopKey, useDesktopKeys, useSetDesktopKey } from "@/hooks/queries";
+import { useDeleteDesktopKey, useDesktopKeys, useSetDesktopKey, useDesktopCustomEndpoint, useSetDesktopCustomEndpoint } from "@/hooks/queries";
 import { ApiError } from "@/lib/api";
 import type { ApiKeyProvider } from "@/lib/types";
 
@@ -28,6 +28,18 @@ const PROVIDERS: { value: ApiKeyProvider; label: string; help: string; url: stri
     help: "sk-…",
     url: "https://platform.openai.com/api-keys",
   },
+  {
+    value: "openrouter",
+    label: "OpenRouter",
+    help: "sk-or-…",
+    url: "https://openrouter.ai/keys",
+  },
+  {
+    value: "custom",
+    label: "Custom Endpoint",
+    help: "API Key / Bearer Token",
+    url: "#",
+  },
 ];
 
 /**
@@ -42,6 +54,12 @@ export function DesktopKeysCard() {
   const setKey = useSetDesktopKey();
   const deleteKey = useDeleteDesktopKey();
   const [inputs, setInputs] = useState<Record<string, string>>({});
+
+  const { data: customEndpoint } = useDesktopCustomEndpoint();
+  const setCustomEndpoint = useSetDesktopCustomEndpoint();
+  const [baseUrlInput, setBaseUrlInput] = useState<string | null>(null);
+
+  const activeBaseUrl = baseUrlInput ?? customEndpoint?.base_url ?? "";
 
   const save = async (provider: ApiKeyProvider) => {
     const key = (inputs[provider] ?? "").trim();
@@ -67,6 +85,15 @@ export function DesktopKeysCard() {
     }
   };
 
+  const saveBaseUrl = async () => {
+    try {
+      await setCustomEndpoint.mutateAsync(activeBaseUrl);
+      toast.success("Custom endpoint saved.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not save the custom endpoint.");
+    }
+  };
+
   return (
     <Section
       title="Provider keys"
@@ -75,7 +102,7 @@ export function DesktopKeysCard() {
       {isLoading || !keys ? (
         <div className="card h-24 animate-pulse" aria-hidden />
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {PROVIDERS.map((p) => {
             const status = keys[p.value];
             const busy =
@@ -83,19 +110,20 @@ export function DesktopKeysCard() {
             return (
               <div
                 key={p.value}
-                className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-bg-base px-4 py-3"
+                className="flex flex-wrap items-center gap-3 border border-border bg-bg-surface px-4 py-3"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-[0.8125rem] font-medium text-text-primary">
+                    <span className="font-mono text-xs font-semibold uppercase tracking-wider text-text-primary">
                       {p.label}
                     </span>
                     {status.keychain && (
                       <span
-                        className="rounded-full px-2 py-0.5 text-[0.6875rem] font-medium"
+                        className="px-2 py-0.5 font-mono text-[0.6875rem] font-semibold border"
                         style={{
                           color: "var(--success)",
-                          backgroundColor: "color-mix(in srgb, var(--success) 12%, transparent)",
+                          backgroundColor: "color-mix(in srgb, var(--success) 10%, var(--bg-surface))",
+                          borderColor: "color-mix(in srgb, var(--success) 30%, var(--border))",
                         }}
                       >
                         Keychain
@@ -103,10 +131,11 @@ export function DesktopKeysCard() {
                     )}
                     {status.environment && (
                       <span
-                        className="rounded-full px-2 py-0.5 text-[0.6875rem] font-medium"
+                        className="px-2 py-0.5 font-mono text-[0.6875rem] font-semibold border"
                         style={{
                           color: "var(--text-muted)",
-                          backgroundColor: "color-mix(in srgb, var(--text-muted) 12%, transparent)",
+                          backgroundColor: "var(--bg-elevated)",
+                          borderColor: "var(--border)",
                         }}
                       >
                         Environment
@@ -119,7 +148,7 @@ export function DesktopKeysCard() {
                       href={p.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-medium text-accent hover:underline"
+                      className="font-mono text-xs font-medium text-accent hover:underline"
                     >
                       {p.label}
                     </a>
@@ -161,6 +190,38 @@ export function DesktopKeysCard() {
               </div>
             );
           })}
+
+          <div className="flex flex-col gap-2 border border-border bg-bg-surface px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs font-semibold uppercase tracking-wider text-text-primary">
+                Custom Endpoint Base URL
+              </span>
+            </div>
+            <div className="mt-0.5 font-mono text-xs text-text-muted mb-2">
+              Used when selecting a "custom:..." model route.
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="url"
+                autoComplete="off"
+                spellCheck={false}
+                aria-label="Custom Base URL"
+                value={activeBaseUrl}
+                onChange={(e) => setBaseUrlInput(e.target.value)}
+                placeholder="https://api.together.xyz/v1"
+                className="input-base min-w-[20rem] flex-1 font-mono"
+              />
+              <button
+                type="button"
+                onClick={saveBaseUrl}
+                disabled={setCustomEndpoint.isPending || activeBaseUrl === (customEndpoint?.base_url ?? "")}
+                className="btn btn-primary"
+              >
+                {setCustomEndpoint.isPending && <span className="spinner" />}
+                Save URL
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </Section>

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, AnyHttpUrl
 
 from app.services.passwords import MIN_LENGTH
 
@@ -31,6 +31,7 @@ class UserResponse(BaseModel):
 
     # ── BYOK status (never the key itself) ─────────────────────────────────────
     api_key_provider: str | None = None
+    api_key_base_url: str | None = None
     api_key_hint: str | None = None
     api_key_set_at: datetime | None = None
 
@@ -71,8 +72,9 @@ class ApiKeyRequest(BaseModel):
 
     model_config = {"str_strip_whitespace": True}
 
-    provider: Literal["google", "anthropic", "openai"]
+    provider: Literal["google", "anthropic", "openai", "openrouter", "custom"]
     api_key: str = Field(min_length=8, max_length=500)
+    api_base_url: AnyHttpUrl | None = Field(default=None)
 
 
 class UsageWindow(BaseModel):

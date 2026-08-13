@@ -21,7 +21,7 @@ export function Section({
 }) {
   return (
     <section
-      className="overflow-hidden rounded-xl border bg-bg-surface shadow-xs"
+      className="border bg-bg-surface"
       style={{
         borderColor:
           tone === "danger"
@@ -31,7 +31,7 @@ export function Section({
     >
       <div className="px-5 pt-5 sm:px-6 sm:pt-6">
         <h2
-          className="text-[0.9375rem] font-semibold tracking-[-0.01em]"
+          className="font-serif text-[1rem] font-bold tracking-tight"
           style={{ color: tone === "danger" ? "var(--danger)" : "var(--text-primary)" }}
         >
           {title}

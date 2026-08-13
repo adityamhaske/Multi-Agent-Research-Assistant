@@ -66,13 +66,15 @@ def validate_pricing(cfg: RunConfig | None = None) -> None:
     cfg = cfg or get_run_config()
     if cfg.llm_mode == "fake":
         return
-    missing = sorted(
-        {
-            name
-            for name in (cfg.model_for(role).split(":", 1)[-1] for role in cfg.models)
-            if (spec := catalog.get(name)) is None or not spec.priced
-        }
-    )
+    missing = set()
+    for role in cfg.models:
+        provider, _, name = cfg.model_for(role).partition(":")
+        if provider in ("custom", "openrouter"):
+            continue
+        spec = catalog.get(name)
+        if spec is None or not spec.priced:
+            missing.add(name)
+    missing = sorted(missing)
     if missing:
         raise ValueError(
             f"No price for routed model(s): {missing}. Add a ModelSpec to "
@@ -162,6 +164,24 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
             max_tokens=cfg["max_tokens"],
             temperature=cfg["temperature"],
         )
+
+    if provider == "custom":
+        from langchain_openai import ChatOpenAI
+
+        base_url = api_key_for("custom_base_url")
+        if get_run_config().enforce_ssrf_guards and base_url:
+            from research_engine.net_guard import validate_url, SSRFBlocked
+            try:
+                validate_url(base_url)
+            except SSRFBlocked as e:
+                raise ValueError(f"Blocked by SSRF guard: {e}") from e
+
+        kwargs = {"model": model, "api_key": key, "max_tokens": cfg["max_tokens"]}
+        if base_url:
+            kwargs["base_url"] = base_url
+        if sampling_supported(model):
+            kwargs["temperature"] = cfg["temperature"]
+        return ChatOpenAI(**kwargs)
 
     raise ValueError(
         f"Unknown LLM provider '{provider}' for role '{role}'. "

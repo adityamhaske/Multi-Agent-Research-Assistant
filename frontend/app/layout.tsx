@@ -21,6 +21,11 @@ export const metadata: Metadata = {
   title: "Research Assistant",
   description:
     "A multi-agent research pipeline: plan, gather cited evidence, critique, and synthesize a reviewable report.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

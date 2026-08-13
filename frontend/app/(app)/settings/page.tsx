@@ -40,6 +40,18 @@ const PROVIDERS: { value: ApiKeyProvider; label: string; help: string; url: stri
     help: "sk-…",
     url: "https://platform.openai.com/api-keys",
   },
+  {
+    value: "openrouter",
+    label: "OpenRouter",
+    help: "sk-or-…",
+    url: "https://openrouter.ai/keys",
+  },
+  {
+    value: "custom",
+    label: "Custom Endpoint",
+    help: "API Key / Bearer Token",
+    url: "#",
+  },
 ];
 
 const EMPTY: UsageWindow = {
@@ -52,13 +64,13 @@ const EMPTY: UsageWindow = {
 
 function UsageStat({ label, sub, window: w }: { label: string; sub: string; window: UsageWindow }) {
   return (
-    <div className="rounded-lg border border-border bg-bg-base px-4 py-3.5">
-      <div className="text-[0.8125rem] font-medium text-text-secondary">{label}</div>
-      <div className="text-[0.6875rem] text-text-muted">{sub}</div>
-      <div className="mt-2.5 font-mono text-xl tracking-tight text-text-primary tabular-nums">
+    <div className="border border-border bg-bg-surface px-4 py-3.5">
+      <div className="font-mono text-xs font-semibold uppercase tracking-wider text-text-secondary">{label}</div>
+      <div className="font-mono text-[0.6875rem] text-text-muted">{sub}</div>
+      <div className="mt-2.5 font-mono text-xl font-medium tracking-tight text-text-primary tabular-nums">
         {formatNumber(w.tokens_total)}
       </div>
-      <div className="mt-1.5 flex items-center gap-2 text-[0.6875rem] text-text-muted">
+      <div className="mt-1.5 flex items-center gap-2 font-mono text-[0.6875rem] text-text-muted">
         <span className="tabular-nums">{formatCost(w.cost_usd)}</span>
         <span aria-hidden>·</span>
         <span className="tabular-nums">
@@ -85,7 +97,7 @@ function AppearanceSection() {
             role="radio"
             aria-checked={resolvedTheme === t}
             onClick={() => setTheme(t)}
-            className="segmented-item capitalize"
+            className="segmented-item capitalize font-mono text-xs"
           >
             {t}
           </button>
@@ -125,6 +137,7 @@ function WebSettings() {
   const [limit, setLimit] = useState("0");
   const [provider, setProvider] = useState<ApiKeyProvider>("anthropic");
   const [keyInput, setKeyInput] = useState("");
+  const [baseUrlInput, setBaseUrlInput] = useState("");
 
   const [seeded, setSeeded] = useState<string | null>(null);
   const seedKey = user ? `${user.id}|${user.monthly_token_limit}|${user.api_key_provider}` : null;
@@ -161,9 +174,14 @@ function WebSettings() {
   const saveKey = async (e: React.FormEvent) => {
     e.preventDefault();
     const key = keyInput.trim();
+    const base_url = baseUrlInput.trim();
     if (key.length < 8) return toast.error("That key looks too short.");
     try {
-      await setApiKey.mutateAsync({ provider, api_key: key });
+      await setApiKey.mutateAsync({
+        provider,
+        api_key: key,
+        ...(provider === "custom" && base_url ? { api_base_url: base_url } : {}),
+      });
       setKeyInput(""); // never keep plaintext in component state
       toast.success("Key saved. Your research now runs on your account.");
     } catch (err) {
@@ -196,7 +214,7 @@ function WebSettings() {
               </span>
             </div>
             <div
-              className="h-1.5 overflow-hidden rounded-full bg-bg-elevated"
+              className="h-1.5 overflow-hidden border border-border bg-bg-elevated"
               role="progressbar"
               aria-valuenow={Math.round(pct)}
               aria-valuemin={0}
@@ -204,14 +222,14 @@ function WebSettings() {
               aria-label="Monthly token usage"
             >
               <div
-                className="h-full rounded-full transition-[width] duration-500"
+                className="h-full transition-[width] duration-500"
                 style={{
                   width: `${pct}%`,
                   backgroundColor: usage?.limit_reached ? "var(--danger)" : "var(--accent)",
                 }}
               />
             </div>
-            <p className="mt-2 text-xs text-text-muted">
+            <p className="mt-2 font-mono text-xs text-text-muted">
               {usage?.limit_reached
                 ? "Limit reached — new research is blocked until the 1st. Add your own key below to keep going."
                 : `${formatNumber(usage?.limit_remaining ?? limitNum - used)} remaining · resets on the 1st`}
@@ -233,7 +251,7 @@ function WebSettings() {
           description="Bring your own key and research runs on your provider account instead of this server's. It's encrypted before storage and never shown again."
           footer={
             <>
-              <span className="text-xs text-text-muted">
+              <span className="font-mono text-xs text-text-muted">
                 Only the last 4 characters are ever displayed.
               </span>
               <button
@@ -249,16 +267,12 @@ function WebSettings() {
         >
           {user.api_key_provider ? (
             <div
-              className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3"
-              style={{
-                borderColor: "color-mix(in srgb, var(--success) 30%, transparent)",
-                backgroundColor: "color-mix(in srgb, var(--success) 8%, transparent)",
-              }}
+              className="mb-5 flex flex-wrap items-center justify-between gap-3 border border-border bg-bg-surface px-4 py-3"
             >
               <div className="flex items-center gap-2.5">
                 <span
                   aria-hidden
-                  className="h-1.5 w-1.5 rounded-full"
+                  className="status-marker"
                   style={{ backgroundColor: "var(--success)" }}
                 />
                 <div className="text-[0.8125rem]">
@@ -266,7 +280,7 @@ function WebSettings() {
                     {PROVIDERS.find((p) => p.value === user.api_key_provider)?.label}
                   </span>{" "}
                   <span className="font-mono text-text-muted">{user.api_key_hint}</span>
-                  <div className="text-xs text-text-muted">Active — used for your research.</div>
+                  <div className="font-mono text-xs text-text-muted">Active — used for your research.</div>
                 </div>
               </div>
               <button
@@ -280,7 +294,7 @@ function WebSettings() {
               </button>
             </div>
           ) : (
-            <p className="mb-5 rounded-lg border border-border bg-bg-base px-4 py-3 text-[0.8125rem] text-text-secondary">
+            <p className="mb-5 border border-border bg-bg-surface px-4 py-3 font-mono text-xs text-text-secondary">
               No key stored — research runs on this deployment&apos;s shared key, subject to your
               monthly limit.
             </p>
@@ -306,18 +320,22 @@ function WebSettings() {
               label={user.api_key_provider ? "Replace with a new key" : "Paste your key"}
               htmlFor="apikey"
               hint={
-                <>
-                  Get one from{" "}
-                  <a
-                    href={selected.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium text-accent hover:underline"
-                  >
-                    {selected.label}
-                  </a>
-                  .
-                </>
+                provider === "custom" ? (
+                  <>The bearer token for the endpoint.</>
+                ) : (
+                  <>
+                    Get one from{" "}
+                    <a
+                      href={selected.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-accent hover:underline"
+                    >
+                      {selected.label}
+                    </a>
+                    .
+                  </>
+                )
               }
             >
               <input
@@ -332,6 +350,27 @@ function WebSettings() {
               />
             </Field>
           </div>
+
+          {provider === "custom" && (
+            <div className="mt-4">
+              <Field
+                label="Base URL"
+                htmlFor="baseurl"
+                hint="Used when selecting a 'custom:...' model route."
+              >
+                <input
+                  id="baseurl"
+                  type="url"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={baseUrlInput}
+                  onChange={(e) => setBaseUrlInput(e.target.value)}
+                  placeholder="https://api.together.xyz/v1"
+                  className="input-base w-full max-w-md font-mono"
+                />
+              </Field>
+            </div>
+          )}
         </Section>
       </form>
 

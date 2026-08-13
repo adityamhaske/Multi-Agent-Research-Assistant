@@ -68,14 +68,14 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <Link href="/history" className="text-sm text-text-muted hover:text-text-secondary">
+        <Link href="/history" className="font-mono text-xs text-text-muted hover:text-text-secondary">
           ← All sessions
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-          <h1 className="max-w-3xl text-lg font-semibold text-text-primary">{session.prompt}</h1>
+          <h1 className="max-w-3xl font-serif text-xl font-bold tracking-tight text-text-primary">{session.prompt}</h1>
           <div className="flex items-center gap-3 whitespace-nowrap">
             <StatusBadge status={session.status} />
-            <span className="text-xs text-text-muted">
+            <span className="font-mono text-xs text-text-muted">
               <RelativeTime iso={session.created_at} />
             </span>
           </div>

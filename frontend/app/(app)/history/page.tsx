@@ -41,11 +41,11 @@ export default function HistoryPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">
-            {showArchived ? "Archived" : "History"}
+          <h1 className="font-serif text-xl font-bold tracking-tight text-text-primary">
+            {showArchived ? "Archived Research" : "Research History"}
           </h1>
           {active && (
-            <p className="mt-0.5 text-xs text-text-muted">
+            <p className="mt-0.5 font-mono text-xs text-text-muted">
               in <span className="text-text-secondary">{active.name}</span>
             </p>
           )}
@@ -58,10 +58,10 @@ export default function HistoryPage() {
               role="tab"
               aria-selected={filter === f.value}
               onClick={() => setFilter(f.value)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              className={`px-3 py-1 font-mono text-xs font-medium border transition-colors ${
                 filter === f.value
-                  ? "bg-accent-muted text-accent"
-                  : "bg-bg-elevated text-text-muted hover:text-text-secondary"
+                  ? "bg-accent text-white border-accent"
+                  : "bg-bg-surface text-text-muted border-border hover:text-text-primary"
               }`}
             >
               {f.label}
@@ -74,13 +74,13 @@ export default function HistoryPage() {
               setPage(1);
             }}
             aria-pressed={showArchived}
-            className={`ml-1 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            className={`ml-1 px-3 py-1 font-mono text-xs font-medium border transition-colors ${
               showArchived
-                ? "bg-accent-muted text-accent"
-                : "bg-bg-elevated text-text-muted hover:text-text-secondary"
+                ? "bg-accent text-white border-accent"
+                : "bg-bg-surface text-text-muted border-border hover:text-text-primary"
             }`}
           >
-            {showArchived ? "← Back to History" : "Archived"}
+            {showArchived ? "← Active History" : "Archived"}
           </button>
         </div>
       </div>

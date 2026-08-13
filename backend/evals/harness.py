@@ -193,7 +193,7 @@ async def judge_citation_support(
         # Free-tier rate limit avoidance (Gemini = 15 RPM). Applied once per batch
         # rather than per claim — batching 4 claims turns ~82s of sleep into ~21s.
         if RUN_CONFIG.llm_mode == "real":
-            await asyncio.sleep(4.1)
+            await asyncio.sleep(15)
 
     rows = [
         {
@@ -365,7 +365,7 @@ async def main() -> None:
             )
 
         if RUN_CONFIG.llm_mode == "real":
-            await asyncio.sleep(5)
+            await asyncio.sleep(60)
 
     if args.mode == "memory":
         n = len(rows)

@@ -9,8 +9,8 @@ import type { AgentEvent, SessionDetail } from "@/lib/types";
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col">
-      <span className="text-[0.7rem] uppercase tracking-wide text-text-muted">{label}</span>
-      <span className="font-mono text-sm text-text-primary tabular-nums">{value}</span>
+      <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted">{label}</span>
+      <span className="font-mono text-sm font-medium text-text-primary tabular-nums mt-0.5">{value}</span>
     </div>
   );
 }

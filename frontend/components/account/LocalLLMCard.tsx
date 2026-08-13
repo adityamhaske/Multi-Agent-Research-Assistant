@@ -54,13 +54,14 @@ function ModelRow({ model }: { model: LocalModelInfo }) {
   const size = formatSize(model.size_bytes);
   const badge = modelBadge(model);
   return (
-    <li className="flex flex-wrap items-center gap-x-2.5 gap-y-1 py-2">
-      <code className="font-mono text-[0.8125rem] text-text-primary">{model.name}</code>
+    <li className="flex flex-wrap items-center gap-x-2.5 gap-y-1 py-2 font-mono text-xs">
+      <code className="text-[0.8125rem] font-semibold text-text-primary">{model.name}</code>
       {size && <span className="text-[0.6875rem] text-text-muted tabular-nums">{size}</span>}
       <span
-        className="rounded-full px-2 py-0.5 text-[0.6875rem]"
+        className="px-2 py-0.5 text-[0.6875rem] uppercase tracking-wider font-semibold border"
         style={{
-          background: `color-mix(in srgb, ${badge.tone} 12%, transparent)`,
+          backgroundColor: `color-mix(in srgb, ${badge.tone} 10%, var(--bg-surface))`,
+          borderColor: `color-mix(in srgb, ${badge.tone} 30%, var(--border))`,
           color: badge.tone,
         }}
         title={badge.title}
@@ -68,7 +69,7 @@ function ModelRow({ model }: { model: LocalModelInfo }) {
         {badge.label}
       </span>
       {model.route && !model.is_embedding && (
-        <code className="ml-auto font-mono text-[0.6875rem] text-text-muted">{model.route}</code>
+        <code className="ml-auto text-[0.6875rem] text-text-muted">{model.route}</code>
       )}
     </li>
   );
@@ -112,26 +113,26 @@ export function LocalLLMCard() {
       }
     >
       {isLoading ? (
-        <div className="h-16 animate-pulse rounded-lg bg-bg-base" aria-hidden />
+        <div className="h-16 animate-pulse border border-border bg-bg-surface" aria-hidden />
       ) : (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <span className="flex items-center gap-2 text-[0.8125rem] font-medium">
+            <span className="flex items-center gap-2 font-mono text-xs font-semibold">
               <span
                 aria-hidden
-                className="inline-block h-2 w-2 rounded-full"
+                className="status-marker"
                 style={{ background: tone?.color }}
               />
               <span style={{ color: tone?.color }}>{tone?.label}</span>
             </span>
-            <code className="font-mono text-[0.6875rem] text-text-muted">
+            <code className="font-mono text-xs text-text-muted">
               {data?.configured_base_url}
             </code>
           </div>
 
           {data?.hint && (
             <p
-              className="rounded-lg px-3 py-2.5 text-[0.8125rem] leading-relaxed"
+              className="border border-border px-3 py-2.5 font-mono text-xs leading-relaxed"
               style={{
                 background: "color-mix(in srgb, var(--warning) 8%, transparent)",
                 color: "var(--text-secondary)",

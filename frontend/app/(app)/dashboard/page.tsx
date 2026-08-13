@@ -62,9 +62,9 @@ export default function DashboardPage() {
       <section aria-labelledby="new-research">
         <h1
           id="new-research"
-          className="mb-1 text-2xl font-semibold tracking-[-0.02em] text-text-primary"
+          className="mb-1 font-serif text-2xl font-bold tracking-tight text-text-primary"
         >
-          New research
+          New Research
         </h1>
         <p className="mb-5 max-w-2xl text-sm leading-relaxed text-text-muted">
           Describe what you want to know. The agents plan, gather cited evidence, and draft a report
@@ -79,7 +79,7 @@ export default function DashboardPage() {
         <form onSubmit={submit} className="card space-y-5 p-5 sm:p-6">
           <div>
             <label htmlFor="query" className="mb-1.5 block text-sm font-medium text-text-secondary">
-              Research question
+              Research Question
             </label>
             <textarea
               id="query"
@@ -90,9 +90,9 @@ export default function DashboardPage() {
               className="textarea-base"
               aria-describedby="query-counter"
             />
-            <div id="query-counter" className="mt-1 flex justify-between text-xs">
+            <div id="query-counter" className="mt-1 flex justify-between font-mono text-xs">
               <span style={{ color: tooShort ? "var(--warning)" : "var(--text-muted)" }}>
-                {tooShort ? `At least ${MIN_QUERY} characters` : " "}
+                {tooShort ? `At least ${MIN_QUERY} characters` : " "}
               </span>
               <span className="text-text-muted tabular-nums">
                 {trimmed.length} / {MAX_QUERY}
@@ -101,16 +101,16 @@ export default function DashboardPage() {
           </div>
 
           <fieldset>
-            <legend className="mb-2 text-sm font-medium text-text-secondary">Depth</legend>
+            <legend className="mb-2 font-mono text-xs uppercase tracking-wider font-semibold text-text-secondary">Research Depth</legend>
             <div className="grid gap-2 sm:grid-cols-3">
               {DEPTHS.map((d) => (
                 <label
                   key={d.value}
-                  className="flex cursor-pointer flex-col gap-1 rounded-lg border p-3.5 transition-all hover:shadow-xs"
+                  className="flex cursor-pointer flex-col gap-1 border p-3.5 transition-colors"
                   style={{
                     borderColor: depth === d.value ? "var(--accent)" : "var(--border)",
                     backgroundColor:
-                      depth === d.value ? "var(--accent-muted)" : "var(--bg-elevated)",
+                      depth === d.value ? "var(--accent-muted)" : "var(--bg-surface)",
                   }}
                 >
                   <span className="flex items-center gap-2">
@@ -131,13 +131,13 @@ export default function DashboardPage() {
           </fieldset>
 
           <fieldset>
-            <legend className="mb-2 text-sm font-medium text-text-secondary">Airgapped Corpus Mode</legend>
-            <label className="flex items-center gap-3">
+            <legend className="mb-2 font-mono text-xs uppercase tracking-wider font-semibold text-text-secondary">Airgapped Corpus Mode</legend>
+            <label className="flex items-center gap-3 border border-border p-3 bg-bg-surface">
               <input
                 type="checkbox"
                 checked={corpusMode}
                 onChange={(e) => setCorpusMode(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 accent-[var(--accent)]"
+                className="h-4 w-4 border-border accent-[var(--accent)]"
               />
               <div>
                 <span className="block text-sm font-medium text-text-primary">Restrict research to uploaded corpus</span>
@@ -157,11 +157,11 @@ export default function DashboardPage() {
 
       <section aria-labelledby="recent">
         <div className="mb-4 flex items-center justify-between">
-          <h2 id="recent" className="text-base font-semibold tracking-[-0.01em] text-text-primary">
-            Recent sessions
+          <h2 id="recent" className="font-serif text-lg font-bold tracking-tight text-text-primary">
+            Recent Sessions
           </h2>
           {data && data.total > 5 && (
-            <Link href="/history" className="text-sm text-accent hover:underline">
+            <Link href="/history" className="font-mono text-xs text-accent hover:underline">
               View all →
             </Link>
           )}

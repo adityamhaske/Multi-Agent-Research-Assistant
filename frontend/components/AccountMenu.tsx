@@ -22,13 +22,12 @@ export function firstNameOf(user: Pick<User, "display_name" | "email">): string 
 }
 
 /**
- * Account menu in the top nav.
+ * Account menu for the sidebar.
  *
- * Replaces a bare <details> element, which looked like a menu but had none of the
- * behavior: no outside-click dismissal, no Escape, no focus return, no menu
- * semantics for screen readers. This is a real menu.
+ * Supports expanded full-width profile card trigger and collapsed compact icon trigger.
+ * Positions the popup menu upwards/outwards so it is never clipped or offscreen.
  */
-export function AccountMenu({ user }: { user: User }) {
+export function AccountMenu({ user, collapsed = false }: { user: User; collapsed?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const logout = useLogout();
@@ -38,8 +37,7 @@ export function AccountMenu({ user }: { user: User }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // Close on outside click / Escape, and return focus to the trigger so keyboard
-  // users don't get dumped at the top of the document.
+  // Close on outside click / Escape, and return focus to the trigger
   useEffect(() => {
     if (!open) return;
 
@@ -60,10 +58,7 @@ export function AccountMenu({ user }: { user: User }) {
     };
   }, [open]);
 
-  // Navigating away should never leave a menu hanging open — including via browser
-  // back/forward, which no click handler would catch. Done as a render-phase reset
-  // (React's adjust-state-on-prop-change) rather than an effect, so there's no
-  // extra render pass.
+  // Navigating away should close the menu
   const [prevPath, setPrevPath] = useState(pathname);
   if (pathname !== prevPath) {
     setPrevPath(pathname);
@@ -83,66 +78,127 @@ export function AccountMenu({ user }: { user: User }) {
   };
 
   const isDark = resolvedTheme === "dark";
+  const displayName = user.display_name?.trim() || firstNameOf(user);
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative w-full">
       <button
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-full border border-transparent py-1 pl-1 pr-2.5 text-sm text-text-secondary transition-colors hover:border-border hover:bg-bg-surface hover:text-text-primary"
+        title={collapsed ? `${displayName} (${user.email})` : undefined}
+        className={`group flex w-full items-center border border-transparent transition-all duration-150 ${
+          collapsed
+            ? "justify-center p-1.5 hover:bg-bg-elevated text-text-secondary hover:text-text-primary"
+            : "gap-2.5 p-2 text-left hover:border-border hover:bg-bg-elevated/70 text-text-secondary hover:text-text-primary"
+        } ${open ? "border-border bg-bg-elevated text-text-primary" : ""}`}
       >
-        <Avatar user={user} size={26} />
-        <span className="hidden max-w-[9rem] truncate font-medium sm:inline">
-          {firstNameOf(user)}
-        </span>
-        <svg
-          aria-hidden
-          viewBox="0 0 12 12"
-          className={`h-3 w-3 shrink-0 text-text-muted transition-transform duration-150 ${open ? "rotate-180" : ""}`}
-        >
-          <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <Avatar user={user} size={collapsed ? 30 : 32} />
+        {!collapsed && (
+          <>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-semibold text-text-primary">
+                {displayName}
+              </div>
+              <div className="truncate font-mono text-[0.6875rem] text-text-muted">
+                {user.email}
+              </div>
+            </div>
+            <svg
+              aria-hidden
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 group-hover:text-text-primary ${
+                open ? "rotate-180 text-text-primary" : ""
+              }`}
+            >
+              <path d="m6 8 4 4 4-4" />
+            </svg>
+          </>
+        )}
       </button>
 
       {open && (
         <div
           role="menu"
           aria-label="Account"
-          className="menu-surface animate-fade-in absolute right-0 z-40 mt-2 w-64 origin-top-right"
+          className={`menu-surface animate-fade-in absolute z-50 w-64 ${
+            collapsed
+              ? "left-full bottom-0 ml-3 origin-bottom-left"
+              : "bottom-full left-0 mb-2 origin-bottom-left"
+          }`}
         >
-          {/* Identity header — the full email lives here, not in the nav bar. */}
-          <div className="flex items-center gap-3 px-2.5 py-2.5">
-            <Avatar user={user} size={38} />
-            <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-text-primary">
+          {/* Identity header */}
+          <div className="flex items-center gap-3 px-3 py-2.5 bg-bg-elevated/40 border-b border-border">
+            <Avatar user={user} size={36} />
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-serif text-sm font-bold text-text-primary">
                 {user.display_name || firstNameOf(user)}
               </div>
-              <div className="truncate text-xs text-text-muted" title={user.email}>
+              <div className="truncate font-mono text-xs text-text-muted" title={user.email}>
                 {user.email}
               </div>
             </div>
           </div>
 
-          <div className="menu-separator" />
+          <div className="menu-separator my-1" />
 
-          {/* Desktop has no login, no profile store, and no logout (docs/13 §7):
-              the account surface shrinks to settings + appearance. */}
+          {/* Nav items */}
           {!isDesktop && (
-            <Link href="/profile" role="menuitem" className="menu-item" onClick={() => setOpen(false)}>
-              <MenuIcon path="M10 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM3.5 17c0-2.9 2.9-5 6.5-5s6.5 2.1 6.5 5" />
-              Profile
+            <Link
+              href="/profile"
+              role="menuitem"
+              className="menu-item"
+              onClick={() => setOpen(false)}
+            >
+              <svg
+                aria-hidden
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4 text-text-muted"
+              >
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              <span>Profile</span>
             </Link>
           )}
-          <Link href="/settings" role="menuitem" className="menu-item" onClick={() => setOpen(false)}>
-            <MenuIcon path="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z M16.2 12a1.4 1.4 0 0 0 .28 1.55l.05.05a1.7 1.7 0 1 1-2.4 2.4l-.05-.05a1.4 1.4 0 0 0-1.55-.28 1.4 1.4 0 0 0-.85 1.28v.14a1.7 1.7 0 1 1-3.4 0v-.07a1.4 1.4 0 0 0-.92-1.28 1.4 1.4 0 0 0-1.55.28l-.05.05a1.7 1.7 0 1 1-2.4-2.4l.05-.05a1.4 1.4 0 0 0 .28-1.55 1.4 1.4 0 0 0-1.28-.85h-.14a1.7 1.7 0 1 1 0-3.4h.07a1.4 1.4 0 0 0 1.28-.92 1.4 1.4 0 0 0-.28-1.55l-.05-.05a1.7 1.7 0 1 1 2.4-2.4l.05.05a1.4 1.4 0 0 0 1.55.28h.07a1.4 1.4 0 0 0 .85-1.28v-.14a1.7 1.7 0 1 1 3.4 0v.07a1.4 1.4 0 0 0 .85 1.28 1.4 1.4 0 0 0 1.55-.28l.05-.05a1.7 1.7 0 1 1 2.4 2.4l-.05.05a1.4 1.4 0 0 0-.28 1.55v.07a1.4 1.4 0 0 0 1.28.85h.14a1.7 1.7 0 1 1 0 3.4h-.07a1.4 1.4 0 0 0-1.28.85Z" />
-            Settings
+
+          <Link
+            href="/settings"
+            role="menuitem"
+            className="menu-item"
+            onClick={() => setOpen(false)}
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4 text-text-muted"
+            >
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <span>Settings</span>
           </Link>
 
-          <div className="menu-separator" />
+          <div className="menu-separator my-1" />
 
+          {/* Theme switcher */}
           <button
             type="button"
             role="menuitem"
@@ -150,21 +206,44 @@ export function AccountMenu({ user }: { user: User }) {
             className="menu-item justify-between"
           >
             <span className="flex items-center gap-2.5">
-              <MenuIcon
-                path={
-                  isDark
-                    ? "M10 3v1.5M10 15.5V17M17 10h-1.5M4.5 10H3M14.95 5.05l-1.06 1.06M6.11 13.89l-1.06 1.06M14.95 14.95l-1.06-1.06M6.11 6.11 5.05 5.05M13 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-                    : "M16.5 11.4A6.6 6.6 0 0 1 8.6 3.5a6.6 6.6 0 1 0 7.9 7.9Z"
-                }
-              />
-              Appearance
+              {isDark ? (
+                <svg
+                  aria-hidden
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4 text-warning"
+                >
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+                </svg>
+              ) : (
+                <svg
+                  aria-hidden
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4 text-text-muted"
+                >
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+              )}
+              <span>Appearance</span>
             </span>
-            <span className="text-xs text-text-muted">{isDark ? "Dark" : "Light"}</span>
+            <span className="text-[0.6875rem] font-medium px-1.5 py-0.5 rounded bg-bg-elevated text-text-muted">
+              {isDark ? "Dark" : "Light"}
+            </span>
           </button>
 
           {!isDesktop && (
             <>
-              <div className="menu-separator" />
+              <div className="menu-separator my-1" />
 
               <button
                 type="button"
@@ -172,34 +251,32 @@ export function AccountMenu({ user }: { user: User }) {
                 data-danger="true"
                 onClick={onSignOut}
                 disabled={logout.isPending}
-                className="menu-item"
+                className="menu-item text-danger hover:bg-danger/10"
               >
                 {logout.isPending ? (
                   <span className="spinner" style={{ width: 14, height: 14 }} />
                 ) : (
-                  <MenuIcon path="M12.5 13.5 16 10l-3.5-3.5M16 10H7M11 3.5H5.5a1.5 1.5 0 0 0-1.5 1.5v10a1.5 1.5 0 0 0 1.5 1.5H11" />
+                  <svg
+                    aria-hidden
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                  >
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
                 )}
-                Sign out
+                <span>Sign out</span>
               </button>
             </>
           )}
         </div>
       )}
     </div>
-  );
-}
-
-function MenuIcon({ path }: { path: string }) {
-  return (
-    <svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4 shrink-0 text-text-muted">
-      <path
-        d={path}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

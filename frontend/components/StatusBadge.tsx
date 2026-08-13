@@ -14,16 +14,19 @@ export function StatusBadge({ status }: { status: SessionStatus }) {
   const c = `var(--${token})`;
   return (
     <span
-      className="badge"
+      className="badge font-mono text-[0.6875rem] font-semibold uppercase tracking-wider"
       style={{
         color: c,
-        backgroundColor: `color-mix(in srgb, ${c} 14%, transparent)`,
-        borderColor: `color-mix(in srgb, ${c} 32%, transparent)`,
+        backgroundColor: `color-mix(in srgb, ${c} 10%, var(--bg-surface))`,
+        borderColor: `color-mix(in srgb, ${c} 30%, var(--border))`,
       }}
     >
       <span
-        className={pulse ? "inline-block h-1.5 w-1.5 rounded-full" : "hidden"}
-        style={pulse ? { backgroundColor: c, animation: "pulse-ring 1.4s ease-in-out infinite" } : undefined}
+        className="status-marker"
+        style={{
+          backgroundColor: c,
+          animation: pulse ? "pulse-ring 1.4s ease-in-out infinite" : undefined,
+        }}
         aria-hidden
       />
       {label}

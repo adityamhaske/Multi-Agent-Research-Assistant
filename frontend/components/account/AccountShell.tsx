@@ -28,7 +28,7 @@ export function AccountShell({
   return (
     <div className="mx-auto max-w-3xl">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-text-primary">{title}</h1>
+        <h1 className="font-serif text-2xl font-bold tracking-tight text-text-primary">{title}</h1>
         <p className="mt-1 text-sm text-text-muted">{description}</p>
       </header>
 
@@ -41,7 +41,7 @@ export function AccountShell({
                 key={tab.href}
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
-                className="segmented-item"
+                className="segmented-item font-mono text-xs uppercase tracking-wider"
               >
                 {tab.label}
               </Link>

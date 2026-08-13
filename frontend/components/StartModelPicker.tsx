@@ -87,10 +87,10 @@ export function StartModelPicker({
             role="radio"
             aria-checked={source === opt.key}
             onClick={() => pick(opt.key)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            className={`px-3 py-1 font-mono text-xs font-medium border transition-colors ${
               source === opt.key
-                ? "bg-accent-muted text-accent"
-                : "bg-bg-elevated text-text-muted hover:text-text-secondary"
+                ? "bg-accent text-white border-accent"
+                : "bg-bg-surface text-text-muted border-border hover:text-text-primary"
             }`}
           >
             {opt.label}

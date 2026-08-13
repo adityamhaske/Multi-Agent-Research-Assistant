@@ -66,11 +66,11 @@ export function SessionCard({ session }: { session: SessionSummary }) {
         </span>
       </div>
 
-      <p className="mt-3 line-clamp-2 text-[0.9375rem] leading-snug text-text-primary transition-colors group-hover:text-accent">
+      <p className="mt-3 line-clamp-2 font-serif text-[1rem] font-medium leading-snug text-text-primary transition-colors group-hover:text-accent">
         {session.prompt}
       </p>
 
-      <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
+      <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-text-muted">
         <span className="capitalize">{session.research_depth}</span>
         <span aria-hidden>·</span>
         <span className="tabular-nums">{formatCost(session.total_cost_usd)}</span>
@@ -84,7 +84,7 @@ export function SessionCard({ session }: { session: SessionSummary }) {
         )}
 
         {/* Actions. Visible on hover/focus at pointer sizes, always visible on touch. */}
-        <span className="ml-auto flex items-center gap-1.5 opacity-100 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
+        <span className="ml-auto flex items-center gap-1.5 opacity-100 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100 font-sans">
           {confirming ? (
             <>
               <span className="text-[0.6875rem] text-danger">Delete permanently?</span>
@@ -92,7 +92,7 @@ export function SessionCard({ session }: { session: SessionSummary }) {
                 type="button"
                 onClick={onDelete}
                 disabled={busy}
-                className="rounded px-1.5 py-0.5 text-[0.6875rem] font-medium text-danger hover:bg-danger/10"
+                className="px-1.5 py-0.5 text-[0.6875rem] font-medium text-danger border border-danger/30 hover:bg-danger/10"
               >
                 {del.isPending ? "Deleting…" : "Yes"}
               </button>
@@ -102,7 +102,7 @@ export function SessionCard({ session }: { session: SessionSummary }) {
                   stop(e);
                   setConfirming(false);
                 }}
-                className="rounded px-1.5 py-0.5 text-[0.6875rem] text-text-muted hover:text-text-secondary"
+                className="px-1.5 py-0.5 text-[0.6875rem] text-text-muted border border-border hover:text-text-secondary"
               >
                 No
               </button>
@@ -113,7 +113,7 @@ export function SessionCard({ session }: { session: SessionSummary }) {
                 type="button"
                 onClick={onArchive}
                 disabled={busy}
-                className="rounded px-1.5 py-0.5 text-[0.6875rem] text-text-muted hover:text-text-secondary"
+                className="px-1.5 py-0.5 text-[0.6875rem] text-text-muted border border-transparent hover:border-border hover:text-text-secondary"
                 title={archived ? "Restore to History" : "Move out of History"}
               >
                 {archived ? "Restore" : "Archive"}
@@ -125,7 +125,7 @@ export function SessionCard({ session }: { session: SessionSummary }) {
                   setConfirming(true);
                 }}
                 disabled={busy}
-                className="rounded px-1.5 py-0.5 text-[0.6875rem] text-text-muted hover:text-danger"
+                className="px-1.5 py-0.5 text-[0.6875rem] text-text-muted border border-transparent hover:border-danger/30 hover:text-danger"
                 title="Delete permanently"
               >
                 Delete

@@ -15,20 +15,20 @@ function ConnectionPill({ state }: { state: StreamState }) {
   if (state === "reconnecting") {
     return (
       <span
-        className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.7rem] font-medium"
-        style={{ color: "var(--warning)", backgroundColor: "color-mix(in srgb, var(--warning) 14%, transparent)" }}
+        className="badge font-mono text-[0.6875rem] font-semibold"
+        style={{ color: "var(--warning)", backgroundColor: "color-mix(in srgb, var(--warning) 10%, var(--bg-surface))", borderColor: "color-mix(in srgb, var(--warning) 30%, var(--border))" }}
       >
-        <span className="spinner" style={{ width: 10, height: 10 }} /> Reconnecting…
+        <span className="spinner" style={{ width: 8, height: 8 }} /> Reconnecting…
       </span>
     );
   }
   if (state === "connecting") {
-    return <span className="text-[0.7rem] text-text-muted">Connecting…</span>;
+    return <span className="font-mono text-[0.6875rem] text-text-muted">Connecting…</span>;
   }
   if (state === "open") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[0.7rem] text-text-muted">
-        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--success)" }} /> Live
+      <span className="badge font-mono text-[0.6875rem] text-text-muted border-border">
+        <span className="status-marker" style={{ backgroundColor: "var(--success)" }} /> Live
       </span>
     );
   }
@@ -62,7 +62,7 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
   return (
     <div className="card relative flex h-full flex-col p-0">
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-        <h3 className="text-sm font-semibold text-text-primary">Activity</h3>
+        <h3 className="text-sm font-serif font-semibold text-text-primary">Activity Log</h3>
         <ConnectionPill state={state} />
       </div>
 
@@ -78,10 +78,10 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
         ) : (
           <ul className="space-y-1.5">
             {events.map((e, i) => (
-              <li key={e.id ?? i} className="flex gap-2">
-                <span className="shrink-0 text-text-muted">{(e.ts ?? "").slice(11, 19)}</span>
+              <li key={e.id ?? i} className="flex items-baseline gap-2">
+                <span className="w-16 shrink-0 text-text-muted font-mono tabular-nums">{(e.ts ?? "").slice(11, 19)}</span>
                 {e.agent && (
-                  <span className="shrink-0 font-semibold" style={{ color: agentColor(e.agent) }}>
+                  <span className="w-24 shrink-0 font-mono text-[0.6875rem] font-semibold uppercase tracking-wider" style={{ color: agentColor(e.agent) }}>
                     {e.agent}
                   </span>
                 )}
@@ -96,7 +96,7 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
         <button
           type="button"
           onClick={jumpToLatest}
-          className="btn btn-secondary absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 text-xs shadow-md"
+          className="btn btn-secondary absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 text-xs"
         >
           ↓ Jump to latest
         </button>

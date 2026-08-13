@@ -149,22 +149,22 @@ function CitationChip({ source }: { source: Source }) {
       <button
         type="button"
         aria-label={`Source ${source.index}: ${source.title || domainOf(source.url)}`}
-        className="align-super text-[0.65em] font-semibold leading-none text-accent rounded-sm px-1 py-0.5 bg-accent-muted hover:brightness-110 transition"
+        className="align-super font-mono text-[0.65em] font-semibold leading-none text-accent px-1 py-0.5 bg-accent-muted border border-border hover:brightness-95 transition"
       >
         [{source.index}]
       </button>
       <span
         role="tooltip"
-        className="pointer-events-none invisible absolute bottom-full left-1/2 z-20 mb-2 w-72 -translate-x-1/2 rounded-lg border border-border bg-bg-elevated p-3 text-left opacity-0 shadow-lg transition-opacity duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
+        className="pointer-events-none invisible absolute bottom-full left-1/2 z-20 mb-2 w-72 -translate-x-1/2 border border-border bg-bg-elevated p-3 text-left opacity-0 shadow-lg transition-opacity duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
       >
-        <span className="block text-xs font-semibold text-text-primary">
+        <span className="block font-serif text-xs font-semibold text-text-primary">
           {source.title || domainOf(source.url)}
         </span>
-        <span className="mt-0.5 block text-[0.7rem] text-text-muted">{domainOf(source.url)}</span>
+        <span className="mt-0.5 block font-mono text-[0.6875rem] text-text-muted">{domainOf(source.url)}</span>
         {snippets.map((text, i) => (
           <span
             key={i}
-            className="mt-2 block border-l-2 border-border pl-2 text-xs italic text-text-secondary"
+            className="mt-2 block border-l-2 border-accent pl-2 text-xs italic text-text-secondary"
           >
             &ldquo;{text}&rdquo;
           </span>
@@ -173,7 +173,7 @@ function CitationChip({ source }: { source: Source }) {
           href={source.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="pointer-events-auto mt-2 inline-block text-[0.7rem] font-medium text-accent hover:underline"
+          className="pointer-events-auto mt-2 inline-block font-mono text-[0.6875rem] font-medium text-accent hover:underline"
         >
           Open source ↗
         </a>
@@ -186,8 +186,8 @@ export function UnverifiedChip({ n, prefix = "" }: { n: number; prefix?: string 
   return (
     <span
       title={`Citation [${prefix}${n}] does not resolve to a source — unverified`}
-      className="mx-0.5 inline-flex items-center gap-0.5 rounded-sm px-1 align-super text-[0.65em] font-semibold text-danger"
-      style={{ backgroundColor: "color-mix(in srgb, var(--danger) 15%, transparent)" }}
+      className="mx-0.5 inline-flex items-center gap-0.5 px-1 align-super font-mono text-[0.65em] font-semibold text-danger border border-danger/30"
+      style={{ backgroundColor: "color-mix(in srgb, var(--danger) 10%, var(--bg-surface))" }}
     >
       ⚠[{prefix}
       {n}]

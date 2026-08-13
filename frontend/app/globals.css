@@ -9,95 +9,217 @@
  */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ─── Design tokens (docs/07 §1) ──────────────────────────────────────────────
- * Warm, Claude-flavored palette. Light is the default: cream paper + terracotta,
- * like claude.ai. Dark mirrors the Claude Code terminal — warm charcoal, never
- * blue-black. Both themes are first-class; components NEVER hardcode hex.
- *
- * Contrast is deliberate, not decorative — every foreground/background pair below
- * was computed against WCAG AA (≥4.5:1 body, ≥3:1 large/UI). Note the accent
- * splits by theme: the signature terracotta #D97757 only reaches ~2.9:1 on cream,
- * so light mode uses a deepened #B54F2A (4.8:1 as text, 5.1:1 behind white button
- * labels) while dark keeps #D97757 (5.4:1 on charcoal).
+/* ─── Formal Academic Research-Paper Design Tokens ─────────────────────────────
+ * Color Matrix:
+ *   Paper Background: Light #FBFBFA / Dark #121214 (low contrast backdrop)
+ *   Card Background:  Light #FFFFFF / Dark #1A1A1E (sharp foreground container)
+ *   Strict Border:    Light #D1D1CD / Dark #2E2E34 (sharp 1px dividers, 0 radius)
+ *   Ink Black Text:   Light #111111 / Dark #F4F4F6 (primary reading & headers)
+ *   Muted Ink Text:   Light #666662 / Dark #8E8E93 (secondary & passive elements)
+ *   Academic Accent:  Light #3F5E4D / Dark #527A65 (muted sage green)
+ *   Status: OK:       Light #10B981 / Dark #10B981 (pure emerald green)
+ *   Status: Warn:     Light #F59E0B / Dark #F59E0B (vibrant amber)
+ *   Status: Fail:     Light #EF4444 / Dark #EF4444 (vivid crimson red)
+ *   Badge Frame Block:Light #EAEAE6 / Dark #242428
  */
 :root {
-  --bg-base: #faf9f5; /* warm cream paper */
-  --bg-surface: #ffffff;
-  --bg-elevated: #f0eee6;
-  --border: #e3e0d6;
+  /* 1. Core Palette & Semantic Tokens (Light) */
+  --ink: #111111;
+  --ink-2: #666662;
+  --ink-3: #8C8C88;
+  --blue: #3F5E4D;
+  --good: #10B981;
+  --bad: #EF4444;
+  --panel: #111111;
+  --panel-line: #2E2E34;
 
-  --text-primary: #1f1e1d; /* warm near-black, ~15.9:1 */
-  --text-secondary: #45443f; /* ~9.4:1 */
-  --text-muted: #6b6a65; /* ~5.1:1 */
+  /* 2. Surfaces & Backgrounds */
+  --ground: #FBFBFA;
+  --surface: #FFFFFF;
+  --surface-2: #F2F2EF;
 
-  --accent: #b54f2a; /* deepened terracotta — AA as text on cream */
-  --accent-muted: #f5e6dd;
-  --accent-contrast: #ffffff; /* label on an --accent-filled button */
+  /* 3. Structural Dividers & Strict Borders */
+  --line: #D1D1CD;
+  --line-2: #C4C4BF;
 
-  --success: #3f7a47;
-  --warning: #96601a;
-  --danger: #a83232;
-  --info: #2f6f9f;
+  /* 4. Academic Accent & Badge Blocks */
+  --academic-accent: #3F5E4D;
+  --badge-block-bg: #EAEAE6;
+  --badge-block-text: #3F5E4D;
 
-  --agent-planner: #2f6f9f;
-  --agent-executor: #96601a;
-  --agent-critic: #a03e5c;
-  --agent-synthesizer: #3f7a47;
-  --agent-hitl: #b54f2a;
+  --base-blue: #3F5E4D;
+  --base-blue-ink: #2C4336;
+  --base-blue-soft: #EAEAE6;
+  --base-blue-line: #D1D1CD;
 
-  --ring: color-mix(in srgb, var(--accent) 45%, transparent);
+  --base-good: #10B981;
+  --base-good-ink: #059669;
+  --base-good-soft: #ECFDF5;
+  --base-good-line: #A7F3D0;
 
-  /* Elevation. Warm-tinted rather than neutral grey so shadows sit in the same
-     family as the paper — a neutral black shadow reads "cheap" on cream. */
-  --shadow-xs: 0 1px 2px 0 rgb(60 45 35 / 0.05);
-  --shadow-sm: 0 1px 3px 0 rgb(60 45 35 / 0.07), 0 1px 2px -1px rgb(60 45 35 / 0.06);
-  --shadow-md: 0 4px 12px -2px rgb(60 45 35 / 0.09), 0 2px 4px -2px rgb(60 45 35 / 0.05);
-  --shadow-lg: 0 12px 28px -6px rgb(60 45 35 / 0.14), 0 4px 8px -4px rgb(60 45 35 / 0.06);
+  --base-signal: #111111;
+  --base-signal-ink: #111111;
+  --base-signal-soft: #EAEAE6;
+  --base-signal-line: #D1D1CD;
+
+  /* Mappings to framework variables */
+  --bg-base: var(--ground);
+  --bg-surface: var(--surface);
+  --bg-elevated: var(--surface-2);
+  --border: var(--line);
+  --border-2: var(--line-2);
+
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-2);
+  --text-muted: var(--ink-3);
+
+  --accent: var(--academic-accent);
+  --accent-muted: var(--badge-block-bg);
+  --accent-contrast: #FFFFFF;
+
+  --success: var(--good);
+  --warning: #F59E0B;
+  --danger: var(--bad);
+  --info: var(--academic-accent);
+
+  --agent-planner: #3F5E4D;
+  --agent-executor: #D97706;
+  --agent-critic: #9F1239;
+  --agent-synthesizer: #3F5E4D;
+  --agent-hitl: #3F5E4D;
+
+  --ring: color-mix(in srgb, var(--accent) 40%, transparent);
+
+  /* Flat Strict Elevation (No blurry drop-shadows) */
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: 0 4px 12px -2px rgb(17 17 17 / 0.08);
+
+  /* Typography */
+  --font-serif: "Times New Roman", Times, Georgia, Cambria, serif;
 }
 
 .dark {
-  --bg-base: #1f1e1d; /* Claude Code warm charcoal */
-  --bg-surface: #262625;
-  --bg-elevated: #302f2d;
-  --border: #3e3d3a;
+  /* 1. Core Palette & Semantic Tokens (Dark) */
+  --ink: #F4F4F6;
+  --ink-2: #8E8E93;
+  --ink-3: #707075;
+  --blue: #527A65;
+  --good: #10B981;
+  --bad: #EF4444;
+  --panel: #0E0E10;
+  --panel-line: #2E2E34;
 
-  --text-primary: #f5f4ee; /* warm cream, ~15.1:1 */
-  --text-secondary: #cfccc3; /* ~10.6:1 */
-  --text-muted: #a3a099; /* ~6.4:1 */
+  /* 2. Surfaces & Backgrounds (Dark) */
+  --ground: #121214;
+  --surface: #1A1A1E;
+  --surface-2: #242428;
 
-  --accent: #d97757; /* signature terracotta — AA on charcoal */
-  --accent-muted: #3a2a24;
-  --accent-contrast: #1f1e1d; /* dark label on a terracotta button */
+  /* 3. Structural Dividers & Strict Borders (Dark) */
+  --line: #2E2E34;
+  --line-2: #3B3B42;
 
-  --success: #86c08d;
-  --warning: #e0a45c;
-  --danger: #e88b7d;
-  --info: #7fb6de;
+  /* 4. Academic Accent & Badge Blocks (Dark) */
+  --academic-accent: #527A65;
+  --badge-block-bg: #242428;
+  --badge-block-text: #527A65;
 
-  --agent-planner: #7fb6de;
-  --agent-executor: #e0a45c;
-  --agent-critic: #e08fa8;
-  --agent-synthesizer: #86c08d;
-  --agent-hitl: #d97757;
+  --base-blue: #527A65;
+  --base-blue-ink: #6B9F85;
+  --base-blue-soft: #242428;
+  --base-blue-line: #3B3B42;
 
-  --ring: color-mix(in srgb, var(--accent) 55%, transparent);
+  --base-good: #10B981;
+  --base-good-ink: #34D399;
+  --base-good-soft: #064E3B;
+  --base-good-line: #059669;
 
-  /* On dark, elevation comes mostly from the surface step; shadows stay deep and
-     subtle so cards don't glow. */
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.25);
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.35), 0 1px 2px -1px rgb(0 0 0 / 0.3);
-  --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.3);
-  --shadow-lg: 0 12px 28px -6px rgb(0 0 0 / 0.55), 0 4px 8px -4px rgb(0 0 0 / 0.35);
+  --base-signal: #F4F4F6;
+  --base-signal-ink: #F4F4F6;
+  --base-signal-soft: #242428;
+  --base-signal-line: #3B3B42;
+
+  /* Mappings to framework variables (Dark) */
+  --bg-base: var(--ground);
+  --bg-surface: var(--surface);
+  --bg-elevated: var(--surface-2);
+  --border: var(--line);
+  --border-2: var(--line-2);
+
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-2);
+  --text-muted: var(--ink-3);
+
+  --accent: var(--academic-accent);
+  --accent-muted: var(--badge-block-bg);
+  --accent-contrast: #121214;
+
+  --success: var(--good);
+  --warning: #F59E0B;
+  --danger: var(--bad);
+  --info: var(--academic-accent);
+
+  --agent-planner: #527A65;
+  --agent-executor: #F59E0B;
+  --agent-critic: #FB7185;
+  --agent-synthesizer: #527A65;
+  --agent-hitl: #527A65;
+
+  --ring: color-mix(in srgb, var(--accent) 45%, transparent);
+
+  /* Flat Strict Elevation (Dark) */
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: 0 4px 12px -2px rgb(0 0 0 / 0.5);
+
+  /* Typography */
+  --font-serif: "Times New Roman", Times, Georgia, Cambria, serif;
 }
 
-/* Map raw tokens into Tailwind's theme so `bg-bg-surface`, `text-text-muted`,
- * `border-border`, `text-accent`, etc. become utilities. `inline` makes the
- * generated utilities reference var() at the use-site, so .dark overrides win. */
+/* Map tokens into Tailwind's theme */
 @theme inline {
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-blue: var(--blue);
+  --color-good: var(--good);
+  --color-bad: var(--bad);
+  --color-panel: var(--panel);
+  --color-panel-line: var(--panel-line);
+
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+
+  --color-academic-accent: var(--academic-accent);
+  --color-badge-block-bg: var(--badge-block-bg);
+  --color-badge-block-text: var(--badge-block-text);
+
+  --color-base-blue: var(--base-blue);
+  --color-base-blue-ink: var(--base-blue-ink);
+  --color-base-blue-soft: var(--base-blue-soft);
+  --color-base-blue-line: var(--base-blue-line);
+
+  --color-base-good: var(--base-good);
+  --color-base-good-ink: var(--base-good-ink);
+  --color-base-good-soft: var(--base-good-soft);
+  --color-base-good-line: var(--base-good-line);
+
+  --color-base-signal: var(--base-signal);
+  --color-base-signal-ink: var(--base-signal-ink);
+  --color-base-signal-soft: var(--base-signal-soft);
+  --color-base-signal-line: var(--base-signal-line);
+
   --color-bg-base: var(--bg-base);
   --color-bg-surface: var(--bg-surface);
   --color-bg-elevated: var(--bg-elevated);
   --color-border: var(--border);
+  --color-border-2: var(--border-2);
 
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
@@ -118,8 +240,9 @@
   --color-agent-synthesizer: var(--agent-synthesizer);
   --color-agent-hitl: var(--agent-hitl);
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, "JetBrains Mono", monospace;
+  --font-serif: var(--font-serif);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
 }
 
 /* ─── Base ────────────────────────────────────────────────────────────────── */
@@ -128,6 +251,7 @@
   *::before,
   *::after {
     box-sizing: border-box;
+    border-radius: 0;
   }
 
   html {
@@ -136,32 +260,37 @@
   }
 
   body {
-    background-color: var(--bg-base);
-    color: var(--text-primary);
+    background-color: var(--ground);
+    color: var(--ink);
     font-family: var(--font-sans);
     min-height: 100vh;
   }
 
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 9999px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
+  h1, h2, h3, h4, h5, h6, .academic-title {
+    font-family: var(--font-serif);
+    letter-spacing: -0.015em;
+    font-weight: 600;
   }
 
-  /* Single, consistent focus-visible ring using the accent token (docs/07 §1). */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--ground);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line-2);
+    border-radius: 0;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--ink-3);
+  }
+
   :focus-visible {
     outline: 2px solid var(--accent);
-    outline-offset: 2px;
-    border-radius: 2px;
+    outline-offset: 1px;
+    border-radius: 0;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -185,7 +314,7 @@
 }
 @keyframes slide-up {
   from {
-    transform: translateY(8px);
+    transform: translateY(4px);
     opacity: 0;
   }
   to {
@@ -207,13 +336,8 @@
     transform: rotate(360deg);
   }
 }
-@keyframes shimmer {
-  100% {
-    transform: translateX(100%);
-  }
-}
 
-/* ─── Component classes (token-only) ──────────────────────────────────────── */
+/* ─── Component classes (token-only & strict square geometry) ─────────────── */
 @layer components {
   .btn {
     display: inline-flex;
@@ -221,20 +345,18 @@
     justify-content: center;
     gap: 0.5rem;
     font-weight: 550;
-    font-size: 0.875rem;
-    letter-spacing: -0.006em;
+    font-size: 0.8125rem;
+    letter-spacing: -0.005em;
     line-height: 1.25rem;
-    padding: 0.5rem 0.9375rem;
-    border-radius: 0.5rem;
+    padding: 0.4375rem 0.875rem;
+    border-radius: 0;
     border: 1px solid transparent;
     cursor: pointer;
     white-space: nowrap;
     transition:
-      background-color 0.15s ease,
-      border-color 0.15s ease,
-      color 0.15s ease,
-      box-shadow 0.15s ease,
-      transform 0.08s ease;
+      background-color 0.12s ease,
+      border-color 0.12s ease,
+      color 0.12s ease;
   }
   .btn:disabled {
     opacity: 0.5;
@@ -246,99 +368,100 @@
 
   .btn-primary {
     background-color: var(--accent);
-    color: var(--accent-contrast);
-    box-shadow: var(--shadow-xs);
+    color: #ffffff;
+    border-color: var(--accent);
   }
   .btn-primary:hover:not(:disabled) {
-    background-color: color-mix(in srgb, var(--accent) 90%, black);
-    box-shadow: var(--shadow-sm);
+    background-color: var(--base-blue-ink);
+    border-color: var(--base-blue-ink);
   }
 
   .btn-secondary {
-    background-color: var(--bg-surface);
-    color: var(--text-primary);
-    border-color: var(--border);
-    box-shadow: var(--shadow-xs);
+    background-color: var(--surface);
+    color: var(--ink);
+    border-color: var(--line);
   }
   .btn-secondary:hover:not(:disabled) {
-    background-color: var(--bg-elevated);
-    border-color: color-mix(in srgb, var(--border) 60%, var(--text-muted));
+    background-color: var(--surface-2);
+    border-color: var(--line-2);
   }
 
   .btn-ghost {
     background-color: transparent;
-    color: var(--text-secondary);
+    color: var(--ink-2);
   }
   .btn-ghost:hover:not(:disabled) {
-    background-color: var(--bg-elevated);
-    color: var(--text-primary);
+    background-color: var(--surface-2);
+    color: var(--ink);
   }
 
   .btn-danger {
     background-color: transparent;
-    color: var(--danger);
-    border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+    color: var(--bad);
+    border-color: color-mix(in srgb, var(--bad) 35%, transparent);
   }
   .btn-danger:hover:not(:disabled) {
-    background-color: color-mix(in srgb, var(--danger) 12%, transparent);
-    border-color: var(--danger);
+    background-color: color-mix(in srgb, var(--bad) 10%, transparent);
+    border-color: var(--bad);
   }
 
   .card {
-    background-color: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 0;
     padding: 1.5rem;
-    box-shadow: var(--shadow-xs);
+    box-shadow: none;
   }
 
-  /* An interactive card lifts on hover — the affordance that says "this is a link". */
   .card-interactive {
     transition:
-      box-shadow 0.18s ease,
-      border-color 0.18s ease,
-      transform 0.18s ease;
+      border-color 0.15s ease,
+      background-color 0.15s ease;
   }
   .card-interactive:hover {
-    box-shadow: var(--shadow-md);
-    border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
-    transform: translateY(-1px);
+    border-color: var(--ink-2);
   }
 
-  /* Section label above a group of settings — small, tracked-out, quiet. */
   .eyebrow {
+    font-family: var(--font-sans);
     font-size: 0.6875rem;
     font-weight: 600;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--text-muted);
+    color: var(--accent);
+  }
+
+  .rule {
+    height: 1px;
+    background-color: var(--line);
+    width: 100%;
   }
 
   .input-base,
   .textarea-base {
     width: 100%;
-    background-color: var(--bg-base);
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    padding: 0.5625rem 0.8125rem;
-    color: var(--text-primary);
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 0;
+    padding: 0.5rem 0.75rem;
+    color: var(--ink);
     font-family: var(--font-sans);
     font-size: 0.875rem;
     line-height: 1.375rem;
     outline: none;
     transition:
-      border-color 0.15s ease,
-      box-shadow 0.15s ease,
-      background-color 0.15s ease;
+      border-color 0.12s ease,
+      background-color 0.12s ease;
   }
   .input-base:hover:not(:focus):not(:disabled),
   .textarea-base:hover:not(:focus):not(:disabled) {
-    border-color: color-mix(in srgb, var(--border) 55%, var(--text-muted));
+    border-color: var(--ink-2);
   }
   .input-base:disabled,
   .textarea-base:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+    background-color: var(--surface-2);
   }
   .textarea-base {
     resize: vertical;
@@ -346,34 +469,112 @@
   }
   .input-base::placeholder,
   .textarea-base::placeholder {
-    color: var(--text-muted);
+    color: var(--ink-3);
   }
   .input-base:focus,
   .textarea-base:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--ring);
+    outline: 1px solid var(--accent);
   }
 
   .badge {
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
-    padding: 0.1875rem 0.625rem;
-    border-radius: 9999px;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0;
     font-size: 0.75rem;
     font-weight: 600;
     line-height: 1.2;
     border: 1px solid transparent;
   }
 
-  /* Popover surface for the account menu. Sits above the page on --bg-surface so
-     it stays legible over the translucent nav. */
+  /* Academic Technical Badge Frame (e.g. NODE::INGESTION) */
+  .badge-frame {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.4375rem;
+    background-color: var(--badge-block-bg);
+    color: var(--badge-block-text);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    border-radius: 0;
+    border: 1px solid color-mix(in srgb, var(--badge-block-text) 25%, transparent);
+  }
+
+  /* Square Status Dot (8px by 8px) */
+  .status-marker {
+    width: 8px;
+    height: 8px;
+    border-radius: 0;
+    flex-shrink: 0;
+    display: inline-block;
+  }
+
+  /* Tight 1px Line-Grid Layout */
+  .academic-grid {
+    display: grid;
+    gap: 1px;
+    background-color: var(--line);
+    border: 1px solid var(--line);
+  }
+  .academic-grid > * {
+    background-color: var(--surface);
+    border-radius: 0;
+  }
+
+  /* Semantic Tint / Soft Sets */
+  .chip-blue {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.4375rem;
+    border-radius: 0;
+    font-size: 0.75rem;
+    font-weight: 550;
+    line-height: 1;
+    color: var(--base-blue-ink);
+    background-color: var(--base-blue-soft);
+    border: 1px solid var(--base-blue-line);
+  }
+
+  .chip-good {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.4375rem;
+    border-radius: 0;
+    font-size: 0.75rem;
+    font-weight: 550;
+    line-height: 1;
+    color: var(--base-good-ink);
+    background-color: var(--base-good-soft);
+    border: 1px solid var(--base-good-line);
+  }
+
+  .chip-signal {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.4375rem;
+    border-radius: 0;
+    font-size: 0.75rem;
+    font-weight: 550;
+    line-height: 1;
+    color: var(--base-signal-ink);
+    background-color: var(--base-signal-soft);
+    border: 1px solid var(--base-signal-line);
+  }
+
   .menu-surface {
-    background-color: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 0;
     box-shadow: var(--shadow-lg);
-    padding: 0.3125rem;
+    padding: 0.25rem;
   }
 
   .menu-item {
@@ -381,10 +582,10 @@
     width: 100%;
     align-items: center;
     gap: 0.625rem;
-    border-radius: 0.5rem;
-    padding: 0.5rem 0.625rem;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
+    border-radius: 0;
+    padding: 0.4375rem 0.625rem;
+    font-size: 0.8125rem;
+    color: var(--ink-2);
     text-align: left;
     cursor: pointer;
     transition:
@@ -393,84 +594,166 @@
   }
   .menu-item:hover,
   .menu-item:focus-visible {
-    background-color: var(--bg-elevated);
-    color: var(--text-primary);
+    background-color: var(--surface-2);
+    color: var(--ink);
   }
   .menu-item[data-danger="true"]:hover {
-    color: var(--danger);
-    background-color: color-mix(in srgb, var(--danger) 10%, transparent);
+    color: var(--bad);
+    background-color: color-mix(in srgb, var(--bad) 10%, transparent);
   }
 
   .menu-separator {
     height: 1px;
-    margin: 0.3125rem -0.3125rem;
-    background-color: var(--border);
+    margin: 0.25rem 0;
+    background-color: var(--line);
   }
 
-  /* Segmented control — used for the account sub-nav and depth picker. */
   .segmented {
     display: inline-flex;
-    gap: 0.125rem;
-    padding: 0.1875rem;
-    border-radius: 0.625rem;
-    background-color: var(--bg-elevated);
-    border: 1px solid var(--border);
+    gap: 1px;
+    padding: 1px;
+    border-radius: 0;
+    background-color: var(--line);
+    border: 1px solid var(--line);
   }
   .segmented-item {
-    border-radius: 0.4375rem;
-    padding: 0.375rem 0.75rem;
-    font-size: 0.8125rem;
+    border-radius: 0;
+    padding: 0.3125rem 0.625rem;
+    font-size: 0.75rem;
     font-weight: 550;
-    color: var(--text-muted);
+    background-color: var(--surface);
+    color: var(--ink-2);
     cursor: pointer;
     transition:
-      background-color 0.15s ease,
-      color 0.15s ease,
-      box-shadow 0.15s ease;
+      background-color 0.12s ease,
+      color 0.12s ease;
   }
   .segmented-item:hover {
-    color: var(--text-secondary);
+    color: var(--ink);
   }
   .segmented-item[aria-current="page"],
   .segmented-item[aria-selected="true"],
   .segmented-item[aria-checked="true"] {
-    background-color: var(--bg-surface);
-    color: var(--text-primary);
-    box-shadow: var(--shadow-xs);
+    background-color: var(--accent);
+    color: #ffffff;
   }
 
   .spinner {
-    width: 1rem;
-    height: 1rem;
+    width: 0.875rem;
+    height: 0.875rem;
     border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
     border-top-color: currentColor;
-    border-radius: 9999px;
+    border-radius: 0;
     animation: spin 0.7s linear infinite;
     flex-shrink: 0;
   }
 
   .animate-fade-in {
-    animation: fade-in 0.2s ease-out;
+    animation: fade-in 0.15s ease-out;
   }
   .animate-slide-up {
-    animation: slide-up 0.25s ease-out;
+    animation: slide-up 0.15s ease-out;
   }
 }
 
-/* Report/chat prose inherits our tokens instead of Tailwind Typography's grays. */
+/* ─── Academic Booktabs Data Table ────────────────────────────────────────── */
+.academic-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-top: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
+  border-left: none;
+  border-right: none;
+}
+.academic-table th {
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: 1px solid var(--line);
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-2);
+  text-align: left;
+}
+.academic-table td {
+  border-left: none;
+  border-right: none;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  border-bottom: none;
+}
+.academic-table tr + tr td {
+  border-top: 1px solid color-mix(in srgb, var(--line) 40%, transparent);
+}
+.academic-table .col-mono,
+.academic-table .col-metric,
+.academic-table .col-time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Report/Chat Prose (Editorial Academic Style) ────────────────────────── */
 .prose {
-  --tw-prose-body: var(--text-secondary);
-  --tw-prose-headings: var(--text-primary);
+  --tw-prose-body: var(--ink);
+  --tw-prose-headings: var(--ink);
   --tw-prose-links: var(--accent);
-  --tw-prose-bold: var(--text-primary);
-  --tw-prose-counters: var(--text-muted);
-  --tw-prose-bullets: var(--border);
-  --tw-prose-hr: var(--border);
-  --tw-prose-quotes: var(--text-secondary);
-  --tw-prose-quote-borders: var(--border);
-  --tw-prose-code: var(--text-primary);
-  --tw-prose-pre-bg: var(--bg-elevated);
-  --tw-prose-pre-code: var(--text-primary);
-  --tw-prose-th-borders: var(--border);
-  --tw-prose-td-borders: var(--border);
+  --tw-prose-bold: var(--ink);
+  --tw-prose-counters: var(--ink-2);
+  --tw-prose-bullets: var(--line);
+  --tw-prose-hr: var(--line);
+  --tw-prose-quotes: var(--ink-2);
+  --tw-prose-quote-borders: var(--line);
+  --tw-prose-code: var(--ink);
+  --tw-prose-pre-bg: var(--panel);
+  --tw-prose-pre-code: #F4F4F6;
+  --tw-prose-th-borders: var(--line);
+  --tw-prose-td-borders: var(--line);
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  border-top: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
+  border-left: none;
+  border-right: none;
+}
+
+.prose thead th {
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-2);
+}
+
+.prose tbody tr {
+  border-left: none;
+  border-right: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 40%, transparent);
+}
+
+.prose tbody tr:last-child {
+  border-bottom: none;
+}
+
+.prose tbody td {
+  border-left: none;
+  border-right: none;
 }

@@ -1,33 +1,33 @@
 {
   "date": "2026-08-13",
-  "generated_at": "2026-08-13T11:56:46+00:00",
+  "generated_at": "2026-08-13T20:14:33+00:00",
   "llm_mode": "real",
   "mode": "report",
   "models": {
-    "planner": "ollama:qwen2.5",
-    "executor": "ollama:qwen2.5",
-    "critic": "ollama:qwen2.5",
-    "synthesizer": "ollama:qwen2.5",
-    "chat": "ollama:qwen2.5"
+    "planner": "google:gemini-2.5-flash",
+    "executor": "google:gemini-2.5-flash",
+    "critic": "google:gemini-2.5-flash",
+    "synthesizer": "google:gemini-2.5-flash",
+    "chat": "google:gemini-2.5-flash"
   },
   "method": {
-    "metrics_version": 3,
+    "metrics_version": 4,
     "retriever": "tavily (\u2192 brave \u2192 duckduckgo fallback)",
     "query_set": "evals/queries.json"
   },
   "aggregate": {
     "queries": 10,
-    "completion_rate": 1.0,
-    "avg_source_count": 6.3,
-    "avg_uncited_claims": 14.9,
-    "avg_resolution_rate": 0.95,
-    "avg_cost_usd": 0.0,
-    "avg_latency_s": 513.755,
-    "citation_support_rate": 0.9
+    "completion_rate": 0.0,
+    "avg_source_count": null,
+    "avg_uncited_claims": null,
+    "avg_resolution_rate": null,
+    "avg_cost_usd": null,
+    "avg_latency_s": null,
+    "citation_support_rate": null
   },
   "release_criteria": {
-    "completion_rate_ok": true,
-    "citation_support_ok": false,
+    "completion_rate_ok": false,
+    "citation_support_ok": null,
     "thresholds": {
       "min_completion_rate": 0.9,
       "min_citation_support": 0.95
@@ -37,449 +37,162 @@
     {
       "id": "llm-memory",
       "domain": "ai",
-      "completed": true,
-      "error": null,
-      "latency_s": 585.97,
+      "completed": false,
+      "error": "planner: provider error \u2014 Error calling model 'gemini-2.5-flash' (RESOURCE_EXHAUSTED): 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Your project has exceeded its monthly spending cap. Please go to AI Studio at https://ai.studio/spend to manage your project spend cap. Learn more at htt",
+      "latency_s": 35.07,
       "cost_usd": 0.0,
-      "tokens": 165924,
-      "word_count": 693,
-      "source_count": 7,
-      "total_citations": 5,
+      "tokens": 0,
+      "word_count": 0,
+      "source_count": 0,
+      "total_citations": 0,
       "unresolved_citations": 0,
-      "resolution_rate": 1.0,
-      "uncited_claim_count": 13,
-      "citation_support_rate": 1.0,
-      "claim_verdicts": [
-        {
-          "claim": "The context window is a critical component of LLMs, storing distilled knowledge such as facts, concepts, and preferences [1].",
-          "supported": true,
-          "cites": [
-            1
-          ]
-        },
-        {
-          "claim": "Persistent memory is designed to maintain context across user sessions, ensuring continuity for single-session tasks [5].",
-          "supported": true,
-          "cites": [
-            5
-          ]
-        },
-        {
-          "claim": "Autoregressive architectures learn trajectory patterns through long sequences, enabling them to capture extended dependencies and structural regularities in language [4].",
-          "supported": true,
-          "cites": [
-            4
-          ]
-        },
-        {
-          "claim": "Unlike human memory, which selectively retains relevant information based on salience and context, LLMs encode vast amounts of information without prioritization, leading to bloated and inefficient memory systems [7].",
-          "supported": true,
-          "cites": [
-            7
-          ]
-        }
-      ],
-      "report": "# Title\nLong-Term Memory Approaches in Large Language Model Agents and Their Trade-Offs\n\n## Executive Summary\nThis report synthesizes the current approaches to long-term memory in large language model (LLM) agents, focusing on their distinct functionalities and associated trade-offs. The analysis highlights that LLMs primarily utilize context windows for immediate awareness, while externalized memory solutions are emerging as potential remedies for handling complex tasks.\n\n## Key Findings\n- **Context Window Memory**: LLMs rely on context windows to store information relevant to the current task *(citation could not be verified)*.\n- **Persistent Memory**: Persistent memory maintains context across user sessions and is used for continuity in single-session tasks *(citation could not be verified)*.\n- **Trajectory-Level Representations**: Autoregressive architectures learn trajectory patterns, capturing extended dependencies and structural regularities *(citation could not be verified)*.\n\n## Detailed Analysis\nLLMs currently face limitations due to their fixed-size context windows. These constraints necessitate the development of externalized memory solutions that can handle complex tasks beyond the immediate awareness provided by context windows.\n\n### Context Window Memory\nThe context window is a critical component of LLMs, storing distilled knowledge such as facts, concepts, and preferences [1]. However, this approach has limitations when dealing with large or complex tasks. For instance, AR models are stochastic and may not always yield good results in formal logic scenarios due to their inherent randomness *(citation could not be verified)*.\n\n### Persistent Memory\nPersistent memory is designed to maintain context across user sessions, ensuring continuity for single-session tasks [5]. This type of memory is essential for maintaining a consistent state throughout interactions with the LLM. However, it does not address the issue of handling complex tasks that exceed the capacity of the context window.\n\n### Trajectory-Level Representations\nAutoregressive architectures learn trajectory patterns through long sequences, enabling them to capture extended dependencies and structural regularities in language [4]. This approach is promising but faces challenges due to the indiscriminate nature of data encoding in current LLMs. Unlike human memory, which selectively retains relevant information based on salience and context, LLMs encode vast amounts of information without prioritization, leading to bloated and inefficient memory systems [7].\n\n## Limitations\n- The snippets provided do not explicitly discuss specific trade-offs between different long-term memory approaches.\n- There is a lack of detailed analysis on the implementation and integration challenges of externalized memory solutions.\n- The snippets focus more on the current limitations of LLMs rather than providing comprehensive insights into emerging directions such as self-evolving harnesses and shared agent infrastructure [2].\n\n## Sources\n\"It stores distilled knowledge: facts, concepts, preferences, without needing the full story of when they were learned.\" - https://aipractitioner.substack.com/p/long-term-memory-unlocking-smarter-38d *(citation could not be verified)*.\n\n\"the trade-offs are sharpening as cognitive overhead and security risks accumulate; the scope is widening from private scaffolding to shared infrastructure; and the evaluation challenge is growing more pressing as externalization\u2019s contribution remains invisible to model-centric benchmarks.\" - https://arxiv.org/html/2604.08224v1 *(citation could not be verified)*.\n\n\"The current architecture of AR models lacks long-term memory, and has limited working memory *(citation could not be verified)*. Everything has to be contained within a context window. Long-term memory may be vectorized information learned from previous interactions, but ultimately, it has to fit in the same context window.\" - https://wonderfall.dev/autoregressive\n\n\"The key insight from autoregressive architectures is that it is possible to solve this problem by learning trajectory-level representations rather than individual step-by-step mappings *(citation could not be verified)*. Through autoregressive training on long sequences, LLMs learn trajectory patterns that capture extended dependencies and structural regularities in language.\" - https://elanbarenholtz.substack.com/p/auto-autoregression\n\n\"Persistent memory maintains context across user sessions *(citation could not be verified)*. Use episodic memory for single-session tasks. Use persistent memory for continuity.\" - https://labelstud.io/learningcenter/episodic-vs-persistent-memory-in-llms\n\n[6] \"Since LLMs have fixed-size context windows, complex tasks quickly generate more information than can fit within these limits. Long-term memory solutions currently implemented via vector databases have significant limitations.\" - https://ojs.aaai.org/index.php/AAAI-SS/article/download/27688/27461/31739\n\n[7] \"One of the most critical shortcomings of current LLM architectures is the indiscriminate nature of data encoding. Unlike human memory, which selects relevant information for long-term retention based on salience and context, LLMs encode vast amounts of information without prioritization, leading to bloated and inefficient memory systems.\" - https://arxiv.org/html/2410.15665v1"
+      "resolution_rate": null,
+      "uncited_claim_count": 0,
+      "contradictions_surfaced": 0
     },
     {
       "id": "postgres-vs-mysql",
       "domain": "software",
-      "completed": true,
-      "error": null,
-      "latency_s": 503.96,
+      "completed": false,
+      "error": "planner: provider error \u2014 Error calling model 'gemini-2.5-flash' (RESOURCE_EXHAUSTED): 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Your project has exceeded its monthly spending cap. Please go to AI Studio at https://ai.studio/spend to manage your project spend cap. Learn more at htt",
+      "latency_s": 34.05,
       "cost_usd": 0.0,
-      "tokens": 150400,
-      "word_count": 392,
-      "source_count": 6,
-      "total_citations": 6,
+      "tokens": 0,
+      "word_count": 0,
+      "source_count": 0,
+      "total_citations": 0,
       "unresolved_citations": 0,
-      "resolution_rate": 1.0,
-      "uncited_claim_count": 12,
-      "citation_support_rate": 0.8,
-      "claim_verdicts": [
-        {
-          "claim": "In 2025, PostgreSQL has a clear lead over MySQL in terms of features, correctness, performance, and ecosystem [1][2].",
-          "supported": false,
-          "cites": [
-            1,
-            2
-          ]
-        },
-        {
-          "claim": "For instance, the `COPY` command now supports skipping multiple header lines with an integer value, improving data import efficiency [1].",
-          "supported": true,
-          "cites": [
-            1
-          ]
-        },
-        {
-          "claim": "Benchmarks show that PostgreSQL is approximately 1.6 times faster than MySQL across most operations, especially in complex query scenarios [3].",
-          "supported": true,
-          "cites": [
-            3
-          ]
-        },
-        {
-          "claim": "In TPC-H benchmark tests, PostgreSQL executes complex analytical queries up to two times faster than MySQL, with the gap widening as query complexity increases [4].",
-          "supported": true,
-          "cites": [
-            4
-          ]
-        },
-        {
-          "claim": "However, this advantage comes with limitations; PostgreSQL's process model can be resource-intensive, necessitating the use of connection poolers like PgBouncer or pgcat [5].",
-          "supported": true,
-          "cites": [
-            5
-          ]
-        }
-      ],
-      "report": "# Title\n## Executive Summary\nPostgreSQL and MySQL are both popular relational database management systems (RDBMS) with distinct strengths. In 2025, PostgreSQL has a clear lead over MySQL in terms of features, correctness, performance, and ecosystem [1][2]. However, MySQL retains advantages for read-heavy workloads and straightforward web applications.\n\n## Key Findings\n- **Performance**: PostgreSQL outperforms MySQL by about 1.6 times across most operations, particularly in complex query scenarios *(citation could not be verified)*.\n- **Complex Query Handling**: PostgreSQL executes complex analytical queries up to two times faster than MySQL, with the gap increasing as query complexity rises *(citation could not be verified)*.\n- **Read Operations**: MySQL excels in high-throughput read operations and is ideal for content-driven websites and lightweight SaaS platforms *(citation could not be verified)*.\n\n## Detailed Analysis\nPostgreSQL has introduced several new features that enhance its functionality. For instance, the `COPY` command now supports skipping multiple header lines with an integer value, improving data import efficiency [1]. Additionally, PostgreSQL 17 includes incremental backup capabilities in `pg_basebackup`, although it lacks a clear indicator for full or incremental backups; this has been addressed by adding the `backup_type` column *(citation could not be verified)*.\n\nPostgreSQL's performance edge is significant. Benchmarks show that PostgreSQL is approximately 1.6 times faster than MySQL across most operations, especially in complex query scenarios [3]. In TPC-H benchmark tests, PostgreSQL executes complex analytical queries up to two times faster than MySQL, with the gap widening as query complexity increases [4].\n\nPostgreSQL's robustness and reliability are also notable. It is fully ACID-compliant and offers better handling of concurrent transactions compared to MySQL. PostgreSQL has superior JSON and NoSQL capabilities, making it more suitable for applications involving complex joins, large datasets, real-time analytics, or geospatial data *(citation could not be verified)*.\n\nOn the other hand, MySQL excels in read-heavy workloads and is a strong choice for straightforward web applications due to its high throughput performance. However, this advantage comes with limitations; PostgreSQL's process model can be resource-intensive, necessitating the use of connection poolers like PgBouncer or pgcat [5].\n\n## Limitations\nWhile PostgreSQL offers superior performance and features in complex scenarios, it may not be as efficient for read-heavy operations compared to MySQL. The gap between the two systems is significant but varies based on specific application requirements.\n\n## Sources\n1. <https://dev.to/shinyakato_/new-postgresql-features-i-developed-in-2025-3lca>\n2. <https://vonng.com/en/db/mysql-vs-pgsql>\n3. <https://www.liquibase.com/resources/guides/postgresql-vs-mysql>\n4. <https://tech-insider.org/postgresql-vs-mysql-2026>\n5. <https://www.bytebase.com/blog/postgres-vs-mysql>\n6. <https://www.linkedin.com/posts/kinganupamdutta_postgresql-mysql-activity-7394978997220200448-HZq0>"
+      "resolution_rate": null,
+      "uncited_claim_count": 0,
+      "contradictions_surfaced": 0
     },
     {
       "id": "solid-state-batteries",
       "domain": "energy",
-      "completed": true,
-      "error": null,
-      "latency_s": 190.58,
+      "completed": false,
+      "error": "planner: provider error \u2014 Error calling model 'gemini-2.5-flash' (RESOURCE_EXHAUSTED): 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Your project has exceeded its monthly spending cap. Please go to AI Studio at https://ai.studio/spend to manage your project spend cap. Learn more at htt",
+      "latency_s": 35.0,
       "cost_usd": 0.0,
-      "tokens": 54350,
-      "word_count": 344,
-      "source_count": 3,
-      "total_citations": 1,
+      "tokens": 0,
+      "word_count": 0,
+      "source_count": 0,
+      "total_citations": 0,
       "unresolved_citations": 0,
-      "resolution_rate": 1.0,
-      "uncited_claim_count": 12,
-      "citation_support_rate": 1.0,
-      "claim_verdicts": [
-        {
-          "claim": "The current state of solid-state battery commercialization indicates limited but significant progress, with semi-solid-state batteries entering production in late 2025 [1].",
-          "supported": true,
-          "cites": [
-            1
-          ]
-        }
-      ],
-      "report": "# Title\n## Executive Summary\nThe current state of solid-state battery commercialization indicates limited but significant progress, with semi-solid-state batteries entering production in late 2025 [1]. However, several engineering obstacles remain before full-scale industrial deployment.\n\n## Key Findings\n1. **Commercialization Progress**: Semi-solid-state batteries have entered real customer deliveries in China for the MG4 variant of electric cars, marking a step towards commercial availability *(citation could not be verified)*.\n2. **Engineering Challenges**: Critical challenges include electrolyte selection, compatibility with electrode active materials and interface engineering, processing aspects, and long-term performance *(citation could not be verified)*.\n\n## Detailed Analysis\nThe semi-solid-state battery technology has made its way into the market through production in China for the MG4 variant of electric cars. This marks a significant milestone as these are among the first affordable electric vehicles to feature semi-solid packs, entering real customer deliveries in late 2025 *(citation could not be verified)*. \n\nSeveral engineering obstacles still need to be overcome before solid-state batteries can be deployed at an industrial scale. These challenges include:\n- **Electrolyte Selection**: Identifying solid electrolytes with sufficient ionic conductivity under ambient conditions is crucial. Additionally, ensuring these electrolytes remain chemically stable across wide voltage windows presents another hurdle *(citation could not be verified)*.\n- **Compatibility and Interface Engineering**: Solid-state batteries require compatibility between the electrolyte and electrode active materials, as well as effective interface engineering to prevent issues such as dendrite formation and voids that can lead to short circuits or other failures *(citation could not be verified)*.\n\nTo address these challenges, researchers are increasingly using advanced real-time diagnostic tools. These tools help in studying how dendrites form and how voids appear during the battery's operation, providing insights that aid in refining both materials and engineering strategies *(citation could not be verified)*.\n\n## Limitations\nThe evidence provided focuses on semi-solid-state batteries rather than fully solid-state batteries. The progress reported is limited to China, with no information on global commercialization efforts or other regions.\n\n## Sources\n<https://www.intelligentliving.co/solid-state-battery-scoreboard-2025-2026/> *(citation could not be verified)*.\n<https://www.sciencedirect.com/science/article/pii/S0378775325021913> *(citation could not be verified)*.\n<https://axial.acs.org/energy/solid-state-battery-advancements-challenges-and-industry-impacts> *(citation could not be verified)*."
+      "resolution_rate": null,
+      "uncited_claim_count": 0,
+      "contradictions_surfaced": 0
     },
     {
       "id": "ozempic-mechanism",
       "domain": "health",
-      "completed": true,
-      "error": null,
-      "latency_s": 360.99,
+      "completed": false,
+      "error": "planner: provider error \u2014 Error calling model 'gemini-2.5-flash' (RESOURCE_EXHAUSTED): 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Your project has exceeded its monthly spending cap. Please go to AI Studio at https://ai.studio/spend to manage your project spend cap. Learn more at htt",
+      "latency_s": 33.73,
       "cost_usd": 0.0,
-      "tokens": 79795,
-      "word_count": 711,
-      "source_count": 7,
-      "total_citations": 9,
+      "tokens": 0,
+      "word_count": 0,
+      "source_count": 0,
+      "total_citations": 0,
       "unresolved_citations": 0,
-      "resolution_rate": 1.0,
-      "uncited_claim_count": 21,
-      "citation_support_rate": 1.0,
-      "claim_verdicts": [
-        {
-          "claim": "GLP-1 receptor agonists (GLP-1RAs) like semaglutide work by providing levels of GLP-1 receptor agonism many times that of endogenous GLP-1, which plays a role in regulating food intake and stimulating neurons in the brain's satiety center [2].",
-          "supported": true,
-          "cites": [
-            2
-          ]
-        },
-        {
-          "claim": "However, GLP-1RAs may cause acute interstitial nephritis or acute tubular necrosis leading to kidney injury, particularly in patients with normal baseline renal function [5].",
-          "supported": true,
-          "cites": [
-            5
-          ]
-        },
-        {
-          "claim": "Clinical trials have shown that these drugs are associated with lower risks of mortality, MACEs, and MAKEs in type 2 diabetes patients with AKD [3][4].",
-          "supported": true,
-          "cites": [
-            3,
-            4
-          ]
-        },
-        {
-          "claim": "Studies suggest that they may cause acute interstitial nephritis or acute tubular necrosis leading to kidney injury, particularly in patients with normal baseline renal function [5].",
-          "supported": true,
-          "cites": [
-            5
-          ]
-        },
-        {
-          "claim": "One study found that approximately two-thirds of patients treated with GLP-1RAs for obesity experienced at least a 60-day gap in treatment within the first year and just over one-quarter of patients remained at least 80% adherent to therapy [7].",
-          "supported": true,
-          "cites": [
-            7
-          ]
-        }
-      ],
-      "report": "# Title\n## Executive Summary\nGLP-1 receptor agonists (GLP-1RAs) like semaglutide work by providing levels of GLP-1 receptor agonism many times that of endogenous GLP-1, which plays a role in regulating food intake and stimulating neurons in the brain's satiety center [2]. These drugs are associated with reduced risks of mortality, major cardiovascular events (MACEs), and major adverse kidney events (MAKEs) in type 2 diabetes patients with acute kidney disease (AKD) *(citation could not be verified)*. However, GLP-1RAs may cause acute interstitial nephritis or acute tubular necrosis leading to kidney injury, particularly in patients with normal baseline renal function [5]. Additionally, they are associated with injection site reactions and rare but severe side effects such as gallbladder issues and acute pancreatitis. There is also a concern regarding a possible link between GLP-1RAs and medullary thyroid cancer based on rodent studies *(citation could not be verified)*. Adherence to therapy can be an issue, especially for daily dosing regimens.\n\n## Key Findings\n- **Mechanism of Action**: GLP-1RAs provide levels of GLP-1 receptor agonism many times that of endogenous GLP-1, which regulates food intake *(citation could not be verified)*.\n- **Cardiovascular and Renal Benefits**: GLP-1RAs are associated with lower risks of mortality, MACEs, and MAKEs in type 2 diabetes patients with AKD *(citation could not be verified)*.\n- **Renal Safety Concerns**: GLP-1RAs may cause acute interstitial nephritis or acute tubular necrosis leading to kidney injury, particularly in patients with normal baseline renal function *(citation could not be verified)*.\n- **Side Effects**: Injection site reactions and rare but severe side effects such as gallbladder issues and acute pancreatitis are associated with GLP-1RAs *(citation could not be verified)*.\n- **Adherence Issues**: Adherence can be a challenge, especially for daily dosing regimens. Approximately two-thirds of patients experienced at least a 60-day gap in treatment within the first year *(citation could not be verified)*.\n\n## Detailed Analysis\nGLP-1 receptor agonists (GLP-1RAs) such as semaglutide operate by providing levels of GLP-1 receptor agonism many times that of endogenous GLP-1, which plays a role in regulating food intake and stimulating neurons in the brain's satiety center *(citation could not be verified)*. This mechanism helps to reduce appetite and promote weight loss. Clinical trials have shown that these drugs are associated with lower risks of mortality, MACEs, and MAKEs in type 2 diabetes patients with AKD [3][4].\n\nHowever, despite their benefits, GLP-1RAs come with potential renal safety concerns. Studies suggest that they may cause acute interstitial nephritis or acute tubular necrosis leading to kidney injury, particularly in patients with normal baseline renal function [5]. This highlights the need for caution when prescribing these drugs.\n\nInjection site reactions are a common side effect of GLP-1RAs, and it is recommended to use different injection sites with each dose by rotating between the abdomen, thigh, or upper arm. Additionally, there have been reports linking GLP-1RAs to more severe side effects such as gallbladder issues like cholelithiasis, cholecystitis, and acute pancreatitis *(citation could not be verified)*. These events are rare but require further research.\n\nThere is also a concern regarding a possible link between GLP-1RAs and medullary thyroid cancer. This is mainly based on rodent studies where liraglutide and exenatide have been associated with the development of thyroid C-cell tumors after lifetime exposure at supratherapeutic doses *(citation could not be verified)*.\n\nAdherence to therapy can be an issue, especially for daily dosing regimens. One study found that approximately two-thirds of patients treated with GLP-1RAs for obesity experienced at least a 60-day gap in treatment within the first year and just over one-quarter of patients remained at least 80% adherent to therapy [7]. Adherence was higher with weekly semaglutide as opposed to daily liraglutide.\n\n## Limitations\n- The evidence suggests that GLP-1RAs are associated with reduced risks of mortality, MACEs, and MAKEs in type 2 diabetes patients with AKD [3][4], but the long-term data is still emerging.\n- While there is a concern regarding a possible link between GLP-1RAs and medullary thyroid cancer based on rodent studies [7], human evidence is limited.\n\n## Sources\nhttps://pubmed.ncbi.nlm.nih.gov/26371721 *(citation could not be verified)*.  \nhttps://www.frontiersin.org/journals/endocrinology/articles/10.3389/fendo.2024.1431292/full *(citation could not be verified)*.  \nhttps://ubiehealth.com/doctors-note/glp-1s-kidney-injury-safety-renal-function-risk-4771q1 *(citation could not be verified)*.  \nhttps://www.nature.com/articles/s41467-024-50199-y *(citation could not be verified)*.  \nhttps://www.sciencedirect.com/science/article/abs/pii/S1262363617305840 *(citation could not be verified)*.  \nhttps://pmc.ncbi.nlm.nih.gov/articles/PMC9792852 *(citation could not be verified)*.  \nhttps://www.amcp.org/resource/glp-1-faq *(citation could not be verified)*."
+      "resolution_rate": null,
+      "uncited_claim_count": 0,
+      "contradictions_surfaced": 0
     },
     {
       "id": "carbon-capture-cost",
       "domain": "climate",
-      "completed": true,
-      "error": null,
-      "latency_s": 559.21,
+      "completed": false,
+      "error": "planner: provider error \u2014 Error calling model 'gemini-2.5-flash' (RESOURCE_EXHAUSTED): 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Your project has exceeded its monthly spending cap. Please go to AI Studio at https://ai.studio/spend to manage your project spend cap. Learn more at htt",
+      "latency_s": 34.81,
       "cost_usd": 0.0,
-      "tokens": 154254,
-      "word_count": 513,
-      "source_count": 11,
-      "total_citations": 9,
+      "tokens": 0,
+      "word_count": 0,
+      "source_count": 0,
+      "total_citations": 0,
       "unresolved_citations": 0,
-      "resolution_rate": 1.0,
-      "uncited_claim_count": 12,
-      "citation_support_rate": 1.0,
-      "claim_verdicts": [
-        {
-          "claim": "Direct air capture (DAC) technology is currently one of the more expensive methods for carbon removal, with costs ranging from $400 to $1000 per tonne of CO2 captured [1][3].",
-          "supported": true,
-          "cites": [
-            1,
-            3
-          ]
-        },
-        {
-          "claim": "The current total cost of DAC ranges from $400 to $1000 per tonne of CO2 captured [1][3].",
-          "supported": true,
-          "cites": [
-            1,
-            3
-          ]
-        },
-        {
-          "claim": "A study from ETH Z\u00fcrich and the Institute for Science, Technology and Policy predicts that costs could fall to $230\u2013$540 per tonne of CO2 captured by 2050 [3].",
-          "supported": true,
-          "cites": [
-            3
-          ]
-        },
-        {
-          "claim": "According to ScienceDirect [1], DAC will contribute to reducing CO2 emissions, with costs estimated at $400\u20131000 per ton of CO2 captured.",
-          "supported": true,
-          "cites": [
-            1
-          ]
-        }
-      ],
-      "report": "# Title\n## Executive Summary\nDirect air capture (DAC) technology is currently one of the more expensive methods for carbon removal, with costs ranging from $400 to $1000 per tonne of CO2 captured [1][3]. This cost is expected to decrease over time as deployment scales and technological advancements are made. While DAC has significant potential in addressing residual emissions, it remains less cost-effective compared to other methods like reforestation.\n\n## Key Findings\n- The current total cost of DAC ranges from $400 to $1000 per tonne of CO2 captured [1][3].\n- Cost estimates for DAC are currently between $152 and $398 per ton based on the latest assessments, with a target price below $100 per ton by 2050 *(citation could not be verified)*.\n- A study from ETH Z\u00fcrich and the Institute for Science, Technology and Policy predicts that costs could fall to $230\u2013$540 per tonne of CO2 captured by 2050 [3].\n- DAC companies aim to reduce costs over time, with some targeting $250-$400 by the end of the decade and others setting long-term goals closer to $100/tCO2 *(citation could not be verified)*.\n\n## Detailed Analysis\nDirect air capture technology is currently more expensive than other carbon removal methods. According to ScienceDirect [1], DAC will contribute to reducing CO2 emissions, with costs estimated at $400\u20131000 per ton of CO2 captured. A recent study by ETH Z\u00fcrich and the Institute for Science, Technology and Policy further supports this estimate, suggesting that costs could fall to between $230 and $540 per tonne of CO2 captured by 2050 *(citation could not be verified)*.\n\nClimeworks has reported a cost of $600/tCO2 for their DAC unit in Switzerland, though compression and storage costs are not included *(citation could not be verified)*. The Belfer Center notes that early full-scale plants may currently cost between $400 and $1000 per tonne of net CO2 removed from the atmosphere. However, if large-scale deployment is successful, costs could fall to around $200-400/tCO2 by the 2050s *(citation could not be verified)*.\n\nOther methods like reforestation are significantly cheaper, with costs ranging from $30 to $50 per tonne of CO2 captured. Reforestation provides additional benefits such as improved soil health and biodiversity *(citation could not be verified)*. While DAC has a modular design that could potentially reduce costs through industrial production lines and waste heat utilization, current estimates still place it at the higher end of cost ranges for carbon removal technologies.\n\n## Limitations\n- The cost reductions projected for DAC are contingent on successful large-scale deployment. Current costs remain high compared to other methods [5].\n- The exact cost of compression and storage is not included in many reported figures, which can significantly increase overall costs [4].\n- While innovations such as electrified approaches and reactive carbon capture aim to reduce energy demand, their impact on reducing costs has yet to be fully realized [8].\n\n## Sources\nhttps://www.sciencedirect.com/science/article/abs/pii/S030626192401420X *(citation could not be verified)*.  \nhttps://carbon180.org/pathway/direct-air-capture *(citation could not be verified)*.  \n[3] https://www.missionzero.tech/lab-notes/direct-air-capture-cost  \n[4] https://www.belfercenter.org/publication/prospects-direct-air-carbon-capture-and-storage-costs-scale-and-funding  \n[5] https://www.wri.org/insights/direct-air-capture-resource-considerations-and-costs-carbon-removal  \nhttps://neg8carbon.com/carbon-capture-methods-compared-forestation-vs-direct-air-capture *(citation could not be verified)*.  \nhttps://pmc.ncbi.nlm.nih.gov/articles/PMC8927912 *(citation could not be verified)*.  \nhttps://luxresearchinc.com/blog/four-innovations-to-watch-in-direct-air-capture-for-2025 *(citation could not be verified)*."
+      "resolution_rate": null,
+      "uncited_claim_count": 0,
+      "contradictions_surfaced": 0
     },
     {
       "id": "rust-adoption",
       "domain": "software",
-      "completed": true,
-      "error": null,
-      "latency_s": 341.14,
+      "completed": false,
+      "error": "planner: provider error \u2014 Error calling model 'gemini-2.5-flash' (RESOURCE_EXHAUSTED): 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Your project has exceeded its monthly spending cap. Please go to AI Studio at https://ai.studio/spend to manage your project spend cap. Learn more at htt",
+      "latency_s": 33.52,
       "cost_usd": 0.0,
-      "tokens": 98136,
-      "word_count": 637,
-      "source_count": 6,
-      "total_citations": 4,
+      "tokens": 0,
+      "word_count": 0,
+      "source_count": 0,
+      "total_citations": 0,
       "unresolved_citations": 0,
-      "resolution_rate": 1.0,
-      "uncited_claim_count": 22,
-      "citation_support_rate": 0.6667,
-      "claim_verdicts": [
-        {
-          "claim": "One of the key advantages highlighted by Tyler in his blog post on C++ vs. Rust interop is that Rust acts as a \"force multiplier\" [2].",
-          "supported": true,
-          "cites": [
-            2
-          ]
-        },
-        {
-          "claim": "Tyler also emphasizes the ease of refactoring in Rust, noting that \"Rust makes refactoring painless\" and allows developers to \"trust your refactors\" [2][3].",
-          "supported": true,
-          "cites": [
-            2,
-            3
-          ]
-        },
-        {
-          "claim": "Furthermore, modern C++ offers robust memory management tools such as smart pointers (`std::unique_ptr`, `std::shared_ptr`) and the RAII idiom to automate deallocation and prevent leaks [4].",
-          "supported": false,
-          "cites": [
-            4
-          ]
-        }
-      ],
-      "report": "# Title\nWhy Systems Teams Are Adopting Rust and Where It Falls Short Versus C++\n\n## Executive Summary\nThis report explores the reasons behind systems teams adopting Rust, highlighting its advantages over C++ in terms of safety, ease of refactoring, and modern tooling. However, it also identifies areas where Rust still lags behind C++, particularly in GUI framework support.\n\n## Key Findings\n- **Safety and Control**: Rust is well-suited for low-level systems development due to its ability to offer total control without the need for unsafe code *(citation could not be verified)*.\n- **Developer Productivity**: Rust acts as a \"force multiplier,\" allowing developers to focus on higher-level concerns rather than low-level details, which can be time-consuming in C++ projects *(citation could not be verified)*.\n- **Refactoring and Simplicity**: Rust makes refactoring easier and more reliable compared to C++, where significant changes can be risky and time-consuming *(citation could not be verified)*.\n- **Tooling Ecosystem**: Rust\u2019s tooling ecosystem is modern and integrated, providing a safer subset of the language that performs well without sacrificing too much in terms of speed *(citation could not be verified)*.\n- **Limited GUI Framework Support**: While Rust has made strides, its GUI ecosystem remains less mature compared to established C++ frameworks like Qt or wxWidgets *(citation could not be verified)*.\n\n## Detailed Analysis\nRust is increasingly favored by systems teams for several compelling reasons. According to the snippet from a YouTube video, \"Low-Level Systems,\" Rust excels in environments where total control over low-level operations is required without resorting to unsafe code (Snippet 1). This makes it particularly suitable for kernel modules, embedded systems, and device drivers.\n\nOne of the key advantages highlighted by Tyler in his blog post on C++ vs. Rust interop is that Rust acts as a \"force multiplier\" [2]. In C++, developers often find themselves struggling to get basic functionality working before they can even begin optimizing or improving their code. Conversely, Rust handles many low-level details by design, enabling developers to focus more on higher-level concerns.\n\nTyler also emphasizes the ease of refactoring in Rust, noting that \"Rust makes refactoring painless\" and allows developers to \"trust your refactors\" [2][3]. This is a stark contrast to C++, where significant changes can be risky and time-consuming. Additionally, Rust\u2019s design encourages simplicity and clarity from the start, reducing accidental complexity over time (Snippet 4).\n\nThe modern tooling ecosystem of Rust further enhances its appeal. From Cargo, Rust's package manager and build tool, to the language server protocol implementation, Rust offers a seamless and integrated development experience that is often superior to C++ *(citation could not be verified)*.\n\nHowever, there are areas where Rust still falls short compared to C++. For instance, the snippet from Codeporting highlights that while Rust has made significant progress, its GUI ecosystem remains less mature. Established C++ frameworks like Qt or wxWidgets offer a higher level of features and polish (Snippet 4). Furthermore, modern C++ offers robust memory management tools such as smart pointers (`std::unique_ptr`, `std::shared_ptr`) and the RAII idiom to automate deallocation and prevent leaks [4].\n\nIn terms of performance benchmarks, Rust is slightly behind in pure microbenchmarks but excels in safer concurrency. An Arxiv paper by Patrik Karlson compared matrix multiplication, merge sort, and file I/O operations, revealing that C++ performs better at matrix math, while Rust beats it in merge sort for similar overall performance when the benchmarks balance out (Snippet 6).\n\n## Limitations\nWhile Rust offers significant advantages over C++, particularly in terms of safety and ease of use, its GUI framework support is still less mature compared to established C++ frameworks. Additionally, some microbenchmarks show that C++ can perform better in certain operations.\n\n## Sources\nhttps://www.youtube.com/watch?v=6vtmpznaAQg *(citation could not be verified)*.\n\n[2] https://corrode.dev/blog/cpp-rust-interop\n\n[3] https://www.thecodedmessage.com/rust-c-book\n\nhttps://www.codeporting.com/blog/rust_vs_cpp_performance_safety_and_use_cases_compared *(citation could not be verified)*.\n\nhttps://www.incredibuild.com/blog/rust-vs-c-and-is-it-good-for-enterprise *(citation could not be verified)*.\n\nhttps://blog.jetbrains.com/rust/2025/12/16/rust-vs-cpp-comparison-for-2026 *(citation could not be verified)*."
+      "resolution_rate": null,
+      "uncited_claim_count": 0,
+      "contradictions_surfaced": 0
     },
     {
       "id": "remote-work-productivity",
       "domain": "economics",
-      "completed": true,
-      "error": null,
-      "latency_s": 938.85,
+      "completed": false,
+      "error": "planner: provider error \u2014 Error calling model 'gemini-2.5-flash' (RESOURCE_EXHAUSTED): 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Your project has exceeded its monthly spending cap. Please go to AI Studio at https://ai.studio/spend to manage your project spend cap. Learn more at htt",
+      "latency_s": 34.04,
       "cost_usd": 0.0,
-      "tokens": 249132,
-      "word_count": 635,
-      "source_count": 2,
-      "total_citations": 5,
+      "tokens": 0,
+      "word_count": 0,
+      "source_count": 0,
+      "total_citations": 0,
       "unresolved_citations": 0,
-      "resolution_rate": 1.0,
-      "uncited_claim_count": 21,
-      "citation_support_rate": 0.8,
-      "claim_verdicts": [
-        {
-          "claim": "Research indicates that remote work can enhance individual focus productivity by up to 15%, particularly for tasks requiring deep concentration [1].",
-          "supported": true,
-          "cites": [
-            1
-          ]
-        },
-        {
-          "claim": "A one-percentage-point increase in remote work adoption correlates with a 0.08 to 0.09 percentage-point increase in total factor productivity [2].",
-          "supported": false,
-          "cites": [
-            2
-          ]
-        },
-        {
-          "claim": "Remote work has been shown to significantly enhance individual focus productivity, particularly for tasks that require deep concentration [1].",
-          "supported": true,
-          "cites": [
-            1
-          ]
-        },
-        {
-          "claim": "The study found no measurable difference in productivity between employees working under a hybrid schedule and those who work entirely in the office [2].",
-          "supported": true,
-          "cites": [
-            2
-          ]
-        },
-        {
-          "claim": "The study found a correlation between increased remote work adoption and higher total factor productivity growth, with a one-percentage-point increase in remote work adoption correlating to a 0.08 to 0.09 percentage-point increase in total factor productivity [2].",
-          "supported": true,
-          "cites": [
-            2
-          ]
-        }
-      ],
-      "report": "# Title\nRemote Work and Productivity Since 2020\n\n## Executive Summary\nResearch indicates that remote work can enhance individual focus productivity by up to 15%, particularly for tasks requiring deep concentration [1]. Hybrid models, which combine in-office and remote days, often outperform both fully remote and fully in-office setups due to their balanced approach. A recent randomized trial at Trip.com found no significant difference in productivity between hybrid and fully in-office employees *(citation could not be verified)*. Across multiple studies, the median impact of remote work on individual focused tasks is a 10% increase, while collaborative tasks may see a slight decrease by 4%. Additionally, increased remote work adoption correlates with higher total factor productivity growth.\n\n## Key Findings\n- **Individual Focus Productivity**: Remote work improves focus productivity by 5\u201315%, especially for deep concentration tasks *(citation could not be verified)*.\n- **Hybrid Models**: Hybrid setups (three in-office days and two remote days) often outperform both fully remote and fully in-office models, balancing focus time and collaboration *(citation could not be verified)*.\n- **No Measurable Difference**: A randomized trial at Trip.com found no significant difference in productivity between hybrid and fully in-office employees *(citation could not be verified)*.\n- **Median Productivity Impact**: Across 50+ studies, the median increase in individual focused tasks is +10%, while collaborative tasks may decrease by -4% *(citation could not be verified)*.\n- **Total Factor Productivity Growth**: A BLS study across 61 industries found a positive association between remote work and total factor productivity growth. A one-percentage-point increase in remote work adoption correlates with a 0.08 to 0.09 percentage-point increase in total factor productivity [2].\n\n## Detailed Analysis\nRemote work has been shown to significantly enhance individual focus productivity, particularly for tasks that require deep concentration [1]. This improvement is attributed to the reduced distractions and quieter environment often found at home compared to office settings *(citation could not be verified)*. However, collaboration and spontaneous problem-solving are more challenging to replicate in remote environments, leading to potential decreases in productivity for these types of tasks.\n\nHybrid work models have emerged as a balanced approach that can maximize both focus time and collaborative opportunities. Studies indicate that employees working under hybrid schedules (three days in the office and two days remotely) often perform at least as well as their fully in-office counterparts *(citation could not be verified)*. This suggests that organizations should consider implementing flexible hybrid models to optimize productivity.\n\nA recent randomized trial conducted by Bloom at Trip.com further supports these findings. The study found no measurable difference in productivity between employees working under a hybrid schedule and those who work entirely in the office [2]. This indicates that the benefits of remote work can be effectively balanced with in-person collaboration through well-designed hybrid models.\n\nAcross multiple studies, the median impact of remote work on individual focused tasks is a 10% increase. However, collaborative tasks may experience a slight decrease by 4%. These findings suggest that while remote work can significantly boost productivity for certain types of tasks, it may not be as effective for all types of work *(citation could not be verified)*.\n\nThe Bureau of Labor Statistics (BLS) study across 61 industries provides additional evidence supporting the positive impact of remote work on total factor productivity. The study found a correlation between increased remote work adoption and higher total factor productivity growth, with a one-percentage-point increase in remote work adoption correlating to a 0.08 to 0.09 percentage-point increase in total factor productivity [2].\n\n## Limitations\n- **Hybrid Model Variability**: The effectiveness of hybrid models can vary based on the specific implementation details and organizational culture.\n- **Industry-Specific Findings**: While the BLS study provides a broad industry perspective, more research is needed to understand how these findings apply across different sectors.\n\n## Sources\nhttps://www.worklytics.co/blog/in-office-vs-remote-day-productivity-which-is-better *(citation could not be verified)*.  \n[2] https://www.employee-monitoring.net/blog/remote-work-productivity-research-meta-analysis"
+      "resolution_rate": null,
+      "uncited_claim_count": 0,
+      "contradictions_surfaced": 0
     },
     {
       "id": "quantum-error-correction",
       "domain": "physics",
-      "completed": true,
-      "error": null,
-      "latency_s": 367.48,
+      "completed": false,
+      "error": "planner: provider error \u2014 Error calling model 'gemini-2.5-flash' (RESOURCE_EXHAUSTED): 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Your project has exceeded its monthly spending cap. Please go to AI Studio at https://ai.studio/spend to manage your project spend cap. Learn more at htt",
+      "latency_s": 34.75,
       "cost_usd": 0.0,
-      "tokens": 97883,
-      "word_count": 779,
-      "source_count": 7,
-      "total_citations": 10,
+      "tokens": 0,
+      "word_count": 0,
+      "source_count": 0,
+      "total_citations": 0,
       "unresolved_citations": 0,
-      "resolution_rate": 1.0,
-      "uncited_claim_count": 7,
-      "citation_support_rate": 0.8333,
-      "claim_verdicts": [
-        {
-          "claim": "Notably, scientists at the Institute of Science, Tokyo, Japan, have created quantum low-density parity-check error correction codes that can handle hundreds of thousands of qubits [1].",
-          "supported": true,
-          "cites": [
-            1
-          ]
-        },
-        {
-          "claim": "Experimental validations and demonstrations by multiple research groups indicate the feasibility of logical qubits outperforming their physical counterparts [3][4].",
-          "supported": true,
-          "cites": [
-            3,
-            4
-          ]
-        },
-        {
-          "claim": "For instance, the low-density parity-check codes developed at the Institute of Science, Tokyo, Japan, are highly efficient and scalable, potentially enabling large-scale fault-tolerant quantum computing with applications in fields such as quantum chemistry and optimization [1].",
-          "supported": true,
-          "cites": [
-            1
-          ]
-        },
-        {
-          "claim": "Similarly, Microsoft's 4D geometric codes are designed for qubits with all-to-all connectivity, aiming to significantly reduce error rates across various qubit types [2].",
-          "supported": false,
-          "cites": [
-            2
-          ]
-        },
-        {
-          "claim": "IBM/ETH Zurich has successfully demonstrated repeated quantum error correction on a distance-3 surface code using 17 superconducting qubits, preserving logical states through multiple rounds and correcting both bit-flip and phase-flip errors [4].",
-          "supported": true,
-          "cites": [
-            4
-          ]
-        },
-        {
-          "claim": "Google's efforts in reducing error rates with the surface code and applying error suppression techniques also indicate significant progress towards fault-tolerant quantum computing [5].",
-          "supported": true,
-          "cites": [
-            5
-          ]
-        }
-      ],
-      "report": "# Title\n## Executive Summary\nRecent advancements in quantum error correction (QEC) have shown promising progress, particularly with the development of highly efficient and scalable codes. Notably, scientists at the Institute of Science, Tokyo, Japan, have created quantum low-density parity-check error correction codes that can handle hundreds of thousands of qubits [1]. Microsoft has also introduced 4D geometric codes suitable for various qubit types, aiming to significantly reduce error rates *(citation could not be verified)*. Experimental validations and demonstrations by multiple research groups indicate the feasibility of logical qubits outperforming their physical counterparts [3][4].\n\n## Key Findings\n- **Efficient Quantum Error Correction Codes**: A new class of quantum low-density parity-check codes has been developed, capable of performance close to theoretical bounds and scalable for large-scale fault-tolerant quantum computing *(citation could not be verified)*.\n- **Advanced Qubit Technologies**: Microsoft's 4D geometric codes are designed for qubits with all-to-all connectivity, potentially reducing error rates by orders of magnitude *(citation could not be verified)*.\n- **Experimental Successes**: IBM/ETH Zurich has demonstrated repeated quantum error correction on a distance-3 surface code, preserving logical states through multiple rounds and correcting both bit-flip and phase-flip errors *(citation could not be verified)*.\n\n## Detailed Analysis\nThe progress in QEC is marked by the development of novel codes that can handle large-scale systems. For instance, the low-density parity-check codes developed at the Institute of Science, Tokyo, Japan, are highly efficient and scalable, potentially enabling large-scale fault-tolerant quantum computing with applications in fields such as quantum chemistry and optimization [1]. Similarly, Microsoft's 4D geometric codes are designed for qubits with all-to-all connectivity, aiming to significantly reduce error rates across various qubit types [2].\n\nExperimental validations by multiple research groups have shown that logical qubits can outperform their physical counterparts. IBM/ETH Zurich has successfully demonstrated repeated quantum error correction on a distance-3 surface code using 17 superconducting qubits, preserving logical states through multiple rounds and correcting both bit-flip and phase-flip errors [4]. Google's efforts in reducing error rates with the surface code and applying error suppression techniques also indicate significant progress towards fault-tolerant quantum computing [5].\n\n## Limitations\nWhile substantial advancements have been made, creating a fault-tolerant quantum computer remains challenging. Qubits are highly sensitive to environmental noise, temperature fluctuations, and electromagnetic interference, leading to errors in computation [5]. Current estimates suggest that approximately 1,000 physical qubits may be needed to produce a single reliable logical qubit [5]. Additionally, IonQ's CliNR method can reduce the logical error rate by a factor of two but is currently focused on improving near-term algorithmic results' accuracy [6].\n\n## Sources\nA new class of highly efficient and scalable quantum low-density parity-check error correction codes has been developed by scientists at the Institute of Science, Tokyo, Japan *(citation could not be verified)*. These novel error correction codes can handle quantum codes with hundreds of thousands of qubits, potentially enabling large-scale fault-tolerant quantum computing *(citation could not be verified)*.\n\n[2] Microsoft has developed a family of novel 4D geometric codes, which are available in the Microsoft Quantum compute platform and are suitable for qubits with all-to-all connectivity such as neutral atoms, ion traps, and photonics. These powerful codes can reduce the error rates of physical qubits by orders of magnitude to reach the level *(citation could not be verified)*.\n\n[3] The demonstration of below-threshold error correction by multiple research groups represents a watershed moment, proving that logical qubits can indeed outperform their constituent physical qubits [3].\n\n[4] IBM/ETH Zurich has realized repeated QEC on a distance-3 surface code (17 superconducting qubits encoding one logical) with a 1.1 \u00b5s cycle time. They preserved logical states through multiple rounds, correcting both bit-flip and phase-flip errors [4].\n\n[5] Google is a major player in advanced quantum error correction, focusing on the surface code in particular. The company has reached significant milestones, such as reducing error rates in its Sycamore processor and applying error suppression techniques that scale as more qubits are added [5].\n\nIonQ's novel CliNR method is capable of reducing the logical error rate (the probability that an error occurs in the logical qubit of a quantum computation) by a factor of two *(citation could not be verified)*. Based on modeled assumptions of native gate fidelities, CliNR is able to reduce the probability of an error within circuits, scaling efficiently with circuit size and depth [6].\n\n[7] Fault tolerance means that we can design quantum circuits to be reliable despite inevitable imperfections in the quantum bits (qubits) and gates. These so-called resource estimates are providing a concrete target for future fault-tolerant quantum computers in terms of the number of logical qubits and the number of logical gates to be applied on them *(citation could not be verified)*."
+      "resolution_rate": null,
+      "uncited_claim_count": 0,
+      "contradictions_surfaced": 0
     },
     {
       "id": "eu-ai-act",
       "domain": "policy",
-      "completed": true,
-      "error": null,
-      "latency_s": 687.24,
+      "completed": false,
+      "error": "planner: provider error \u2014 Error calling model 'gemini-2.5-flash' (RESOURCE_EXHAUSTED): 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Your project has exceeded its monthly spending cap. Please go to AI Studio at https://ai.studio/spend to manage your project spend cap. Learn more at htt",
+      "latency_s": 33.22,
       "cost_usd": 0.0,
-      "tokens": 191021,
-      "word_count": 418,
-      "source_count": 7,
-      "total_citations": 8,
-      "unresolved_citations": 4,
-      "resolution_rate": 0.5,
-      "uncited_claim_count": 17,
-      "citation_support_rate": null,
-      "claim_verdicts": [],
-      "report": "# Title\n## Executive Summary\nThe European Union's Artificial Intelligence Act (AI Act) imposes a range of obligations on providers of general-purpose AI models, particularly those with systemic risk. These include the assessment and mitigation of systemic risks, documentation requirements, and cybersecurity measures.\n\n## Key Findings\n1. **Systemic Risk Assessment**: Providers of general-purpose AI models with systemic risk must assess and mitigate such risks.\n2. **Model Evaluations**: Systemic risk providers are required to perform model evaluations.\n3. **Incident Reporting**: Serious incidents must be reported without undue delay to the EU AI Office.\n4. **Cybersecurity Measures**: Adequate cybersecurity protection for models and physical infrastructure is mandatory.\n5. **Documentation Requirements**: Providers must document technical information about their models, including providing it upon request to the AI Office and national competent authorities.\n\n## Detailed Analysis\n### Systemic Risk Assessment and Mitigation [6]\nProviders of general-purpose AI models with systemic risk are obligated to assess and mitigate such risks. This includes performing model evaluations to ensure that potential issues are identified and addressed proactively. The requirement for ongoing monitoring, documentation, and reporting of serious incidents is a key aspect of this obligation.\n\n### Incident Reporting [6][10]\nProviders must report every serious incident without undue delay to the EU AI Office. This ensures timely intervention by authorities and helps in maintaining public safety and trust in AI systems.\n\n### Cybersecurity Protection [7][9]\nTo protect against potential cyber threats, providers are required to ensure adequate cybersecurity measures for their models and physical infrastructure. This includes keeping track of incidents, documenting them, and reporting serious issues promptly.\n\n### Documentation Requirements [6][8][10]\nProviders must document technical information about their general-purpose AI models. This documentation is necessary for providing it upon request to the AI Office and national competent authorities as well as making it available to downstream providers. Ensuring comprehensive records supports regulatory compliance and transparency.\n\n## Limitations\nThe AI Act does not provide a generic definition of an AI model, which may complicate understanding and implementation of certain obligations. Additionally, while the act mandates various measures for high-risk systems, specific details on how these requirements are enforced or monitored are not fully detailed in the provided evidence.\n\n## Sources\n1. [Artificial Intelligence Act (AI Act) regulation](https://en.wikipedia.org/wiki/Artificial_Intelligence_Act)\n2. [AO Shearman on Tech: AI System vs AI Models](https://www.aoshearman.com/en/insights/ao-shearman-on-tech/zooming-in-on-ai-ai-system-vs-ai-models)\n3. [EU AI Act Article 16](https://artificialintelligenceact.eu/article/16)\n4. [DataGuard Blog: EU AI Act Obligations for Providers](https://www.dataguard.com/blog/the-eu-ai-act-and-obligations-for-providers)\n5. [Taylor Wessing: EU AI Act Obligations](https://www.taylorwessing.com/en/interface/2024/eu-ai-act-obligations/obligations-on-providers)\n6. [European Commission FAQs on General-Purpose AI Models](https://digital-strategy.ec.europa.eu/en/faqs/general-purpose-ai-models-ai-act-questions-answers)\n7. [Arnold & Porter: EU AI Act Compliance Obligations](https://www.arnoldporter.com/en/perspectives/advisories/2025/08/does-your-company-have-eu-ai-act-compliance-obligations)"
+      "tokens": 0,
+      "word_count": 0,
+      "source_count": 0,
+      "total_citations": 0,
+      "unresolved_citations": 0,
+      "resolution_rate": null,
+      "uncited_claim_count": 0,
+      "contradictions_surfaced": 0
     },
     {
       "id": "mediterranean-diet",
       "domain": "health",
-      "completed": true,
-      "error": null,
-      "latency_s": 602.13,
+      "completed": false,
+      "error": "planner: provider error \u2014 Error calling model 'gemini-2.5-flash' (RESOURCE_EXHAUSTED): 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Your project has exceeded its monthly spending cap. Please go to AI Studio at https://ai.studio/spend to manage your project spend cap. Learn more at htt",
+      "latency_s": 34.59,
       "cost_usd": 0.0,
-      "tokens": 174267,
-      "word_count": 801,
-      "source_count": 7,
-      "total_citations": 5,
+      "tokens": 0,
+      "word_count": 0,
+      "source_count": 0,
+      "total_citations": 0,
       "unresolved_citations": 0,
-      "resolution_rate": 1.0,
-      "uncited_claim_count": 12,
-      "citation_support_rate": 1.0,
-      "claim_verdicts": [
-        {
-          "claim": "A 10-year study found a significant reduction in heart disease among those who closely followed this diet [1].",
-          "supported": true,
-          "cites": [
-            1
-          ]
-        },
-        {
-          "claim": "Meta-analyses of multiple studies further confirm these findings, showing consistent reductions across various cardiovascular outcomes [2].",
-          "supported": true,
-          "cites": [
-            2
-          ]
-        },
-        {
-          "claim": "A 10-year study demonstrated a significant reduction in heart disease risk among those who adhered closely to this dietary pattern [1].",
-          "supported": true,
-          "cites": [
-            1
-          ]
-        }
-      ],
-      "report": "# Title\n## Executive Summary\nThe evidence strongly supports the claim that adherence to the Mediterranean diet reduces cardiovascular risk. A 10-year study found a significant reduction in heart disease among those who closely followed this diet [1]. Meta-analyses of multiple studies further confirm these findings, showing consistent reductions across various cardiovascular outcomes [2].\n\n## Key Findings\n- **Heart Disease Risk Reduction**: Adults following the Mediterranean diet were 47% less likely to develop heart disease over a 10-year period compared to those who did not follow it closely *(citation could not be verified)*.\n- **Consistent Benefits Across Studies**: A meta-analysis of 87 studies, involving over 1.4 million participants, showed that higher adherence to the Mediterranean diet was associated with reduced risks for peripheral artery disease, coronary heart disease, atrial fibrillation, cerebrovascular disease, hypertension, and cardiovascular disease mortality *(citation could not be verified)*.\n\n## Detailed Analysis\nThe strength of evidence supporting the benefits of the Mediterranean diet is robust. A 10-year study demonstrated a significant reduction in heart disease risk among those who adhered closely to this dietary pattern [1]. This finding was further corroborated by a comprehensive meta-analysis that included over 87 studies and more than 1.4 million participants, revealing consistent reductions in various cardiovascular outcomes *(citation could not be verified)*.\n\nThe Mediterranean diet is characterized by several key components:\n- **Plant-Based Foods**: Emphasis on fruits, vegetables, whole grains, legumes, nuts, and seeds *(citation could not be verified)*.\n- **Healthy Fats**: Moderate consumption of olive oil *(citation could not be verified)*.\n- **Fish**: Regular intake provides omega-3 fatty acids *(citation could not be verified)*.\n- **Limited Red Meat**: Reduces saturated fat intake and cholesterol levels *(citation could not be verified)*.\n- **Whole Grains**: Provide more fiber and nutrients *(citation could not be verified)*.\n\nThese components contribute to the diet's cardiovascular benefits, including reduced inflammation and lower cholesterol levels *(citation could not be verified)*.\n\n## Limitations\nWhile the evidence is strong, it is important to note that the strength of evidence grade requires assessment across specific domains such as study limitations, directness, consistency, precision, and reporting bias. The GRADE approach, which is commonly used for assessing quality of evidence in systematic reviews and meta-analyses, would be beneficial for a comprehensive evaluation [4][5].\n\n## Sources\n\"Adults who closely followed the Mediterranean diet were 47 percent less likely to develop heart disease over a 10-year period compared to similar adults who did not closely follow the diet, according to a study to be presented at the American College of Cardiology's 64th Annual Scientific Session in San Diego.\" [https://www.acc.org/about-acc/press-releases/2015/03/04/16/36/mediterranean-diet-cuts-heart-disease-risk-by-nearly-half] *(citation could not be verified)*.\n\n[2] \"A total of 87 studies, encompassing over 1.4 million participants, were included. Higher adherence to the MD was consistently associated with a reduced risk of peripheral artery disease (HR\u2014from 0.34 to 0.54), coronary heart disease (HR: 0.95), atrial fibrillation (HR: 0.65), cerebrovascular disease (HR: 0.97), hypertension (HR: 0.97), and CVDs mortality (HR: 0.97). Even a one-point increase in MD adherence score conferred a statistically significant benefit.\" [https://www.sciencedirect.com/science/article/abs/pii/S0899900725003557]\n\n\"A 20-year study of more than 3,000 Greek adults found that people whose diets most closely resembled a plant-based Mediterranean eating pattern had substantially lower cardiovascular disease risk, while calorie-dense diets low in white meat were linked to worse long-term heart health outcomes.\" [https://www.news-medical.net/news/20260624/Plant-based-Mediterranean-style-diet-cuts-heart-disease-risk-by-2625.aspx] *(citation could not be verified)*.\n\n[4] \"Despite having been developed for health sciences in particular, GRADE is the most commonly referenced and used tool for assessing quality of evidence in systematic reviews and/or meta-analyses.\" [https://guides.lib.vt.edu/SRMA/assesscertainty]\n\n[5] \"The strength of evidence grade summarizes the reviewers' confidence in the findings based on either approach to evidence synthesis. Grading the strength of evidence requires assessment of specific domains, including study limitations, directness, consistency, precision, and reporting bias.\" [https://www.ncbi.nlm.nih.gov/books/NBK174881]\n\n\"A 20-year study of more than 3,000 Greek adults found that people whose diets most closely resembled a plant-based Mediterranean eating pattern had substantially lower cardiovascular disease risk, while calorie-dense diets low in white meat were linked to worse long-term heart health outcomes.\" [https://www.news-medical.net/news/20260624/Plant-based-Mediterranean-style-diet-cuts-heart-disease-risk-by-2625.aspx] *(citation could not be verified)*.\n\n[7] \"The impact of specific Mediterranean diet components, such as olive oil, has also been extensively studied. A randomized crossover study found that moderate daily consumption (25 mL/day) of virgin olive oil containing 577 mg/kg phenolic compounds over eight weeks reduced fasting blood glucose and HbA1c levels in overweight individuals with T2D.\" [https://www.mdpi.com/2072-6643/17/2/358]\n\n\"The Mediterranean diet includes a moderate amount of fish, which provides omega-3 fatty acids that have been linked to reduced inflammation and lower rates of heart disease.\" [https://www.mdpi.com/2072-6643/17/2/358] *(citation could not be verified)*.\n\n\"The Mediterranean diet includes limited amounts of red meat, which helps reduce saturated fat intake and lower cholesterol levels.\" [https://www.mdpi.com/2072-6643/17/2/358] *(citation could not be verified)*.\n\n\"The Mediterranean diet includes whole grains over refined grains, providing more fiber and nutrients that support heart health.\" [https://www.mdpi.com/2072-6643/17/2/358] *(citation could not be verified)*."
+      "resolution_rate": null,
+      "uncited_claim_count": 0,
+      "contradictions_surfaced": 0
     }
   ]
 }

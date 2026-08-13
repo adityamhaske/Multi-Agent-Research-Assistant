@@ -31,6 +31,7 @@ from app.schemas.auth import (
 )
 from app.services import auth_service, crypto, rate_limit, tokens, usage
 from app.services.passwords import WeakPassword, hash_password, verify_password
+from research_engine.net_guard import validate_url, SSRFBlocked
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -238,8 +239,15 @@ async def set_api_key(
     The key is encrypted at rest and never returned by any endpoint — the
     response carries only the provider and a display hint (docs/06 §1).
     """
+    if payload.provider == "custom" and payload.api_base_url:
+        try:
+            validate_url(str(payload.api_base_url))
+        except SSRFBlocked as e:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
     current_user.api_key_encrypted = crypto.encrypt(payload.api_key)
     current_user.api_key_provider = payload.provider
+    current_user.api_key_base_url = str(payload.api_base_url) if payload.api_base_url else None
     current_user.api_key_hint = crypto.hint(payload.api_key)
     current_user.api_key_set_at = datetime.now(UTC)
     await db.commit()
@@ -257,6 +265,7 @@ async def delete_api_key(
     """Remove the stored BYOK key; the deployment's server key applies again."""
     current_user.api_key_encrypted = None
     current_user.api_key_provider = None
+    current_user.api_key_base_url = None
     current_user.api_key_hint = None
     current_user.api_key_set_at = None
     await db.commit()

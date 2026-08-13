@@ -53,19 +53,19 @@ export function ThreadList({
   return (
     <div className="card flex h-full flex-col p-0">
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-        <h3 className="text-sm font-semibold text-text-primary">Chats</h3>
+        <h3 className="font-serif text-sm font-bold text-text-primary">Project Threads</h3>
         <button
           type="button"
           onClick={() => void create()}
           disabled={!projectId || createThread.isPending}
-          className="btn btn-secondary px-2 py-1 text-xs"
+          className="btn btn-secondary px-2 py-1 font-mono text-xs"
         >
-          New
+          + New
         </button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {isLoading && <p className="px-2 py-3 text-sm text-text-muted">Loading…</p>}
+        {isLoading && <p className="px-2 py-3 font-mono text-xs text-text-muted">Loading…</p>}
         {!isLoading && threads.length === 0 && (
           <p className="px-2 py-3 text-sm text-text-muted">
             No chats yet. Start one to ask questions across everything approved in this
@@ -76,8 +76,10 @@ export function ThreadList({
           {threads.map((thread) => (
             <li key={thread.id}>
               <div
-                className={`group flex items-center gap-1 rounded-lg px-2 py-1.5 transition-colors ${
-                  thread.id === activeThreadId ? "bg-accent-muted" : "hover:bg-bg-elevated"
+                className={`group flex items-center gap-1 border px-2 py-1.5 transition-colors ${
+                  thread.id === activeThreadId
+                    ? "border-accent bg-accent-muted"
+                    : "border-transparent hover:border-border hover:bg-bg-elevated"
                 }`}
               >
                 <button
@@ -86,10 +88,10 @@ export function ThreadList({
                   aria-current={thread.id === activeThreadId ? "true" : undefined}
                   className="min-w-0 flex-1 text-left"
                 >
-                  <span className="block truncate text-sm text-text-primary">
+                  <span className="block truncate text-sm font-medium text-text-primary">
                     {thread.title}
                   </span>
-                  <span className="block text-xs text-text-muted">
+                  <span className="block font-mono text-xs text-text-muted">
                     <RelativeTime iso={thread.last_message_at} />
                   </span>
                 </button>
@@ -97,7 +99,7 @@ export function ThreadList({
                   type="button"
                   onClick={() => void remove(thread)}
                   aria-label={`Delete ${thread.title}`}
-                  className="shrink-0 rounded p-1 text-text-muted opacity-0 transition-opacity hover:text-danger focus:opacity-100 group-hover:opacity-100"
+                  className="shrink-0 p-1 font-mono text-xs text-text-muted opacity-0 transition-opacity hover:text-danger focus:opacity-100 group-hover:opacity-100"
                 >
                   ×
                 </button>

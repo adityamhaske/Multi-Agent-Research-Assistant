@@ -67,7 +67,12 @@ def _user_keys(user: User) -> dict[str, str]:
     if not (user.api_key_encrypted and user.api_key_provider):
         return {}
     plaintext = crypto.decrypt(user.api_key_encrypted)
-    return {user.api_key_provider: plaintext} if plaintext else {}
+    if not plaintext:
+        return {}
+    keys = {user.api_key_provider: plaintext}
+    if user.api_key_base_url:
+        keys[f"{user.api_key_provider}_base_url"] = user.api_key_base_url
+    return keys
 
 
 async def _owned_thread(db: AsyncSession, thread_id: uuid.UUID, user_id: uuid.UUID) -> ChatThread:

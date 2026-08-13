@@ -101,7 +101,7 @@ export function useChangePassword() {
 export function useSetApiKey() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { provider: ApiKeyProvider; api_key: string }) =>
+    mutationFn: (body: { provider: ApiKeyProvider; api_key: string; api_base_url?: string }) =>
       apiFetch<User>("/auth/me/api-key", { method: "PUT", body }),
     onSuccess: (user) => qc.setQueryData(queryKeys.me, user),
   });
@@ -163,6 +163,25 @@ export function useDeleteDesktopKey() {
       apiFetch<void>(`/desktop/keys/${provider}`, { method: "DELETE" }),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.desktopKeys });
+      qc.invalidateQueries({ queryKey: queryKeys.models });
+    },
+  });
+}
+
+export function useDesktopCustomEndpoint() {
+  return useQuery({
+    queryKey: [...queryKeys.desktopKeys, "custom_endpoint"],
+    queryFn: () => apiFetch<{ base_url: string | null }>("/desktop/keys/custom_endpoint"),
+  });
+}
+
+export function useSetDesktopCustomEndpoint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (base_url: string) =>
+      apiFetch<void>("/desktop/keys/custom_endpoint", { method: "PUT", body: { base_url } }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: [...queryKeys.desktopKeys, "custom_endpoint"] });
       qc.invalidateQueries({ queryKey: queryKeys.models });
     },
   });

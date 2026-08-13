@@ -12,8 +12,8 @@ import { ChatPanel } from "./ChatPanel";
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[0.7rem] uppercase tracking-wide text-text-muted">{label}</div>
-      <div className="font-mono text-sm text-text-primary tabular-nums">{value}</div>
+      <div className="font-mono text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted">{label}</div>
+      <div className="font-mono text-sm font-medium text-text-primary tabular-nums mt-0.5">{value}</div>
     </div>
   );
 }
@@ -68,17 +68,17 @@ export function ReportView({ session }: { session: SessionDetail }) {
 
   return (
     <div className="space-y-6">
-      <section aria-labelledby="report-heading" className="card">
+      <section aria-labelledby="report-heading" className="card p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h1 id="report-heading" className="text-lg font-semibold text-text-primary">
-            Report
+          <h1 id="report-heading" className="font-serif text-xl font-bold tracking-tight text-text-primary">
+            Research Report
           </h1>
           <div className="flex gap-2 print:hidden">
             <button
               type="button"
               onClick={copy}
               disabled={exporting !== null}
-              className="btn btn-secondary px-3 py-1.5 text-sm"
+              className="btn btn-secondary px-3 py-1 text-xs font-mono"
             >
               Copy
             </button>
@@ -86,7 +86,7 @@ export function ReportView({ session }: { session: SessionDetail }) {
               type="button"
               onClick={() => download("md")}
               disabled={exporting !== null}
-              className="btn btn-secondary px-3 py-1.5 text-sm"
+              className="btn btn-secondary px-3 py-1 text-xs font-mono"
             >
               {exporting === "md" && <span className="spinner" />}
               .md
@@ -95,7 +95,7 @@ export function ReportView({ session }: { session: SessionDetail }) {
               type="button"
               onClick={() => download("pdf")}
               disabled={exporting !== null}
-              className="btn btn-secondary px-3 py-1.5 text-sm"
+              className="btn btn-secondary px-3 py-1 text-xs font-mono"
             >
               {exporting === "pdf" && <span className="spinner" />}
               PDF

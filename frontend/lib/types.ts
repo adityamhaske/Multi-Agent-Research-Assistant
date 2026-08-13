@@ -14,7 +14,7 @@ export type ResearchDepth = "fast" | "balanced" | "comprehensive";
 
 export type AgentName = "planner" | "executor" | "critic" | "synthesizer";
 
-export type ApiKeyProvider = "google" | "anthropic" | "openai";
+export type ApiKeyProvider = "google" | "anthropic" | "openai" | "openrouter" | "custom";
 
 /**
  * Desktop key status (docs/12 M9). Hints only — the key itself never leaves the OS

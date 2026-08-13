@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     google_api_key: str = ""
     anthropic_api_key: str = ""
     openai_api_key: str = ""
+    openrouter_api_key: str = ""
+    custom_api_key: str = ""
+    custom_base_url: str = ""
 
     # ── Model routing: "provider:model" (docs/04 §7) ──────────────────────────
     model_planner: str = "google:gemini-2.5-pro"
@@ -133,6 +136,8 @@ class Settings(BaseSettings):
                 "google": self.google_api_key,
                 "anthropic": self.anthropic_api_key,
                 "openai": self.openai_api_key,
+                "openrouter": self.openrouter_api_key,
+                "custom": self.custom_api_key,
             }
             for provider in routed_providers:
                 if provider in _KEYLESS_PROVIDERS:

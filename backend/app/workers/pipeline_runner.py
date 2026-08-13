@@ -63,9 +63,10 @@ async def _user_provider_keys(db, user_id: str) -> dict[str, str]:
     if not plaintext:
         logger.warning("byok_key_undecryptable", user_id=user_id, provider=user.api_key_provider)
         return {}
-    return {user.api_key_provider: plaintext}
-
-
+    keys = {user.api_key_provider: plaintext}
+    if user.api_key_base_url:
+        keys[f"{user.api_key_provider}_base_url"] = user.api_key_base_url
+    return keys
 async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
     """The engine config for this run, with model routing resolved and snapshotted.
 

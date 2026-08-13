@@ -29,26 +29,26 @@ export function FailedState({ session }: { session: SessionDetail }) {
   };
 
   return (
-    <div className="card">
+    <div className="card p-6">
       <div className="flex items-start gap-3">
         <span
           aria-hidden
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-          style={{ backgroundColor: "color-mix(in srgb, var(--danger) 14%, transparent)", color: "var(--danger)" }}
+          className="flex h-8 w-8 shrink-0 items-center justify-center font-mono text-sm font-bold border border-danger/30"
+          style={{ backgroundColor: "color-mix(in srgb, var(--danger) 10%, var(--bg-surface))", color: "var(--danger)" }}
         >
           ✕
         </span>
         <div className="min-w-0">
-          <h1 className="text-lg font-semibold text-text-primary">Research failed</h1>
+          <h1 className="font-serif text-lg font-bold text-text-primary">Research Exception</h1>
           <p className="mt-1 text-sm text-text-secondary">
             {session.error_message || "The pipeline stopped unexpectedly before producing a report."}
           </p>
         </div>
       </div>
 
-      <div className="mt-4 rounded-lg bg-bg-elevated p-3">
-        <p className="text-xs text-text-muted">Original query</p>
-        <p className="mt-0.5 text-sm text-text-primary">{session.prompt}</p>
+      <div className="mt-4 border border-border bg-bg-elevated p-3.5">
+        <p className="font-mono text-xs text-text-muted uppercase tracking-wider">Original Query</p>
+        <p className="mt-0.5 font-serif text-sm text-text-primary">{session.prompt}</p>
       </div>
 
       {sources.length > 0 && (

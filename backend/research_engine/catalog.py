@@ -255,7 +255,7 @@ CATALOG: dict[str, ModelSpec] = {spec.model_id: spec for spec in (*_ANTHROPIC, *
 # deliberately carry no catalog entries: their model lists change constantly and their
 # prices are not ours to guess. Route to them explicitly and register the model with
 # `register()` (below) so pricing is a conscious act.
-KNOWN_PROVIDERS = ("anthropic", "google", "openai", "openrouter", "ollama")
+KNOWN_PROVIDERS = ("anthropic", "google", "openai", "openrouter", "ollama", "custom")
 
 
 def register(spec: ModelSpec) -> None:

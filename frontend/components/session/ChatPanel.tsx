@@ -18,7 +18,7 @@ interface Streaming {
 function UserBubble({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-accent-muted px-3.5 py-2 text-sm text-text-primary">
+      <div className="max-w-[85%] whitespace-pre-wrap border border-accent bg-accent-muted px-3.5 py-2 text-sm text-text-primary">
         {text}
       </div>
     </div>
@@ -28,16 +28,16 @@ function UserBubble({ text }: { text: string }) {
 function AssistantBubble({ text, sources }: { text: string; sources: Source[] }) {
   return (
     <div className="flex justify-start">
-      <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-bg-elevated px-3.5 py-2 text-sm">
+      <div className="max-w-[85%] border border-border bg-bg-surface px-3.5 py-2 text-sm">
         {text ? (
           <Report markdown={text} sources={sources} />
         ) : (
-          <span className="inline-flex gap-1" aria-label="Assistant is typing">
+          <span className="inline-flex gap-1.5 py-1" aria-label="Assistant is typing">
             {[0, 1, 2].map((i) => (
               <span
                 key={i}
-                className="h-1.5 w-1.5 rounded-full bg-text-muted"
-                style={{ animation: `pulse-ring 1s ease-in-out ${i * 0.15}s infinite` }}
+                className="h-1.5 w-1.5 bg-accent"
+                style={{ animation: `pulse 1s ease-in-out ${i * 0.15}s infinite` }}
               />
             ))}
           </span>
@@ -145,7 +145,7 @@ export function ChatPanel({ sessionId, sources }: { sessionId: string; sources: 
   return (
     <div className="card flex h-[32rem] flex-col p-0">
       <div className="border-b border-border px-4 py-2.5">
-        <h3 className="text-sm font-semibold text-text-primary">Ask a follow-up</h3>
+        <h3 className="font-serif text-sm font-bold text-text-primary">Ask a Follow-up</h3>
         <p className="text-xs text-text-muted">Grounded in this report and its sources.</p>
       </div>
 
