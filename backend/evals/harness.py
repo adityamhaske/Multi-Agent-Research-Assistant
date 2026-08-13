@@ -103,14 +103,23 @@ async def run_one(query: dict) -> dict:
     }
 
     if completed and RUN_CONFIG.llm_mode == "real":
-        result["citation_support_rate"] = await judge_citation_support(report, sources)
+        rate, claim_rows = await judge_citation_support(report, sources)
+        result["citation_support_rate"] = rate
+        # The per-claim ruling — not just the aggregate — is what makes a miss
+        # publishable and debuggable (docs/12 M5: "including the misses"). It is also
+        # the only way to diff the judge against the graph's own citation-fidelity pass.
+        result["claim_verdicts"] = claim_rows
+        result["report"] = report
     return result
 
 
-async def judge_citation_support(report: str, sources: list[dict]) -> float | None:
+async def judge_citation_support(
+    report: str, sources: list[dict]
+) -> tuple[float | None, list[dict]]:
     """Real-mode only: ask a model whether each cited claim is actually supported by the
     snippet it cites. Batches up to 4 claims per LLM call to reduce latency from
-    per-claim rate-limit sleeps. Returns supported / cited-claims, or None if there are none."""
+    per-claim rate-limit sleeps. Returns (supported / cited-claims, per-claim rows);
+    the rate is None if there are no cited claims."""
     import re as _re
 
     from langchain_core.messages import HumanMessage, SystemMessage
@@ -120,7 +129,7 @@ async def judge_citation_support(report: str, sources: list[dict]) -> float | No
     by_index = {s.get("index"): s for s in sources if isinstance(s, dict)}
     claims = [c for c in metrics.claim_lines(report) if metrics.CITE_RE.search(c)]
     if not claims:
-        return None
+        return None, []
 
     llm = get_llm("critic")
 
@@ -142,6 +151,7 @@ async def judge_citation_support(report: str, sources: list[dict]) -> float | No
 
     BATCH_SIZE = 4
     supported = 0
+    verdict_by_claim: dict[int, bool] = {}
     for batch_start in range(0, len(claim_evidence), BATCH_SIZE):
         batch = claim_evidence[batch_start : batch_start + BATCH_SIZE]
 
@@ -170,7 +180,10 @@ async def judge_citation_support(report: str, sources: list[dict]) -> float | No
             text = resp.content if isinstance(resp.content, str) else ""
             # Parse each "Claim N: YES/NO" line from the response.
             for match in _re.finditer(r"Claim\s+(\d+)\s*:\s*(YES|NO)", text, _re.IGNORECASE):
-                if match.group(2).upper() == "YES":
+                idx = batch_start + int(match.group(1)) - 1
+                ok = match.group(2).upper() == "YES"
+                verdict_by_claim[idx] = ok
+                if ok:
                     supported += 1
         except Exception as e:  # noqa: BLE001
             # Failed batch counts 0 supported — same semantics as the old per-claim
@@ -182,7 +195,15 @@ async def judge_citation_support(report: str, sources: list[dict]) -> float | No
         if RUN_CONFIG.llm_mode == "real":
             await asyncio.sleep(4.1)
 
-    return round(supported / len(claims), 4)
+    rows = [
+        {
+            "claim": claim,
+            "supported": verdict_by_claim.get(i, False),
+            "cites": metrics.extract_citations(claim),
+        }
+        for i, claim in enumerate(claims)
+    ]
+    return round(supported / len(claims), 4), rows
 
 
 async def run_one_memory(query: dict) -> dict:

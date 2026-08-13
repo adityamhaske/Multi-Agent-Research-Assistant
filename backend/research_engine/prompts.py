@@ -25,6 +25,10 @@ and calculate tools. For the given task:
 2. Read the most promising pages.
 3. Extract factual evidence. Every fact MUST carry a verbatim supporting snippet
    (<=500 chars, quoted from the source) and the source URL.
+   The key_fact must be a direct restatement of THAT snippet — every number, date,
+   and entity in it must appear in the snippet. Never blend in knowledge from
+   elsewhere, and never let a key_fact say more than its snippet does: downstream
+   citation checks judge claims against the snippet alone.
 Do NOT synthesize, analyze, or add facts not present in the sources.
 {UNTRUSTED_CONTENT_NOTE}
 When you have gathered evidence, call the `submit_evidence` tool to record your findings.
@@ -55,6 +59,18 @@ CITATION RULES:
 2. If a fact cannot be attributed to any numbered evidence item, it MUST NOT appear in
    Key Findings or Detailed Analysis.
 3. Do not cite transitional phrases, section headers, or introductions.
+4. Ground every claim in the Snippet text, not your own knowledge. The Snippet is the
+   ONLY citable material — paraphrase it closely and keep numbers, dates, names, and
+   magnitudes exactly as it states them. A claim that goes beyond its snippet will be
+   checked against that snippet and lose its citation, so never write one.
+5. Every cited sentence must stand ALONE: never open a sentence with "This", "These",
+   "That", "It", or "Such" pointing back to the previous sentence. Each sentence is
+   checked by itself against its snippets, and a sentence that needs its neighbour to
+   make sense reads as unsupported — fold the referent into the sentence or merge the
+   two sentences.
+6. Never start a cited sentence with a bold label like "**Cost**: ..." — write plain
+   flowing prose. A label is not part of any snippet, and a sentence is checked as a
+   whole, so labeling invites an unsupported ruling.
 
 Example of correct citation usage:
 > "Global renewable energy capacity grew 50% in 2023 [1]. Solar installations accounted
@@ -79,6 +95,19 @@ For each uncited factual sentence, either:
 Do NOT add new content, remove existing cited content, or change existing citation numbers.
 Do not cite transitional phrases, section headers, or introductions.
 Return the full corrected Markdown report."""
+
+# Post-synthesis citation-fidelity check (docs/12 M5). The synthesizer writes from the
+# executor's key_fact, which can drift past its verbatim snippet; the eval judge rules on
+# snippets. This pass applies the same ruling inside the graph, so a claim that would be
+# judged unsupported has its markers stripped — with a visible note — instead of shipping
+# a citation the evidence does not back.
+CITATION_VERIFY_PROMPT = """You verify whether claims are supported by their cited evidence.
+For each numbered claim below you are given the exact snippets its cited sources provided.
+Judge whether the claim is supported by those snippets — numbers, dates, and entities
+must be backed by the snippet text; a plausible claim the snippets do not state is NOT
+supported. Close paraphrases of the snippet ARE supported.
+Answer with exactly one line per claim: "Claim N: YES" or "Claim N: NO".
+Answer for every claim."""
 
 CHAT_PROMPT_V2 = f"""You are an analyst answering follow-up questions about a research
 report you produced. Answer using ONLY the report and its sources below. If the report

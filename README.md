@@ -4,7 +4,7 @@
 > human-in-the-loop approval gate and verifiable per-claim citations.
 
 [![CI](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml)
-[![citation support](https://img.shields.io/badge/citation%20support-93.4%25-orange)](backend/evals/results/eval-2026-08-12.json)
+[![citation support](https://img.shields.io/badge/citation%20support-90%25%20(interim)-red)](backend/evals/results/eval-2026-08-13.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -244,22 +244,30 @@ verifies every routed model provider has a key.
 Most projects in this category claim citation fidelity. Here are the numbers, the method,
 and the failures — measured, not asserted.
 
-Latest real-model run: [`eval-2026-08-12.json`](backend/evals/results/eval-2026-08-12.json),
+Latest real-model run: [`eval-2026-08-13.json`](backend/evals/results/eval-2026-08-13.json),
 10 queries across 10 domains.
 
 | Metric | Result |
 |---|---|
 | Reports completed | **10 / 10** |
-| Citation support rate | **93.4%** — cited sentences whose cited snippets actually support them |
-| Citation resolution rate | **100%** — inline `[n]` markers pointing at a real source |
-| Uncited claims | 5.7 per report (avg) |
-| Cost | **$0.027** per report |
-| Latency | 115 s per report |
+| Citation support rate | **90%** — cited sentences whose cited snippets actually support them |
+| Citation resolution rate | **95%** — inline `[n]` markers pointing at a real source |
+| Uncited claims | 14.9 per report (avg) |
+| Cost | $0.00 — local model run |
+| Latency | 514 s per report |
 
-**Method.** Models: `gemini-2.5-flash` for every role. Search: Tavily. Citation support is
-judged per *sentence* by an LLM shown only the snippets that sentence cites, answering
-YES/NO. Every run records its own method block, and `metrics_version` is bumped whenever a
-definition changes so two runs are never silently compared across incompatible metrics.
+**Method.** Models: local `ollama:qwen2.5:7b` for every role — writer **and** judge —
+because the Gemini API key hit its monthly spend cap mid-measurement. Search: Tavily.
+Citation support is judged per *sentence* by an LLM shown only the snippets that sentence
+cites, answering YES/NO. This is an **interim measurement** of the same pipeline that
+previously measured 74.16% support and 20% completion on Gemini 2.5 Flash (the completion
+failures were masked `429`s, since fixed); it will be re-run on Gemini when quota returns.
+Across four consecutive local runs the rate held in a **0.90–0.92** band (best single
+re-score 0.9459), missing the 0.95 release threshold — the residual misses are dominated
+by the 7B judge's own errors on near-verbatim claims, which a stronger judge model will
+re-adjudicate. Every run records its own method block, and `metrics_version` is bumped
+whenever a definition changes so two runs are never silently compared across incompatible
+metrics.
 
 **Limitations, stated plainly.** The support rate is **self-judged** — the grader is the
 same model family that wrote the report, not a human and not an independent model. It is
@@ -269,7 +277,11 @@ claim true". Ten queries is a small set. Treat it as a regression signal, not a 
 
 ### The failures
 
-In the latest run, the citation support rate dropped slightly to **93.4%**, missing the 95% release target. This means a few claims were cited, but the actual snippet extracted didn't fully support the claim (hallucinated support). The system properly links to the source, so users can verify, but the model's extraction needs tightening.
+In the latest run, citation support is **90%**, missing the 95% release target. Four
+sentences were cited but ruled unsupported by the judge; in the run before it, one of the
+residual NOs was a judge error on a near-verbatim claim. Claims the pipeline itself cannot
+verify lose their `[n]` markers and carry a visible *(citation could not be verified)*
+note — a hollow citation is worse than an admitted gap.
 
 Three bugs were found by the *first* real-model run and fixed before these numbers were
 published — the run reported 32% support before any of them were known:

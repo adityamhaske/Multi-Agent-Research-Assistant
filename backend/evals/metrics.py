@@ -22,6 +22,10 @@ import re
 CITE_RE = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
 HEADING_RE = re.compile(r"^#{1,6}\s")
 SOURCES_HEADING_RE = re.compile(r"^#{1,6}\s*(sources|references|citations|bibliography)\b", re.I)
+# The Limitations section is where the model is INSTRUCTED to write what the evidence
+# does not cover — meta-prose about the evidence, sourced or not. Its sentences are not
+# factual claims, so they are excluded from claim extraction exactly like Sources.
+LIMITATIONS_HEADING_RE = re.compile(r"^#{1,6}\s*limitations?\b", re.I)
 _LIST_MARKER_RE = re.compile(r"^(?:[-*+]\s+|\d+[.)]\s+)")
 # Sentence boundary: terminator + whitespace, not preceded by a common abbreviation or a
 # bare initial. Deliberately conservative — over-splitting a claim is worse than
@@ -100,9 +104,13 @@ def claim_lines(text: str) -> list[str]:
     unsupported by any snippet. That conflation was measured depressing the support rate
     independently of the actual research quality (docs/12 M5).
 
-    Headings, list markers, and trivially short fragments are still excluded.
+    Headings, list markers, and trivially short fragments are still excluded. So is the
+    Limitations section: it is where the synthesizer is told to write what the evidence
+    does NOT cover, and those hedging sentences are not factual claims the snippets must
+    support — judging them measured report honesty as citation failure (docs/12 M5).
     """
     out: list[str] = []
+    skipping = False
     for raw in (text or "").splitlines():
         line = raw.strip()
         if not line:
@@ -110,6 +118,9 @@ def claim_lines(text: str) -> list[str]:
         if SOURCES_HEADING_RE.match(line):
             break  # sources/references section is references, not claims
         if HEADING_RE.match(line):
+            skipping = bool(LIMITATIONS_HEADING_RE.match(line))
+            continue
+        if skipping:
             continue
         content = _LIST_MARKER_RE.sub("", line)
         for sentence in split_sentences(content):
@@ -132,7 +143,9 @@ def uncited_claim_count(text: str) -> int:
 #   2 — grouped markers `[1, 3]` counted as separate citations; claims split on sentences
 #       (docs/12 M5, defect D1). Both enlarge the denominator, so a v2 number is NOT
 #       comparable to a v1 number.
-METRICS_VERSION = 2
+#   3 — Limitations sentences excluded from claims (D5): they are hedging, not factual
+#       claims. A v3 support rate is not comparable to v2.
+METRICS_VERSION = 3
 
 
 def report_metrics(text: str, sources: list[dict]) -> dict:

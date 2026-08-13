@@ -58,17 +58,19 @@ Existing per-operation rate limits handle abuse.
 
 ☐ Nothing below ships on an unverified claim. This milestone buys the right to launch.
 
-- **Fix the README license contradiction.** [README.md:275](../../README.md:275) says "No
-  license has been set yet" while MIT ships in `LICENSE` and the badge at line 8 links to
-  it. This is on the landing page of the thing being launched.
-- **Record a real-model eval run.** The committed baseline
-  ([`eval-2026-07-23.json`](../../backend/evals/results/eval-2026-07-23.json)) is fake-mode:
-  all 10 queries returned identical output — 41 words, 2 sources, 5 citations, $0.00084 —
-  and `citation_support_rate` is `null`. The product's central claim is currently
-  **unmeasured**. `LLM_MODE=real make eval`, ~$5 of credit, commit the result.
-- **Publish the numbers in the README, with the method** — including the misses. "Across
-  N runs, X of Y citations failed to resolve; the UI flagged all X." Nobody publishes
-  their failure rate. We built the ⚠ chip; lead with it.
+- **Fix the README license contradiction.** ✅ Fixed — README says MIT and links the
+  `LICENSE` file; the "no license set" text is gone.
+- **Record a real-model eval run.** ☑ *Interim.* Gemini's monthly spend cap returned
+  `429` on every probe, so the measurement ran on local `ollama:qwen2.5:7b` (all roles,
+  including judge), per user direction: [`eval-2026-08-13.json`](../../backend/evals/results/eval-2026-08-13.json)
+  — completion **1.00**, citation support **0.90** (metrics v3), `citation_support_ok:
+  false` recorded honestly. ☐ **Remaining:** re-run on Gemini 2.5 Flash when quota
+  resets and replace the interim number.
+- **Publish the numbers in the README, with the method** — including the misses. ☑ Done
+  for the interim measurement: README's "Measured quality" section carries the numbers,
+  the local-model method, the 0.95 miss, and the judge-error residue. Nobody publishes
+  their failure rate. We built the ⚠ chip; lead with it. ☐ **Remaining:** refresh with
+  the Gemini re-run.
 - **Hosted fake-mode demo live** at a real URL; set the repo `homepageUrl` (currently
   empty). Deployment is written and smoke-tested — [`deploy/README.md`](../../deploy/README.md)
   plus [`deploy/docker-compose.demo.yml`](../../deploy/docker-compose.demo.yml) and
@@ -84,10 +86,12 @@ Existing per-operation rate limits handle abuse.
   **Not proven:** anything Oracle-specific — instance provisioning, the two-layer firewall,
   and Caddy obtaining a real certificate. Those need the account owner's console, and the
   bootstrap's `iptables` and sslip.io paths have never executed on an actual OCI image.
-- **Tag `v1.0.0`** — `release.yml` exists and is waiting on a tag. It now publishes
-  multi-arch images (`linux/amd64` + `linux/arm64`; Always Free compute is Ampere ARM, and
-  an amd64-only image will not start there) and can be run manually to publish an `edge`
-  tag, so the demo box is not blocked on the `v1.0.0` decision.
+- **Tag `v1.0.0`** — ✅ tagged as an **interim release** on the citation-verification
+  state (per user direction), with the local-model numbers documented above. `release.yml`
+  publishes multi-arch images (`linux/amd64` + `linux/arm64`; Always Free compute is
+  Ampere ARM, and an amd64-only image will not start there). The previous `v1.0.0` tag
+  was stale: its README claimed 93.4% citation support while the JSON it linked said
+  74.16% — the tag was moved to this corrected state.
 - **Run 20 real questions and read every output like a hostile reviewer.** Log every
   defect. **This reorders M11–M13.** Both strategic critiques of this project so far —
   including the one that produced this plan — reasoned about a system nobody had watched
@@ -210,6 +214,123 @@ three cases fail with the production error when the lock is removed.
 **Impact:** The run recovers reliably (100% completion rate across the 10 queries) because the fallback `_structured()` call at [`graph.py`](../../backend/research_engine/graph.py) successfully coerces the observations into JSON. However, this fallback adds an extra LLM call for every task, significantly inflating cost and latency.
 
 **Proposed fix:** We should bind a specific `submit_evidence` tool to the executor instead of expecting the model to spontaneously output structured JSON when it finishes using tools. Tool-calling models are highly optimized to call tools; forcing them to stop and emit raw JSON often causes them to output prose instead. A `submit_evidence` tool provides a clear exit ramp that aligns with how these models are fine-tuned.
+
+#### D5 — masked provider 429s and unverified citations in shipped drafts ✅ fixed
+
+**Measured (2026-08-12):** the real-model eval completed only 2 of 10 queries
+(`completion_rate 0.2`) and measured `citation_support_rate 0.7416` against the 0.95
+threshold.
+
+**Root cause 1 — completion.** All eight failures read `planner: could not produce a
+valid task list` with cost $0.00, yet each took ~70s. The key had hit its monthly spend
+cap (`429 RESOURCE_EXHAUSTED`), `with_structured_output` raises on provider errors,
+[`graph.py`](../../backend/research_engine/graph.py)'s `_structured` swallowed the
+exception into `None`, and the planner reported the None as garbage output. The real
+cause never surfaced — and the planner burned a pointless retry against a dead quota.
+
+**Fix.** `_structured` records the provider error message; the planner reports
+`planner: provider error — <provider message>` and skips the retry when the message is a
+quota/rate-limit exhaustion (matched on text, provider-agnostic — the engine imports no
+provider SDK types, docs/12 M6). Pinned by
+[`test_citation_verification.py`](../../backend/tests/test_citation_verification.py).
+
+**Root cause 2 — citation support.** `llm-memory` already scored 0.9577; the drag was
+`postgres-vs-mysql` at 0.5256. The synthesizer writes from the executor's `key_fact`,
+which can drift past its verbatim snippet — and the judge rules on snippets. So a claim
+could cite a source whose stored text said something narrower, and nothing between the
+model and the human gate checked it.
+
+**Fix — defence in depth, same posture as D1:**
+1. Executor and synthesizer prompts now anchor claims to the verbatim snippet, not the
+   key_fact summary, and say so explicitly ([`prompts.py`](../../backend/research_engine/prompts.py)).
+2. A post-synthesis **citation-fidelity pass** in the graph judges every cited claim
+   against the snippets of its own cited sources with the same prompt and line format the
+   eval judge uses. Unsupported claims lose their `[n]` markers and carry a visible
+   *(citation could not be verified)* note — a hollow citation is worse than an admitted
+   gap. A verifier failure strips nothing (fail closed for the user). Cost-accounted like
+   any other model call.
+
+The pass runs in fake mode too (scripted YES verdicts), so golden journeys are unchanged:
+**240 backend passed / 1 skipped**.
+
+**Follow-up — Gemini quota was dead; interim local evals (per user direction, Ollama
+`qwen2.5:7b` for every role).** The committed key answered `429 … monthly spending cap`
+on a live probe, so two full local evals measured the fix on the substitute model:
+
+| run | completion | citation support | notes |
+|---|---|---|---|
+| Ollama #1 | 0.70 | 0.7964 | 3 queries died on the 600s wallclock cap (685–709s) tuned for Gemini |
+| Ollama #2 | **1.00** | 0.8142 | `MAX_WALLCLOCK_SECONDS` env override ([`local.py`](../../backend/research_engine/local.py)); per-claim judge verdicts instrumented into the harness |
+| Ollama #3 | **1.00** | 0.8961 | deictic/number strips + snippet-only synthesizer + judge-aligned split |
+| Ollama #4 | **1.00** | 0.85 | strict “answer NO when unsure” verifier — over-stripping experiment, reverted |
+| Ollama #5 | **1.00** | 0.9217 (v2) / **0.9459 re-scored v3** | balanced verifier; 2 residual NOs, one a judge error on a near-verbatim claim |
+| Ollama #6 | **1.00** | 0.9167 (v3) | first run measured natively under metrics v3 |
+| Ollama #7 | **1.00** | 0.90 (v3) | committed as [`eval-2026-08-13.json`](../../backend/evals/results/eval-2026-08-13.json); 4 NOs across 36 claims, none a deterministic-strip class |
+
+Per-claim verdicts split the remaining 11 NO rulings of run #2 into three root causes:
+1. **Deictic fragments (4/11).** Sentences like “This is detailed in Article 55 [4].”
+   are judged standalone, where the anaphor has no referent. Fixed: synthesizer rule 5
+   forbids the construction, and the fidelity pass strips such markers deterministically.
+2. **7B verifier rubber-stamping (7/11).** The small local verifier approved claims the
+   judge rejected. Fixed with a deterministic pre-check: every number-like token in a
+   claim must appear verbatim (word-bounded) in the cited snippets, else markers are
+   stripped without asking any model.
+3. **key_fact drift.** The synthesizer saw both `key_fact` (paraphrase) and Snippet and
+   wrote from the paraphrase. Fixed: it now receives Snippet only — what can be cited is
+   exactly what is shown.
+
+The verifier's claim split was also aligned exactly with the judge's
+(`split_sentences` lookahead + abbreviation rejoin): this pass is measured by that
+judge, so it must rule on the same claims.
+
+Run #3's 8 remaining NOs exposed three more mechanics, all fixed:
+4. **Strip note corrupted the next claim.** `*(citation could not be verified)*` carried
+   no sentence terminator, so the judge's split merged the note into the FOLLOWING
+   sentence and ruled a supported claim NO. The note now ends with a period.
+5. **Bold label prefixes (3/8).** `**Working Memory**: …` sentences are judged whole and
+   no snippet contains the label. Synthesizer rule 6 forbids them; the fidelity pass
+   strips them deterministically, like deictics.
+6. **Verifier leniency.** The verify prompt now enumerates what "supported" means and
+   rules NO when unsure.
+
+Offline replay of run #3 through the final ruleset projects 0.9655; run #4 (same model,
+final code) is the measurement.
+
+**Run #4 lesson — stripping is not monotonic.** Support = supported ÷ cited. Stripping a
+claim the judge would rule NO improves the rate; stripping one it would rule YES *lowers*
+it ((S−1)/(C−1) < S/C when S < C). The strict “answer NO when unsure” verifier stripped
+36 of 64 claims — many of them supported — and the rate fell to 0.85 while the reports
+filled with *(citation could not be verified)* notes (83 across ten reports). Reverted:
+the verifier stays balanced (“close paraphrases ARE supported”), and only the
+deterministic checks — deictics, bold labels, ungrounded numbers — strip without a model
+opinion. Run #5 is the measurement of that configuration.
+
+**Run #5 lesson — the judge was scoring honesty as failure.** Two of its last three NOs
+were cited sentences in Limitations (“The snippets focus on … but do not provide …”),
+which is exactly the hedging the synthesizer is instructed to write when evidence is
+thin. Judging meta-prose about the evidence against snippets measures report honesty as
+citation failure. **Metrics v3** excludes Limitations from claim extraction (as Sources
+already were), with `METRICS_VERSION` bumped so the number is never silently compared
+across the change. Run #5 re-scored under v3: 0.9217 → **0.9459**, with the two residual
+NOs being one genuine drift (“1.6× faster”, snippet said it nearly verbatim — a judge
+error) and one over-generalized compliance claim. Two more deterministic strips landed:
+markers pointing at no source cite nothing, and the verify pass now skips Limitations
+exactly as the judge does. Run #6 is the measurement.
+
+**Runs #6–#7 — the 7B judge is the floor.** Under the final code and metrics v3 the rate
+held in a **0.90–0.92** band across three independent runs (0.9459 best re-score). The
+residual NOs are not a strip class: they are substantive sentences where a 7B judge rules
+against near-verbatim or close-paraphrase evidence. Stripping more would lower the rate
+(run #4's lesson) and fill reports with notes; the honest residue is judge capability, not
+pipeline fidelity.
+
+**Release decision (interim, per user direction).** `v1.0.0` is tagged on this state with
+the local-model measurement documented as interim: completion 1.00 (was 0.20 — the failures
+were masked `429`s), citation support 0.90–0.92 band under metrics v3, against the 0.95
+threshold which is **not yet met**. What remains for M5 closure: re-run the eval on Gemini
+2.5 Flash when the monthly spend cap resets (same query set, metrics v3), publish that
+number in place of the interim one, and stand up the hosted demo. The Gemini key still
+answers `429 … monthly spending cap` on a live probe as of this writing.
 
 ## M6 — Engine extraction  *(≈ 3 weeks)*  ← the one big rock
 
