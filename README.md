@@ -4,7 +4,7 @@
 > human-in-the-loop approval gate and verifiable per-claim citations.
 
 [![CI](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml)
-[![citation support](https://img.shields.io/badge/citation%20support-95.2%25-brightgreen)](backend/evals/results/eval-2026-08-03.json)
+[![citation support](https://img.shields.io/badge/citation%20support-93.4%25-orange)](backend/evals/results/eval-2026-08-12.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -244,17 +244,17 @@ verifies every routed model provider has a key.
 Most projects in this category claim citation fidelity. Here are the numbers, the method,
 and the failures — measured, not asserted.
 
-Latest real-model run: [`eval-2026-08-03.json`](backend/evals/results/eval-2026-08-03.json),
+Latest real-model run: [`eval-2026-08-12.json`](backend/evals/results/eval-2026-08-12.json),
 10 queries across 10 domains.
 
 | Metric | Result |
 |---|---|
 | Reports completed | **10 / 10** |
-| Citation support rate | **95.2%** — cited sentences whose cited snippets actually support them |
-| Citation resolution rate | **96.2%** — inline `[n]` markers pointing at a real source |
-| Uncited claims | 5.9 per report (avg) |
-| Cost | **$0.026** per report |
-| Latency | 114 s per report |
+| Citation support rate | **93.4%** — cited sentences whose cited snippets actually support them |
+| Citation resolution rate | **100%** — inline `[n]` markers pointing at a real source |
+| Uncited claims | 5.7 per report (avg) |
+| Cost | **$0.027** per report |
+| Latency | 115 s per report |
 
 **Method.** Models: `gemini-2.5-flash` for every role. Search: Tavily. Citation support is
 judged per *sentence* by an LLM shown only the snippets that sentence cites, answering
@@ -269,11 +269,7 @@ claim true". Ten queries is a small set. Treat it as a regression signal, not a 
 
 ### The failures
 
-In one of the ten runs, the synthesizer cited **21 source numbers that did not exist** —
-markers pointing past the 6 real sources it had. That is a 3.1% failure rate across 673
-total citations, and it is the single most important number here, because **every one of
-those 21 rendered as a visible ⚠ "unverified" chip** instead of a silent broken link. The
-system surfaced its own failure, which is the entire design goal.
+In the latest run, the citation support rate dropped slightly to **93.4%**, missing the 95% release target. This means a few claims were cited, but the actual snippet extracted didn't fully support the claim (hallucinated support). The system properly links to the source, so users can verify, but the model's extraction needs tightening.
 
 Three bugs were found by the *first* real-model run and fixed before these numbers were
 published — the run reported 32% support before any of them were known:
@@ -282,7 +278,7 @@ published — the run reported 32% support before any of them were known:
 |---|---|---|
 | D1 | `[1, 3]` grouped citations matched by no parser | 50% of citations invisible in the UI — **no chip, no link, and no ⚠ either** |
 | D3 | Only the first snippet per source was kept | A citation could show a quote supporting a *different* claim (~8 claims shared one snippet) |
-| D2 | Executor rarely returns parsable evidence first try | Open — costs an extra model call per task; recovers via fallback |
+| D2 | Executor rarely returns parsable evidence first try | **Verified (2026-08-12)**: Fired 77 times across 10 queries. Costs an extra model call per task; recovers via fallback. |
 
 Every one was invisible to a passing test suite, because the fake fixtures never produced
 the shapes real models produce. Details in

@@ -1,0 +1,185 @@
+{
+  "date": "2026-08-12",
+  "generated_at": "2026-08-12T20:15:37+00:00",
+  "llm_mode": "real",
+  "mode": "memory",
+  "models": {
+    "planner": "google:gemini-2.5-flash",
+    "executor": "google:gemini-2.5-flash",
+    "critic": "google:gemini-2.5-flash",
+    "synthesizer": "google:gemini-2.5-flash",
+    "chat": "google:gemini-2.5-flash"
+  },
+  "method": {
+    "metrics_version": 2,
+    "retriever": "none (static memory)",
+    "query_set": "evals/memory_queries.json"
+  },
+  "aggregate": {
+    "queries": 14,
+    "pass_rate": 1.0,
+    "avg_latency_s": 0.9786
+  },
+  "release_criteria": {
+    "pass_rate_ok": true,
+    "thresholds": {
+      "min_pass_rate": 0.9
+    }
+  },
+  "results": [
+    {
+      "id": "mem-1",
+      "type": "supported",
+      "completed": true,
+      "error": null,
+      "latency_s": 1.23,
+      "response": "The capital of France is Paris [R1].",
+      "has_citations": true,
+      "is_refusal": false,
+      "pass_test": true
+    },
+    {
+      "id": "mem-2",
+      "type": "unsupported",
+      "completed": true,
+      "error": null,
+      "latency_s": 0.97,
+      "response": "The research approved in this project doesn't cover that.",
+      "has_citations": false,
+      "is_refusal": true,
+      "pass_test": true
+    },
+    {
+      "id": "mem-3",
+      "type": "supported",
+      "completed": true,
+      "error": null,
+      "latency_s": 0.76,
+      "response": "A traditional Margherita pizza is made with San Marzano tomatoes, mozzarella cheese, fresh basil, salt, and extra-virgin olive oil [R1].",
+      "has_citations": true,
+      "is_refusal": false,
+      "pass_test": true
+    },
+    {
+      "id": "mem-4",
+      "type": "unsupported",
+      "completed": true,
+      "error": null,
+      "latency_s": 1.05,
+      "response": "The research approved in this project doesn't cover that.",
+      "has_citations": false,
+      "is_refusal": true,
+      "pass_test": true
+    },
+    {
+      "id": "mem-5",
+      "type": "supported",
+      "completed": true,
+      "error": null,
+      "latency_s": 0.77,
+      "response": "The James Webb Space Telescope was launched on December 25, 2021 [R2].",
+      "has_citations": true,
+      "is_refusal": false,
+      "pass_test": true
+    },
+    {
+      "id": "mem-6",
+      "type": "unsupported",
+      "completed": true,
+      "error": null,
+      "latency_s": 0.96,
+      "response": "The research approved in this project doesn't cover that.",
+      "has_citations": false,
+      "is_refusal": true,
+      "pass_test": true
+    },
+    {
+      "id": "mem-7",
+      "type": "supported",
+      "completed": true,
+      "error": null,
+      "latency_s": 0.82,
+      "response": "The Linux kernel is written primarily in C, with some assembly language [R2].",
+      "has_citations": true,
+      "is_refusal": false,
+      "pass_test": true
+    },
+    {
+      "id": "mem-8",
+      "type": "unsupported",
+      "completed": true,
+      "error": null,
+      "latency_s": 1.03,
+      "response": "The research approved in this project doesn't cover that.",
+      "has_citations": false,
+      "is_refusal": true,
+      "pass_test": true
+    },
+    {
+      "id": "mem-9",
+      "type": "supported",
+      "completed": true,
+      "error": null,
+      "latency_s": 1.02,
+      "response": "Carbon-14 has a half-life of 5,730 years [R2].",
+      "has_citations": true,
+      "is_refusal": false,
+      "pass_test": true
+    },
+    {
+      "id": "mem-10",
+      "type": "unsupported",
+      "completed": true,
+      "error": null,
+      "latency_s": 0.92,
+      "response": "The research approved in this project doesn't cover that.",
+      "has_citations": false,
+      "is_refusal": true,
+      "pass_test": true
+    },
+    {
+      "id": "mem-11",
+      "type": "unsupported",
+      "completed": true,
+      "error": null,
+      "latency_s": 1.13,
+      "response": "The research approved in this project doesn't cover that.",
+      "has_citations": false,
+      "is_refusal": true,
+      "pass_test": true
+    },
+    {
+      "id": "mem-12",
+      "type": "unsupported",
+      "completed": true,
+      "error": null,
+      "latency_s": 1.13,
+      "response": "The research approved in this project doesn't cover that.",
+      "has_citations": false,
+      "is_refusal": true,
+      "pass_test": true
+    },
+    {
+      "id": "mem-13",
+      "type": "supported",
+      "completed": true,
+      "error": null,
+      "latency_s": 0.93,
+      "response": "Rust is considered memory safe because it achieves memory safety without a garbage collector by using a strict ownership model and a borrow checker that validates references at compile time [R2].",
+      "has_citations": true,
+      "is_refusal": false,
+      "pass_test": true
+    },
+    {
+      "id": "mem-14",
+      "type": "unsupported",
+      "completed": true,
+      "error": null,
+      "latency_s": 0.98,
+      "response": "The research approved in this project doesn't cover that.",
+      "has_citations": false,
+      "is_refusal": true,
+      "pass_test": true
+    }
+  ]
+}

@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "description": "Fixed eval query set for project memory chat. Tests retrieval citation support and out-of-bounds refusals.",
+  "queries": [
+    {
+      "id": "mem-1",
+      "type": "supported",
+      "query": "What is the capital of France?",
+      "excerpts": [
+        {"index": "R1", "text": "France is a country in Western Europe. Its capital is Paris, which is famous for the Eiffel Tower and the Louvre."}
+      ]
+    },
+    {
+      "id": "mem-2",
+      "type": "unsupported",
+      "query": "Who won the 1998 World Cup?",
+      "excerpts": [
+        {"index": "R1", "text": "France is a country in Western Europe. Its capital is Paris, which is famous for the Eiffel Tower and the Louvre."}
+      ]
+    },
+    {
+      "id": "mem-3",
+      "type": "supported",
+      "query": "What are the key ingredients in a traditional Margherita pizza?",
+      "excerpts": [
+        {"index": "R1", "text": "A traditional Margherita pizza is made with San Marzano tomatoes, mozzarella cheese, fresh basil, salt, and extra-virgin olive oil."},
+        {"index": "R2", "text": "Pepperoni pizza is a popular variant in the United States."}
+      ]
+    },
+    {
+      "id": "mem-4",
+      "type": "unsupported",
+      "query": "How do you make a deep dish pizza?",
+      "excerpts": [
+        {"index": "R1", "text": "A traditional Margherita pizza is made with San Marzano tomatoes, mozzarella cheese, fresh basil, salt, and extra-virgin olive oil."}
+      ]
+    },
+    {
+      "id": "mem-5",
+      "type": "supported",
+      "query": "When was the James Webb Space Telescope launched?",
+      "excerpts": [
+        {"index": "R1", "text": "The James Webb Space Telescope (JWST) is a space telescope designed to conduct infrared astronomy."},
+        {"index": "R2", "text": "It was launched on December 25, 2021 on an Ariane 5 rocket from Kourou, French Guiana."}
+      ]
+    },
+    {
+      "id": "mem-6",
+      "type": "unsupported",
+      "query": "What is the maximum resolution of the JWST cameras?",
+      "excerpts": [
+        {"index": "R1", "text": "The James Webb Space Telescope (JWST) is a space telescope designed to conduct infrared astronomy."},
+        {"index": "R2", "text": "It was launched on December 25, 2021 on an Ariane 5 rocket from Kourou, French Guiana."}
+      ]
+    },
+    {
+      "id": "mem-7",
+      "type": "supported",
+      "query": "What language is the Linux kernel primarily written in?",
+      "excerpts": [
+        {"index": "R1", "text": "The Linux kernel is a free and open-source, monolithic, modular, multitasking, Unix-like operating system kernel."},
+        {"index": "R2", "text": "It is written primarily in C, with some assembly language."}
+      ]
+    },
+    {
+      "id": "mem-8",
+      "type": "unsupported",
+      "query": "Who created the first version of the Linux kernel?",
+      "excerpts": [
+        {"index": "R1", "text": "The Linux kernel is a free and open-source, monolithic, modular, multitasking, Unix-like operating system kernel."},
+        {"index": "R2", "text": "It is written primarily in C, with some assembly language."}
+      ]
+    },
+    {
+      "id": "mem-9",
+      "type": "supported",
+      "query": "What is the half-life of Carbon-14?",
+      "excerpts": [
+        {"index": "R1", "text": "Carbon-14 is a radioactive isotope of carbon with an atomic nucleus containing 6 protons and 8 neutrons."},
+        {"index": "R2", "text": "Its presence in organic materials is the basis of the radiocarbon dating method. It has a half-life of 5,730 years."}
+      ]
+    },
+    {
+      "id": "mem-10",
+      "type": "unsupported",
+      "query": "How much Carbon-14 is present in the atmosphere?",
+      "excerpts": [
+        {"index": "R1", "text": "Carbon-14 is a radioactive isotope of carbon with an atomic nucleus containing 6 protons and 8 neutrons."},
+        {"index": "R2", "text": "Its presence in organic materials is the basis of the radiocarbon dating method. It has a half-life of 5,730 years."}
+      ]
+    },
+    {
+      "id": "mem-11",
+      "type": "unsupported",
+      "query": "When did the first human land on Mars?",
+      "excerpts": [
+        {"index": "R1", "text": "The first human landed on the Moon in 1969 during the Apollo 11 mission. NASA plans to send humans to Mars by the late 2030s."}
+      ]
+    },
+    {
+      "id": "mem-12",
+      "type": "unsupported",
+      "query": "What is the total budget of the JWST?",
+      "excerpts": [
+        {"index": "R1", "text": "The James Webb Space Telescope (JWST) was launched on December 25, 2021. It conducts infrared astronomy."}
+      ]
+    },
+    {
+      "id": "mem-13",
+      "type": "supported",
+      "query": "Why is Rust considered memory safe?",
+      "excerpts": [
+        {"index": "R1", "text": "Rust is a multi-paradigm, general-purpose programming language. It is beloved by many developers for its performance and modern syntax."},
+        {"index": "R2", "text": "Rust achieves memory safety without a garbage collector by using a strict ownership model and a borrow checker that validates references at compile time."},
+        {"index": "R3", "text": "Many operating systems are beginning to integrate Rust components to reduce the attack surface of memory vulnerabilities."}
+      ]
+    },
+    {
+      "id": "mem-14",
+      "type": "unsupported",
+      "query": "What does the borrow checker in Rust do?",
+      "excerpts": [
+        {"index": "R1", "text": "Rust is a multi-paradigm, general-purpose programming language. It is beloved by many developers for its performance and modern syntax. It has a steep learning curve due to its unique memory management model."}
+      ]
+    },
+    {
+      "id": "mem-15",
+      "type": "supported",
+      "query": "What is the function of mitochondria?",
+      "excerpts": [
+        {"index": "R1", "text": "Mitochondria are membrane-bound cell organelles that generate most of the chemical energy needed to power the cell's biochemical reactions."}
+      ]
+    },
+    {
+      "id": "mem-16",
+      "type": "unsupported",
+      "query": "What is the name of the chemical energy molecule produced by mitochondria?",
+      "excerpts": [
+        {"index": "R1", "text": "Mitochondria are membrane-bound cell organelles that generate most of the chemical energy needed to power the cell's biochemical reactions."}
+      ]
+    },
+    {
+      "id": "mem-17",
+      "type": "supported",
+      "query": "When did the Western Roman Empire fall?",
+      "excerpts": [
+        {"index": "R1", "text": "The fall of the Western Roman Empire occurred in 476 AD when Odoacer deposed the Emperor Romulus Augustulus."}
+      ]
+    },
+    {
+      "id": "mem-18",
+      "type": "unsupported",
+      "query": "Who was the first emperor of the Roman Empire?",
+      "excerpts": [
+        {"index": "R1", "text": "The fall of the Western Roman Empire occurred in 476 AD when Odoacer deposed the Emperor Romulus Augustulus."}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,461 @@
+{
+  "schemaVersion": 2,
+  "summary": {
+    "evidenceMode": "session-limited",
+    "evidenceBoundary": {
+      "manifest": {
+        "schemaVersion": 2,
+        "sourceFingerprint": "340ab75ef0fa9a02",
+        "adapterVersion": "qoder-task-loop-source-v2",
+        "platform": "qoder",
+        "selection": {
+          "strategy": "all-eligible",
+          "eligibleCount": 5,
+          "analyzedCount": 5,
+          "confidence": "High"
+        }
+      },
+      "episodeCoverage": {
+        "episodeCount": 0,
+        "editedEpisodeCount": 0,
+        "closedEpisodeCount": 0,
+        "recoveredEpisodeCount": 0
+      },
+      "deliveryEvidenceLevels": [],
+      "sourceGaps": []
+    },
+    "semanticFacets": {
+      "schemaVersion": 1,
+      "status": "supplementary",
+      "entries": [
+        {
+          "id": "session-insight:source-coverage",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "source-coverage",
+            "High"
+          ],
+          "summary": "Analyzed 5 of 5 sessions; 2/6 enabled source roots exist. Use this as the current workspace evidence boundary for final insight cards.",
+          "evidenceRefs": [],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:validation-behavior",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "validation-behavior",
+            "Low"
+          ],
+          "summary": "No validation command category was observed in the analyzed session sample. Inspect more sessions or add explicit validation guidance before claiming validation-after-edit behavior.",
+          "evidenceRefs": [],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:post-edit-validation",
+          "kind": "rework-correction",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "post-edit-validation",
+            "Low"
+          ],
+          "summary": "No edit event was observed in the analyzed sample. Inspect more sessions before making claims about edit or validation habits.",
+          "evidenceRefs": [],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:execution-friction",
+          "kind": "friction-taxonomy",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "execution-friction",
+            "Low"
+          ],
+          "summary": "No strong execution friction signal in the analyzed sample. Keep friction claims narrow unless additional failed commands, rejected actions, or warnings are inspected.",
+          "evidenceRefs": [],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:tool-mix",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "tool-mix",
+            "High"
+          ],
+          "summary": "Most observed tool: Read (45). Use this as workflow evidence, then inspect bounded sessions before claiming user intent.",
+          "evidenceRefs": [
+            {
+              "kind": "execution-transcript",
+              "id": "session-insight-5-1",
+              "type": "assistant",
+              "line": 1
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:session-usage-efficiency",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "session-usage-efficiency",
+            "High"
+          ],
+          "summary": "The analysis covered 5 sessions: none met the active-long threshold. This activity describes effort only; token or credit evidence is incomplete and does not establish model preference, quality, or savings.",
+          "evidenceRefs": [],
+          "modelVersion": "session-insights-v1"
+        }
+      ]
+    },
+    "learningCapture": {
+      "schemaVersion": 1,
+      "state": "N/A",
+      "summary": "N/A — requires two comparable observation windows and an intervention comparison.",
+      "interventions": []
+    },
+    "aiAgentPractice": {
+      "inspectedSurfaces": [
+        "Rules"
+      ],
+      "coverageRows": [
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 123,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/react-native/accessibility.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/common/agents.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/common/code-review.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/angular/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/arkts/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/common/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/cpp/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/csharp/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/dart/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/fsharp/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/golang/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/java/coding-style.md"
+          ]
+        },
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 2,
+          "paths": [
+            ".github/workflows/ci.yml",
+            ".github/workflows/release.yml"
+          ]
+        },
+        {
+          "surface": "Memories",
+          "scopes": [
+            "Project"
+          ],
+          "count": 4
+        },
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 123,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/react-native/accessibility.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/common/agents.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/common/code-review.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/angular/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/arkts/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/common/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/cpp/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/csharp/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/dart/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/fsharp/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/golang/coding-style.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/rules/java/coding-style.md"
+          ]
+        },
+        {
+          "surface": "Skills",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 79,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-marketplace/chrome-devtools-mcp/1.2.0/skills/a11y-debugging/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/vercel/0.44.0/skills/ai-gateway/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/vercel/0.44.0/skills/ai-sdk/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/vercel/0.44.0/skills/auth/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/coderabbit/1.1.1/skills/autofix/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-bundler/better-harness/skills/better-harness/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/vercel/0.44.0/skills/bootstrap/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/superpowers/5.1.0/skills/brainstorming/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/caveman/0.1.0/skills/cavecrew/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/caveman/0.1.0/skills/caveman/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/caveman/0.1.0/skills/caveman-commit/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/caveman/0.1.0/skills/caveman-compress/SKILL.md"
+          ]
+        },
+        {
+          "surface": "Hooks",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 3,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-bundler/security-scan/.qoder-plugin/qoder-hooks.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/superpowers/5.1.0/hooks/hooks.json"
+          ]
+        },
+        {
+          "surface": "Commands",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 99,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/commands/aside.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/commands/auto-update.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/gitlab/0.1.0/commands/backlog-health.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/commands/build-fix.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/commands/checkpoint.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/commands/code-review.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/coderabbit/1.1.1/commands/coderabbit-review.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/commands/cost-report.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/commands/cpp-build.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/commands/cpp-review.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/commands/cpp-test.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/gitlab/0.1.0/commands/create-issue.md"
+          ]
+        },
+        {
+          "surface": "Custom Agents",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 82,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/agents/a11y-architect.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/agents/agent-evaluator.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/vercel/0.44.0/agents/ai-architect.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/agents/architect.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/agents/build-error-resolver.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/caveman/0.1.0/agents/cavecrew-builder.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/caveman/0.1.0/agents/cavecrew-investigator.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/caveman/0.1.0/agents/cavecrew-reviewer.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/agents/chief-of-staff.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/agents/code-architect.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/agents/code-explorer.md",
+            "~/.qoder/plugins/cache/qoder-marketplace/coderabbit/1.1.1/agents/code-reviewer.md"
+          ]
+        },
+        {
+          "surface": "MCP",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 5,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-marketplace/chrome-devtools-mcp/1.2.0/.mcp.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/gitlab/0.1.0/.mcp.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/semgrep/0.4.3/.mcp.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/supabase/0.1.5/.mcp.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/vercel/0.44.0/.mcp.json"
+          ]
+        },
+        {
+          "surface": "Plugins",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 19,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-bundler/better-harness/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/caveman/0.1.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/chrome-devtools-mcp/1.2.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/cloud-agents/1.1.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/code-simplifier/1.0.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/coderabbit/1.1.1/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/ecc/2.0.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/gitlab/0.1.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/meoo/0.1.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/pr-review-toolkit/1.0.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-marketplace/qmind/0.1.0/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-bundler/qoder-create-plugin"
+          ]
+        }
+      ],
+      "repositorySourceRows": [],
+      "memoryDetails": {
+        "contentPolicy": "metadata-only",
+        "scanState": "scanned-present",
+        "scopeCounts": [
+          {
+            "scope": "Project",
+            "count": 4
+          }
+        ],
+        "integrity": {
+          "status": "reviewed",
+          "titleCount": 4,
+          "reviewedTitleCount": 4,
+          "truncated": false,
+          "exactCollisionGroups": 0,
+          "similarityCandidates": 0
+        }
+      }
+    },
+    "usageActivity": {
+      "schemaVersion": 2,
+      "dateBasis": "UTC",
+      "measurementBasis": "session-starts-active-estimate-model-active-session-days-skill-invocations-and-loads",
+      "truncated": false,
+      "dates": [
+        "2026-08-12"
+      ],
+      "sessions": {
+        "total": 5,
+        "starts": [
+          5
+        ],
+        "activeMinutes": [
+          5.9
+        ]
+      },
+      "models": [],
+      "skills": []
+    },
+    "usageEfficiency": {
+      "schemaVersion": 2,
+      "selection": {
+        "strategy": "all-eligible",
+        "eligibleSessionCount": 5,
+        "analyzedSessionCount": 5,
+        "complete": true
+      },
+      "roles": {
+        "userThreadCandidateCount": 4,
+        "childAgentCandidateCount": 1
+      },
+      "longSessions": {
+        "activeCount": 0,
+        "wallOnlyCount": 0,
+        "longestActiveMinutes": 0,
+        "activeRatio": 0,
+        "estimate": {
+          "method": "capped-event-gap",
+          "activeThresholdMinutes": 45,
+          "gapCapMinutes": 5,
+          "idleGapMinutes": 30
+        },
+        "samples": []
+      },
+      "accounting": {
+        "mode": "effort-proxy",
+        "responseCount": 0,
+        "modelAttributedResponseCount": 0,
+        "unattributedResponseCount": 0,
+        "usageFieldObservedCount": 0,
+        "nonZeroUsageCount": 0,
+        "exactCreditsAvailable": false,
+        "pricingVersion": null
+      },
+      "modelUsage": [],
+      "outcomeReview": {
+        "status": "not-applicable",
+        "reviewedCandidateCount": 0,
+        "reviewedActiveLongCount": 0,
+        "comparableModelOutcomeEvidence": false,
+        "recommendation": "controlled-a-b-required"
+      }
+    },
+    "projectName": "Multi-Agent Research Assistant",
+    "locale": "en",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 26,
+    "overview": "The project has a strong validation route with real-database tests, CI quality gates with actionable fix messages, and structured health checks, but session evidence is too thin to confirm task behavior. Two mechanisms need wiring into ordinary work: structlog is imported across 14 files but never configured, leaving async-boundary debugging without a correlation ID, and the backend source tree lacks agent-instruction guidance.",
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "Task Understanding",
+        "score": 62,
+        "summary": "Frontend AGENTS.md, architecture docs, and OpenAPI route agents to owners, but the backend source tree has no agent-instruction file and session evidence cannot confirm task acceptance.",
+        "findingRefs": [
+          "backend-agent-guidance-gap"
+        ]
+      },
+      {
+        "id": "controlled-execution",
+        "label": "Controlled Execution",
+        "score": 70,
+        "summary": "Makefile setup, docker infra, and /health/ready provide a strong runnable baseline, while no CLI doctor command and partly implicit permission behavior keep the dimension from exercising.",
+        "findingRefs": []
+      },
+      {
+        "id": "change-validation",
+        "label": "Change Validation",
+        "score": 56,
+        "summary": "Thirty-two test files, ruff, eslint, and CI gates cover the main change path, but structlog is never configured and no correlation ID propagates across the async boundary, leaving failure diagnosis partial.",
+        "findingRefs": [
+          "logging-correlation-gap"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "Reliable Delivery",
+        "score": 58,
+        "summary": "CI runs on PR and push with a protected main branch per docs, and archive and delete guards provide recovery, but no delivery was observed in the session window and branch protection is not statically verifiable.",
+        "findingRefs": []
+      },
+      {
+        "id": "learning-capture",
+        "label": "Learning Capture",
+        "score": 38,
+        "summary": "The 30-day window yielded one read-only episode with no changes or checks, so Pattern Detection is insufficient-episodes and the review cannot reach a clean no-candidate decision.",
+        "findingRefs": []
+      }
+    ],
+    "assignmentSummaries": []
+  },
+  "findings": [
+    {
+      "id": "logging-correlation-gap",
+      "title": "Failed research runs cannot be correlated by request ID across the async SSE and Celery boundary",
+      "severity": "Medium",
+      "reason": "structlog is imported and get_logger() is called across 14 project files including backend/app/main.py and backend/app/api/v1/research.py, but no structlog.configure() call exists anywhere in the project's own code (only in .venv site-packages). No request or trace correlation ID is propagated for log correlation across the API to Celery to research-engine boundary; contextvars is used for engine state in research_engine/events.py and runconfig.py but not bound to a request-scoped log correlation ID. An agent debugging a failed research run can rely on session_id passed explicitly on some events and the durable AgentLog store, but cannot join the trigger, decision boundary, failure or recovery, and result under one correlation identity across the async boundary, leaving the Failure Diagnosis and Repair check partial.",
+      "dimensionRefs": [
+        "change-validation"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nConfigure structlog and add a request-scoped correlation ID that propagates across the API, Celery worker, and research-engine boundary.\n\n## Discovery\n\n- Confirm no structlog.configure call exists in project code: grep -rn 'structlog.configure' backend/ --include='*.py' (exclude .venv)\n- Confirm no log correlation binding exists: grep -rn 'correlation_id\\|trace_id\\|request_id' backend/app/ --include='*.py'\n- Review backend/app/main.py startup and backend/app/api/v1/research.py SSE handler for the current logger usage\n\n## Repair\n\n- Add structlog.configure() with a timestamper and key-value processor in backend/app/main.py startup\n- Bind a request-scoped correlation ID via contextvars in the API middleware and propagate it into Celery task headers and the research-engine logger context\n- Include the correlation ID in every log event alongside the existing session_id\n\n## Validation\n\n- Run make test-backend and confirm existing tests pass\n- Start a research request via make backend-dev and make worker, then confirm log lines across the API, worker, and engine share one correlation ID",
+      "expectedArtifact": "Code",
+      "expectedOutput": [
+        "Update the existing Code owner identified by the reviewed evidence and retain a focused validation result."
+      ]
+    },
+    {
+      "id": "backend-agent-guidance-gap",
+      "title": "Agents working in the backend must infer boundaries and conventions without module-local guidance",
+      "severity": "Low",
+      "reason": "frontend/AGENTS.md exists to flag a known Next.js version trap and route agents to authoritative docs, but no AGENTS.md or equivalent agent-instruction file exists for the backend. The backend is the hottest path in git history (backend/app: 23 commits, 46 source files; research_engine: 20 files), and the project-profile agentInstructions show rootCount 0 and nestedSourceFileCoveragePercent 40 with frontend-only coverage. An agent reaching backend/app or research_engine has no module-local guidance on boundaries, conventions, or traps; architecture docs exist in docs/architecture/ but are not agent-routed. The declared AGENTS.md pattern in frontend, the active backend core entrypoint, and the missing connection satisfy the three legs of a configured-wiring gap.",
+      "dimensionRefs": [
+        "task-understanding"
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\nAdd the smallest agent-instruction file for the backend that routes agents to the authoritative owners and states the few always-needed constraints.\n\n## Discovery\n\n- Confirm only one AGENTS.md exists: find . -name AGENTS.md -not -path '*/node_modules/*' -not -path '*/.venv/*'\n- Review frontend/AGENTS.md for the established pattern and tone\n- Review docs/architecture/02_System_Architecture.md and docs/architecture/04_Agent_Design.md for backend boundary and convention owners to route to\n\n## Repair\n\n- Create backend/AGENTS.md that routes agents to the canonical architecture docs, states the backend stack (FastAPI, Celery, Alembic, pgvector), and names the few always-needed constraints (LLM_MODE, migration workflow via make migrate, test isolation via conftest)\n\n## Validation\n\n- Confirm the file exists and routes to real owners\n- Run make test-backend and confirm no regression",
+      "expectedArtifact": "Rule",
+      "expectedOutput": [
+        "Update the existing Rule owner identified by the reviewed evidence and retain a focused validation result."
+      ]
+    }
+  ]
+}

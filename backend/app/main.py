@@ -10,9 +10,14 @@ from app.api.v1.router import api_router
 from app.config import settings
 from app.db.base import engine
 from app.db.redis import close_redis_pool, get_redis, init_redis_pool
+from app.logconfig import configure_logging
 from app.runtime import install_process_default
 from app.services.security_headers import SecurityHeadersMiddleware
 from research_engine.llm_factory import validate_pricing
+
+# Configure structlog before the first log line: merge_contextvars is what lets a
+# run's correlation_id ride along every log across the API → Celery → engine path.
+configure_logging(json_output=settings.is_production)
 
 logger = structlog.get_logger()
 

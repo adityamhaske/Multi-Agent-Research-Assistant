@@ -25,15 +25,21 @@ import re
 import time
 
 import structlog
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
+from pydantic import BaseModel, Field
 
 from research_engine import prompts
 from research_engine.events import emit
 from research_engine.llm_factory import estimate_cost, get_llm, text_of, token_counts
 from research_engine.runconfig import get_run_config
-from research_engine.schemas import CriticVerdict, ExecutorOutput, PlannerOutput, Source
+from research_engine.schemas import (
+    CriticVerdict,
+    EvidenceChunk,
+    PlannerOutput,
+    Source,
+)
 from research_engine.state import AgentState
 from research_engine.tools import EXECUTOR_TOOLS
 
@@ -77,29 +83,6 @@ async def _structured(role: str, messages: list, schema):
     i, o = token_counts(raw) if raw is not None else (0, 0)
     parsed = None if result.get("parsing_error") else result.get("parsed")
     return parsed, cost, i, o
-
-
-def _parse_evidence(text: str) -> list[dict]:
-    """Parse ExecutorOutput from a model answer, tolerating markdown fences/prose.
-
-    Models frequently wrap JSON in ```json fences or add a sentence around it.
-    A strict model_validate_json would reject those and we'd silently lose the
-    whole task's evidence, so fall back to the outermost {...} span.
-    """
-    candidates = [text]
-    fenced = re.search(r"```(?:json)?\s*(.+?)```", text, re.DOTALL)
-    if fenced:
-        candidates.append(fenced.group(1))
-    start, end = text.find("{"), text.rfind("}")
-    if start != -1 and end > start:
-        candidates.append(text[start : end + 1])
-
-    for candidate in candidates:
-        try:
-            return [e.model_dump() for e in ExecutorOutput.model_validate_json(candidate).evidence]
-        except Exception:  # noqa: BLE001 — try the next shape
-            continue
-    return []
 
 
 def _acc(state: AgentState, cost: float, i: int, o: int) -> dict:
@@ -203,6 +186,12 @@ def _pending(state: AgentState, max_retries: int) -> list[dict]:
     return out
 
 
+class submit_evidence(BaseModel):
+    """Submit the final gathered evidence for the task."""
+
+    evidence: list[EvidenceChunk] = Field(default_factory=list, description="List of cited facts")
+
+
 async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> dict:
     """Gather evidence for a single task. Returns {evidence, cost, tokens_in, tokens_out}."""
     sid = state["session_id"]
@@ -218,7 +207,7 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
         detail={"task_id": task["id"]},
     )
 
-    model = get_llm("executor").bind_tools(EXECUTOR_TOOLS)
+    model = get_llm("executor").bind_tools(EXECUTOR_TOOLS + [submit_evidence])
     messages: list = [
         SystemMessage(content=prompts.EXECUTOR_PROMPT_V2),
         HumanMessage(content=f"Task {task['id']}: {task['query']}"),
@@ -228,6 +217,7 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
 
     cost = 0.0
     i_tot = o_tot = 0
+    evidence: list[dict] = []
     for _round in range(_MAX_TOOL_ROUNDS):
         if guard.exceeded():
             logger.warning("executor_budget_stop", session_id=sid, task_id=task["id"])
@@ -243,7 +233,30 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
         tool_calls = getattr(resp, "tool_calls", None) or []
         if not tool_calls:
             break
+        is_done = False
         for call in tool_calls:
+            if call["name"] == "submit_evidence":
+                try:
+                    parsed = submit_evidence.model_validate(call["args"])
+                    evidence = [e.model_dump() for e in parsed.evidence]
+                    await emit(
+                        sid,
+                        "agent_log",
+                        agent="executor",
+                        message="Submitted evidence",
+                        detail={"task_id": task["id"]},
+                    )
+                    is_done = True
+                    break
+                except Exception as e:
+                    observation = f"submit_evidence validation error: {e}"
+                    messages.append(
+                        ToolMessage(
+                            content=json.dumps(observation, default=str), tool_call_id=call["id"]
+                        )
+                    )
+                    continue
+
             tool = _TOOLS_BY_NAME.get(call["name"])
             try:
                 observation = (
@@ -261,47 +274,8 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
             messages.append(
                 ToolMessage(content=json.dumps(observation, default=str), tool_call_id=call["id"])
             )
-
-    # Convert the final answer into structured evidence.
-    final = messages[-1]
-    evidence: list[dict] = []
-    final_text = text_of(final) if isinstance(final, AIMessage) else ""
-    if final_text.strip():
-        evidence = _parse_evidence(final_text)
-
-    # The tool loop can finish without a parseable answer in two ways: it exhausted
-    # _MAX_TOOL_ROUNDS while still calling tools (so the last message is a
-    # ToolMessage, not the model's summary), or the model wrapped its JSON in prose.
-    # Either way the observations are already in hand — ask once more, with no tools
-    # bound, so the model must return them as structured output. Without this the run
-    # silently yields zero evidence and the report reads "no evidence was provided".
-    if not evidence:
-        observations = "\n\n".join(
-            text_of(m)[:4000] for m in messages if isinstance(m, ToolMessage)
-        )[:24000]
-        if observations.strip():
-            logger.info(
-                "executor_wrapup", session_id=sid, task_id=task["id"], reason="no_parsable_evidence"
-            )
-            parsed, c2, i2, o2 = await _structured(
-                "executor",
-                [
-                    SystemMessage(content=prompts.EXECUTOR_PROMPT_V2),
-                    HumanMessage(
-                        content=f"Task {task['id']}: {task['query']}\n\n"
-                        "You already gathered the observations below. Return them as "
-                        "structured evidence — do not call any more tools.\n\n"
-                        f"<untrusted_web_content>\n{observations}\n</untrusted_web_content>"
-                    ),
-                ],
-                ExecutorOutput,
-            )
-            cost += c2
-            await guard.add(c2)
-            i_tot += i2
-            o_tot += o2
-            if parsed is not None:
-                evidence = [e.model_dump() for e in parsed.evidence]
+        if is_done:
+            break
 
     for e in evidence:
         e["task_id"] = task["id"]
@@ -498,13 +472,21 @@ async def synthesizer_node(state: AgentState) -> dict:
         }
         for e in state.get("evidence", [])
     ]
+
+    evidence_lines: list[str] = []
+    for ev in numbered_evidence:
+        evidence_lines.append(f'[{ev["n"]}] Fact: "{ev["key_fact"]}"')
+        evidence_lines.append(f"    Source: {ev['url']}")
+        evidence_lines.append(f'    Snippet: "{ev["snippet"]}..."')
+        evidence_lines.append("")  # blank separator
+    evidence_text = "Evidence for citation:\n" + "\n".join(evidence_lines)
+
     fb = state.get("human_feedback")
     human = f"\n\nHuman feedback to incorporate: {fb}" if fb else ""
     messages = [
         SystemMessage(content=prompts.SYNTHESIZER_PROMPT_V2),
         HumanMessage(
-            content=f"Original query: {state['original_query']}\n\nNumbered evidence:\n"
-            f"{json.dumps(numbered_evidence, indent=2)}{human}"
+            content=f"Original query: {state['original_query']}\n\n{evidence_text}{human}"
         ),
     ]
     model = get_llm("synthesizer")
@@ -512,6 +494,39 @@ async def synthesizer_node(state: AgentState) -> dict:
     draft = text_of(resp)
     cost = estimate_cost(resp, "synthesizer")
     i, o = token_counts(resp)
+
+    # Citation repair pass: fix uncited claims if any exist.
+    # Inline uncited-count to avoid a cross-package dependency on evals.metrics:
+    # count sentences that contain assertive text but carry no [n] marker.
+    _claim_re = re.compile(r"\[\d+\]")
+    uncited = 0
+    for _sentence in re.split(r"(?<=[.!?])\s+", draft):
+        s = _sentence.strip()
+        if len(s) < 15 or not re.search(r"[A-Za-z]", s):
+            continue
+        if not _claim_re.search(s):
+            uncited += 1
+    if uncited > 0:
+        repair_messages = [
+            SystemMessage(content=prompts.SYNTHESIZER_REPAIR_PROMPT),
+            HumanMessage(
+                content=f"Draft report with {uncited} uncited sentences:\n\n{draft}\n\n"
+                f"Numbered evidence:\n{evidence_text}"
+            ),
+        ]
+        repair_resp = await model.ainvoke(repair_messages)
+        draft = text_of(repair_resp)
+        repair_cost = estimate_cost(repair_resp, "synthesizer")
+        ri, ro = token_counts(repair_resp)
+        cost += repair_cost
+        i += ri
+        o += ro
+        await emit(
+            sid,
+            "agent_log",
+            agent="synthesizer",
+            message=f"Citation repair: fixed {uncited} uncited claims",
+        )
 
     await emit(
         sid,

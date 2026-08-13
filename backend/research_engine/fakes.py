@@ -49,8 +49,8 @@ class _ScriptedModel(FakeMessagesListChatModel):
         super().__init__(responses=[AIMessage(content="")])
 
     def bind_tools(self, tools, **kwargs):
-        # The scripted executor returns evidence JSON directly (no tool calls),
-        # so tool binding is a no-op in fake mode.
+        # The scripted executor signals completion by emitting a submit_evidence tool
+        # call (see _reply), matching the real executor contract in graph.py.
         return self
 
     def _reply(self, messages: list[BaseMessage]) -> AIMessage:
@@ -73,32 +73,51 @@ class _ScriptedModel(FakeMessagesListChatModel):
                 }
             )
         elif "Research Executor" in system:
-            content = json.dumps(
-                {
-                    "task_id": 1,
-                    "evidence": [
-                        {
-                            "task_id": 1,
-                            "source_url": "https://example.com/fixture/1",
-                            "source_title": "Fixture Source 1",
-                            "snippet": "Fixture snippet supporting the claim.",
-                            "key_fact": "A citable fact.",
-                            "retrieved_at": "2026-01-01T00:00:00Z",
+            # Evidence is only accepted through the submit_evidence tool call
+            # (docs/12 M7, commit 6ea7f21), so the scripted executor speaks that contract.
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "submit_evidence",
+                        "args": {
+                            "evidence": [
+                                {
+                                    "task_id": 1,
+                                    "source_url": "https://example.com/fixture/1",
+                                    "source_title": "Fixture Source 1",
+                                    "snippet": "Fixture snippet supporting the claim.",
+                                    "key_fact": "A citable fact.",
+                                    "retrieved_at": "2026-01-01T00:00:00Z",
+                                },
+                                {
+                                    "task_id": 1,
+                                    "source_url": "https://example.com/fixture/2",
+                                    "source_title": "Fixture Source 2",
+                                    "snippet": "A second independent snippet.",
+                                    "key_fact": "A corroborating fact.",
+                                    "retrieved_at": "2026-01-01T00:00:00Z",
+                                },
+                            ]
                         },
-                        {
-                            "task_id": 1,
-                            "source_url": "https://example.com/fixture/2",
-                            "source_title": "Fixture Source 2",
-                            "snippet": "A second independent snippet.",
-                            "key_fact": "A corroborating fact.",
-                            "retrieved_at": "2026-01-01T00:00:00Z",
-                        },
-                    ],
-                }
+                        "id": "fake-submit-evidence-1",
+                    }
+                ],
+                usage_metadata={"input_tokens": 100, "output_tokens": 50, "total_tokens": 150},
             )
         elif "Quality Critic" in system:
             content = json.dumps(
                 {"passed": True, "confidence": 0.9, "reasons": ["two independent sources"]}
+            )
+        elif "citation repair pass" in system:
+            # Every assertive line carries a [n] marker so the repair pass converges
+            # in one round (section headers stay under the 15-char claim threshold).
+            content = (
+                "# Fixture Report\n\n## Summary\nDeterministic summary [1].\n\n"
+                "## Findings\nA citable fact [1]. A corroborating fact [2].\n\n"
+                "## Analysis\nAnalysis grounded in evidence [1][2].\n\n"
+                "## Limitations\nFixture data only.\n\n"
+                "## Sources\n[1] https://example.com/fixture/1\n[2] https://example.com/fixture/2\n"
             )
         elif "Research Synthesizer" in system:
             content = (
