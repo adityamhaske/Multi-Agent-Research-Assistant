@@ -520,7 +520,7 @@ Both bars cleared. Baseline: `evals/results/contradictions_2026-08-13_183819.jso
 
 ## M12 — The research bundle + offline verifier  *(≈ 2 weeks)*
 
-☐ The standards play. SBOM-for-research.
+✅ The standards play. SBOM-for-research.
 
 - An open, documented bundle format: report, claims, evidence snippets, source URLs **with
   content hashes**, full agent trace, models used, costs, approval record
