@@ -3,14 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "node scripts/prepare-session-routes.mjs web && next dev",
+    "build": "node scripts/prepare-session-routes.mjs web && next build",
+    "build:desktop": "node scripts/prepare-session-routes.mjs desktop && NEXT_PUBLIC_DESKTOP=1 next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "playwright test"
+    "e2e": "node scripts/prepare-session-routes.mjs web && playwright test"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.0",

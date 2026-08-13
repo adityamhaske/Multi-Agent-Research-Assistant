@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { useStartResearch } from "@/hooks/queries";
 import { ApiError } from "@/lib/api";
 import { SourcesPanel } from "@/lib/citations";
+import { sessionHref } from "@/lib/desktop";
 import type { ResearchDepth, SessionDetail } from "@/lib/types";
 
 export function FailedState({ session }: { session: SessionDetail }) {
@@ -19,7 +20,7 @@ export function FailedState({ session }: { session: SessionDetail }) {
         query: session.prompt,
         depth: (session.research_depth as ResearchDepth) ?? "balanced",
       });
-      router.push(`/session/${res.session_id}`);
+      router.push(sessionHref(res.session_id));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not restart research.");
     }

@@ -6,6 +6,12 @@ import type { NextConfig } from "next";
 const BACKEND_ORIGIN = process.env.BACKEND_ORIGIN || "http://localhost:8000";
 const isDev = process.env.NODE_ENV !== "production";
 
+// Desktop variant (docs/13 §7): NEXT_PUBLIC_DESKTOP=1 builds a static export the
+// Tauri shell serves from disk. No server means no rewrites, no response headers —
+// the sidecar base URL comes from the shell handshake, and the shell's own security
+// config (CSP, loopback-only) governs the WebView.
+const isDesktop = process.env.NEXT_PUBLIC_DESKTOP === "1";
+
 // `unsafe-eval` is DEV-ONLY: React's dev error overlay reconstructs callstacks with
 // eval(); production never uses it, and the prod CSP stays strict (docs/06 §6).
 const scriptSrc = isDev
@@ -34,15 +40,24 @@ const securityHeaders = [
   },
 ];
 
-const nextConfig: NextConfig = {
-  // Self-contained server bundle for the Docker image (docs/09 §1).
-  output: "standalone",
-  async rewrites() {
-    return [{ source: "/api/:path*", destination: `${BACKEND_ORIGIN}/api/:path*` }];
-  },
-  async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
-  },
-};
+const nextConfig: NextConfig = isDesktop
+  ? {
+      output: "export",
+      // Trailing slashes make every route a real /route/index.html on disk, which
+      // is what the shell's static file handler wants.
+      trailingSlash: true,
+      // No image optimization server exists in a static export.
+      images: { unoptimized: true },
+    }
+  : {
+      // Self-contained server bundle for the Docker image (docs/09 §1).
+      output: "standalone",
+      async rewrites() {
+        return [{ source: "/api/:path*", destination: `${BACKEND_ORIGIN}/api/:path*` }];
+      },
+      async headers() {
+        return [{ source: "/:path*", headers: securityHeaders }];
+      },
+    };
 
 export default nextConfig;

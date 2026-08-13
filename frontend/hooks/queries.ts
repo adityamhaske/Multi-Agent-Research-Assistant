@@ -7,6 +7,7 @@ import type {
   ApiKeyProvider,
   ChatMessage,
   ChatThread,
+  DesktopKeys,
   LocalLLMStatus,
   MemoryStatus,
   ModelCatalog,
@@ -43,6 +44,7 @@ export const queryKeys = {
   threadMessages: (threadId: string) => ["thread-messages", threadId] as const,
   memoryStatus: (projectId: string) => ["memory-status", projectId] as const,
   models: ["models"] as const,
+  desktopKeys: ["desktop-keys"] as const,
   localLLM: ["local-llm-status"] as const,
 };
 
@@ -125,6 +127,43 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => apiFetch<{ message: string }>("/auth/logout", { method: "POST" }),
     onSettled: () => qc.clear(),
+  });
+}
+
+// ─── Desktop keys (OS keychain, docs/12 M9) ──────────────────────────────────────
+//
+// The desktop sidecar stores each provider's key in the OS keychain and only ever
+// returns hints. Mutations invalidate the catalog too, since model availability is
+// judged by which providers have a key.
+
+export function useDesktopKeys() {
+  return useQuery({
+    queryKey: queryKeys.desktopKeys,
+    queryFn: () => apiFetch<DesktopKeys>("/desktop/keys"),
+  });
+}
+
+export function useSetDesktopKey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ provider, key }: { provider: ApiKeyProvider; key: string }) =>
+      apiFetch<void>(`/desktop/keys/${provider}`, { method: "PUT", body: { key } }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.desktopKeys });
+      qc.invalidateQueries({ queryKey: queryKeys.models });
+    },
+  });
+}
+
+export function useDeleteDesktopKey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (provider: ApiKeyProvider) =>
+      apiFetch<void>(`/desktop/keys/${provider}`, { method: "DELETE" }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.desktopKeys });
+      qc.invalidateQueries({ queryKey: queryKeys.models });
+    },
   });
 }
 

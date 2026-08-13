@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
 
 import { RelativeTime } from "@/components/RelativeTime";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -15,10 +14,13 @@ import { useSession } from "@/hooks/queries";
 import { useSessionStream } from "@/hooks/useSessionStream";
 import { ApiError } from "@/lib/api";
 
-export default function SessionPage() {
-  const params = useParams<{ sessionId: string }>();
-  const sessionId = params.sessionId;
-
+/**
+ * The session detail body, shared by the dynamic `/session/[sessionId]` route (web)
+ * and the static `/session?id=` route (desktop export, docs/13 §7). It lives in its
+ * own client module because `generateStaticParams` cannot be exported from a
+ * "use client" page file.
+ */
+export function SessionView({ sessionId }: { sessionId: string }) {
   // useSession self-polls every 5s while the run is active (docs/07 §3) — SSE is the
   // fast path for live events, polling is the safety net for state transitions. The page
   // used to hang on the monitor forever if the terminal event was ever missed.

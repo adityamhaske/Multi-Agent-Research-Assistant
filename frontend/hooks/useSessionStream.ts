@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 
 import type { AgentEvent } from "@/lib/types";
 
+import { isDesktop, streamUrl } from "@/lib/desktop";
+
 import { queryKeys } from "./queries";
 
 export type StreamState = "idle" | "connecting" | "open" | "reconnecting" | "closed";
@@ -46,8 +48,11 @@ export function useSessionStream(sessionId: string, enabled: boolean) {
     // Fresh dedupe set for this subscription (ref writes belong in the effect, not render).
     seenIds.current = new Set();
 
-    const es = new EventSource(`/api/v1/research/${sessionId}/stream`, {
-      withCredentials: true,
+    // Web: same-origin, the httpOnly cookie authenticates. Desktop: cross-origin to
+    // the sidecar — the token rides as `?access_token=` (EventSource sets no
+    // headers) and credentials stay off (docs/13 §7).
+    const es = new EventSource(streamUrl(`/api/v1/research/${sessionId}/stream`), {
+      withCredentials: !isDesktop,
     });
 
     es.onopen = () => setState("open");

@@ -56,6 +56,30 @@ async def test_stream_without_token_is_rejected(sidecar):
     assert resp.status_code == 401
 
 
+async def test_cors_preflight_needs_no_token(sidecar):
+    """The WebView origin is a Tauri asset origin, not the sidecar's — the browser
+    sends a preflight that carries no bearer token, and it must still get CORS
+    headers. A tokenless preflight is not a security hole: the real request is
+    still gated by the token (asserted right after)."""
+    origin = "tauri://localhost"
+    preflight = await sidecar.options(
+        "/api/v1/research",
+        headers={"Origin": origin, "Access-Control-Request-Method": "POST"},
+    )
+    assert preflight.status_code == 200
+    assert preflight.headers["access-control-allow-origin"] == origin
+
+    # The actual request is still rejected without the token — CORS only lets the
+    # browser *see* the 401, it does not grant access.
+    denied = await sidecar.post("/api/v1/research", headers={"Origin": origin})
+    assert denied.status_code == 401
+    assert denied.headers["access-control-allow-origin"] == origin
+
+    # A non-allow-listed origin gets no CORS headers at all.
+    stranger = await sidecar.get("/api/v1/research", headers={"Origin": "https://evil.example"})
+    assert "access-control-allow-origin" not in stranger.headers
+
+
 # ── Local-user boot ──────────────────────────────────────────────────────────────
 
 
@@ -124,6 +148,52 @@ async def test_fake_research_gate_approve_export(sidecar):
     # Desktop PDF is WebView print-to-PDF by design (docs/13 §7): no WeasyPrint here.
     pdf = await sidecar.get(f"/api/v1/research/{session_id}/export.pdf", headers=_auth())
     assert pdf.status_code == 501
+
+
+# ── Settings: saved routing + keychain keys ──────────────────────────────────
+
+
+async def test_routing_round_trip(sidecar, tmp_path):
+    """The picker's save lands in `routing.json` and reads back through /models."""
+    routing = {
+        r: "google:gemini-2.5-flash"
+        for r in ("planner", "executor", "critic", "synthesizer", "chat")
+    }
+
+    put = await sidecar.put("/api/v1/models/routing", headers=_auth(), json={"routing": routing})
+    assert put.status_code == 200
+    assert put.json()["routing"] == routing
+    assert (tmp_path / "routing.json").exists()
+
+    models = await sidecar.get("/api/v1/models", headers=_auth())
+    assert models.json()["user_routing"] == routing
+    assert models.json()["effective_routing"]["planner"] == "google:gemini-2.5-flash"
+
+    # Rejected before storage, same contract as the server endpoint.
+    bad = await sidecar.put(
+        "/api/v1/models/routing", headers=_auth(), json={"routing": {"planner": "nope"}}
+    )
+    assert bad.status_code == 422
+    assert (tmp_path / "routing.json").read_text() != ""
+
+    clear = await sidecar.delete("/api/v1/models/routing", headers=_auth())
+    assert clear.status_code == 200
+    assert clear.json()["routing"] is None
+    assert not (tmp_path / "routing.json").exists()
+
+
+async def test_key_delete_forgets_the_keychain_entry(sidecar, monkeypatch):
+    import desktop.sidecar as sc
+
+    deleted: list[str] = []
+    monkeypatch.setattr(sc, "delete_key", lambda provider: deleted.append(provider))
+
+    resp = await sidecar.delete("/api/v1/desktop/keys/google", headers=_auth())
+    assert resp.status_code == 204
+    assert deleted == ["google"]
+
+    unknown = await sidecar.delete("/api/v1/desktop/keys/nope", headers=_auth())
+    assert unknown.status_code == 422
 
 
 async def test_stream_replays_to_the_terminal_event(sidecar):

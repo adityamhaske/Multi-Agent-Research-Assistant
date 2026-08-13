@@ -10,6 +10,7 @@ import { useActiveProject } from "@/components/ActiveProject";
 import { StartModelPicker } from "@/components/StartModelPicker";
 import { useSessions, useStartResearch } from "@/hooks/queries";
 import { ApiError } from "@/lib/api";
+import { sessionHref } from "@/lib/desktop";
 import type { ModelRouting, ResearchDepth } from "@/lib/types";
 
 const MIN_QUERY = 10;
@@ -48,7 +49,7 @@ export default function DashboardPage() {
         project_id: activeId ?? null,
         model_routing: modelRouting,
       });
-      router.push(`/session/${res.session_id}`);
+      router.push(sessionHref(res.session_id));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not start research.");
     }

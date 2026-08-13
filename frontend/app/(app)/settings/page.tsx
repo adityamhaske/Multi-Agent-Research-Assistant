@@ -5,6 +5,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 
 import { AccountShell } from "@/components/account/AccountShell";
+import { DesktopKeysCard } from "@/components/account/DesktopKeysCard";
 import { LocalLLMCard } from "@/components/account/LocalLLMCard";
 import { ModelPicker } from "@/components/account/ModelPicker";
 import { Field, Section } from "@/components/account/Section";
@@ -16,6 +17,7 @@ import {
   useUsage,
 } from "@/hooks/queries";
 import { ApiError } from "@/lib/api";
+import { isDesktop } from "@/lib/desktop";
 import { formatCost, formatNumber } from "@/lib/format";
 import type { ApiKeyProvider, UsageWindow } from "@/lib/types";
 
@@ -67,13 +69,58 @@ function UsageStat({ label, sub, window: w }: { label: string; sub: string; wind
   );
 }
 
-export default function SettingsPage() {
+function AppearanceSection() {
+  const { resolvedTheme, setTheme } = useTheme();
+  return (
+    <Section title="Appearance" description="Choose how the interface looks on this device.">
+      <div
+        className="segmented"
+        role="radiogroup"
+        aria-label="Theme"
+      >
+        {(["light", "dark"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="radio"
+            aria-checked={resolvedTheme === t}
+            onClick={() => setTheme(t)}
+            className="segmented-item capitalize"
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+/**
+ * Desktop settings (docs/12 M9). There is no account on the desktop build — no
+ * usage meters, no spending limits, no server-side BYOK — so the page keeps only
+ * what exists locally: keychain keys, the local LLM bridge, model routing, and
+ * appearance. Two components (not conditional hooks) keep both variants honest.
+ */
+function DesktopSettings() {
+  return (
+    <AccountShell title="Settings" description="Keys and preferences for this computer.">
+      <DesktopKeysCard />
+
+      <LocalLLMCard />
+
+      <ModelPicker />
+
+      <AppearanceSection />
+    </AccountShell>
+  );
+}
+
+function WebSettings() {
   const { data: user, isLoading } = useMe();
   const { data: usage } = useUsage();
   const updateProfile = useUpdateProfile();
   const setApiKey = useSetApiKey();
   const deleteApiKey = useDeleteApiKey();
-  const { resolvedTheme, setTheme } = useTheme();
 
   const [limit, setLimit] = useState("0");
   const [provider, setProvider] = useState<ApiKeyProvider>("anthropic");
@@ -325,26 +372,12 @@ export default function SettingsPage() {
 
       <ModelPicker />
 
-      <Section title="Appearance" description="Choose how the interface looks on this device.">
-        <div
-          className="segmented"
-          role="radiogroup"
-          aria-label="Theme"
-        >
-          {(["light", "dark"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              role="radio"
-              aria-checked={resolvedTheme === t}
-              onClick={() => setTheme(t)}
-              className="segmented-item capitalize"
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </Section>
+      <AppearanceSection />
     </AccountShell>
   );
+}
+
+export default function SettingsPage() {
+  // Build-time constant: the web bundle dead-code-eliminates the desktop branch.
+  return isDesktop ? <DesktopSettings /> : <WebSettings />;
 }

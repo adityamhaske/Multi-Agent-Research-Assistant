@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 
 import { queryKeys, useChatHistory } from "@/hooks/queries";
 import { Report } from "@/lib/citations";
+import { apiBase, authHeaders, isDesktop } from "@/lib/desktop";
 import { streamSSE } from "@/lib/sse";
 import type { Source } from "@/lib/types";
 
@@ -70,10 +71,10 @@ export function ChatPanel({ sessionId, sources }: { sessionId: string; sources: 
 
     let res: Response;
     try {
-      res = await fetch(`/api/v1/research/${sessionId}/chat`, {
+      res = await fetch(`${apiBase()}/research/${sessionId}/chat`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        credentials: isDesktop ? "omit" : "include",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ message: text }),
         signal: controller.signal,
       });

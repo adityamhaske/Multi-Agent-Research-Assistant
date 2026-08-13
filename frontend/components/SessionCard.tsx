@@ -5,6 +5,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 
 import { useArchiveSession, useDeleteSession } from "@/hooks/queries";
+import { sessionHref } from "@/lib/desktop";
 import { formatCost } from "@/lib/format";
 import type { SessionSummary } from "@/lib/types";
 
@@ -55,7 +56,7 @@ export function SessionCard({ session }: { session: SessionSummary }) {
 
   return (
     <Link
-      href={`/session/${session.session_id}`}
+      href={sessionHref(session.session_id)}
       className="card card-interactive group relative block p-5"
     >
       <div className="flex items-center justify-between gap-2">

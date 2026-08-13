@@ -16,6 +16,17 @@ export type AgentName = "planner" | "executor" | "critic" | "synthesizer";
 
 export type ApiKeyProvider = "google" | "anthropic" | "openai";
 
+/**
+ * Desktop key status (docs/12 M9). Hints only — the key itself never leaves the OS
+ * keychain. `keychain` is a pasted key stored locally; `environment` came from a
+ * process env var and is read-only from the UI.
+ */
+export interface DesktopKeyStatus {
+  keychain: boolean;
+  environment: boolean;
+}
+export type DesktopKeys = Record<ApiKeyProvider, DesktopKeyStatus>;
+
 export interface User {
   id: string;
   email: string;

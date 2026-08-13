@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import { useLogout } from "@/hooks/queries";
+import { isDesktop } from "@/lib/desktop";
 import type { User } from "@/lib/types";
 
 import { Avatar } from "./Avatar";
@@ -127,10 +128,14 @@ export function AccountMenu({ user }: { user: User }) {
 
           <div className="menu-separator" />
 
-          <Link href="/profile" role="menuitem" className="menu-item" onClick={() => setOpen(false)}>
-            <MenuIcon path="M10 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM3.5 17c0-2.9 2.9-5 6.5-5s6.5 2.1 6.5 5" />
-            Profile
-          </Link>
+          {/* Desktop has no login, no profile store, and no logout (docs/13 §7):
+              the account surface shrinks to settings + appearance. */}
+          {!isDesktop && (
+            <Link href="/profile" role="menuitem" className="menu-item" onClick={() => setOpen(false)}>
+              <MenuIcon path="M10 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM3.5 17c0-2.9 2.9-5 6.5-5s6.5 2.1 6.5 5" />
+              Profile
+            </Link>
+          )}
           <Link href="/settings" role="menuitem" className="menu-item" onClick={() => setOpen(false)}>
             <MenuIcon path="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z M16.2 12a1.4 1.4 0 0 0 .28 1.55l.05.05a1.7 1.7 0 1 1-2.4 2.4l-.05-.05a1.4 1.4 0 0 0-1.55-.28 1.4 1.4 0 0 0-.85 1.28v.14a1.7 1.7 0 1 1-3.4 0v-.07a1.4 1.4 0 0 0-.92-1.28 1.4 1.4 0 0 0-1.55.28l-.05.05a1.7 1.7 0 1 1-2.4-2.4l.05-.05a1.4 1.4 0 0 0 .28-1.55 1.4 1.4 0 0 0-1.28-.85h-.14a1.7 1.7 0 1 1 0-3.4h.07a1.4 1.4 0 0 0 1.28-.92 1.4 1.4 0 0 0-.28-1.55l-.05-.05a1.7 1.7 0 1 1 2.4-2.4l.05.05a1.4 1.4 0 0 0 1.55.28h.07a1.4 1.4 0 0 0 .85-1.28v-.14a1.7 1.7 0 1 1 3.4 0v.07a1.4 1.4 0 0 0 .85 1.28 1.4 1.4 0 0 0 1.55-.28l.05-.05a1.7 1.7 0 1 1 2.4 2.4l-.05.05a1.4 1.4 0 0 0-.28 1.55v.07a1.4 1.4 0 0 0 1.28.85h.14a1.7 1.7 0 1 1 0 3.4h-.07a1.4 1.4 0 0 0-1.28.85Z" />
             Settings
@@ -157,23 +162,27 @@ export function AccountMenu({ user }: { user: User }) {
             <span className="text-xs text-text-muted">{isDark ? "Dark" : "Light"}</span>
           </button>
 
-          <div className="menu-separator" />
+          {!isDesktop && (
+            <>
+              <div className="menu-separator" />
 
-          <button
-            type="button"
-            role="menuitem"
-            data-danger="true"
-            onClick={onSignOut}
-            disabled={logout.isPending}
-            className="menu-item"
-          >
-            {logout.isPending ? (
-              <span className="spinner" style={{ width: 14, height: 14 }} />
-            ) : (
-              <MenuIcon path="M12.5 13.5 16 10l-3.5-3.5M16 10H7M11 3.5H5.5a1.5 1.5 0 0 0-1.5 1.5v10a1.5 1.5 0 0 0 1.5 1.5H11" />
-            )}
-            Sign out
-          </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-danger="true"
+                onClick={onSignOut}
+                disabled={logout.isPending}
+                className="menu-item"
+              >
+                {logout.isPending ? (
+                  <span className="spinner" style={{ width: 14, height: 14 }} />
+                ) : (
+                  <MenuIcon path="M12.5 13.5 16 10l-3.5-3.5M16 10H7M11 3.5H5.5a1.5 1.5 0 0 0-1.5 1.5v10a1.5 1.5 0 0 0 1.5 1.5H11" />
+                )}
+                Sign out
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { queryKeys, useThreadMessages } from "@/hooks/queries";
 import { MemoryAnswer } from "@/lib/memoryCitations";
 import { streamSSE } from "@/lib/sse";
+import { apiBase, authHeaders, isDesktop } from "@/lib/desktop";
 import type { MemoryCitation } from "@/lib/types";
 
 interface Streaming {
@@ -97,10 +98,10 @@ export function ProjectChatPanel({ threadId }: { threadId: string }) {
 
     let res: Response;
     try {
-      res = await fetch(`/api/v1/threads/${threadId}/messages`, {
+      res = await fetch(`${apiBase()}/threads/${threadId}/messages`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        credentials: isDesktop ? "omit" : "include",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ message: text }),
         signal: controller.signal,
       });

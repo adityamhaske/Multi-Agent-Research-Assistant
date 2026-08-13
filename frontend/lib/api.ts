@@ -1,16 +1,20 @@
 /**
- * Same-origin API client (docs/02 §1, docs/06 §6).
+ * API client (docs/02 §1, docs/06 §6).
  *
- * The browser always calls `/api/v1/*` on the frontend origin; Next's `rewrites`
- * proxy forwards to the backend, keeping the httpOnly auth cookies first-party.
- * There are NO tokens in JS and NO hardcoded backend URL here — that is the whole
- * point of the proxy.
+ * Web build: the browser always calls `/api/v1/*` on the frontend origin; Next's
+ * `rewrites` proxy forwards to the backend, keeping the httpOnly auth cookies
+ * first-party. There are NO tokens in JS and NO hardcoded backend URL — that is the
+ * whole point of the proxy. On a 401 the client transparently attempts a single
+ * refresh (rotating cookie) and replays the request once; concurrent 401s share one
+ * in-flight refresh.
  *
- * On a 401 the client transparently attempts a single refresh (rotating cookie)
- * and replays the request once. Concurrent 401s share one in-flight refresh.
+ * Desktop build (`lib/desktop.ts`): same client code, but the base URL resolves to
+ * the sidecar handshake the shell injected, every request carries the per-launch
+ * bearer token, and there is no refresh dance — auth endpoints don't exist there, so
+ * a 401 is terminal and must surface (docs/13 §7).
  */
 
-const API_BASE = "/api/v1";
+import { apiBase, authHeaders, isDesktop } from "./desktop";
 
 // Endpoints whose own 401 must NOT trigger a refresh (would loop or is meaningful).
 const NO_REFRESH = new Set(["/auth/refresh", "/auth/login", "/auth/register", "/auth/logout"]);
@@ -28,7 +32,7 @@ let refreshInFlight: Promise<boolean> | null = null;
 
 function refreshSession(): Promise<boolean> {
   if (!refreshInFlight) {
-    refreshInFlight = fetch(`${API_BASE}/auth/refresh`, {
+    refreshInFlight = fetch(`${apiBase()}/auth/refresh`, {
       method: "POST",
       credentials: "include",
     })
@@ -68,11 +72,14 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
   const { skipRefresh, body, headers, ...rest } = opts;
 
   const send = () =>
-    fetch(`${API_BASE}${path}`, {
-      credentials: "include",
+    fetch(`${apiBase()}${path}`, {
+      // Desktop calls are cross-origin (WebView origin → 127.0.0.1 sidecar) and
+      // authenticate with the bearer token; cookies have no place there.
+      credentials: isDesktop ? "omit" : "include",
       // Never serve a poll from the HTTP cache — status transitions must be seen.
       cache: "no-store",
       headers: {
+        ...authHeaders(),
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...headers,
       },
@@ -82,7 +89,7 @@ export async function apiFetch<T>(path: string, opts: ApiOptions = {}): Promise<
 
   let res = await send();
 
-  if (res.status === 401 && !skipRefresh && !NO_REFRESH.has(path)) {
+  if (res.status === 401 && !isDesktop && !skipRefresh && !NO_REFRESH.has(path)) {
     const refreshed = await refreshSession();
     if (refreshed) res = await send();
   }

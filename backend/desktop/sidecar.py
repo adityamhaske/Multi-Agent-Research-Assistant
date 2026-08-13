@@ -45,6 +45,7 @@ from pathlib import Path
 import structlog
 import uvicorn
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from sqlalchemy import event, func, select
@@ -190,7 +191,78 @@ def stored_keys() -> dict[str, str]:
     return keys
 
 
-def sidecar_run_config(*, fake: bool) -> RunConfig:
+def delete_key(provider: str) -> None:
+    kr = _keyring()
+    if kr is None:
+        raise RuntimeError("No OS keychain is available on this machine.")
+    try:
+        kr.delete_password(_KEYRING_SERVICE, provider)
+    except KeyError:  # keyring raises KeyError for "nothing stored under this name"
+        pass
+
+
+# ── Saved model routing ───────────────────────────────────────────────────────────
+#
+# The server keeps the user's routing on the users row; the desktop keeps it in one
+# JSON file under the data directory. Validation mirrors `app.services.model_routing`
+# (which imports `app.config` and so cannot run here): a saved routing must be
+# startable, so a run can never fail on a model that could have been rejected here.
+
+
+def _routing_path(data_dir: str | Path) -> Path:
+    return Path(data_dir) / "routing.json"
+
+
+def validate_routing(routing: dict) -> dict[str, str]:
+    if not isinstance(routing, dict):
+        raise ValueError("Model routing must be an object keyed by agent role.")
+    unknown_roles = sorted(set(routing) - set(ROLES))
+    if unknown_roles:
+        raise ValueError(f"Unknown agent role(s): {unknown_roles}. Valid roles: {list(ROLES)}.")
+    missing_roles = sorted(set(ROLES) - set(routing))
+    if missing_roles:
+        raise ValueError(f"Every role needs a model. Missing: {missing_roles}.")
+    cleaned: dict[str, str] = {}
+    for role, route in routing.items():
+        if not isinstance(route, str) or ":" not in route:
+            raise ValueError(f"{role}: expected a 'provider:model' string, got {route!r}.")
+        provider, _, model_id = route.partition(":")
+        if provider not in catalog.KNOWN_PROVIDERS:
+            raise ValueError(
+                f"{role}: unknown provider '{provider}'. Known: {', '.join(catalog.KNOWN_PROVIDERS)}."
+            )
+        spec = catalog.get(model_id)
+        if spec is None:
+            raise ValueError(f"{role}: '{model_id}' is not in the model catalog.")
+        if not spec.priced:
+            raise ValueError(
+                f"{role}: '{model_id}' has no configured price, so spending on it could "
+                "not be capped. Add its price to the catalog before routing to it."
+            )
+        cleaned[role] = spec.route
+    return cleaned
+
+
+def stored_routing(data_dir: str | Path) -> dict[str, str] | None:
+    """The user's saved routing, or None. A corrupt file degrades to the default."""
+    try:
+        raw = json.loads(_routing_path(data_dir).read_text(encoding="utf-8"))
+        return validate_routing(raw)
+    except FileNotFoundError:
+        return None
+    except Exception:  # noqa: BLE001 — bad JSON / stale model ids must not sink launch
+        return None
+
+
+def save_routing(data_dir: str | Path, routing: dict[str, str] | None) -> None:
+    path = _routing_path(data_dir)
+    if routing is None:
+        path.unlink(missing_ok=True)
+        return
+    path.write_text(json.dumps(routing, indent=2), encoding="utf-8")
+
+
+def sidecar_run_config(*, fake: bool, data_dir: str | Path | None = None) -> RunConfig:
     """The desktop's RunConfig: env keys merged with keychain keys (keychain wins).
 
     The desktop counterpart of `local.run_config_from_env` — same shape, but a user who
@@ -210,6 +282,10 @@ def sidecar_run_config(*, fake: bool) -> RunConfig:
     keys.update(stored_keys())
 
     models = {role: os.environ.get(f"MODEL_{role.upper()}", DEFAULT_MODELS[role]) for role in ROLES}
+    if data_dir is not None:
+        saved = stored_routing(data_dir)
+        if saved:
+            models.update(saved)  # the user's saved preference beats MODEL_* env
     if not keys:
         raise RuntimeError(
             "No provider key found. Paste one in Settings (stored in the OS keychain), "
@@ -365,6 +441,24 @@ def create_sidecar_app(
         return await call_next(request)
 
     app.state.token = bearer
+
+    # ── CORS — the WebView origin is not the sidecar origin (docs/13 §7) ─────────
+    # The Tauri shell serves the static export from its own asset origin and calls
+    # http://127.0.0.1:<port> cross-origin, so the browser needs CORS headers —
+    # including on the preflight, which carries no token and must not be rejected
+    # by the token middleware. Added after that middleware, so it wraps it and runs
+    # first. The allow-list is the Tauri asset origins only; `allow_credentials`
+    # stays off because the desktop authenticates with the bearer token, never
+    # cookies.
+    cors_origins = os.environ.get(
+        "DESKTOP_CORS_ORIGINS", "tauri://localhost,http://tauri.localhost"
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[o.strip() for o in cors_origins.split(",") if o.strip()],
+        allow_methods=["*"],
+        allow_headers=["authorization", "content-type"],
+    )
 
     # ── Routes ───────────────────────────────────────────────────────────────────
     api = APIRouter(prefix="/api/v1")
@@ -529,7 +623,7 @@ def create_sidecar_app(
         sidecar = app.state.sidecar
         sink = PersistingSink(sidecar["bus"], session_factory)
         try:
-            config = sidecar_run_config(fake=app.state.fake)
+            config = sidecar_run_config(fake=app.state.fake, data_dir=app.state.data_dir)
         except RuntimeError as e:
             async with session_factory() as db:
                 session = await _authorized_session(db, session_id, sidecar["user_id"])
@@ -798,13 +892,13 @@ def create_sidecar_app(
     async def get_catalog(user: User = Depends(get_local_user)):  # noqa: ARG001
         """The picker's catalog. Availability is judged by keys, desktop-style:
         keychain keys merged with the environment (nothing else exists here)."""
+        user_routing = stored_routing(app.state.data_dir)
+        effective = _effective_with(user_routing)
         try:
-            config = sidecar_run_config(fake=app.state.fake)
+            config = sidecar_run_config(fake=app.state.fake, data_dir=app.state.data_dir)
             usable = set(config.provider_keys)
-            effective = config.models
         except RuntimeError:
             usable = set()
-            effective = dict(DEFAULT_MODELS)
 
         return {
             "roles": list(ROLES),
@@ -832,9 +926,37 @@ def create_sidecar_app(
             "preset_names": list(catalog.PRESET_NAMES),
             "available_providers": sorted(usable),
             "effective_routing": effective,
-            "user_routing": None,
+            "user_routing": user_routing,
             "deployment_routing": effective,
         }
+
+    def _effective_with(routing: dict[str, str] | None) -> dict[str, str]:
+        models = {
+            role: os.environ.get(f"MODEL_{role.upper()}", DEFAULT_MODELS[role]) for role in ROLES
+        }
+        if routing:
+            models.update(routing)
+        return models
+
+    @api.put("/models/routing")
+    async def set_routing(payload: dict, user: User = Depends(get_local_user)):  # noqa: ARG001
+        """Save the per-role routing to `routing.json` in the data directory.
+
+        Validated before it is stored (same contract as the server's endpoint), so a
+        saved preference is always startable.
+        """
+        try:
+            cleaned = validate_routing(payload.get("routing", payload))
+        except ValueError as e:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
+        save_routing(app.state.data_dir, cleaned)
+        return {"routing": cleaned, "effective_routing": _effective_with(cleaned)}
+
+    @api.delete("/models/routing")
+    async def clear_routing(user: User = Depends(get_local_user)):  # noqa: ARG001
+        """Drop the saved preference; routing falls back to MODEL_* env / defaults."""
+        save_routing(app.state.data_dir, None)
+        return {"routing": None, "effective_routing": _effective_with(None)}
 
     # -- keys --------------------------------------------------------------------
 
@@ -849,6 +971,17 @@ def create_sidecar_app(
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Key is empty.")
         try:
             store_key(provider, key)
+        except RuntimeError as e:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @api.delete("/desktop/keys/{provider}", status_code=204)
+    async def remove_key(provider: str):
+        """Forget a stored key from the OS keychain (the env-derived ones are read-only)."""
+        if provider not in ("google", "anthropic", "openai"):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown provider.")
+        try:
+            delete_key(provider)
         except RuntimeError as e:
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
         return Response(status_code=status.HTTP_204_NO_CONTENT)

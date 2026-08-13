@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { isDesktop } from "@/lib/desktop";
 import type { User } from "@/lib/types";
 
 import { AccountMenu } from "./AccountMenu";
@@ -51,10 +52,11 @@ export function TopNav({ user }: { user?: User }) {
           <span className="hidden sm:inline">Research Assistant</span>
         </Link>
 
-        {/* Only the working surfaces live here; account lives in the menu. */}
+        {/* Only the working surfaces live here; account lives in the menu. Chat is
+            web-only until the sidecar grows its endpoints (docs/12 M9). */}
         <NavLink href="/dashboard" label="Dashboard" />
         <NavLink href="/history" label="History" />
-        <NavLink href="/chat" label="Chat" />
+        {!isDesktop && <NavLink href="/chat" label="Chat" />}
 
         {/* Scope selector sits with the nav: every surface below it is project-scoped. */}
         <div className="ml-3 hidden sm:block">

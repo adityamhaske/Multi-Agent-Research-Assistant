@@ -17,6 +17,10 @@
 /.next/
 /out/
 
+# Variant-exclusive session route symlinks, created by
+# scripts/prepare-session-routes.mjs from app-routes/session/ (docs/13 §7).
+/app/(app)/session/
+
 # production
 /build
 
