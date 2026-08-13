@@ -39,6 +39,9 @@ class AgentState(TypedDict, total=False):
     # Synthesis / HITL
     draft_report: str | None
     sources: list[dict[str, Any]]
+    # Conflicting-claim pairs found by the contradiction detector (docs/12 M11).
+    # Surfaced in the report block and the gate count; never auto-resolved.
+    contradictions: list[dict[str, Any]]
     human_feedback: str | None
     rework_count: int
     approved: bool | None

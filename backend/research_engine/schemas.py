@@ -99,3 +99,33 @@ class Source(BaseModel):
     title: str = ""
     snippet: str = ""
     snippets: list[str] = Field(default_factory=list)
+
+
+class ContradictionPair(BaseModel):
+    """One direct conflict between two sources (docs/12 M11).
+
+    Both claims must be quoted from the snippets the detector was shown — the
+    validator in `contradictions.py` drops any pair whose source URL was not in
+    the evidence, so a hallucinated or injected source can never reach the report.
+    """
+
+    claim_a: str = Field(max_length=400)
+    snippet_a: str = Field("", max_length=500)
+    source_a: str
+    claim_b: str = Field(max_length=400)
+    snippet_b: str = Field("", max_length=500)
+    source_b: str
+    nature: str = Field("", max_length=400, description="One sentence: why they cannot both be true")
+
+
+class ContradictionReport(BaseModel):
+    """The detector's structured output. `pairs` is capped, not rejected, on overflow:
+    surfacing ten real conflicts and dropping two is strictly better than failing the
+    whole check because a model was prolific."""
+
+    pairs: list[ContradictionPair] = Field(default_factory=list)
+
+    @field_validator("pairs")
+    @classmethod
+    def _cap(cls, v: list[ContradictionPair]) -> list[ContradictionPair]:
+        return v[:10]

@@ -5,7 +5,7 @@ The research agent pipeline as a real compiled LangGraph StateGraph
     planner → executor(all pending tasks, in parallel) → critic(all, in parallel) ─┐
                      ▲                       (any task failed, retries remain)     │
                      └─────────────────────────────────────────────────────────────┘
-    (every task passed or out of retries) → synthesizer → hitl_gate
+    (every task passed or out of retries) → contradiction_detector → synthesizer → hitl_gate
     hitl_gate --interrupt--> (approve) finalizer / (reject) synthesizer
     budget/time breach anywhere → failer
 
@@ -31,11 +31,12 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 from pydantic import BaseModel, Field
 
-from research_engine import prompts
+from research_engine import contradictions, prompts
 from research_engine.events import emit
 from research_engine.llm_factory import estimate_cost, get_llm, text_of, token_counts
 from research_engine.runconfig import get_run_config
 from research_engine.schemas import (
+    ContradictionReport,
     CriticVerdict,
     EvidenceChunk,
     PlannerOutput,
@@ -696,20 +697,69 @@ async def _verify_citation_fidelity(
     return result, cost, i_tot, o_tot
 
 
-async def synthesizer_node(state: AgentState) -> dict:
-    sid = state["session_id"]
-    await emit(sid, "agent_log", agent="synthesizer", message="Compiling the report…")
+async def contradiction_detector_node(state: AgentState) -> dict:
+    """Surface conflicting claims across evidence (docs/12 M11). Never resolves them.
 
-    # Build a numbered source list from unique evidence URLs; the draft cites [n].
-    #
-    # Every distinct snippet from a source is kept, not just the first (docs/12 M5, D3).
-    # One page commonly backs several different facts and the executor extracts a separate
-    # verbatim quote for each; retaining only one meant a citation chip could display text
-    # unrelated to the claim it was attached to — the same source is cited for roughly
-    # eight different claims per report.
+    One bounded call over the capped snippet set — cost scales with the run, not with
+    the square of the source count. Runs on the critic's model routing: this is a
+    temperature-0 adjudication-style judgment, the same class of task the critic does,
+    and adding a sixth routed role would ripple through every host's model config for
+    one call per run.
+
+    Fail-closed: an unavailable or unparseable detector surfaces NOTHING (and says so
+    in the agent log) — a fabricated conflict is the worst possible error here.
+    """
+    sid = state["session_id"]
+    by_source = contradictions.group_snippets_by_source(state.get("evidence", []))
+    if len(by_source) < 2:
+        return {"contradictions": []}
+
+    await emit(
+        sid,
+        "agent_log",
+        agent="contradiction_detector",
+        message="Checking evidence for conflicting claims…",
+    )
+    messages = [
+        SystemMessage(content=prompts.CONTRADICTION_DETECTOR_PROMPT),
+        HumanMessage(
+            content=f"Research query: {state['original_query']}\n\n"
+            f"{contradictions.build_detector_input(by_source)}"
+        ),
+    ]
+    parsed, cost, i, o = await _structured("critic", messages, ContradictionReport)
+    if parsed is None:
+        reason = _last_api_error.get() or "unparseable response"
+        await emit(
+            sid,
+            "agent_log",
+            agent="contradiction_detector",
+            message=f"Contradiction check unavailable ({reason}); none surfaced",
+        )
+        return {"contradictions": [], **_acc(state, cost, i, o)}
+
+    found = contradictions.validate_pairs(parsed.pairs, by_source)
+    await emit(
+        sid,
+        "agent_log",
+        agent="contradiction_detector",
+        message=(
+            f"Found {len(found)} conflicting claim pair(s)" if found else "No conflicting claims found"
+        ),
+    )
+    return {"contradictions": found, **_acc(state, cost, i, o)}
+
+
+def _number_sources(evidence: list[dict]) -> tuple[list[dict], dict[str, int]]:
+    """Numbered source list + url→index map, in first-appearance order.
+
+    Shared by the synthesizer (citation numbering) and the conflict-block renderer
+    (docs/12 M11), so the [n] markers in the block always match the report's source
+    list — one numbering implementation, no drift.
+    """
     sources: list[dict] = []
     seen: dict[str, int] = {}
-    for e in state.get("evidence", []):
+    for e in evidence:
         url = e.get("source_url", "")
         if not url:
             continue
@@ -732,6 +782,21 @@ async def synthesizer_node(state: AgentState) -> dict:
                 existing["snippets"].append(snippet)
             if not existing["snippet"]:
                 existing["snippet"] = snippet
+    return sources, seen
+
+
+async def synthesizer_node(state: AgentState) -> dict:
+    sid = state["session_id"]
+    await emit(sid, "agent_log", agent="synthesizer", message="Compiling the report…")
+
+    # Build a numbered source list from unique evidence URLs; the draft cites [n].
+    #
+    # Every distinct snippet from a source is kept, not just the first (docs/12 M5, D3).
+    # One page commonly backs several different facts and the executor extracts a separate
+    # verbatim quote for each; retaining only one meant a citation chip could display text
+    # unrelated to the claim it was attached to — the same source is cited for roughly
+    # eight different claims per report.
+    sources, seen = _number_sources(state.get("evidence", []))
 
     numbered_evidence = [
         {
@@ -810,6 +875,21 @@ async def synthesizer_node(state: AgentState) -> dict:
     i += vi
     o += vo
 
+    # Conflicting-evidence block (docs/12 M11): rendered deterministically from the
+    # detector's validated pairs and inserted before the reference list. Appended AFTER
+    # the repair and fidelity passes so those claim checkers never judge the block's
+    # meta-prose — and because the LLM never authors it, it can neither omit nor
+    # "resolve" a conflict. Absent contradictions, the draft is untouched.
+    if state.get("contradictions"):
+        block = contradictions.render_block(state["contradictions"], seen)
+        draft = contradictions.insert_block(draft, block)
+        await emit(
+            sid,
+            "agent_log",
+            agent="synthesizer",
+            message=f"Surfaced {len(state['contradictions'])} conflicting claim pair(s) in the report",
+        )
+
     await emit(
         sid,
         "agent_log",
@@ -831,6 +911,9 @@ def hitl_gate_node(state: AgentState) -> dict:
             "type": "HITL_READY",
             "word_count": len((state.get("draft_report") or "").split()),
             "source_count": len(state.get("sources", [])),
+            # M11: how many unresolved conflicts the reviewer is approving alongside the
+            # draft. The report surfaces them; the gate makes the count impossible to miss.
+            "contradiction_count": len(state.get("contradictions") or []),
             "cost_usd": round(state.get("cost_usd", 0.0), 4),
         }
     )
@@ -881,7 +964,7 @@ def route_after_critic(state: AgentState) -> str:
         return "failer"
     if _pending(state, get_run_config().max_critic_loops):
         return "executor"
-    return "synthesizer"
+    return "contradiction_detector"
 
 
 def route_after_gate(state: AgentState) -> str:
@@ -898,6 +981,7 @@ def build_graph(checkpointer):
     g.add_node("planner", planner_node)
     g.add_node("executor", executor_node)
     g.add_node("critic", critic_node)
+    g.add_node("contradiction_detector", contradiction_detector_node)
     g.add_node("synthesizer", synthesizer_node)
     g.add_node("hitl_gate", hitl_gate_node)
     g.add_node("finalizer", finalizer_node)
@@ -913,10 +997,11 @@ def build_graph(checkpointer):
         route_after_critic,
         {
             "executor": "executor",
-            "synthesizer": "synthesizer",
+            "contradiction_detector": "contradiction_detector",
             "failer": "failer",
         },
     )
+    g.add_edge("contradiction_detector", "synthesizer")
     g.add_edge("synthesizer", "hitl_gate")
     g.add_conditional_edges(
         "hitl_gate", route_after_gate, {"finalizer": "finalizer", "synthesizer": "synthesizer"}

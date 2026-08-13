@@ -1,0 +1,164 @@
+{
+  "metric": "contradiction_detection",
+  "mode": "real",
+  "model": {
+    "planner": "ollama:qwen2.5",
+    "executor": "ollama:qwen2.5",
+    "critic": "ollama:qwen2.5",
+    "synthesizer": "ollama:qwen2.5",
+    "chat": "ollama:qwen2.5"
+  },
+  "recall": 1.0,
+  "false_positive_rate": 0.3333,
+  "min_recall": 0.8,
+  "max_false_positive": 0.1,
+  "recall_ok": true,
+  "fp_ok": false,
+  "cases": [
+    {
+      "id": "c1-market-size",
+      "expect": "contradiction",
+      "detected": true,
+      "pairs": 1,
+      "error": null,
+      "latency_s": 8.59
+    },
+    {
+      "id": "c2-launch-date",
+      "expect": "contradiction",
+      "detected": true,
+      "pairs": 1,
+      "error": null,
+      "latency_s": 5.16
+    },
+    {
+      "id": "c3-trial-outcome",
+      "expect": "contradiction",
+      "detected": true,
+      "pairs": 1,
+      "error": null,
+      "latency_s": 7.82
+    },
+    {
+      "id": "c4-founder-attribution",
+      "expect": "contradiction",
+      "detected": true,
+      "pairs": 1,
+      "error": null,
+      "latency_s": 5.72
+    },
+    {
+      "id": "c5-temperature-record",
+      "expect": "contradiction",
+      "detected": true,
+      "pairs": 1,
+      "error": null,
+      "latency_s": 8.82
+    },
+    {
+      "id": "c6-population-figure",
+      "expect": "contradiction",
+      "detected": true,
+      "pairs": 1,
+      "error": null,
+      "latency_s": 7.17
+    },
+    {
+      "id": "k1-complementary-stats",
+      "expect": "consistent",
+      "detected": false,
+      "pairs": 0,
+      "error": null,
+      "latency_s": 0.49
+    },
+    {
+      "id": "k2-different-subjects",
+      "expect": "consistent",
+      "detected": true,
+      "pairs": 1,
+      "error": null,
+      "latency_s": 5.88
+    },
+    {
+      "id": "k3-scope-difference",
+      "expect": "consistent",
+      "detected": false,
+      "pairs": 0,
+      "error": null,
+      "latency_s": 0.46
+    },
+    {
+      "id": "k4-corroboration",
+      "expect": "consistent",
+      "detected": false,
+      "pairs": 0,
+      "error": null,
+      "latency_s": 0.5
+    },
+    {
+      "id": "k5-emphasis-difference",
+      "expect": "consistent",
+      "detected": false,
+      "pairs": 0,
+      "error": null,
+      "latency_s": 0.49
+    },
+    {
+      "id": "k6-overlapping-ranges",
+      "expect": "consistent",
+      "detected": false,
+      "pairs": 0,
+      "error": null,
+      "latency_s": 0.5
+    },
+    {
+      "id": "k7-different-attributes",
+      "expect": "consistent",
+      "detected": false,
+      "pairs": 0,
+      "error": null,
+      "latency_s": 0.5
+    },
+    {
+      "id": "k8-precision-vs-rounding",
+      "expect": "consistent",
+      "detected": true,
+      "pairs": 1,
+      "error": null,
+      "latency_s": 7.32
+    },
+    {
+      "id": "k9-base-vs-ceiling",
+      "expect": "consistent",
+      "detected": true,
+      "pairs": 1,
+      "error": null,
+      "latency_s": 6.73
+    },
+    {
+      "id": "k10-different-periods",
+      "expect": "consistent",
+      "detected": true,
+      "pairs": 1,
+      "error": null,
+      "latency_s": 8.03
+    },
+    {
+      "id": "k11-share-vs-units",
+      "expect": "consistent",
+      "detected": false,
+      "pairs": 0,
+      "error": null,
+      "latency_s": 0.53
+    },
+    {
+      "id": "k12-history-vs-design",
+      "expect": "consistent",
+      "detected": false,
+      "pairs": 0,
+      "error": null,
+      "latency_s": 0.56
+    }
+  ],
+  "run_at": "2026-08-13T17:26:00.960055+00:00"
+}

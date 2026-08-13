@@ -95,11 +95,12 @@ def test_routing_retries_only_while_a_task_has_retries_left():
     # Task 2 failed once — max_critic_loops defaults to 2, so it gets another round.
     assert graph_mod.route_after_critic({**base, "retries": {"2": 1}}) == "executor"
 
-    # Out of retries: synthesize with whatever task 2 managed to gather.
-    assert graph_mod.route_after_critic({**base, "retries": {"2": 2}}) == "synthesizer"
+    # Out of retries: the run moves to contradiction detection, then synthesis, with
+    # whatever task 2 managed to gather.
+    assert graph_mod.route_after_critic({**base, "retries": {"2": 2}}) == "contradiction_detector"
 
 
-def test_routing_synthesizes_when_every_task_passed():
+def test_routing_detects_then_synthesizes_when_every_task_passed():
     state = {
         "cost_usd": 0.0,
         "tokens_input": 0,
@@ -108,4 +109,4 @@ def test_routing_synthesizes_when_every_task_passed():
         "verdicts": {"1": {"passed": True}, "2": {"passed": True}},
         "retries": {},
     }
-    assert graph_mod.route_after_critic(state) == "synthesizer"
+    assert graph_mod.route_after_critic(state) == "contradiction_detector"

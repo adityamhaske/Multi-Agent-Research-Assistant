@@ -109,6 +109,8 @@ class _ScriptedModel(FakeMessagesListChatModel):
             content = json.dumps(
                 {"passed": True, "confidence": 0.9, "reasons": ["two independent sources"]}
             )
+        elif "Contradiction Detector" in system:
+            content = self._contradiction_reply(human)
         elif "citation repair pass" in system:
             # Every assertive line carries a [n] marker so the repair pass converges
             # in one round (section headers stay under the 15-char claim threshold).
@@ -141,6 +143,50 @@ class _ScriptedModel(FakeMessagesListChatModel):
         return AIMessage(
             content=content,
             usage_metadata={"input_tokens": 100, "output_tokens": 50, "total_tokens": 150},
+        )
+
+    @staticmethod
+    def _contradiction_reply(human: str) -> str:
+        """Scripted contradiction detector (docs/12 M11).
+
+        Default: no conflicts — the fixture evidence is consistent, and keeping fake-mode
+        reports contradiction-free keeps the golden outputs byte-identical. A test that
+        wants the surfaced-conflict path plants the CONTRADICTION-FIXTURE sentinel in the
+        evidence text; the reply then pairs the first two sources the detector was shown,
+        quoting their actual snippets, so the validated pairs survive the graph's URL
+        check and the report block renders for real.
+        """
+        if "CONTRADICTION-FIXTURE" not in human:
+            return json.dumps({"pairs": []})
+        # One block per source, exactly as contradictions.build_detector_input shapes it.
+        blocks = re.findall(
+            r"Source: (\S+)\n<untrusted_web_content>\n(.*?)\n</untrusted_web_content>",
+            human,
+            re.S,
+        )
+        seen: dict[str, str] = {}
+        for url, body in blocks:
+            if url not in seen:
+                quoted = re.findall(r'- "([^"]*)"', body)
+                seen[url] = quoted[0] if quoted else ""
+        distinct = [u for u in seen if seen[u]]
+        if len(distinct) < 2:
+            return json.dumps({"pairs": []})
+        a, b = distinct[0], distinct[1]
+        return json.dumps(
+            {
+                "pairs": [
+                    {
+                        "claim_a": "the measured output was 42 units",
+                        "snippet_a": seen[a],
+                        "source_a": a,
+                        "claim_b": "the measured output was 17 units",
+                        "snippet_b": seen[b],
+                        "source_b": b,
+                        "nature": "The two sources report incompatible values for the same measurement.",
+                    }
+                ]
+            }
         )
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs: Any):

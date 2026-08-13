@@ -1,0 +1,167 @@
+{
+  "description": "Curated contradiction-detection fixtures (docs/12 M11 DoD). Each case is a two-source evidence set with a known ground truth: 'contradiction' means the sources assert claims that cannot both be true; 'consistent' is the control set — compatible or merely different facts that must NOT be flagged. Recall >= 0.80 on the contradiction set with false-positive rate <= 0.10 on the control set is the milestone bar, measured by evals/contradiction_eval.py against a real model.",
+  "cases": [
+    {
+      "id": "c1-market-size",
+      "expect": "contradiction",
+      "topic": "global EV market size in 2024",
+      "sources": [
+        {"url": "https://example.org/reports/ev-market-2024", "snippets": ["Global electric vehicle sales reached 17.1 million units in 2024, up 25 percent year over year."]},
+        {"url": "https://example.net/analysis/ev-outlook", "snippets": ["Worldwide EV sales totaled 13.6 million units in 2024 according to our final tally, a figure we consider definitive."]}
+      ]
+    },
+    {
+      "id": "c2-launch-date",
+      "expect": "contradiction",
+      "topic": "when the mission launched",
+      "sources": [
+        {"url": "https://example.org/news/mission-launch", "snippets": ["The probe launched on 14 March 2023 from the coastal spaceport, beginning its two-year cruise."]},
+        {"url": "https://example.com/space/mission-timeline", "snippets": ["Records show the probe lifted off on 2 October 2023 after two prior delays; no earlier launch attempt left the pad."]}
+      ]
+    },
+    {
+      "id": "c3-trial-outcome",
+      "expect": "contradiction",
+      "topic": "phase 3 trial outcome",
+      "sources": [
+        {"url": "https://example.org/journal/trial-results", "snippets": ["The phase 3 trial met its primary endpoint, reducing symptoms by 38 percent versus placebo (p<0.001)."]},
+        {"url": "https://example.net/health/trial-review", "snippets": ["The same phase 3 trial failed its primary endpoint; the 38 percent figure was a secondary measure and not statistically significant."]}
+      ]
+    },
+    {
+      "id": "c4-founder-attribution",
+      "expect": "contradiction",
+      "topic": "who founded the company",
+      "sources": [
+        {"url": "https://example.org/profile/company-history", "snippets": ["The company was founded in 2009 by Elena Marchetti, who served as chief executive until 2021."]},
+        {"url": "https://example.com/business/founding-story", "snippets": ["Contrary to popular retellings, the company was founded solely by David Okafor in 2009; Marchetti joined two years later as an early employee."]}
+      ]
+    },
+    {
+      "id": "c5-temperature-record",
+      "expect": "contradiction",
+      "topic": "national temperature record",
+      "sources": [
+        {"url": "https://example.org/climate/2023-records", "snippets": ["2023 was the warmest year in the national record, averaging 1.9 degrees above the 1991-2020 baseline."]},
+        {"url": "https://example.net/weather/year-review", "snippets": ["2023 ranked third warmest in the national record at 1.1 degrees above baseline; 2019 and 2020 both stayed warmer."]}
+      ]
+    },
+    {
+      "id": "c6-population-figure",
+      "expect": "contradiction",
+      "topic": "city population",
+      "sources": [
+        {"url": "https://example.org/census/city-profile", "snippets": ["The city's population stood at 2.4 million residents in the 2022 census."]},
+        {"url": "https://example.com/urban/demographics", "snippets": ["Official figures put the city's population at 4.1 million residents in 2022, making it the second largest in the country."]}
+      ]
+    },
+    {
+      "id": "k1-complementary-stats",
+      "expect": "consistent",
+      "topic": "renewables growth, complementary angles",
+      "sources": [
+        {"url": "https://example.org/energy/capacity-report", "snippets": ["Global renewable capacity grew 14 percent in 2024, adding 473 gigawatts."]},
+        {"url": "https://example.net/energy/investment-review", "snippets": ["Investment in renewable energy reached a record 620 billion dollars in 2024, led by solar projects."]}
+      ]
+    },
+    {
+      "id": "k2-different-subjects",
+      "expect": "consistent",
+      "topic": "two different products' sales",
+      "sources": [
+        {"url": "https://example.org/tech/phone-sales", "snippets": ["Smartphone shipments fell 3 percent last quarter as buyers delayed upgrades."]},
+        {"url": "https://example.com/tech/tablet-sales", "snippets": ["Tablet shipments rose 3 percent last quarter, their first gain in two years."]}
+      ]
+    },
+    {
+      "id": "k3-scope-difference",
+      "expect": "consistent",
+      "topic": "revenue figures with different scopes",
+      "sources": [
+        {"url": "https://example.org/finance/quarterly-earnings", "snippets": ["The company reported quarterly revenue of 8.2 billion dollars for its North America segment."]},
+        {"url": "https://example.net/finance/annual-summary", "snippets": ["Total global revenue for the year was 31.5 billion dollars, the company said in its annual summary."]}
+      ]
+    },
+    {
+      "id": "k4-corroboration",
+      "expect": "consistent",
+      "topic": "same fact reported twice",
+      "sources": [
+        {"url": "https://example.org/science/discovery", "snippets": ["Researchers confirmed the particle's mass at 125 gigaelectronvolts, matching earlier measurements."]},
+        {"url": "https://example.com/science/confirmation", "snippets": ["An independent team measured the particle's mass at 125 gigaelectronvolts, corroborating the established value."]}
+      ]
+    },
+    {
+      "id": "k5-emphasis-difference",
+      "expect": "consistent",
+      "topic": "same event, different emphasis",
+      "sources": [
+        {"url": "https://example.org/policy/bill-passes", "snippets": ["The senate passed the infrastructure bill 68 to 32 after weeks of negotiation."]},
+        {"url": "https://example.net/policy/bill-analysis", "snippets": ["The infrastructure bill cleared the senate with a comfortable bipartisan majority, though progressives called it insufficient."]}
+      ]
+    },
+    {
+      "id": "k6-overlapping-ranges",
+      "expect": "consistent",
+      "topic": "estimates with overlapping ranges",
+      "sources": [
+        {"url": "https://example.org/economics/forecast-a", "snippets": ["Growth this year is projected between 2.0 and 2.8 percent, the institute said."]},
+        {"url": "https://example.com/economics/forecast-b", "snippets": ["The bank forecasts growth of 2.5 to 3.1 percent this year, citing resilient consumption."]}
+      ]
+    },
+    {
+      "id": "k7-different-attributes",
+      "expect": "consistent",
+      "topic": "different attributes of the same product",
+      "sources": [
+        {"url": "https://example.org/reviews/battery-test", "snippets": ["Battery life improved 20 percent compared with the previous generation in our tests."]},
+        {"url": "https://example.com/reviews/hands-on", "snippets": ["The device weighs 8 percent more than its predecessor, which is noticeable in hand."]}
+      ]
+    },
+    {
+      "id": "k8-precision-vs-rounding",
+      "expect": "consistent",
+      "topic": "exact figure vs rounded figure",
+      "sources": [
+        {"url": "https://example.org/events/attendance-records", "snippets": ["Turnout reached 10,240 people, the organizers said in their final count."]},
+        {"url": "https://example.net/events/crowd-report", "snippets": ["Roughly 10,000 people attended, by our estimate from aerial photographs."]}
+      ]
+    },
+    {
+      "id": "k9-base-vs-ceiling",
+      "expect": "consistent",
+      "topic": "deal structure: base price vs maximum value",
+      "sources": [
+        {"url": "https://example.org/business/deal-terms", "snippets": ["The deal's base price is 1.2 billion dollars, the filing showed."]},
+        {"url": "https://example.com/business/deal-analysis", "snippets": ["Including performance bonuses, the deal could reach up to 2 billion dollars in total value."]}
+      ]
+    },
+    {
+      "id": "k10-different-periods",
+      "expect": "consistent",
+      "topic": "same metric in different years",
+      "sources": [
+        {"url": "https://example.org/finance/2022-results", "snippets": ["Profit in 2022 was 3.1 billion dollars, the annual report said."]},
+        {"url": "https://example.net/finance/2023-results", "snippets": ["Profit in 2023 fell to 2.4 billion dollars as costs rose."]}
+      ]
+    },
+    {
+      "id": "k11-share-vs-units",
+      "expect": "consistent",
+      "topic": "market share vs unit sales",
+      "sources": [
+        {"url": "https://example.org/market/share-tracker", "snippets": ["The company held 22 percent of the regional market by value last year."]},
+        {"url": "https://example.com/market/sales-tracker", "snippets": ["The company sold 4.4 million units in the region last year, our tally shows."]}
+      ]
+    },
+    {
+      "id": "k12-history-vs-design",
+      "expect": "consistent",
+      "topic": "different facts about the same landmark",
+      "sources": [
+        {"url": "https://example.org/city/bridge-opening", "snippets": ["The bridge opened to traffic in 2010 after four years of construction."]},
+        {"url": "https://example.net/city/bridge-design", "snippets": ["The bridge was designed by the engineering firm Halloran and Partners."]}
+      ]
+    }
+  ]
+}

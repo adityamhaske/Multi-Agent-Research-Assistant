@@ -109,6 +109,45 @@ supported. Close paraphrases of the snippet ARE supported.
 Answer with exactly one line per claim: "Claim N: YES" or "Claim N: NO".
 Answer for every claim."""
 
+# Contradiction detection (docs/12 M11). The detector compares verbatim snippets from
+# DIFFERENT sources and reports only direct conflicts — it never resolves them; the
+# review gate is where a human adjudicates. Precision over recall is deliberate: a
+# fabricated conflict is a trust-destroyer, while a missed one leaves the report merely
+# incomplete. The "cannot both be true" bar is the whole prompt.
+CONTRADICTION_DETECTOR_PROMPT = f"""You are the Contradiction Detector. You are shown
+verbatim snippets grouped by source. Report every pair of claims from DIFFERENT sources
+that CANNOT BOTH BE TRUE as stated — incompatible numbers, dates, outcomes, or
+attributions about the same subject.
+
+Rules:
+1. Judge ONLY the snippet text shown. Never use outside knowledge.
+2. Different facts about different subjects are NOT contradictions. Corroboration,
+   differing emphasis, and vague tension are NOT contradictions.
+3. Two numbers are a contradiction ONLY when they answer the SAME question — same
+   subject, same scope, same period, same unit — with incompatible values. Different
+   scopes (a segment vs the whole), different subjects, different periods, or merely
+   different-but-overlapping ranges are NOT contradictions.
+4. Quote each conflicting claim exactly as its snippet states it, and name the source
+   URL it came from. Never invent a source or a claim.
+5. Describe the nature of the disagreement in one sentence.
+6. If no direct contradiction exists, return an empty list. An empty answer is a good
+   answer; a fabricated conflict is the worst possible error.
+
+Examples that are NOT contradictions:
+- "Quarterly revenue was 5.4 billion for the European segment" vs "Annual global revenue
+  was 28 billion" (different scopes — the figures can both be true).
+- "Laptop shipments fell 4 percent" vs "Monitor shipments rose 4 percent" (different
+  subjects).
+- "Growth projected between 1.5 and 2.2 percent" vs "Growth forecast at 2.0 to 2.9
+  percent" (overlapping ranges).
+Example that IS a contradiction:
+- "The airport handled 9.7 million passengers in 2021" vs "The airport handled 3.1
+  million passengers in 2021" (same subject, scope, and period; the values cannot
+  both be true).
+{UNTRUSTED_CONTENT_NOTE}
+Your output is validated against a strict schema — return exactly the requested fields.
+"""
+
 CHAT_PROMPT_V2 = f"""You are an analyst answering follow-up questions about a research
 report you produced. Answer using ONLY the report and its sources below. If the report
 does not cover something, say so plainly rather than inventing an answer. Be concise and

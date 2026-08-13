@@ -26,6 +26,12 @@ SOURCES_HEADING_RE = re.compile(r"^#{1,6}\s*(sources|references|citations|biblio
 # does not cover — meta-prose about the evidence, sourced or not. Its sentences are not
 # factual claims, so they are excluded from claim extraction exactly like Sources.
 LIMITATIONS_HEADING_RE = re.compile(r"^#{1,6}\s*limitations?\b", re.I)
+# The Conflicting evidence block (docs/12 M11) is rendered deterministically by the
+# engine, not authored by the synthesizer: it QUOTES the incompatible claims from both
+# sides. Its sentences are meta-prose about the evidence — judging them as factual
+# claims would measure the block's existence, not research quality — so they are
+# excluded from claim extraction exactly like Limitations.
+CONFLICTS_HEADING_RE = re.compile(r"^#{1,6}\s*conflicting evidence\b", re.I)
 _LIST_MARKER_RE = re.compile(r"^(?:[-*+]\s+|\d+[.)]\s+)")
 # Sentence boundary: terminator + whitespace, not preceded by a common abbreviation or a
 # bare initial. Deliberately conservative — over-splitting a claim is worse than
@@ -118,7 +124,9 @@ def claim_lines(text: str) -> list[str]:
         if SOURCES_HEADING_RE.match(line):
             break  # sources/references section is references, not claims
         if HEADING_RE.match(line):
-            skipping = bool(LIMITATIONS_HEADING_RE.match(line))
+            skipping = bool(LIMITATIONS_HEADING_RE.match(line)) or bool(
+                CONFLICTS_HEADING_RE.match(line)
+            )
             continue
         if skipping:
             continue
@@ -136,6 +144,27 @@ def uncited_claim_count(text: str) -> int:
     return sum(1 for c in claim_lines(text) if not CITE_RE.search(c))
 
 
+def contradictions_surfaced(text: str) -> int:
+    """How many conflicting-claim pairs the report surfaces (docs/12 M11).
+
+    Counts numbered items under the engine-rendered "Conflicting evidence" heading, up
+    to the next heading. Purely structural: it measures what the run SURFACED, which is
+    the honest baseline metric — whether the conflicts were real is what the curated
+    fixture eval (evals/contradiction_eval.py) measures against a model.
+    """
+    lines = (text or "").splitlines()
+    inside = False
+    count = 0
+    for raw in lines:
+        line = raw.strip()
+        if HEADING_RE.match(line):
+            inside = bool(CONFLICTS_HEADING_RE.match(line))
+            continue
+        if inside and re.match(r"^\d+[.)]\s", line):
+            count += 1
+    return count
+
+
 # Bumped whenever a metric's *definition* changes, so two committed runs are never
 # silently compared across incompatible definitions. Recorded in every results file.
 #
@@ -145,7 +174,10 @@ def uncited_claim_count(text: str) -> int:
 #       comparable to a v1 number.
 #   3 — Limitations sentences excluded from claims (D5): they are hedging, not factual
 #       claims. A v3 support rate is not comparable to v2.
-METRICS_VERSION = 3
+#   4 — Conflicting-evidence block excluded from claims (docs/12 M11): it quotes both
+#       sides of a conflict and is engine-rendered, not authored claims. Adds the
+#       contradictions_surfaced metric.
+METRICS_VERSION = 4
 
 
 def report_metrics(text: str, sources: list[dict]) -> dict:
@@ -156,4 +188,5 @@ def report_metrics(text: str, sources: list[dict]) -> dict:
         "source_count": len(sources or []),
         **stats,
         "uncited_claim_count": uncited_claim_count(text),
+        "contradictions_surfaced": contradictions_surfaced(text),
     }
