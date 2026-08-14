@@ -1,8 +1,10 @@
 # API
 fastapi>=0.141.1,<1.0
 uvicorn[standard]>=0.30
+python-multipart>=0.0.9
 pydantic[email]>=2.10,<3.0
 pydantic-settings>=2.6
+
 
 # Database
 sqlalchemy[asyncio]>=2.0.51,<2.1
