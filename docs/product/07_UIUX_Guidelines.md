@@ -1,135 +1,109 @@
 # 07. UI/UX Guidelines
 
-> Design system and page-level specs for the Next.js frontend. The bar: a reviewer
-> should think "this is a real product", and a user should never wonder what the app is
-> doing right now.
+> Design system and page-level specs for the Next.js frontend. The aesthetic is a formal,
+> crisp **Academic Research-Paper Design System**: high-contrast typography, strict square
+> geometry, muted paper surfaces, hairline rules, and tabular monospace telemetry.
 
-## 1. Design system
+---
 
-### Tokens (CSS variables, defined once in `globals.css`)
+## 1. Design System & Tokens
 
-- Colors: `--bg-base`, `--bg-surface`, `--bg-elevated`, `--border`, `--text-primary`,
-  `--text-secondary`, `--text-muted`, `--accent`, `--accent-muted`, plus semantic
-  `--success`, `--warning`, `--danger`, `--info`.
-- **Rule: components never hardcode hex values.** All color usage goes through tokens
-  so dark/light themes both work. (The previous iteration hardcoded dark-theme hex
-  in JSX, which silently broke light mode.)
-- Both themes are first-class: `next-themes` class strategy; every token has a value in
-  `:root` (light) and `.dark`. **Light is the default** (`defaultTheme="light"`,
-  `enableSystem={false}`) so a dark-OS visitor still lands on the intended default until
-  they toggle. The palette is warm: light is Claude's cream paper + terracotta; dark
-  mirrors the Claude Code terminal (warm charcoal, never blue-black).
-- The accent splits by theme for contrast, not taste: the signature terracotta `#D97757`
-  only reaches ~2.9:1 on cream, so light uses a deepened `#B54F2A` (4.8:1) and dark keeps
-  `#D97757` (5.4:1 on charcoal).
-- Typography: Inter (UI), JetBrains Mono (log feed, code) via `next/font` — no external
-  CSS imports.
-- Spacing/radius: Tailwind defaults; radius `rounded-xl` for cards, `rounded-lg` for
-  controls.
-- Report/chat prose uses `@tailwindcss/typography` (`prose dark:prose-invert`) — the
-  plugin is a hard dependency; a missing-plugin state (unstyled reports) is a bug.
+### 🏛️ Typography Architecture
 
-### Interaction states
+Typography is split strictly into three distinct duties: editorial structure, narrative reading, and data telemetry:
 
-Every interactive element defines: default, hover, focus-visible (visible ring using
-`--accent`), disabled, and loading. Every async action shows progress inline (button
-spinner + disabled) and resolves to a toast (react-hot-toast) on failure.
+| Role | Font Family | Usage Areas |
+| :--- | :--- | :--- |
+| **Headers & High-Level Titles** | `font-serif` (`"Times New Roman"`, `Times`, `Georgia`, `Cambria`, `serif`) | Page titles (`h1`), section headings (`h2`, `h3`), primary category tags, report headings, modal titles. |
+| **Body & Descriptions** | `font-sans` (`Inter`, system-ui, sans-serif) | Body narratives, descriptions, form field labels, assistant chat paragraphs. |
+| **System Telemetry, Logs & Code** | `font-mono` (`"JetBrains Mono"`, `SFMono-Regular`, `Consolas`, `monospace`) | Agent IDs, timestamps, cost numbers, token usage, model routes, citation chips, status badges, and data tables. |
 
-## 2. Information architecture
+---
+
+### 🎨 Structural & Status Color Matrix
+
+All colors are bound to CSS variables defined in `globals.css` with dark mode support (`next-themes` class strategy):
+
+| Token | Light Theme | Dark Theme | Purpose & Element Binding |
+| :--- | :--- | :--- | :--- |
+| `--bg-base` (Paper) | `#FBFBFA` | `#121214` | Root viewport canvas / document paper background |
+| `--bg-surface` (Card) | `#FFFFFF` | `#1A1A1E` | Card surfaces, modal surfaces, table backgrounds |
+| `--bg-elevated` | `#F2F2EE` | `#222226` | Interactive hover states, secondary backgrounds |
+| `--border` (Strict Rule) | `#D1D1CD` | `#2E2E34` | Hairline borders (1px) for all structural dividers |
+| `--text-primary` (Ink) | `#111111` | `#F4F4F6` | Academic titles, primary text, active states |
+| `--text-secondary` | `#444440` | `#B0B0B8` | Body paragraphs, form labels |
+| `--text-muted` (Muted Ink) | `#666662` | `#8E8E93` | Metadata, helper hints, timestamps |
+| `--accent` (Academic Accent) | `#3F5E4D` | `#527A65` | Forest academic accent for active items, focus rings |
+| `--accent-muted` | `#E8EFEA` | `#1C2E24` | Active row tints, user chat bubbles |
+| `--success` (Status OK) | `#10B981` | `#10B981` | Completed states, healthy nodes |
+| `--warning` (Status Warn) | `#F59E0B` | `#F59E0B` | Awaiting review, missing API keys |
+| `--danger` (Status Fail) | `#EF4444` | `#EF4444` | Exceptions, failed stages, destructive actions |
+| `--badge-block-bg` | `#EAEAE6` | `#242428` | Technical tag frames, code chips |
+
+---
+
+### 📐 Geometry & Element Rules
+
+1. **Strict 0px Border-Radius**:
+   - `*, *::before, *::after { border-radius: 0 !important; }` enforced globally.
+   - Zero rounded corners on buttons, cards, inputs, avatars, badges, chips, progress bars, or modal surfaces.
+2. **Status Markers**:
+   - Replaced all round dots with uniform **8px × 8px square `.status-marker` blocks**.
+   - Card backgrounds remain neutral; saturated color is isolated strictly to the marker.
+3. **Operational Logs & Data Tables**:
+   - Academic booktabs table style: horizontal top/bottom dividing lines and header rule; zero vertical column dividers.
+   - Fixed-width monospace columns for timestamps (`w-16`) and uppercase agent tags (`w-24`).
+4. **Citations UX**:
+   - Inline superscript badges (`[1]`, `[M1]`, `[?]`) with square borders and monospace font. Hover/tap triggers popovers displaying verbatim supporting snippets.
+
+---
+
+## 2. Information Architecture
 
 ```
-/            → redirects: authed → /dashboard, else → /login
-/login       → login + register (tabbed)
-/dashboard   → new research form + recent sessions
-/history     → full session list (filter by status, paginated)
-/session/[id]→ the session lifecycle page (states below)
+/                → redirects: authed → /dashboard, else → /login
+/login           → login + register (academic segmented switcher)
+/dashboard       → new research query, depth selector, airgapped corpus mode, recent sessions
+/corpus          → local document upload & chunk telemetry for airgapped research
+/history         → full session history (filter by status, active / archived view, pagination)
+/chat            → project memory chat (cross-session search over approved reports)
+/session/[id]    → live research session lifecycle (5 distinct states below)
+/profile         → display name, user ID, avatar initials
+/settings        → monthly token usage, spending limits, BYOK keys, local Ollama models, role model routing
 ```
 
-Shared shell: top nav (logo, Dashboard, History, theme toggle, user menu with logout).
-Auth guard is a server-side layout concern (cookie check + redirect), not a
-per-page `useEffect`.
+**Sidebar Shell**: Collapsible sidebar with square brand logo (`§`), active project selector dropdown (`ProjectSwitcher`), primary navigation tabs, and user account popup (`AccountMenu`).
 
-## 3. Session page — the core surface
+---
 
-One page, five states driven by session status. Every state must render something
-meaningful; blank panels are bugs (the previous iteration rendered an empty void when
-a status arrived before its report body).
+## 3. Session Page — Core Lifecycle
 
-### PENDING / RUNNING — "the brain monitor"
-- Pipeline rail: Planner → Executor → Critic → Synthesizer with live states
-  (pending / active-pulsing / done). Driven by `agent_log` events.
-- Live feed: monospace log stream, auto-scroll with a "jump to latest" affordance when
-  the user scrolls up (never fight the user's scroll).
-- Status bar: elapsed time (computed from the session's server-side `created_at`, not
-  page-load time), running cost, task progress (`2/4 tasks`).
-- SSE lifecycle: connect on mount, **replay history first** (server sends persisted
-  logs), reconnect with `Last-Event-ID` on drop, show a subtle "reconnecting…" pill
-  when the stream is down and fall back to 5 s status polling.
+One page, five states driven by the LangGraph session status:
 
-### AWAITING_APPROVAL — the review gate
-- Split view: draft report (rendered markdown w/ citations, §5) beside the decision
-  panel.
-- Decision panel: source count, cost so far, rework count (`2 of 3 rework rounds
-  used`), Approve button, and a rework textarea with helper text + validation.
-- Both actions optimistic-update the status and re-subscribe to the stream
-  (through the same connect function as mount — reconnects must carry all handlers).
-- If the draft body hasn't loaded yet: skeleton loader, never blank.
+### 1. PENDING / RUNNING — "Brain Monitor"
+- **Pipeline Rail**: Planner → Executor → Critic → Synthesizer with square 7×7 numbered nodes and hairline connectors.
+- **Live Feed**: Monospace log stream with fixed timestamp/agent columns, auto-scroll with pause-on-scroll.
+- **Status Bar**: Monospace tabular elapsed time, running cost, and task progress count.
+- **SSE Stream**: Connect on mount, replay history first, auto-reconnect with `Last-Event-ID`, and fallback polling.
 
-### COMPLETED — report + chat
-- Report pane: rendered markdown with the citations UX (§5), metrics row (duration,
-  cost, tokens, sources), export buttons (Copy, `.md`, `.pdf`).
-- Chat pane: grounded follow-up chat (§6).
+### 2. AWAITING_APPROVAL — The Review Gate
+- **Split View**: Draft report (rendered academic prose with citations) beside the review decision panel.
+- **Decision Panel**: Monospace metrics, source count, rework round budget (`2 of 3 used`), Approve button, and rework feedback textarea.
+- **Skeleton Fallback**: Square skeleton placeholder if draft is still streaming.
 
-### FAILED
-- Human-readable reason (from `error_message`), whatever partial evidence exists
-  ("12 sources were gathered before failure" with the sources list), and a
-  "Start new research from this query" action. Never a dead end.
+### 3. COMPLETED — Report & Grounded Follow-up
+- **Report View**: Academic typography (`font-serif` title), booktabs tables, source citation popovers, metrics row (duration, cost, tokens, sources), and export actions (Copy, `.md`, `.pdf`, `.bundle.json`).
+- **Follow-up Chat**: Square chat card with grounded assistant replies streaming via buffered SSE.
 
-## 3a. Settings — profile, usage, BYOK
+### 4. FAILED — Research Exception
+- Square crimson error block, error message reason, partial sources gathered before failure, and "Start new research from this query" restart action.
 
-- Profile: display name, unique user ID (copyable), avatar image with **initials fallback**
-  (a broken image URL falls back too — the profile is never half-rendered).
-- Usage: tokens/cost for the current calendar month, the rolling 7 days, and the last
-  session, derived from the user's own sessions. A monthly limit renders as a progress bar
-  and blocks new research when reached (`402`), with the reset date stated.
-- BYOK: paste a provider key (Anthropic / Google / OpenAI). The key is encrypted at rest and
-  **never returned** — the UI shows only a `…abcd` hint and the provider. Removing it falls
-  back to the deployment's server key.
+---
 
-## 4. Dashboard
+## 4. Accessibility & Quality Bar
 
-- New research form: query textarea (10–2000 chars, live counter), depth selector
-  (fast / balanced / comprehensive with plain-language descriptions + cost hints),
-  submit → optimistic redirect to the session page.
-- Recent sessions (last 5): status badge, query preview, relative time, cost; click
-  through to session page. Empty state with a sample-query suggestion.
-
-## 5. Citations UX — the differentiator
-
-- Inline `[n]` markers rendered as small superscript chips.
-- Hover/tap a chip → popover: source title, domain, **the verbatim supporting
-  snippet**, and an "open source" link (`noopener noreferrer`).
-- Sources panel at the report foot: numbered list with title, domain, snippet,
-  retrieval timestamp.
-- A claim whose marker doesn't resolve renders a visible ⚠ "unverified" chip — surfacing
-  pipeline bugs instead of hiding them.
-
-## 6. Chat panel
-
-- Streamed assistant responses (fetch + reader with UTF-8-safe, boundary-safe SSE
-  parsing: `decode(value, {stream: true})`, buffer carry-over between reads —
-  the previous iteration corrupted emoji and dropped events at chunk boundaries).
-- State updates are immutable (replace-by-id, never mutate the last array element).
-- Message list: user right-aligned, assistant left with rendered markdown; input
-  disabled while streaming with a stop affordance; errors restore the input text.
-
-## 7. Quality bar
-
-- **Accessibility**: semantic landmarks, labels on all inputs, focus-visible
-  everywhere, `aria-live="polite"` on the log feed and chat stream, WCAG AA contrast
-  in both themes, full keyboard operability (approve/rework reachable by tab).
-- **Responsive**: desktop-first two-pane layouts collapse to stacked/tabbed panes
-  < 1024 px; the log feed and report remain readable at 375 px.
-- **Empty/loading/error triad**: every data surface defines all three states.
-- **No hand-rolled state machines for server data**: TanStack Query owns fetching,
-  caching, and invalidation; SSE handlers write into the query cache.
+- **Semantic Landmarks**: Strict `<main>`, `<nav>`, `<header>`, `<aside>`, `<section>` hierarchy with unique IDs and `aria-labelledby`.
+- **Keyboard Navigation**: Full keyboard focus visibility with high-contrast `--accent` outline ring.
+- **Live Regions**: `aria-live="polite"` on streaming activity feeds and chat messages.
+- **Contrast**: WCAG AA compliance across both light (`#FBFBFA`) and dark (`#121214`) palettes.
+- **Strict Testing**: Zero TypeScript compilation errors (`tsc --noEmit`), Vitest suite clean across all formatting, citation, SSE, and pipeline tests.

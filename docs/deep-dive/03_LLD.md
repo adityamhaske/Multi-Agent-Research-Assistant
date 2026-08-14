@@ -367,10 +367,11 @@ markdown → remark-gfm → HAST → custom rehype plugin walks text nodes,
 Operating on the tree (not a regex over the markdown string) is why `arr[2]` inside a code
 span never becomes a citation. No `rehype-raw`, CI-grep-guarded.
 
-**Design system:** every color is a CSS variable defined for both themes; CI greps for
-hardcoded hex, for `localStorage`/`sessionStorage`, and for `rehype-raw`/
-`dangerouslySetInnerHTML`. Light is default; the accent differs per theme because the
-brand terracotta fails AA on cream (see [02_HLD](02_HLD.md) and `globals.css` comments).
+**Design system:** Academic Research-Paper aesthetic. Every color is a CSS variable defined for
+both themes (paper backgrounds `#FBFBFA`/`#121214`, academic forest accent `#3F5E4D`/`#527A65`, strict hairline borders);
+CI greps for hardcoded hex, for `localStorage`/`sessionStorage`, and for `rehype-raw`/
+`dangerouslySetInnerHTML`. Strict 0px border radius is enforced globally, with square 8x8 status
+markers and academic typography hierarchy (serif headings, sans body, monospace telemetry).
 
 ---
 

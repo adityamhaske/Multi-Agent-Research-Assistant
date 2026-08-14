@@ -24,9 +24,10 @@ docs/
 | # | Document | Purpose |
 |---|----------|---------|
 | 01 | [Product Vision](product/01_Product_Vision.md) | What we are building, for whom, positioning, and what we are explicitly NOT building |
-| 07 | [UI/UX Guidelines](product/07_UIUX_Guidelines.md) | Design system, page specs, states, citations UX, accessibility |
+| 07 | [UI/UX Guidelines](product/07_UIUX_Guidelines.md) | Academic design system, typography architecture, color matrix, citations UX, accessibility |
 | 10 | [Roadmap](product/10_Roadmap.md) | Vertical-slice milestones with verifiable Definitions of Done |
-| 12 | [v2 Launch Plan](product/12_Launch_Plan.md) | **[PLANNED]** Local-first strategy, milestones M5–M14, budget, binding out-of-scope list |
+| 12 | [v2 Launch Plan](product/12_Launch_Plan.md) | Local-first strategy, milestones M5–M17, budget, binding out-of-scope list |
+| — | [Launch Go/No-Go](product/Launch_Go_No_Go.md) | Verification outcome and checklist for release readiness |
 
 ### Architecture (`architecture/`)
 
@@ -36,8 +37,8 @@ docs/
 | 03 | [Tech Stack](architecture/03_Tech_Stack.md) | Exact technologies, versions, and the justification for each |
 | 04 | [Agent Design](architecture/04_Agent_Design.md) | LangGraph graph, node contracts, prompts, tools, structured outputs, budgets |
 | 05 | [Data & API](architecture/05_Data_and_API.md) | Database schema, migration policy, REST + SSE contracts |
-| 13 | [Local-First Architecture](architecture/13_Local_First_Architecture.md) | **[PLANNED]** Engine extraction, ports/adapters, desktop packaging, offline tiers |
-| 14 | [Projects & Project Memory](architecture/14_Projects_and_Memory.md) | Project containers, project-scoped chat, retrieval over approved research (M16/M17) |
+| 13 | [Local-First Architecture](architecture/13_Local_First_Architecture.md) | Engine extraction, ports/adapters, desktop packaging, offline tiers |
+| 14 | [Projects & Project Memory](architecture/14_Projects_and_Memory.md) | Project containers, project-scoped chat, retrieval over approved research |
 
 ### Engineering (`engineering/`)
 
@@ -47,6 +48,23 @@ docs/
 | 08 | [Testing & Quality](engineering/08_Testing_and_Quality.md) | Test pyramid, golden E2E tests, evals, CI gates |
 | 09 | [Deployment & Operations](engineering/09_Deployment_and_Operations.md) | Docker, environments, migrations, observability, runbook |
 | 11 | [Engineering Standards](engineering/11_Engineering_Standards.md) | DOs/DON'Ts, code style, git conventions, review checklist |
+| 15 | [Bundle Format](engineering/15_Bundle_Format.md) | Self-contained `.bundle.json` SBOM schema, hashing rules, and standalone verifier |
+
+### Guides (`guides/`)
+
+| Document | Purpose |
+|----------|---------|
+| [Local LLM Setup](guides/Local_LLM_Setup.md) | Setup and configuration guide for running local models via Ollama and LM Studio |
+
+### Deep Dive (`deep-dive/`)
+
+| # | Document | Purpose |
+|---|----------|---------|
+| 00 | [Deep Dive Index](deep-dive/00_INDEX.md) | Overview of narrative explainers across different architectural altitudes |
+| 01 | [End-to-End System](deep-dive/01_End_to_End_System.md) | Comprehensive narrative walkthrough with principal-engineer review |
+| 02 | [High-Level Design (HLD)](deep-dive/02_HLD.md) | System boundaries, 5 critical flows, failure modes, NFRs |
+| 03 | [Low-Level Design (LLD)](deep-dive/03_LLD.md) | Module-by-module internals: graph nodes, auth, BYOK crypto, SSE, frontend |
+| 04 | [Interview Defense](deep-dive/04_Interview_Defense.md) | Hard architectural questions and production bug post-mortems |
 
 ## How to use these docs
 

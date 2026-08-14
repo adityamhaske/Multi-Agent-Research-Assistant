@@ -28,6 +28,10 @@ backend/research_engine/build/
 # Logs
 logs/
 *.log
+data/
+*.sqlite
+*.sqlite-*
 
 # Personal / not for publication
 docs/deep-dive/04_Interview_Defense.md
+
