@@ -455,6 +455,14 @@ export interface CorpusDocument {
   filename: string;
   chunks: number;
   created_at?: string;
+  size_bytes?: number | null;
+  /** False for documents ingested before originals were retained — no file to open. */
+  downloadable?: boolean;
+}
+
+/** Same-origin URL for the stored original (docs/06 §6 — never a hardcoded backend host). */
+export function corpusDownloadUrl(projectId: string, docId: string): string {
+  return `${apiBase()}/projects/${projectId}/corpus/documents/${docId}/download`;
 }
 
 export interface CorpusStatus {

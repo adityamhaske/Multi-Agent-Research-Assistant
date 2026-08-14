@@ -12,7 +12,7 @@ import uuid
 from pathlib import Path
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,6 +42,10 @@ class DocumentResponse(BaseModel):
     filename: str
     chunks: int
     created_at: str | None = None
+    size_bytes: int | None = None
+    # False for documents ingested before originals were retained. The UI keys its
+    # Open/Download affordance off this rather than assuming every row has a file.
+    downloadable: bool = False
 
 
 class CorpusStatusResponse(BaseModel):
@@ -99,9 +103,58 @@ async def list_documents(
             filename=d["filename"],
             chunks=d["chunk_count"],
             created_at=d["ingested_at"],
+            size_bytes=d.get("size_bytes"),
+            downloadable=d.get("downloadable", False),
         )
         for d in docs
     ]
+
+
+@router.get("/documents/{doc_id}/download")
+async def download_document(
+    project_id: uuid.UUID,
+    doc_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Serve the original uploaded file so it can be opened in its native application.
+
+    `resolve_project` runs first and is the authorization boundary: document ids are
+    opaque but guessable in principle, and without the project check any authenticated
+    user could read another user's corpus by id.
+
+    Content-Type is derived from the stored `kind` rather than echoed from the upload —
+    a client-supplied type is attacker-controlled, and reflecting it invites content
+    sniffing on a file another user uploaded. `Content-Disposition: attachment` for the
+    same reason: never render an uploaded document inline in this origin.
+    """
+    await resolve_project(db, current_user.id, project_id)
+
+    store = await _get_corpus_store(project_id)
+    found = await store.blob(doc_id)
+    if found is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No stored file for this document. Documents added before file "
+            "retention was enabled keep their searchable text but not the original.",
+        )
+    data, filename, kind = found
+    media_type = {
+        "pdf": "application/pdf",
+        "md": "text/markdown",
+        "txt": "text/plain",
+    }.get(kind, "application/octet-stream")
+    # Quote and strip the filename: it came from an upload, and a raw newline or quote
+    # here would let a crafted name inject extra response headers.
+    safe_name = filename.replace("\\", "_").replace('"', "_").replace("\n", "_").replace("\r", "_")
+    return Response(
+        content=data,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_name}"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.delete("/documents/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)

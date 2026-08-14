@@ -150,7 +150,12 @@ CREATE TABLE IF NOT EXISTS corpus_documents (
     text        TEXT NOT NULL,
     page_starts TEXT NOT NULL,
     chunk_count INTEGER NOT NULL DEFAULT 0,
-    ingested_at TEXT NOT NULL
+    ingested_at TEXT NOT NULL,
+    -- The original upload, verbatim. Extracted `text` is what the agents search; this is
+    -- what a human opens. Without it the UI could only offer "view extracted text", which
+    -- is not the same as opening your own PDF. Nullable on purpose: documents ingested
+    -- before this column existed keep working and simply cannot be downloaded.
+    blob        BLOB
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_corpus_doc_dedupe
     ON corpus_documents (filename, sha256);
@@ -199,6 +204,20 @@ class CorpusStore:
         self._embedder = embedder
         with self._connect() as conn:
             conn.executescript(_SCHEMA)
+            self._migrate(conn)
+
+    @staticmethod
+    def _migrate(conn: sqlite3.Connection) -> None:
+        """Bring an existing corpus file up to the current schema.
+
+        `CREATE TABLE IF NOT EXISTS` is a no-op on a database that already has the table,
+        so a new column never reaches corpora created before it existed. Each corpus is a
+        standalone SQLite file owned by one project, with no Alembic equivalent — this is
+        the migration seam for them. Additive and idempotent: check, then add.
+        """
+        have = {row[1] for row in conn.execute("PRAGMA table_info(corpus_documents)")}
+        if "blob" not in have:
+            conn.execute("ALTER TABLE corpus_documents ADD COLUMN blob BLOB")
 
     @property
     def embedder(self) -> Embeddings:
@@ -232,7 +251,16 @@ class CorpusStore:
             raise RuntimeError("Embedder returned vectors of inconsistent width.")
 
         await asyncio.to_thread(
-            self._write_sync, doc_id, filename, text, page_starts, kind, digest, chunks, vectors
+            self._write_sync,
+            doc_id,
+            filename,
+            text,
+            page_starts,
+            kind,
+            digest,
+            chunks,
+            vectors,
+            data,
         )
         logger.info(
             "corpus_ingested",
@@ -279,12 +307,13 @@ class CorpusStore:
         digest: str,
         chunks: list,
         vectors: list[list[float]],
+        blob: bytes | None = None,
     ) -> None:
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO corpus_documents "
-                "(id, filename, kind, sha256, text, page_starts, chunk_count, ingested_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "(id, filename, kind, sha256, text, page_starts, chunk_count, ingested_at, "
+                "blob) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     doc_id,
                     filename,
@@ -294,6 +323,7 @@ class CorpusStore:
                     json.dumps(page_starts),
                     len(chunks),
                     datetime.now(UTC).isoformat(),
+                    blob,
                 ),
             )
             conn.executemany(
@@ -458,7 +488,12 @@ class CorpusStore:
     def _documents_sync(self) -> list[dict]:
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT id, filename, kind, chunk_count, ingested_at FROM corpus_documents "
+                "SELECT id, filename, kind, chunk_count, ingested_at, "
+                # length() on a BLOB reads its size without loading the bytes, so listing
+                # a corpus of 25 MB PDFs stays cheap. `downloadable` is derived rather
+                # than assumed: documents ingested before the blob column existed have
+                # NULL here, and the UI must offer Open only where a file really exists.
+                "       length(blob) FROM corpus_documents "
                 "ORDER BY ingested_at"
             ).fetchall()
         return [
@@ -468,9 +503,29 @@ class CorpusStore:
                 "kind": row[2],
                 "chunk_count": row[3],
                 "ingested_at": row[4],
+                "size_bytes": row[5],
+                "downloadable": row[5] is not None,
             }
             for row in rows
         ]
+
+    async def blob(self, doc_id: str) -> tuple[bytes, str, str] | None:
+        """The original upload as `(bytes, filename, kind)`, or None.
+
+        None covers both "no such document" and "stored before originals were kept" —
+        the caller cannot serve a file in either case, and distinguishing them would only
+        leak whether an id exists.
+        """
+        return await asyncio.to_thread(self._blob_sync, doc_id)
+
+    def _blob_sync(self, doc_id: str) -> tuple[bytes, str, str] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT blob, filename, kind FROM corpus_documents WHERE id = ?", (doc_id,)
+            ).fetchone()
+        if row is None or row[0] is None:
+            return None
+        return bytes(row[0]), row[1], row[2]
 
     async def delete(self, doc_id: str) -> bool:
         return await asyncio.to_thread(self._delete_sync, doc_id)
