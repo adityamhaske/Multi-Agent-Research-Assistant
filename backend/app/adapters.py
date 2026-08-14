@@ -25,6 +25,7 @@ from app.config import settings
 from app.db.redis import publish_event
 from app.models.agent_log import AgentLog
 from research_engine.embeddings import EmbeddingsUnavailable, NoEmbeddings
+from research_engine.llm_factory import map_local_host
 from research_engine.ports import Embeddings, EventSink
 
 logger = structlog.get_logger()
@@ -140,7 +141,12 @@ class OllamaEmbeddings:
 
     def __init__(self, model: str, base_url: str) -> None:
         self._model = model
-        self._base_url = base_url.rstrip("/")
+        # Same localhost→host.docker.internal rewrite the chat models get. This adapter
+        # talks to Ollama with its own httpx client instead of going through
+        # `llm_factory`, so it never inherited the mapping and dialled the *container*
+        # for every embedding — breaking corpus upload and project-memory ingestion
+        # inside Docker while chat completions worked fine.
+        self._base_url = map_local_host(base_url.rstrip("/"))
 
     @property
     def model_id(self) -> str:

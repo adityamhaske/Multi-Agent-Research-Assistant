@@ -134,6 +134,13 @@ def run_config_from_env(*, fake: bool) -> RunConfig:
         provider_keys=keys,
         tavily_api_key=os.environ.get("TAVILY_API_KEY", ""),
         brave_api_key=os.environ.get("BRAVE_API_KEY", ""),
+        # Same policy as the server host (app/runtime.py): strict in production, relaxed
+        # otherwise. The field defaults to True, and nothing here used to set it — so the
+        # CLI and eval paths applied the *production* guard to a laptop, and the guard's
+        # port allowlist (80/443/8080/8443) rejected every local model proxy: Ollama on
+        # 11434, OmniRoute on 20128. The guard exists for agent-controlled fetches of
+        # untrusted web URLs, not for an endpoint the operator configured themselves.
+        enforce_ssrf_guards=os.environ.get("ENVIRONMENT", "development") == "production",
         # A laptop run reaches Ollama on localhost; the `.env` shipped for Docker points at
         # host.docker.internal, which does not resolve outside a container. Honouring the
         # variable here lets one file serve both without editing it per-context.

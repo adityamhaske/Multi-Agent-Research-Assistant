@@ -22,6 +22,7 @@ import structlog
 
 from app.config import settings
 from research_engine import catalog
+from research_engine.llm_factory import map_local_host
 
 logger = structlog.get_logger()
 
@@ -133,9 +134,19 @@ def _match_catalog_route(name: str) -> tuple[str | None, bool]:
 
 
 async def probe(base_url: str | None = None) -> LocalLLMStatus:
-    """Ask the configured Ollama server what it has. Never raises."""
+    """Ask the configured Ollama server what it has. Never raises.
+
+    `configured` is what the UI displays and what a native run actually uses; `dial_url`
+    is what this probe connects to. Inside Docker those must differ — `localhost` there is
+    the container, not the host running Ollama — and until this call they didn't: the
+    probe dialled the raw configured value and, on failure, told the user to retype it as
+    `host.docker.internal` by hand. `llm_factory.get_llm` already made that same
+    substitution automatically for the actual pipeline calls; the health check now agrees
+    with the thing it's supposed to be checking.
+    """
     configured = base_url or settings.ollama_base_url
-    url = f"{_api_root(configured)}/api/tags"
+    dial_url = map_local_host(configured)
+    url = f"{_api_root(dial_url)}/api/tags"
 
     try:
         async with httpx.AsyncClient(timeout=_PROBE_TIMEOUT_SECONDS) as client:
@@ -143,17 +154,16 @@ async def probe(base_url: str | None = None) -> LocalLLMStatus:
             response.raise_for_status()
             payload = response.json()
     except Exception as exc:  # noqa: BLE001 — every failure is "not reachable" to a user
-        logger.info("local_llm_probe_failed", url=url, error=str(exc))
+        logger.info("local_llm_probe_failed", configured=configured, dial_url=url, error=str(exc))
+        # The Docker/localhost rewrite already happened above, so a stale "retype the
+        # address as host.docker.internal" instruction here would tell the user to do by
+        # hand what the code just did for them and failed at anyway — worse than no hint.
         return LocalLLMStatus(
             configured_base_url=configured,
             reachable=False,
             error=str(exc),
-            hint=(
-                "No local model server answered at this address. Start Ollama with "
-                "`ollama serve`, then reload. If the app runs in Docker, the address "
-                "must be http://host.docker.internal:11434/v1 — inside a container, "
-                "localhost is the container itself."
-            ),
+            hint="No local model server answered at this address. Start Ollama with "
+            "`ollama serve`, then reload.",
         )
 
     models: list[LocalModel] = []

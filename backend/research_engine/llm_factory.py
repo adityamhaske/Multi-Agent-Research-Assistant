@@ -95,6 +95,39 @@ def sampling_supported(model: str) -> bool:
     return True if spec is None else spec.sampling_params_supported
 
 
+def map_local_host(base_url: str) -> str:
+    """Rewrite a localhost base URL to `host.docker.internal` when running in a container.
+
+    Inside Docker, `localhost` is the container itself, so a model server on the host is
+    unreachable under that name; outside Docker, `host.docker.internal` does not resolve
+    at all. Neither literal works in both places, so the right value depends on where the
+    process happens to run — which a single `.env` cannot express. Detecting the
+    container at call time lets one config value serve both.
+
+    Public (no leading underscore): `app/services/local_llm.py`'s health probe needs the
+    same mapping and previously duplicated none of it — it dialled the raw configured URL
+    and, inside Docker, told the user to fix it by hand instead of fixing it. One
+    implementation, reused, so the two paths cannot drift out of agreement again.
+    """
+    for prefix in (
+        "http://localhost:",
+        "http://127.0.0.1:",
+        "https://localhost:",
+        "https://127.0.0.1:",
+    ):
+        if base_url.startswith(prefix):
+            try:
+                import socket
+
+                socket.gethostbyname("host.docker.internal")
+            except Exception:
+                return base_url  # not in a container — localhost is already correct
+            return base_url.replace("localhost", "host.docker.internal", 1).replace(
+                "127.0.0.1", "host.docker.internal", 1
+            )
+    return base_url
+
+
 def _build(provider: str, model: str, role: str) -> BaseChatModel:
     cfg = _ROLE_CONFIG[role]
     key = api_key_for(provider)
@@ -160,7 +193,7 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
         return ChatOpenAI(
             model=model,
             api_key=key or "ollama",  # the client requires a non-empty value; unused
-            base_url=get_run_config().ollama_base_url,
+            base_url=map_local_host(get_run_config().ollama_base_url),
             max_tokens=cfg["max_tokens"],
             temperature=cfg["temperature"],
         )
@@ -177,25 +210,7 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
             except SSRFBlocked as e:
                 raise ValueError(f"Blocked by SSRF guard: {e}") from e
 
-        if base_url:
-            # Auto-map localhost/127.0.0.1 to host.docker.internal when inside Docker container
-            for prefix in (
-                "http://localhost:",
-                "http://127.0.0.1:",
-                "https://localhost:",
-                "https://127.0.0.1:",
-            ):
-                if base_url.startswith(prefix):
-                    try:
-                        import socket
-
-                        socket.gethostbyname("host.docker.internal")
-                        base_url = base_url.replace("localhost", "host.docker.internal", 1).replace(
-                            "127.0.0.1", "host.docker.internal", 1
-                        )
-                        break
-                    except Exception:
-                        pass
+        base_url = map_local_host(base_url) if base_url else base_url
 
         kwargs = {"model": model, "api_key": key or "custom", "max_tokens": cfg["max_tokens"]}
         if base_url:
