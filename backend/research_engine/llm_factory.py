@@ -98,8 +98,8 @@ def sampling_supported(model: str) -> bool:
 def _build(provider: str, model: str, role: str) -> BaseChatModel:
     cfg = _ROLE_CONFIG[role]
     key = api_key_for(provider)
-    # Ollama runs locally and needs no key; every hosted provider does.
-    if not key and provider != "ollama":
+    # Ollama and local custom endpoints run locally and can operate without a key.
+    if not key and provider not in ("ollama", "custom"):
         # Fail with an actionable message rather than a provider-side 401 buried
         # in a stack trace — this is what a BYOK user sees if they haven't added
         # a key and the deployment has none configured.
@@ -176,7 +176,19 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
             except SSRFBlocked as e:
                 raise ValueError(f"Blocked by SSRF guard: {e}") from e
 
-        kwargs = {"model": model, "api_key": key, "max_tokens": cfg["max_tokens"]}
+        if base_url:
+            # Auto-map localhost/127.0.0.1 to host.docker.internal when inside Docker container
+            for prefix in ("http://localhost:", "http://127.0.0.1:", "https://localhost:", "https://127.0.0.1:"):
+                if base_url.startswith(prefix):
+                    try:
+                        import socket
+                        socket.gethostbyname("host.docker.internal")
+                        base_url = base_url.replace("localhost", "host.docker.internal", 1).replace("127.0.0.1", "host.docker.internal", 1)
+                        break
+                    except Exception:
+                        pass
+
+        kwargs = {"model": model, "api_key": key or "custom", "max_tokens": cfg["max_tokens"]}
         if base_url:
             kwargs["base_url"] = base_url
         if sampling_supported(model):

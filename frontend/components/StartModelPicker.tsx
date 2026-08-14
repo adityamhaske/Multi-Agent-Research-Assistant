@@ -99,6 +99,11 @@ export function StartModelPicker({
       </div>
 
       {/* Step 2 — which model, scoped to the chosen source. */}
+      {source === "default" && (
+        <p className="mt-2 text-xs font-mono text-text-muted">
+          Using your configured provider and endpoint from Settings (Custom Endpoint / OmniRoute).
+        </p>
+      )}
       {source === "cloud" && (
         <div className="mt-2.5">
           {cloudModels.length === 0 ? (

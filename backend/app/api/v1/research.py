@@ -398,6 +398,37 @@ async def approve_or_rework(
     return {"message": "Approved. Finalizing." if payload.approved else "Rework requested."}
 
 
+@router.post("/{session_id}/cancel", response_model=SessionSummary)
+async def cancel_session(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    redis=Depends(get_redis),
+):
+    """Stop an in-progress research run."""
+    session = await _authorized_session(db, session_id, current_user.id)
+    if session.status not in (SessionStatus.RUNNING, SessionStatus.PENDING):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot stop a session with status {session.status}.",
+        )
+
+    session.status = SessionStatus.FAILED
+    session.error_message = "Research stopped by user."
+    await db.commit()
+    await db.refresh(session)
+
+    from app.db.redis import publish_event
+    await publish_event(
+        str(session_id),
+        {"type": "FAILED", "data": {"reason": "Research stopped by user."}},
+    )
+    await redis.set(f"session:{session_id}:cancelled", "1", ex=3600)
+
+    logger.info("research_stopped_by_user", session_id=str(session_id))
+    return SessionSummary.model_validate(session)
+
+
 @router.post("/{session_id}/archive", response_model=SessionSummary)
 async def archive_session(
     session_id: uuid.UUID,

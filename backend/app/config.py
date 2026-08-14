@@ -21,7 +21,7 @@ _PLACEHOLDER_SECRETS = {
 
 # Providers that run without an API key (local inference), so the production
 # key-presence check must not demand one for them.
-_KEYLESS_PROVIDERS = {"ollama"}
+_KEYLESS_PROVIDERS = {"ollama", "custom"}
 
 
 class Settings(BaseSettings):

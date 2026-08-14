@@ -132,7 +132,13 @@ def _acc(state: AgentState, cost: float, i: int, o: int) -> dict:
 
 async def planner_node(state: AgentState) -> dict:
     sid = state["session_id"]
-    await emit(sid, "agent_log", agent="planner", message="Decomposing the query into tasks…")
+    await emit(
+        sid,
+        "agent_log",
+        agent="planner",
+        message="Decomposing the query into tasks…",
+        detail={"query": state["original_query"], "depth": state.get("research_depth", "balanced")},
+    )
     messages = [
         SystemMessage(content=prompts.PLANNER_PROMPT_V2),
         HumanMessage(
@@ -179,7 +185,7 @@ async def planner_node(state: AgentState) -> dict:
         "agent_log",
         agent="planner",
         message=f"Created {len(tasks)} research tasks",
-        detail={"tasks": [t["query"] for t in tasks]},
+        detail={"tasks": tasks},
     )
     return {
         "tasks": tasks,
@@ -264,7 +270,11 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
         "agent_log",
         agent="executor",
         message=f"Researching: '{task['query']}'",
-        detail={"task_id": task["id"]},
+        detail={
+            "task_id": task["id"],
+            "query": task["query"],
+            "feedback": feedback,
+        },
     )
 
     model = get_llm("executor").bind_tools(EXECUTOR_TOOLS + [submit_evidence])
@@ -299,12 +309,17 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
                 try:
                     parsed = submit_evidence.model_validate(call["args"])
                     evidence = [e.model_dump() for e in parsed.evidence]
+                    thought_snippet = text_of(resp) if resp else ""
                     await emit(
                         sid,
                         "agent_log",
                         agent="executor",
-                        message="Submitted evidence",
-                        detail={"task_id": task["id"]},
+                        message=f"Submitted {len(evidence)} evidence item(s) for task {task['id']}",
+                        detail={
+                            "task_id": task["id"],
+                            "thought": thought_snippet[:2000] if thought_snippet else None,
+                            "evidence": evidence,
+                        },
                     )
                     is_done = True
                     break
@@ -324,12 +339,27 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
                 )
             except Exception as e:  # noqa: BLE001
                 observation = f"tool error: {e}"
+
+            # Extract thought or query details
+            tool_args = call.get("args") or {}
+            search_query = tool_args.get("query") or tool_args.get("url") or ""
+            thought_snippet = text_of(resp) if resp else ""
+            
+            detail_payload = {
+                "task_id": task["id"],
+                "tool": call["name"],
+                "args": tool_args,
+                "thought": thought_snippet[:2000] if thought_snippet else None,
+                "observation": str(observation)[:4000] if observation else None,
+            }
+
+            msg_suffix = f": \"{search_query}\"" if search_query else ""
             await emit(
                 sid,
                 "agent_log",
                 agent="executor",
-                message=f"Used {call['name']}",
-                detail={"task_id": task["id"]},
+                message=f"Used {call['name']}{msg_suffix}",
+                detail=detail_payload,
             )
             messages.append(
                 ToolMessage(content=json.dumps(observation, default=str), tool_call_id=call["id"])
@@ -345,7 +375,11 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
         "agent_log",
         agent="executor",
         message=f"Gathered {len(evidence)} source(s) for task {task['id']}",
-        detail={"task_id": task["id"], "source_count": len(evidence)},
+        detail={
+            "task_id": task["id"],
+            "source_count": len(evidence),
+            "evidence": evidence,
+        },
     )
     return {"evidence": evidence, "cost": cost, "in": i_tot, "out": o_tot}
 
@@ -896,6 +930,11 @@ async def synthesizer_node(state: AgentState) -> dict:
         "agent_log",
         agent="synthesizer",
         message=f"Draft compiled ({len(draft.split())} words, {len(sources)} sources)",
+        detail={
+            "word_count": len(draft.split()),
+            "sources_count": len(sources),
+            "preview": draft[:1200] + ("..." if len(draft) > 1200 else ""),
+        },
     )
     return {
         "draft_report": draft,

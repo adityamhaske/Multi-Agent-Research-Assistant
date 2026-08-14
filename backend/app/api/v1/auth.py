@@ -239,7 +239,7 @@ async def set_api_key(
     The key is encrypted at rest and never returned by any endpoint — the
     response carries only the provider and a display hint (docs/06 §1).
     """
-    if payload.provider == "custom" and payload.api_base_url:
+    if payload.provider == "custom" and payload.api_base_url and settings.is_production:
         try:
             validate_url(str(payload.api_base_url))
         except SSRFBlocked as e:

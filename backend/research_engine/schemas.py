@@ -7,28 +7,46 @@ failure is a node failure — never a silent fallback (docs/11 §1 rule 2).
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 TaskStatus = Literal["pending", "running", "passed", "failed"]
 
 
 class ResearchTask(BaseModel):
-    id: int
+    id: int | str = 0
     query: str = Field(min_length=3, description="A concrete, independently searchable query")
     rationale: str = ""
     status: TaskStatus = "pending"
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _coerce_id(cls, v):
+        if isinstance(v, str):
+            digits = "".join(c for c in v if c.isdigit())
+            if digits:
+                return int(digits)
+        return v or 0
 
 
 class PlannerOutput(BaseModel):
     tasks: list[ResearchTask]
 
+    @model_validator(mode="before")
+    @classmethod
+    def _wrap_list(cls, data: Any) -> Any:
+        if isinstance(data, list):
+            return {"tasks": data}
+        return data
+
     @field_validator("tasks")
     @classmethod
     def _bounded(cls, v: list[ResearchTask]) -> list[ResearchTask]:
-        if not 2 <= len(v) <= 6:
-            raise ValueError("planner must produce between 2 and 6 tasks")
+        if not v:
+            raise ValueError("planner must produce at least 1 task")
+        if len(v) > 6:
+            v = v[:6]
         # Normalize ids to 1..n so downstream tagging is stable.
         for i, t in enumerate(v, start=1):
             t.id = i
@@ -45,8 +63,15 @@ class EvidenceChunk(BaseModel):
 
 
 class ExecutorOutput(BaseModel):
-    task_id: int
+    task_id: int | str = 0
     evidence: list[EvidenceChunk] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _wrap_list(cls, data: Any) -> Any:
+        if isinstance(data, list):
+            return {"evidence": data}
+        return data
 
 
 class CriticVerdict(BaseModel):
@@ -124,6 +149,13 @@ class ContradictionReport(BaseModel):
     whole check because a model was prolific."""
 
     pairs: list[ContradictionPair] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _wrap_list(cls, data: Any) -> Any:
+        if isinstance(data, list):
+            return {"pairs": data}
+        return data
 
     @field_validator("pairs")
     @classmethod

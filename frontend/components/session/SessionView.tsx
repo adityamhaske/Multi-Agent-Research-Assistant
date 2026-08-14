@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 
+import toast from "react-hot-toast";
+
 import { RelativeTime } from "@/components/RelativeTime";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ApprovalGate } from "@/components/session/ApprovalGate";
@@ -10,7 +12,7 @@ import { LiveFeed } from "@/components/session/LiveFeed";
 import { PipelineRail } from "@/components/session/PipelineRail";
 import { ReportView } from "@/components/session/ReportView";
 import { StatusBar } from "@/components/session/StatusBar";
-import { useSession } from "@/hooks/queries";
+import { useCancelSession, useSession } from "@/hooks/queries";
 import { useSessionStream } from "@/hooks/useSessionStream";
 import { ApiError } from "@/lib/api";
 
@@ -25,6 +27,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   // fast path for live events, polling is the safety net for state transitions. The page
   // used to hang on the monitor forever if the terminal event was ever missed.
   const sessionQuery = useSession(sessionId);
+  const cancelSession = useCancelSession();
   const session = sessionQuery.data;
   const status = session?.status;
 
@@ -32,6 +35,15 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   // (optimistically), which re-enables this and re-subscribes through the same path.
   const streamEnabled = status === "PENDING" || status === "RUNNING";
   const stream = useSessionStream(sessionId, streamEnabled);
+
+  const handleStop = async () => {
+    try {
+      await cancelSession.mutateAsync(sessionId);
+      toast.success("Research stopped.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not stop research.");
+    }
+  };
 
   if (sessionQuery.isLoading) {
     return (
@@ -73,9 +85,25 @@ export function SessionView({ sessionId }: { sessionId: string }) {
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <h1 className="max-w-3xl font-serif text-xl font-bold tracking-tight text-text-primary">{session.prompt}</h1>
-          <div className="flex items-center gap-3 whitespace-nowrap">
+          <div className="flex items-center gap-2.5 whitespace-nowrap">
             <StatusBadge status={session.status} />
-            <span className="font-mono text-xs text-text-muted">
+            {(status === "PENDING" || status === "RUNNING") && (
+              <button
+                type="button"
+                onClick={handleStop}
+                disabled={cancelSession.isPending}
+                className="badge font-mono text-[0.6875rem] font-semibold uppercase tracking-wider text-danger border-danger/40 bg-danger/10 hover:bg-danger/20 hover:border-danger transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Stop current research run"
+              >
+                {cancelSession.isPending ? (
+                  <span className="spinner" style={{ width: 8, height: 8 }} />
+                ) : (
+                  <span className="status-marker" style={{ backgroundColor: "var(--danger)" }} />
+                )}
+                Stop research
+              </button>
+            )}
+            <span className="font-mono text-xs text-text-muted ml-1">
               <RelativeTime iso={session.created_at} />
             </span>
           </div>

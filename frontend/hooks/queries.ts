@@ -274,6 +274,18 @@ export function useDeleteSession() {
   });
 }
 
+export function useCancelSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<SessionSummary>(`/research/${id}/cancel`, { method: "POST" }),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: queryKeys.session(id) });
+      qc.invalidateQueries({ queryKey: ["sessions"] });
+    },
+  });
+}
+
 export function useSession(id: string) {
   return useQuery({
     queryKey: queryKeys.session(id),
