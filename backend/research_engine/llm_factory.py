@@ -170,7 +170,8 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
 
         base_url = api_key_for("custom_base_url")
         if get_run_config().enforce_ssrf_guards and base_url:
-            from research_engine.net_guard import validate_url, SSRFBlocked
+            from research_engine.net_guard import SSRFBlocked, validate_url
+
             try:
                 validate_url(base_url)
             except SSRFBlocked as e:
@@ -178,12 +179,20 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
 
         if base_url:
             # Auto-map localhost/127.0.0.1 to host.docker.internal when inside Docker container
-            for prefix in ("http://localhost:", "http://127.0.0.1:", "https://localhost:", "https://127.0.0.1:"):
+            for prefix in (
+                "http://localhost:",
+                "http://127.0.0.1:",
+                "https://localhost:",
+                "https://127.0.0.1:",
+            ):
                 if base_url.startswith(prefix):
                     try:
                         import socket
+
                         socket.gethostbyname("host.docker.internal")
-                        base_url = base_url.replace("localhost", "host.docker.internal", 1).replace("127.0.0.1", "host.docker.internal", 1)
+                        base_url = base_url.replace("localhost", "host.docker.internal", 1).replace(
+                            "127.0.0.1", "host.docker.internal", 1
+                        )
                         break
                     except Exception:
                         pass

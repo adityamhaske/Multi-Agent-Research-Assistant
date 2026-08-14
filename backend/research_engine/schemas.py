@@ -134,13 +134,33 @@ class ContradictionPair(BaseModel):
     the evidence, so a hallucinated or injected source can never reach the report.
     """
 
-    claim_a: str = Field(max_length=400, description="One-sentence restatement of the first side of the conflict, in your own words")
-    snippet_a: str = Field("", max_length=500, description="The VERBATIM quoted snippet text from the source that supports claim_a — copy it exactly as shown between the quotation marks, never a URL")
-    source_a: str = Field(description="The source URL for claim_a — copy the bare URL exactly as it appears after 'Source:' with no prefix, no 'Source:' label, no extra text")
-    claim_b: str = Field(max_length=400, description="One-sentence restatement of the second side of the conflict, in your own words")
-    snippet_b: str = Field("", max_length=500, description="The VERBATIM quoted snippet text from the source that supports claim_b — copy it exactly as shown between the quotation marks, never a URL")
-    source_b: str = Field(description="The source URL for claim_b — copy the bare URL exactly as it appears after 'Source:' with no prefix, no 'Source:' label, no extra text")
-    nature: str = Field("", max_length=400, description="One sentence: why they cannot both be true")
+    claim_a: str = Field(
+        max_length=400,
+        description="One-sentence restatement of the first side of the conflict, in your own words",
+    )
+    snippet_a: str = Field(
+        "",
+        max_length=500,
+        description="The VERBATIM quoted snippet text from the source that supports claim_a — copy it exactly as shown between the quotation marks, never a URL",
+    )
+    source_a: str = Field(
+        description="The source URL for claim_a — copy the bare URL exactly as it appears after 'Source:' with no prefix, no 'Source:' label, no extra text"
+    )
+    claim_b: str = Field(
+        max_length=400,
+        description="One-sentence restatement of the second side of the conflict, in your own words",
+    )
+    snippet_b: str = Field(
+        "",
+        max_length=500,
+        description="The VERBATIM quoted snippet text from the source that supports claim_b — copy it exactly as shown between the quotation marks, never a URL",
+    )
+    source_b: str = Field(
+        description="The source URL for claim_b — copy the bare URL exactly as it appears after 'Source:' with no prefix, no 'Source:' label, no extra text"
+    )
+    nature: str = Field(
+        "", max_length=400, description="One sentence: why they cannot both be true"
+    )
 
 
 class ContradictionReport(BaseModel):

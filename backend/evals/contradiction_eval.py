@@ -97,9 +97,7 @@ async def main() -> None:
         else None
     )
     fp_rate = (
-        round(sum(r["detected"] for r in consistent) / len(consistent), 4)
-        if consistent
-        else None
+        round(sum(r["detected"] for r in consistent) / len(consistent), 4) if consistent else None
     )
     summary = {
         "metric": "contradiction_detection",

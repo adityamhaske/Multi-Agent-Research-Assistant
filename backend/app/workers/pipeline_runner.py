@@ -67,6 +67,8 @@ async def _user_provider_keys(db, user_id: str) -> dict[str, str]:
     if user.api_key_base_url:
         keys[f"{user.api_key_provider}_base_url"] = user.api_key_base_url
     return keys
+
+
 async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
     """The engine config for this run, with model routing resolved and snapshotted.
 
@@ -132,16 +134,23 @@ async def _execute(
                 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
                 if session.corpus_mode:
-                    from research_engine.corpus import CorpusStore
                     from pathlib import Path
+
+                    from research_engine.corpus import CorpusStore
 
                     embedder = await adapters.embeddings_for(ports["provider_keys"])
                     # Egress guard: require local embedder for airgapped mode
-                    if not (embedder.model_id.startswith("ollama:") or embedder.model_id.startswith("local:")):
+                    if not (
+                        embedder.model_id.startswith("ollama:")
+                        or embedder.model_id.startswith("local:")
+                    ):
                         session.status = SessionStatus.FAILED
                         session.error_message = f"Corpus mode requires a local embedder (Ollama), but got {embedder.model_id}."
                         await db.commit()
-                        await sink(session_id, events.make_event("FAILED", data={"reason": session.error_message}))
+                        await sink(
+                            session_id,
+                            events.make_event("FAILED", data={"reason": session.error_message}),
+                        )
                         return
 
                     db_path = Path(settings.corpus_dir) / f"corpus_{session.project_id}.sqlite"
@@ -149,9 +158,12 @@ async def _execute(
                         session.status = SessionStatus.FAILED
                         session.error_message = f"Corpus database not found for project {session.project_id}. Ingest documents first."
                         await db.commit()
-                        await sink(session_id, events.make_event("FAILED", data={"reason": session.error_message}))
+                        await sink(
+                            session_id,
+                            events.make_event("FAILED", data={"reason": session.error_message}),
+                        )
                         return
-                    
+
                     ports["corpus"] = CorpusStore(db_path, embedder)
 
                 async with AsyncPostgresSaver.from_conn_string(_checkpointer_dsn()) as saver:

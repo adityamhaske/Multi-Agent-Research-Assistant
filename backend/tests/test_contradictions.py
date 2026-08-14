@@ -56,7 +56,12 @@ def _pair(**over) -> ContradictionPair:
 def test_grouping_preserves_order_dedupes_and_caps():
     evidence = list(EVIDENCE) + [
         # duplicate snippet — dropped
-        {"task_id": 1, "source_url": URL_A, "source_title": "A", "snippet": "the output was 42 units"},
+        {
+            "task_id": 1,
+            "source_url": URL_A,
+            "source_title": "A",
+            "snippet": "the output was 42 units",
+        },
         # blank url/snippet — dropped
         {"task_id": 1, "source_url": "", "source_title": "X", "snippet": "no home"},
         {"task_id": 1, "source_url": URL_B, "source_title": "B", "snippet": "   "},
@@ -69,9 +74,15 @@ def test_grouping_preserves_order_dedupes_and_caps():
     # Caps: 4 snippets per source, 12 sources total. URL_A goes first so it survives
     # the source cap; its 9 snippets still shrink to the per-source cap.
     many = [
-        {"task_id": 1, "source_url": URL_A, "source_title": "A", "snippet": f"n{j}"} for j in range(9)
+        {"task_id": 1, "source_url": URL_A, "source_title": "A", "snippet": f"n{j}"}
+        for j in range(9)
     ] + [
-        {"task_id": 1, "source_url": f"https://example.org/{i}", "source_title": "", "snippet": f"s{i}"}
+        {
+            "task_id": 1,
+            "source_url": f"https://example.org/{i}",
+            "source_title": "",
+            "snippet": f"s{i}",
+        }
         for i in range(20)
     ]
     capped = contradictions.group_snippets_by_source(many)
@@ -111,8 +122,10 @@ def test_normalize_swaps_url_in_snippet_to_source():
     """deepseek-r1 puts the URL in snippet and text in source — swap them."""
     known = {URL_A, URL_B}
     pair = _pair(
-        snippet_a=URL_A, source_a="the output was 42 units",
-        snippet_b=URL_B, source_b="the output was 17 units",
+        snippet_a=URL_A,
+        source_a="the output was 42 units",
+        snippet_b=URL_B,
+        source_b="the output was 17 units",
     )
     [fixed] = contradictions.normalize_pairs([pair], known)
     assert fixed.source_a == URL_A

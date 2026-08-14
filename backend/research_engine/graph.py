@@ -344,7 +344,7 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
             tool_args = call.get("args") or {}
             search_query = tool_args.get("query") or tool_args.get("url") or ""
             thought_snippet = text_of(resp) if resp else ""
-            
+
             detail_payload = {
                 "task_id": task["id"],
                 "tool": call["name"],
@@ -353,7 +353,7 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
                 "observation": str(observation)[:4000] if observation else None,
             }
 
-            msg_suffix = f": \"{search_query}\"" if search_query else ""
+            msg_suffix = f': "{search_query}"' if search_query else ""
             await emit(
                 sid,
                 "agent_log",
@@ -779,7 +779,9 @@ async def contradiction_detector_node(state: AgentState) -> dict:
         "agent_log",
         agent="contradiction_detector",
         message=(
-            f"Found {len(found)} conflicting claim pair(s)" if found else "No conflicting claims found"
+            f"Found {len(found)} conflicting claim pair(s)"
+            if found
+            else "No conflicting claims found"
         ),
     )
     return {"contradictions": found, **_acc(state, cost, i, o)}

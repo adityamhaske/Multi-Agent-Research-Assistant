@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, field_validator, AnyHttpUrl
+from pydantic import AnyHttpUrl, BaseModel, EmailStr, Field, field_validator
 
 from app.services.passwords import MIN_LENGTH
 

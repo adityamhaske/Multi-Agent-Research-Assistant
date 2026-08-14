@@ -97,7 +97,7 @@ def normalize_pairs(
             # Strip "Source: " prefix (case-insensitive).
             src = d[src_key].strip()
             if src.lower().startswith("source:"):
-                src = src[len("source:"):].strip()
+                src = src[len("source:") :].strip()
             d[src_key] = src
             # If source is not a known URL but snippet is, swap them.
             if d[src_key] not in known_urls and d[snip_key].strip() in known_urls:
@@ -106,9 +106,7 @@ def normalize_pairs(
     return out
 
 
-def validate_pairs(
-    pairs: list[ContradictionPair], by_source: dict[str, list[str]]
-) -> list[dict]:
+def validate_pairs(pairs: list[ContradictionPair], by_source: dict[str, list[str]]) -> list[dict]:
     """Detector output → report-ready dicts, with everything untrustworthy dropped.
 
     - Both URLs must be sources the detector was actually shown (no hallucinated or

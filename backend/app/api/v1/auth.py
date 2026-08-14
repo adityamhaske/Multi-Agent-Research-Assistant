@@ -31,7 +31,7 @@ from app.schemas.auth import (
 )
 from app.services import auth_service, crypto, rate_limit, tokens, usage
 from app.services.passwords import WeakPassword, hash_password, verify_password
-from research_engine.net_guard import validate_url, SSRFBlocked
+from research_engine.net_guard import SSRFBlocked, validate_url
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/auth", tags=["Authentication"])

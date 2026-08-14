@@ -144,14 +144,14 @@ def test_openrouter_and_custom_providers_bypass_pricing_validation():
     cfg = RunConfig(
         llm_mode="real",
         models={r: "custom:anything-here" for r in ROLES},
-        provider_keys={"custom": "sk-test"}
+        provider_keys={"custom": "sk-test"},
     )
     llm_factory.validate_pricing(cfg)  # must not raise
 
     cfg = RunConfig(
         llm_mode="real",
         models={r: "openrouter:some/model" for r in ROLES},
-        provider_keys={"openrouter": "sk-test"}
+        provider_keys={"openrouter": "sk-test"},
     )
     llm_factory.validate_pricing(cfg)  # must not raise
 

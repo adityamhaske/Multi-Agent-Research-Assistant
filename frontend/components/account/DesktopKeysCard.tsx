@@ -198,7 +198,7 @@ export function DesktopKeysCard() {
               </span>
             </div>
             <div className="mt-0.5 font-mono text-xs text-text-muted mb-2">
-              Used when selecting a "custom:..." model route.
+              Used when selecting a &quot;custom:...&quot; model route.
             </div>
             <div className="flex items-center gap-2">
               <input

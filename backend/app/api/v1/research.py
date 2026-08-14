@@ -419,6 +419,7 @@ async def cancel_session(
     await db.refresh(session)
 
     from app.db.redis import publish_event
+
     await publish_event(
         str(session_id),
         {"type": "FAILED", "data": {"reason": "Research stopped by user."}},

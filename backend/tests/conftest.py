@@ -20,7 +20,7 @@ os.environ.setdefault("JWT_SECRET_KEY", "test-secret-" + "a" * 32)
 # Ollama route priced at $0 would break the cost-accounting assertions). Priced
 # catalog models keep fake-mode cost estimates deterministic and non-zero.
 for _role in ("PLANNER", "EXECUTOR", "CRITIC", "SYNTHESIZER", "CHAT"):
-    os.environ.setdefault(f"MODEL_{_role}", "google:gemini-2.5-flash")
+    os.environ[f"MODEL_{_role}"] = "google:gemini-2.5-flash"
 
 # `research_engine` no longer reads `app.config` (docs/13 §2), so the engine's config must be
 # installed by a host. Tests are a host: without this, the graph would run in real mode.

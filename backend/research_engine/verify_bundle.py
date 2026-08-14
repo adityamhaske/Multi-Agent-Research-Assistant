@@ -38,9 +38,7 @@ from research_engine.bundle import (
 # Minimal citation regex — duplicated from evals.metrics to keep this module
 # dependency-free from the eval harness. Same pattern, same semantics.
 _CITE_RE = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
-_SOURCES_HEADING_RE = re.compile(
-    r"^#{1,6}\s*(sources|references|citations|bibliography)\b", re.I
-)
+_SOURCES_HEADING_RE = re.compile(r"^#{1,6}\s*(sources|references|citations|bibliography)\b", re.I)
 
 
 # ── Result types ──────────────────────────────────────────────────────────────────
@@ -138,10 +136,12 @@ def _check_claim_evidence_linkage(bundle: BundleManifest) -> CheckResult:
     for claim in bundle.claims:
         for idx in claim.citation_indices:
             if idx not in source_indices:
-                gaps.append(f'  claim cites [{idx}] which has no source entry: "{claim.sentence[:60]}…"')
+                gaps.append(
+                    f'  claim cites [{idx}] which has no source entry: "{claim.sentence[:60]}…"'
+                )
             elif urls_by_index.get(idx, "") not in evidence_urls:
                 gaps.append(
-                    f'  claim cites [{idx}] ({urls_by_index.get(idx, "?")}) '
+                    f"  claim cites [{idx}] ({urls_by_index.get(idx, '?')}) "
                     f"which has no evidence snippet"
                 )
     if not gaps:
@@ -211,8 +211,7 @@ def verify(bundle: BundleManifest) -> VerifyResult:
     notes: list[str] = []
     if not bundle.trace_available:
         notes.append(
-            "Trace unavailable: this bundle was produced by a host "
-            "without durable event logging."
+            "Trace unavailable: this bundle was produced by a host without durable event logging."
         )
     elif not bundle.trace:
         notes.append("Trace is empty (no agent events recorded for this session).")

@@ -215,6 +215,4 @@ def assemble(
 
 def serialize(bundle: BundleManifest) -> str:
     """Canonical JSON for storage/export — readable, deterministic key order."""
-    return json.dumps(
-        bundle.model_dump(), sort_keys=True, indent=2, ensure_ascii=False
-    ) + "\n"
+    return json.dumps(bundle.model_dump(), sort_keys=True, indent=2, ensure_ascii=False) + "\n"

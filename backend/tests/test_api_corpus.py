@@ -70,7 +70,7 @@ async def auth_client(user: User, monkeypatch):
 
     async def _mock_embeddings_for(*args, **kwargs):
         return StubEmbeddings()
-        
+
     monkeypatch.setattr("app.api.v1.corpus.embeddings_for", _mock_embeddings_for)
 
     app.dependency_overrides[get_current_user] = lambda: user

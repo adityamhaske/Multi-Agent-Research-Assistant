@@ -98,7 +98,19 @@ def test_local_config_reads_env(monkeypatch):
 
 
 def test_local_config_without_any_key_says_what_to_do(monkeypatch):
-    for env in ("GOOGLE_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"):
+    for env in (
+        "GOOGLE_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY",
+        "OPENROUTER_API_KEY",
+        "CUSTOM_API_KEY",
+        "CUSTOM_BASE_URL",
+        "MODEL_PLANNER",
+        "MODEL_EXECUTOR",
+        "MODEL_CRITIC",
+        "MODEL_SYNTHESIZER",
+        "MODEL_CHAT",
+    ):
         monkeypatch.delenv(env, raising=False)
 
     with pytest.raises(SystemExit) as excinfo:

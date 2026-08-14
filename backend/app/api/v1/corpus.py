@@ -61,17 +61,13 @@ async def upload_document(
     """Ingest a new document into the project's corpus."""
     # Enforce isolation: verify the user owns the project
     await resolve_project(db, current_user.id, project_id)
-    
+
     if not file.filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="No filename provided"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No filename provided")
 
     data = await file.read()
     if not data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file")
 
     store = await _get_corpus_store(project_id)
     try:
@@ -83,9 +79,7 @@ async def upload_document(
         )
     except ValueError as e:
         # e.g., unsupported extension
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 @router.get("/documents", response_model=list[DocumentResponse])
@@ -96,7 +90,7 @@ async def list_documents(
 ):
     """List all documents in the project's corpus."""
     await resolve_project(db, current_user.id, project_id)
-    
+
     store = await _get_corpus_store(project_id)
     docs = await store.documents()
     return [
@@ -119,13 +113,11 @@ async def delete_document(
 ):
     """Delete a document from the project's corpus."""
     await resolve_project(db, current_user.id, project_id)
-    
+
     store = await _get_corpus_store(project_id)
     deleted = await store.delete(doc_id)
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
 
 @router.get("/status", response_model=CorpusStatusResponse)
@@ -136,7 +128,7 @@ async def get_status(
 ):
     """Get the status of the project's corpus."""
     await resolve_project(db, current_user.id, project_id)
-    
+
     store = await _get_corpus_store(project_id)
     stat = await store.status()
     stat["chunks"] = sum(stat["chunks_by_model"].values())

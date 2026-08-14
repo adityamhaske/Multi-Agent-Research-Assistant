@@ -59,8 +59,18 @@ _EVIDENCE = [
 ]
 
 _SOURCES = [
-    {"index": 1, "url": "https://example.org/ev-market", "title": "EV Market Report", "snippet": ""},
-    {"index": 2, "url": "https://example.org/solar-growth", "title": "Solar Growth Report", "snippet": ""},
+    {
+        "index": 1,
+        "url": "https://example.org/ev-market",
+        "title": "EV Market Report",
+        "snippet": "",
+    },
+    {
+        "index": 2,
+        "url": "https://example.org/solar-growth",
+        "title": "Solar Growth Report",
+        "snippet": "",
+    },
 ]
 
 _APPROVAL = [
