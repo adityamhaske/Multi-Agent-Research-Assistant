@@ -426,6 +426,8 @@ exactly the old behaviour.
 
 ✅ **Code complete.** Per [13_Local_First_Architecture.md](../architecture/13_Local_First_Architecture.md) §6.
 
+*Security Note: Custom endpoints shipped unguarded on July 31 (`a852659`). The SSRF guard for these endpoints was added 13 days later on Aug 13 (`67077f2`). The stack was run with `LLM_MODE=real` during development/testing in this window, meaning unguarded custom egress was live in the codebase. A check of local database state found no record of custom endpoints in user or session records; external access logs for ephemeral environments from that period are not retained.*
+
 - ✅ **The Opus 5 bug is fixed, and structurally.** `claude-opus-5` was absent from both
   `PRICE_TABLE` and the `_ANTHROPIC_NO_SAMPLING` prefix tuple, so selecting it failed
   twice over: `validate_pricing()` refused to boot, and had it booted every request would
@@ -468,15 +470,15 @@ finished report stays attributable to what wrote it.
 
 ## M9 — Desktop app  *(≈ 4 weeks)*
 
-☐ Per [13_Local_First_Architecture.md](../architecture/13_Local_First_Architecture.md) §7.
+✅ **Code complete.** (`239fe50`) Per [13_Local_First_Architecture.md](../architecture/13_Local_First_Architecture.md) §7.
 
-- Tauri shell + PyInstaller Python sidecar; frontend as static export
-- **Sidecar bound to `127.0.0.1` on an ephemeral port with a per-launch bearer token**
+- ✅ Tauri shell + PyInstaller Python sidecar; frontend as static export
+- ✅ **Sidecar bound to `127.0.0.1` on an ephemeral port with a per-launch bearer token**
   (not optional — see §7 of the architecture doc)
-- No-login local mode; SQLite storage; keys in the OS keychain
-- Signed and notarized for macOS and Windows; AppImage + `.deb` for Linux
-- Auto-update against GitHub Releases
-- Desktop PDF via WebView print; WeasyPrint excluded from the bundle
+- ✅ No-login local mode; SQLite storage; keys in the OS keychain
+- ✅ Signed and notarized for macOS and Windows; AppImage + `.deb` for Linux
+- ✅ Auto-update against GitHub Releases
+- ✅ Desktop PDF via WebView print; WeasyPrint excluded from the bundle
 
 **DoD:** a fresh non-developer machine on each of the three OSes installs from a released
 artifact, runs a research session with a pasted key, hits the gate, approves, and exports —
@@ -486,12 +488,12 @@ localhost request.
 
 ## M10 — Airgapped corpus mode  *(≈ 2 weeks)*  ← **LAUNCH HERE**
 
-☐ Offline tier 3. Promotes v2 item #1 from [10_Roadmap.md](10_Roadmap.md) to headline.
+✅ **Code complete.** (`ad999c1`) Promotes v2 item #1 from [10_Roadmap.md](10_Roadmap.md) to headline.
 
-- Document ingest (PDF/MD/TXT) → chunk → bundled local embeddings → SQLite vector store
-- A retrieval connector shaped like `retrievers.search()`; **the graph does not change**
-- Corpus-only mode: no network calls at all, verified by test
-- Citation snippets resolve to exact document locations (page/offset)
+- ✅ Document ingest (PDF/MD/TXT) → chunk → bundled local embeddings → SQLite vector store
+- ✅ A retrieval connector shaped like `retrievers.search()`; **the graph does not change**
+- ✅ Corpus-only mode: no network calls at all, verified by test
+- ✅ Citation snippets resolve to exact document locations (page/offset)
 
 **DoD:** with networking disabled at the OS level, a local-model run over a user corpus
 produces a cited report whose every `[n]` resolves to an exact document location · a
@@ -534,14 +536,11 @@ bundle fails verification with a specific, human-readable reason.
 
 ## M13 — Public citation-fidelity benchmark  *(≈ 2 weeks)*
 
-☐ Whoever defines the measurement defines the category — and we already have the harness
-nobody else bothered to build.
+☐ A public, reproducible benchmark scoring our pipeline and one open-source comparable.
 
-- Extend `backend/evals/` into a published benchmark: fixed public query set, documented
-  metrics, **published failure cases**
-- Score comparable tools alongside ours; publish methodology and raw outputs
-- Write it up: *"We measured citation fidelity across N deep-research tools — here's the
-  data and the harness."*
+- Run our pipeline against the fixed 10-query eval set and record real numbers (cost, time, citation fidelity).
+- Run **one** open-source comparable (GPT-Researcher) against the same set. This ensures the benchmark remains reproducible without drifting API behavior or changing pricing tiers.
+- Explicitly state in the methodology doc why closed competitors (Perplexity Pro, ChatGPT Deep Research, Gemini Deep Research) are excluded from v1 (rate limits, opaque behavior changes, cost), leaving room to add them later.
 
 **DoD:** benchmark repo/section is reproducible by a third party from documented steps ·
 our own failure cases are published, not just wins · results are dated and versioned
