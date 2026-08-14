@@ -33,7 +33,15 @@ _PROVIDER_ENV = {
     "google": "GOOGLE_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
     "openai": "OPENAI_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+    "custom": "CUSTOM_API_KEY",
 }
+
+# Local inference (Ollama) and self-hosted OpenAI-compatible endpoints (custom)
+# authenticate with nothing, or with a token the endpoint itself defines. Routing to
+# them must not demand a hosted-provider key — mirrors `_KEYLESS_PROVIDERS` in
+# app/config.py so the CLI and the server agree on what "no key needed" means.
+_KEYLESS_PROVIDERS = ("ollama", "custom")
 
 
 def load_env_file(path: str | Path = "../.env") -> bool:
@@ -78,9 +86,25 @@ def run_config_from_env(*, fake: bool) -> RunConfig:
     keys = {
         provider: os.environ[env] for provider, env in _PROVIDER_ENV.items() if os.environ.get(env)
     }
-    if not keys:
-        routed = sorted({m.split(":", 1)[0] for m in models.values()})
-        wanted = ", ".join(_PROVIDER_ENV.get(p, p.upper()) for p in routed)
+
+    # The custom provider needs its endpoint as well as its key, and `llm_factory` reads
+    # that endpoint out of `provider_keys` under this name (same contract as
+    # app/runtime.py). Without it a `custom:` route silently falls back to the OpenAI
+    # default base URL and 401s against a key that was never meant for OpenAI.
+    custom_base_url = os.environ.get("CUSTOM_BASE_URL", "")
+    if custom_base_url:
+        keys["custom_base_url"] = custom_base_url
+
+    # An upfront guard for the common "forgot to export anything" case; per-provider
+    # coverage is still enforced later, with an actionable message, by `llm_factory._build`.
+    # Only providers that need a key can trigger it — routing every role at Ollama is a
+    # complete, keyless configuration and used to be rejected here outright.
+    routed = sorted({m.split(":", 1)[0] for m in models.values()})
+    needs_key = [p for p in routed if p not in _KEYLESS_PROVIDERS]
+    # `custom_base_url` is an endpoint, not a credential — it must not count as one.
+    have_a_key = any(name != "custom_base_url" for name in keys)
+    if needs_key and not have_a_key:
+        wanted = ", ".join(_PROVIDER_ENV.get(p, f"{p.upper()}_API_KEY") for p in needs_key)
         raise SystemExit(
             f"No provider key found. Routing needs one of: {wanted}.\n"
             f"Export it, or run with --fake for a keyless demo."
@@ -110,6 +134,11 @@ def run_config_from_env(*, fake: bool) -> RunConfig:
         provider_keys=keys,
         tavily_api_key=os.environ.get("TAVILY_API_KEY", ""),
         brave_api_key=os.environ.get("BRAVE_API_KEY", ""),
+        # A laptop run reaches Ollama on localhost; the `.env` shipped for Docker points at
+        # host.docker.internal, which does not resolve outside a container. Honouring the
+        # variable here lets one file serve both without editing it per-context.
+        ollama_base_url=os.environ.get("OLLAMA_BASE_URL")
+        or RunConfig.__dataclass_fields__["ollama_base_url"].default,
         max_critic_loops=_int_env("MAX_CRITIC_LOOPS", 2),
         max_cost_per_session_usd=_float_env("MAX_COST_PER_SESSION_USD", 0.50),
         max_wallclock_seconds=_int_env("MAX_WALLCLOCK_SECONDS", 600),

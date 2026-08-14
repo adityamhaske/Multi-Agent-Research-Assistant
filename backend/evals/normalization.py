@@ -19,11 +19,8 @@ import re
 import urllib.parse
 from typing import Any
 
-
 MD_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^\s\)]+)\)")
-REFERENCES_HEADING_RE = re.compile(
-    r"^#{1,6}\s*(references|sources|citations|bibliography)\b", re.I
-)
+REFERENCES_HEADING_RE = re.compile(r"^#{1,6}\s*(references|sources|citations|bibliography)\b", re.I)
 
 
 TRACKING_PARAM_DENYLIST = frozenset(
@@ -168,7 +165,7 @@ def normalize_external_report(
     sources_section_lines = ["\n\n## Sources\n"]
     for s in sources:
         sources_section_lines.append(f"{s['index']}. [{s['title']}]({s['url']})")
-    
+
     final_report = normalized_body.rstrip() + "\n" + "\n".join(sources_section_lines) + "\n"
 
     return final_report, sources

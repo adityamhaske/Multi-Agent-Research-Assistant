@@ -12,7 +12,12 @@ def test_canonicalize_url_tracking_params():
     u1 = "https://example.com/docs/?utm_source=twitter&utm_medium=social&ref=abc&fbclid=123"
     u2 = "https://example.com/docs"
     u3 = "https://example.com/docs?gclid=xyz&_ga=456"
-    assert canonicalize_url(u1) == canonicalize_url(u2) == canonicalize_url(u3) == "https://example.com/docs"
+    assert (
+        canonicalize_url(u1)
+        == canonicalize_url(u2)
+        == canonicalize_url(u3)
+        == "https://example.com/docs"
+    )
 
 
 def test_canonicalize_url_preserves_content_params():
@@ -65,8 +70,12 @@ Persistent storage uses PostgreSQL with connection pooling [Storage Spec](https:
     assert "https://example.com/docs" in urls
 
     # Both auth citations mapped to the SAME index
-    auth_idx = [s["index"] for s in sources if s["url"] == "https://example.com/docs?section=auth"][0]
-    storage_idx = [s["index"] for s in sources if s["url"] == "https://example.com/docs?section=storage"][0]
+    auth_idx = [s["index"] for s in sources if s["url"] == "https://example.com/docs?section=auth"][
+        0
+    ]
+    storage_idx = [
+        s["index"] for s in sources if s["url"] == "https://example.com/docs?section=storage"
+    ][0]
     base_idx = [s["index"] for s in sources if s["url"] == "https://example.com/docs"][0]
 
     assert auth_idx != storage_idx != base_idx
