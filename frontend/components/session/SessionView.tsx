@@ -123,7 +123,17 @@ export function SessionView({ sessionId }: { sessionId: string }) {
         </div>
       )}
 
-      {status === "AWAITING_APPROVAL" && <ApprovalGate session={session} />}
+      {status === "AWAITING_APPROVAL" && (
+        <div className="space-y-4">
+          {/* The rail stays up at the gate. It used to unmount the moment the run paused —
+              exactly when its last node, Review, becomes the active step — so the one
+              stage the user is personally responsible for was never shown as current. */}
+          <div className="card">
+            <PipelineRail events={stream.events} status={session.status} />
+          </div>
+          <ApprovalGate session={session} />
+        </div>
+      )}
       {status === "COMPLETED" && <ReportView session={session} />}
       {status === "FAILED" && <FailedState session={session} />}
     </div>

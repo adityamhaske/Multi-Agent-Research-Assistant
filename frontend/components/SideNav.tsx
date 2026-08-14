@@ -273,6 +273,16 @@ export function SideNav({ user }: { user?: User }) {
           )}
         </div>
 
+        {/* Workspace: which project you're in, before anything scoped by it */}
+        <div className="pt-1">
+          {(!collapsed || isMobile) && (
+            <div className="px-2 pb-1 font-mono text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted">
+              Workspace
+            </div>
+          )}
+          <ProjectSwitcher collapsed={collapsed && !isMobile} menuDirection="down" />
+        </div>
+
         {/* New Research Quick Button */}
         <div className="pt-1">
           <Link
@@ -330,20 +340,10 @@ export function SideNav({ user }: { user?: User }) {
         </nav>
       </div>
 
-      {/* Bottom Section: Workspace + Profile */}
-      <div className="space-y-2.5 pt-4 border-t border-border">
-        {/* Project Switcher */}
-        <div>
-          {(!collapsed || isMobile) && (
-            <div className="px-2 pb-1 font-mono text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted">
-              Workspace
-            </div>
-          )}
-          <ProjectSwitcher collapsed={collapsed && !isMobile} />
-        </div>
-
+      {/* Bottom Section: Profile */}
+      <div className="pt-4 border-t border-border">
         {/* User Account Card */}
-        <div className="pt-1">
+        <div>
           {user ? (
             <AccountMenu user={user} collapsed={collapsed && !isMobile} />
           ) : (

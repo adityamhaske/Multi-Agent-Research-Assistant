@@ -42,10 +42,13 @@
   --line: #D1D1CD;
   --line-2: #C4C4BF;
 
-  /* 4. Academic Accent & Badge Blocks */
-  --academic-accent: #3F5E4D;
-  --badge-block-bg: #EAEAE6;
-  --badge-block-text: #3F5E4D;
+  /* 4. Academic Accent & Badge Blocks
+   * Deepened from #3F5E4D: the old sage sat at ~3.9:1 on the card surface, which is why
+   * accented text and active states read as barely-there. This keeps the scholarly green
+   * identity but reaches 7.0:1, so an accent finally looks like emphasis. */
+  --academic-accent: #15654A;
+  --badge-block-bg: #E8EFE9;
+  --badge-block-text: #15654A;
 
   --base-blue: #3F5E4D;
   --base-blue-ink: #2C4336;
@@ -77,16 +80,26 @@
   --accent-muted: var(--badge-block-bg);
   --accent-contrast: #FFFFFF;
 
-  --success: var(--good);
-  --warning: #F59E0B;
-  --danger: var(--bad);
-  --info: var(--academic-accent);
+  /* Status. `--info` is deliberately NOT the accent: when they were the same green, a
+   * "Running" badge was indistinguishable from ordinary accented chrome, so the one
+   * status a user actively waits on read as decoration. Every value below clears WCAG AA
+   * (4.5:1) against both the page ground and the card surface. */
+  --success: #15803D;
+  --warning: #B45309;
+  --danger: #DC2626;
+  --info: #2F52C8;
 
-  --agent-planner: #3F5E4D;
-  --agent-executor: #D97706;
-  --agent-critic: #9F1239;
-  --agent-synthesizer: #3F5E4D;
-  --agent-hitl: #3F5E4D;
+  /* Agent identity — one hue per pipeline stage (docs/07 §3).
+   * Planner, Synthesizer and the human gate previously shared one green, which made two
+   * different stages of the rail look like the same stage. Hues are spread around the
+   * wheel (blue → amber → crimson → cyan → violet) so adjacent stages never collide, and
+   * the rail also numbers and positions each node, so hue reinforces meaning rather than
+   * being the sole carrier of it. */
+  --agent-planner: #2F52C8;
+  --agent-executor: #B25000;
+  --agent-critic: #BE123C;
+  --agent-synthesizer: #0E7490;
+  --agent-hitl: #6D28D9;
 
   --ring: color-mix(in srgb, var(--accent) 40%, transparent);
 
@@ -120,10 +133,12 @@
   --line: #2E2E34;
   --line-2: #3B3B42;
 
-  /* 4. Academic Accent & Badge Blocks (Dark) */
-  --academic-accent: #527A65;
-  --badge-block-bg: #242428;
-  --badge-block-text: #527A65;
+  /* 4. Academic Accent & Badge Blocks (Dark)
+   * Brightened from #527A65 (~3.2:1 on the card, the dark-mode twin of the light theme's
+   * washed-out accent) to a mint that reaches 9.4:1 while staying short of neon. */
+  --academic-accent: #5FD3A6;
+  --badge-block-bg: #1B2E27;
+  --badge-block-text: #5FD3A6;
 
   --base-blue: #527A65;
   --base-blue-ink: #6B9F85;
@@ -155,16 +170,20 @@
   --accent-muted: var(--badge-block-bg);
   --accent-contrast: #121214;
 
-  --success: var(--good);
-  --warning: #F59E0B;
-  --danger: var(--bad);
-  --info: var(--academic-accent);
+  /* Status (dark). Same reasoning as light: `--info` is its own hue, not the accent.
+   * Lightened rather than reused from the light theme — the light values sit at ~2:1 on
+   * #121214 and would read as muddy. All clear AA on both dark surfaces. */
+  --success: #4ADE80;
+  --warning: #FBBF24;
+  --danger: #F87171;
+  --info: #8AA6FF;
 
-  --agent-planner: #527A65;
-  --agent-executor: #F59E0B;
+  /* Agent identity (dark) — same five hues, lifted for a dark ground. */
+  --agent-planner: #8AA6FF;
+  --agent-executor: #F5A742;
   --agent-critic: #FB7185;
-  --agent-synthesizer: #527A65;
-  --agent-hitl: #527A65;
+  --agent-synthesizer: #43C7E8;
+  --agent-hitl: #B49BFF;
 
   --ring: color-mix(in srgb, var(--accent) 45%, transparent);
 

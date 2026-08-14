@@ -14,7 +14,14 @@ import { useActiveProject } from "./ActiveProject";
  * Supports expanded and collapsed modes, popping up smoothly without
  * relying on native unstyled <select> elements.
  */
-export function ProjectSwitcher({ collapsed = false }: { collapsed?: boolean }) {
+interface ProjectSwitcherProps {
+  collapsed?: boolean;
+  /** Which way the popover opens. "down" fits a switcher near the top of the sidebar,
+   *  where "up" (the original default) would clip off the top of the viewport. */
+  menuDirection?: "up" | "down";
+}
+
+export function ProjectSwitcher({ collapsed = false, menuDirection = "up" }: ProjectSwitcherProps) {
   const { projects, activeId, setActiveId, isLoading } = useActiveProject();
   const create = useCreateProject();
   const [open, setOpen] = useState(false);
@@ -151,8 +158,12 @@ export function ProjectSwitcher({ collapsed = false }: { collapsed?: boolean }) 
           aria-label="Projects"
           className={`menu-surface animate-fade-in absolute z-50 w-64 ${
             collapsed
-              ? "left-full bottom-0 ml-3 origin-bottom-left"
-              : "bottom-full left-0 mb-2 origin-bottom-left"
+              ? menuDirection === "down"
+                ? "left-full top-0 ml-3 origin-top-left"
+                : "left-full bottom-0 ml-3 origin-bottom-left"
+              : menuDirection === "down"
+                ? "top-full left-0 mt-2 origin-top-left"
+                : "bottom-full left-0 mb-2 origin-bottom-left"
           }`}
         >
           <div className="flex items-center justify-between px-3 py-2 border-b border-border">
