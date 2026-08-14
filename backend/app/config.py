@@ -104,6 +104,18 @@ class Settings(BaseSettings):
     max_parallel_tasks: int = 4
     celery_task_timeout_seconds: int = 660
 
+    # ── Per-user usage limits (docs/06 §2) ─────────────────────────────────────
+    # 0 = unlimited, and unlimited is the default. These are abuse guards for a
+    # multi-tenant deployment, not safety limits: this ships as a self-hosted,
+    # single-tenant app where the operator is the only user and pays their own
+    # provider bill, so throttling them protects nobody. A public demo should set
+    # both to a positive number.
+    #
+    # Deliberately NOT covering login/register — those limits are brute-force
+    # protection, a different concern, and stay on unconditionally.
+    research_rate_limit_per_hour: int = 0
+    chat_rate_limit_per_hour: int = 0
+
     # ── LangSmith (optional) ───────────────────────────────────────────────────
     langchain_tracing_v2: bool = False
     langchain_api_key: str = ""

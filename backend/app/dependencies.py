@@ -15,6 +15,7 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.db.base import get_db
 from app.db.redis import get_redis
 from app.models.user import User
@@ -70,13 +71,22 @@ async def get_current_user(
 async def enforce_research_rate_limit(
     current_user: User = Depends(get_current_user), redis=Depends(get_redis)
 ) -> None:
+    """Per-user research throttle. Disabled (0) by default — see `Settings`.
+
+    Returning early also skips the Redis INCR, so a disabled limit leaves no counter
+    behind to expire. Re-enabling it later starts from a clean window rather than from
+    usage accumulated while it was off.
+    """
+    limit = settings.research_rate_limit_per_hour
+    if limit <= 0:
+        return
     res = await rate_limit.check(
-        redis, rate_limit.key_research(current_user.id), rate_limit.RESEARCH
+        redis, rate_limit.key_research(current_user.id), rate_limit.RateLimit(limit, 3600)
     )
     if not res.allowed:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Research limit reached ({rate_limit.RESEARCH.limit}/hour). "
+            detail=f"Research limit reached ({limit}/hour). "
             f"Retry in {max(res.ttl, 0) // 60 + 1} minutes.",
         )
 
@@ -84,10 +94,16 @@ async def enforce_research_rate_limit(
 async def enforce_chat_rate_limit(
     current_user: User = Depends(get_current_user), redis=Depends(get_redis)
 ) -> None:
-    res = await rate_limit.check(redis, rate_limit.key_chat(current_user.id), rate_limit.CHAT)
+    """Per-user chat throttle. Disabled (0) by default — see `Settings`."""
+    limit = settings.chat_rate_limit_per_hour
+    if limit <= 0:
+        return
+    res = await rate_limit.check(
+        redis, rate_limit.key_chat(current_user.id), rate_limit.RateLimit(limit, 3600)
+    )
     if not res.allowed:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Chat limit reached ({rate_limit.CHAT.limit}/hour). "
+            detail=f"Chat limit reached ({limit}/hour). "
             f"Retry in {max(res.ttl, 0) // 60 + 1} minutes.",
         )

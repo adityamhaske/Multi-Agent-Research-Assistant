@@ -30,8 +30,15 @@ class RateLimit:
 
 
 # Per-operation limits (docs/06 §2).
-RESEARCH = RateLimit(5, 3600)
-CHAT = RateLimit(30, 3600)
+#
+# Auth limits are brute-force protection and are NOT configurable — an operator must not
+# be able to disable credential-stuffing defence while raising a usage cap.
+#
+# Research and chat limits are deliberately absent: they are abuse guards for a
+# multi-tenant host, not safety limits, so they are built per-request from
+# `Settings.research_rate_limit_per_hour` / `chat_rate_limit_per_hour` (0 = unlimited,
+# the default) in `app/dependencies.py`. Module constants are exactly what made the old
+# 5/hour cap unconfigurable and throttled the single-tenant operator paying their own bill.
 LOGIN_IP = RateLimit(20, 60)
 LOGIN_EMAIL = RateLimit(5, 900)  # 5 failures / 15 min → lockout window
 REGISTER_IP = RateLimit(5, 3600)
