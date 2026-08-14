@@ -177,6 +177,17 @@ async def score_system_claims(
             resp = await judge_llm.ainvoke(messages)
             text = resp.content if isinstance(resp.content, str) else ""
 
+            # A router (OmniRoute, OpenRouter) resolves an `auto/*` alias to a different
+            # concrete model per call, and the alias can disagree with what actually
+            # served the request — `auto/claude-sonnet` answering as gpt-4o. Record what
+            # replied, not what we asked for. Misreporting the judge is precisely the
+            # defect this file already shipped once; an alias makes it easy to ship again.
+            meta = getattr(resp, "response_metadata", None) or {}
+            served = meta.get("model_name") or meta.get("model")
+            if served:
+                for trace in batch_traces:
+                    trace["judge_model_served"] = served
+
             # Parse responses
             for match in re.finditer(r"Claim\s+(\d+)\s*:\s*(YES|NO)", text, re.IGNORECASE):
                 idx = int(match.group(1)) - 1
