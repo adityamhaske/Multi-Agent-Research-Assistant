@@ -7,3 +7,73 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+---
+
+# Agent guidance — frontend
+
+Repo-wide rules are in [`../AGENTS.md`](../AGENTS.md). Everything below is specific to
+this package. Keep it current: update a rule in the same commit that invalidates it.
+
+## Four greps can fail your build
+
+CI runs these against `app/ components/ lib/ hooks/` (`.github/workflows/ci.yml`). They
+are not lint rules and `npm run lint` will not catch them:
+
+1. **No `dangerouslySetInnerHTML`, no `rehype-raw`.** Reports are model-generated Markdown
+   rendered in the user's browser; raw HTML there is an XSS sink (docs/06 §5).
+2. **No hardcoded hex colors.** Every color comes from a token in `app/globals.css`
+   (docs/07 §1). This is what makes both themes switchable and contrast-auditable.
+3. **No hardcoded backend URLs** (`localhost:8000`, `NEXT_PUBLIC_API_URL`,
+   `127.0.0.1:8000`). The browser talks to the same-origin `/api` proxy, which is why
+   there is no CORS preflight in normal operation (docs/06 §6).
+4. **No `localStorage`/`sessionStorage`** without an inline `ci-allow-web-storage:
+   <reason>` marker on the same line. Auth is httpOnly cookies only (docs/03); the marker
+   exists so a genuine non-auth UI preference is reviewable rather than invisible.
+
+## Theming: tokens, and both themes are real
+
+`next-themes` uses the **class** strategy — `.dark` on `<html>`, with Tailwind's `dark:`
+variant redefined in `globals.css` to follow it rather than `prefers-color-scheme`.
+
+Define a color once as a token in `:root` and again in `.dark`. Never introduce a color
+whose only definition lives in one of the two blocks, and never inline a hex — the grep
+above will catch it, but the reason is that half-themed components look correct to whoever
+wrote them and broken to everyone on the other theme.
+
+Values are contrast-audited against **both** the page ground and the card surface. If you
+change a token, check it clears WCAG AA (4.5:1) on both, in both themes.
+
+## Agent colors carry meaning
+
+`--agent-planner|executor|critic|synthesizer|hitl` are one distinct hue per pipeline stage,
+consumed through `AGENT_TOKEN` in `lib/pipeline.ts` (`PipelineRail`, `LiveFeed`). They were
+once three-of-five identical, which made different stages look like the same stage. Keep
+them distinct, and keep hue as *reinforcement* — the rail also numbers and positions each
+node, so meaning never rests on color alone.
+
+`--info` is deliberately not `--accent`: when they matched, a "Running" badge was
+indistinguishable from ordinary accented chrome.
+
+## State patterns this codebase commits to
+
+- **No `setState` in an effect** to derive state. Remount with a `key` instead — see
+  `ChatPage`'s `ProjectThreads key={projectId}`, and `ActiveProject`, which reaches for
+  `useSyncExternalStore` for the same reason.
+- Project scoping comes from the **`ActiveProject` context**, not a route param. Every
+  surface under the switcher is project-scoped; putting the id in the URL as well would be
+  two sources of truth for one choice.
+
+## Session routes are generated
+
+`app/(app)/session/` is **generated and gitignored**. `scripts/prepare-session-routes.mjs`
+copies from `app-routes/session/{web,desktop}/` before `dev`, `build`, and `e2e`, because
+the web build needs a dynamic `[sessionId]` route and the desktop build needs a static
+export. Edit `app-routes/`, never the generated directory.
+
+## Running it
+
+Dev server is port **3031** (`next dev -p 3031`). In Docker the frontend is a **static
+`next build` image**, not a bind mount — source changes need
+`docker compose -f docker-compose.full.yml build frontend`, and a browser reload will
+show you stale UI and waste your time.
