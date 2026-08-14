@@ -89,7 +89,10 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      # Root context, not ./frontend: the in-app docs site renders `docs/` at build time,
+      # and `docs/` is outside the frontend directory. See frontend/Dockerfile.
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         BACKEND_ORIGIN: http://api:8000
     environment:

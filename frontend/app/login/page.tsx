@@ -131,11 +131,9 @@ export default function LoginPage() {
 
           <nav className="flex items-center gap-3 font-mono text-xs">
             <Link
-              href="https://github.com/adityamhaske/Multi-Agent-Research-Assistant/tree/main/docs"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/docs"
               className="flex h-8 items-center gap-1.5 border border-border bg-bg-surface px-2.5 text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
-              title="Explore project documentation on GitHub"
+              title="Read the project documentation"
             >
               <svg
                 viewBox="0 0 24 24"

@@ -5,9 +5,15 @@
 # proxies /api/* to the backend (same-origin cookies, no CORS).
 
 # ── Dependencies ──────────────────────────────────────────────────────────────────
+# NOTE: this image builds from the REPOSITORY ROOT, not from `frontend/`. The docs site
+# renders the `docs/` tree at build time, and `docs/` sits above `frontend/` — outside a
+# `./frontend` context entirely. Build it with:
+#   docker build -f frontend/Dockerfile .
+# Compose and the release workflow both set `context: .` for this reason.
+
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
 # ── Build ─────────────────────────────────────────────────────────────────────────
@@ -19,7 +25,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ARG BACKEND_ORIGIN=http://api:8000
 ENV BACKEND_ORIGIN=$BACKEND_ORIGIN
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY frontend/ ./
+# The documentation set, rendered into static pages at build time by `lib/docs.ts`.
+# Copied beside the app rather than above it, because a Dockerfile cannot COPY outside
+# WORKDIR — `lib/docs.ts` looks for `project-docs` for exactly this case.
+COPY docs/ ./project-docs/
 RUN npm run build
 
 # ── Runtime ───────────────────────────────────────────────────────────────────────

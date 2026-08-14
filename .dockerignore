@@ -1,0 +1,69 @@
+# Build context exclusions for images built from the repo root.
+#
+# Only the frontend builds this way, because it needs `docs/` — which lives above
+# `frontend/` and so is unreachable from a `./frontend` context. The backend images still
+# build from `./backend` and use `backend/.dockerignore`; this file does not affect them.
+#
+# Without this, a root context would ship node_modules, both virtualenvs, the full git
+# history and every corpus database to the daemon on each build.
+
+# Dependencies and build output
+node_modules
+**/node_modules
+.next
+**/.next
+out
+**/out
+build
+dist
+*.egg-info
+
+# Python
+__pycache__
+**/__pycache__
+*.pyc
+.venv
+**/.venv
+venv
+.pytest_cache
+**/.pytest_cache
+.ruff_cache
+**/.ruff_cache
+
+# Version control and secrets
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Private documentation. Gitignored as "not for publication", so it is absent from a CI
+# clone — but present on the author's machine, where it would otherwise be copied into the
+# build context and then swept into the standalone bundle by Next's output file tracing.
+# `lib/docs.ts` already refuses to generate a route for it; this stops the raw file from
+# reaching the image at all, which is the difference between "unreachable" and "not there".
+docs/deep-dive/04_Interview_Defense.md
+
+# Runtime data — corpus databases are user content, never image content
+data
+**/data/corpus
+*.sqlite
+*.sqlite-*
+logs
+*.log
+
+# Test and tooling artifacts
+playwright-report
+test-results
+blob-report
+coverage
+*.tsbuildinfo
+.qoder
+
+# Desktop build residue (Rust target dirs are enormous)
+desktop/target
+desktop/gen
+
+# OS
+.DS_Store
+**/.DS_Store
