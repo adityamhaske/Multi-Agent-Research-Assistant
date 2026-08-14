@@ -72,21 +72,41 @@ def test_model_outside_the_catalog_is_rejected():
 
 
 def test_unpriced_model_is_rejected_because_it_would_break_the_budget_guard():
+    # Anthropic, not openrouter: openrouter is now endpoint-defined (see the test below)
+    # and no longer reaches this check at all. The invariant still binds where a price is
+    # actually knowable — a catalogued hosted model.
     spec = catalog.ModelSpec(
-        provider="openrouter",
-        model_id="test/unpriced",
+        provider="anthropic",
+        model_id="claude-test-unpriced",
         display_name="Unpriced",
         input_per_mtok=None,
         output_per_mtok=None,
     )
     catalog.register(spec)
     try:
-        bad = _valid() | {"planner": "openrouter:test/unpriced"}
+        bad = _valid() | {"planner": "anthropic:claude-test-unpriced"}
         with pytest.raises(InvalidRouting) as e:
             model_routing.validate(bad)
         assert "price" in str(e.value).lower()
     finally:
-        catalog.CATALOG.pop("test/unpriced", None)
+        catalog.CATALOG.pop("claude-test-unpriced", None)
+
+
+def test_endpoint_defined_providers_skip_the_catalog_and_keep_the_exact_tag():
+    """Ollama/custom/openrouter ids belong to the endpoint, not to our catalog.
+
+    Two separate regressions are pinned here. Requiring catalog membership made every real
+    Ollama tag unselectable, leaving only family names like `ollama:deepseek-r1` — which
+    Ollama 404s unless a `:latest` tag happens to exist. And canonicalising to `spec.route`
+    rewrote a working tag back into that same broken family name.
+    """
+    for route in (
+        "ollama:deepseek-r1:14b",  # a real installed tag, absent from the catalog
+        "custom:auto/best-fast",  # local proxy (OmniRoute)
+        "openrouter:anthropic/claude-3.5-sonnet",
+    ):
+        cleaned = model_routing.validate(_valid() | {"planner": route})
+        assert cleaned["planner"] == route, "the exact tag must survive validation"
 
 
 def test_non_dict_is_rejected():

@@ -79,6 +79,51 @@ class RoutingResponse(BaseModel):
     effective_routing: dict[str, str]
 
 
+async def _ollama_presets_from_installed() -> dict[str, dict[str, str]] | None:
+    """Ollama presets built from the models this machine actually has, or None.
+
+    The static presets in `catalog.PRESETS` name specific tags (`llama3.3`), so choosing
+    "Local" on a machine without that exact tag pulled produced a routing that 404s on the
+    first planner call — every time, for every role. The failure surfaced as a provider
+    error mid-run, long after the click that caused it, which is the worst possible place
+    to learn the model does not exist.
+
+    Selection mirrors what the settings card already tells the user: skip embedding models
+    (they cannot chat), prefer one big enough for the structured-evidence step for
+    `balanced`/`best`, and let `fast` be the smallest chat model available. Returns None
+    when nothing usable is installed, so the caller keeps the static defaults rather than
+    serving an empty preset.
+    """
+    try:
+        status_ = await local_llm.probe()
+    except Exception:  # noqa: BLE001 — a catalog request must not fail on a dead probe
+        return None
+    chat_models = [m for m in status_.models if not m.is_embedding]
+    if not chat_models:
+        return None
+
+    def size(m) -> float:
+        return m.params_b if m.params_b is not None else (m.size_bytes or 0) / 1e9
+
+    smallest = min(chat_models, key=size)
+    research_ready = [m for m in chat_models if not m.likely_underpowered]
+    strongest = max(research_ready or chat_models, key=size)
+
+    # The exact installed tag, not the catalog's family route. `LocalModel.route` maps a
+    # tag onto its catalog family (`deepseek-r1:14b` → `ollama:deepseek-r1`), and Ollama
+    # resolves a bare family only when a `:latest` tag happens to exist for it — which for
+    # `deepseek-r1` it does not. Routing at the family reproduced the exact 404 this
+    # function exists to prevent, so route at what is actually pulled.
+    def route_of(m) -> str:
+        return f"ollama:{m.name}"
+
+    return {
+        "fast": dict.fromkeys(ROLES, route_of(smallest)),
+        "balanced": dict.fromkeys(ROLES, route_of(strongest)),
+        "best": dict.fromkeys(ROLES, route_of(strongest)),
+    }
+
+
 @router.get("", response_model=CatalogResponse)
 async def get_catalog(current_user: User = Depends(get_current_user)):
     usable = model_routing.available_providers(current_user)
@@ -108,10 +153,17 @@ async def get_catalog(current_user: User = Depends(get_current_user)):
         )
     ]
 
+    # Serve the local presets that this machine can actually run, falling back to the
+    # static table when nothing is installed (or the probe is down).
+    presets = dict(catalog.PRESETS)
+    installed = await _ollama_presets_from_installed()
+    if installed:
+        presets["ollama"] = installed
+
     return CatalogResponse(
         roles=list(ROLES),
         models=models,
-        presets=catalog.PRESETS,
+        presets=presets,
         preset_names=list(catalog.PRESET_NAMES),
         available_providers=usable,
         effective_routing=model_routing.resolve(session_routing=None, user_routing=user_routing),

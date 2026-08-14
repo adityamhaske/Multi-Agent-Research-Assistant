@@ -23,6 +23,13 @@ class InvalidRouting(ValueError):
     """A routing map that must not be persisted."""
 
 
+# Providers whose model ids are defined by the endpoint rather than by our catalog:
+# Ollama serves the tags the user pulled, and a custom proxy or OpenRouter fronts a
+# catalogue that changes without us. Validating these against `catalog` would reject
+# every legitimate local tag, so they are checked for shape only.
+_ENDPOINT_DEFINED_PROVIDERS = ("ollama", "custom", "openrouter")
+
+
 def validate(routing: dict) -> dict[str, str]:
     """Normalize and check a user-supplied routing map.
 
@@ -51,6 +58,20 @@ def validate(routing: dict) -> dict[str, str]:
                 f"{role}: unknown provider '{provider}'. "
                 f"Known: {', '.join(catalog.KNOWN_PROVIDERS)}."
             )
+        if provider in _ENDPOINT_DEFINED_PROVIDERS:
+            # These providers' model ids belong to the endpoint, not to us. Ollama serves
+            # whatever tags the user pulled; a local proxy or OpenRouter exposes thousands
+            # that change without us. Demanding catalog membership here left the only
+            # selectable local routes as *family* names (`ollama:deepseek-r1`), which
+            # Ollama 404s unless a `:latest` tag happens to exist — and made an OmniRoute
+            # or OpenRouter setup unselectable in the UI entirely.
+            #
+            # Kept verbatim rather than canonicalised, because the exact tag is the thing
+            # that resolves. Spend on these is not catalog-priced, so the per-session cap
+            # does not bind — the same gap `validate_pricing()` already accepts for them,
+            # documented in AGENTS.md.
+            cleaned[role] = route
+            continue
         spec = catalog.get(model_id)
         if spec is None:
             raise InvalidRouting(f"{role}: '{model_id}' is not in the model catalog.")
