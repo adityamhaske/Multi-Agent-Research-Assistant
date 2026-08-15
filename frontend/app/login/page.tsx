@@ -131,6 +131,13 @@ export default function LoginPage() {
 
           <nav className="flex items-center gap-3 font-mono text-xs">
             <Link
+              href="/download"
+              className="flex h-8 items-center gap-1.5 border border-border bg-bg-surface px-2.5 text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
+              title="Download the desktop app"
+            >
+              Download
+            </Link>
+            <Link
               href="/docs"
               className="flex h-8 items-center gap-1.5 border border-border bg-bg-surface px-2.5 text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
               title="Read the project documentation"
