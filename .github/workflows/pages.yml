@@ -41,6 +41,12 @@ jobs:
         # A green deploy that published nothing looks like success and serves a 404.
         run: test -f site/index.html
       - uses: actions/configure-pages@v5
+        with:
+          # Provision the Pages site on first run. Without this the action fails with
+          # "Get Pages site failed / Not Found" on a repository where Pages has never
+          # been switched on, which is every repository until someone visits Settings.
+          # Enabling it here keeps the whole deployment described by this file.
+          enablement: true
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site
