@@ -51,6 +51,7 @@ export default function DashboardPage() {
   const [query, setQuery] = useState("");
   const [depth, setDepth] = useState<ResearchDepth>("balanced");
   const [corpusMode, setCorpusMode] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
   // null = use the saved per-role routing (user preference, else deployment default).
   const [modelRouting, setModelRouting] = useState<ModelRouting | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -64,9 +65,12 @@ export default function DashboardPage() {
   const activeDepth = DEPTHS.find((d) => d.value === depth);
 
   // What the closed disclosure reports. Defaults stay quiet; anything else is named.
-  const overrides = [corpusMode ? "Corpus only" : null, modelRouting ? "Custom model" : null].filter(
-    Boolean,
-  );
+  const overrides = [
+    // Demo leads: it is the one override that changes whether the result means anything.
+    demoMode ? "Demo" : null,
+    corpusMode ? "Corpus only" : null,
+    modelRouting ? "Custom model" : null,
+  ].filter(Boolean);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +82,7 @@ export default function DashboardPage() {
         project_id: activeId ?? null,
         model_routing: modelRouting,
         corpus_mode: corpusMode,
+        demo: demoMode,
       });
       router.push(sessionHref(res.session_id));
     } catch (err) {
@@ -214,6 +219,37 @@ export default function DashboardPage() {
               and does not belong squeezed into the right-hand column. */}
           {showAdvanced && (
             <div id="run-options" className="space-y-5 border-t border-border pt-5">
+              {/* First in the list, and warning-toned rather than accent-toned: this is
+                  the only option that makes the resulting report not real. */}
+              <label
+                className="flex cursor-pointer items-start gap-3 border p-3"
+                style={{
+                  borderColor: demoMode
+                    ? "color-mix(in srgb, var(--warning) 35%, var(--border))"
+                    : "var(--border)",
+                  backgroundColor: demoMode
+                    ? "color-mix(in srgb, var(--warning) 8%, var(--bg-surface))"
+                    : "var(--bg-surface)",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={demoMode}
+                  onChange={(e) => setDemoMode(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 border-border accent-[var(--warning)]"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-text-primary">
+                    Demo run — no API key needed
+                  </span>
+                  <span className="block text-xs text-text-muted">
+                    Scripted models and fixture sources. Shows the full pipeline, gate and
+                    citations without calling a provider. Not real research, and every
+                    export says so.
+                  </span>
+                </span>
+              </label>
+
               <label className="flex cursor-pointer items-start gap-3 border border-border bg-bg-surface p-3">
                 <input
                   type="checkbox"

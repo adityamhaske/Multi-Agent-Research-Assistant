@@ -10,6 +10,7 @@ import { formatCost } from "@/lib/format";
 import type { SessionSummary } from "@/lib/types";
 
 import { RelativeTime } from "./RelativeTime";
+import { DemoBadge } from "./DemoBadge";
 import { StatusBadge } from "./StatusBadge";
 
 /**
@@ -60,8 +61,13 @@ export function SessionCard({ session }: { session: SessionSummary }) {
       className="card card-interactive group relative block p-5"
     >
       <div className="flex items-center justify-between gap-2">
-        <StatusBadge status={session.status} />
-        <span className="text-xs text-text-muted">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <StatusBadge status={session.status} />
+          {/* Beside the status, not down with depth and cost: in a grid of cards this is
+              the one attribute that decides whether the rest means anything. */}
+          {session.demo && <DemoBadge />}
+        </span>
+        <span className="shrink-0 text-xs text-text-muted">
           <RelativeTime iso={session.created_at} />
         </span>
       </div>

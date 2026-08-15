@@ -3,7 +3,6 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 
-import { Avatar } from "@/components/Avatar";
 import { AccountShell } from "@/components/account/AccountShell";
 import { Field, ReadOnlyRow, Section } from "@/components/account/Section";
 import { useChangePassword, useMe, useUpdateProfile } from "@/hooks/queries";

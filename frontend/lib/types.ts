@@ -112,6 +112,13 @@ export interface SessionSummary {
   /** Set when the session is archived (out of the active list, fully recoverable). */
   archived_at: string | null;
   corpus_mode: boolean;
+  /**
+   * Produced with scripted models and fixture sources rather than a real provider
+   * (docs/17 §6.2). Present on the summary, not just the detail, because history lists
+   * sessions side by side and an unmarked demo sitting next to real work is the exact
+   * confusion the flag exists to prevent.
+   */
+  demo: boolean;
 }
 
 export interface SessionDetail extends SessionSummary {

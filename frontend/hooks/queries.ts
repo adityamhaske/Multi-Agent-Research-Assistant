@@ -319,6 +319,8 @@ export function useStartResearch() {
       project_id: string | null;
       model_routing?: Record<string, string> | null;
       corpus_mode?: boolean;
+      /** Run on scripted models and fixture sources — no provider, no key (docs/17 §6.2). */
+      demo?: boolean;
     }) => apiFetch<ResearchStartResponse>("/research", { method: "POST", body }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
   });
