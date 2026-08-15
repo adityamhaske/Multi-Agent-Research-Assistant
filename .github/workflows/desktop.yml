@@ -82,12 +82,26 @@ jobs:
   shell:
     name: Shell (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # The bundler copies `backend/dist/research-sidecar/` in as a resource, so the sidecar
+    # has to exist before `tauri build` runs. Without this the two jobs raced and the shell
+    # always won, producing a 5 MB bundle with no backend that failed on first launch.
+    needs: sidecar
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v7
+      - name: Fetch the sidecar built for this OS
+        uses: actions/download-artifact@v7
+        with:
+          name: research-sidecar-${{ matrix.os }}
+          path: backend/dist/research-sidecar/
+      - name: Restore the sidecar's executable bit
+        if: runner.os != 'Windows'
+        # upload-artifact does not preserve POSIX permissions, so the launcher comes back
+        # mode 644 and the app cannot exec it.
+        run: chmod +x backend/dist/research-sidecar/research-sidecar
       - name: Linux build dependencies (WebKitGTK etc.)
         if: runner.os == 'Linux'
         run: |

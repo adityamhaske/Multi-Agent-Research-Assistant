@@ -40,10 +40,21 @@ impl Handshake {
 
 /// Resolve the sidecar command. Order:
 ///   1. `DESKTOP_SIDECAR` env — explicit override (used by CI and power users).
-///   2. Release builds: `research-sidecar` next to the current executable — that is
-///      where the bundler drops the PyInstaller one-dir output (M9-D).
-///   3. Debug builds: run the sidecar from source with the repo's python3.
-fn sidecar_command() -> Result<(PathBuf, Vec<String>), String> {
+///   2. Debug builds: run the sidecar from source with the repo's python3.
+///   3. Release builds: the `sidecar/` resource directory (M9-D).
+///
+/// The resource dir, not "next to the executable", is where a bundled sidecar actually
+/// lands, and getting that wrong shipped an app that could not start. PyInstaller emits a
+/// *one-dir* build — a launcher plus `_internal/` — and Tauri's `externalBin`, which does
+/// copy next to the executable, takes a single file. Only `bundle.resources` can carry a
+/// directory, and it targets `Contents/Resources` on macOS, `../lib/<name>` on Linux, and
+/// the executable's own folder on Windows. `resource_dir()` is what reconciles those three.
+///
+/// The old exe-adjacent path is kept as a fallback so a hand-assembled layout still works,
+/// but it is no longer what the bundler produces.
+fn sidecar_command(
+    package_info: &tauri::utils::PackageInfo,
+) -> Result<(PathBuf, Vec<String>), String> {
     if let Some(path) = std::env::var_os("DESKTOP_SIDECAR") {
         return Ok((PathBuf::from(path), Vec::new()));
     }
@@ -76,21 +87,40 @@ fn sidecar_command() -> Result<(PathBuf, Vec<String>), String> {
     } else {
         "research-sidecar"
     };
-    let bundled = exe_dir.join(name);
-    if bundled.exists() {
-        return Ok((bundled, Vec::new()));
+    let mut looked_in: Vec<String> = Vec::new();
+
+    if let Ok(resource_dir) =
+        tauri::utils::platform::resource_dir(package_info, &tauri::utils::Env::default())
+    {
+        let bundled = resource_dir.join("sidecar").join(name);
+        if bundled.exists() {
+            return Ok((bundled, Vec::new()));
+        }
+        looked_in.push(bundled.display().to_string());
     }
 
+    let adjacent = exe_dir.join(name);
+    if adjacent.exists() {
+        return Ok((adjacent, Vec::new()));
+    }
+    looked_in.push(adjacent.display().to_string());
+
+    // Name every path tried. The failure this replaces said only "bundle it next to the
+    // executable", which described a layout the bundler never produced.
     Err(format!(
-        "no sidecar found: set DESKTOP_SIDECAR or bundle `{name}` next to the executable"
+        "no sidecar found: set DESKTOP_SIDECAR, or ship `{name}` as a bundled resource. \
+         Looked in: {}",
+        looked_in.join(", ")
     ))
 }
 
 /// Spawn the sidecar and wait for its handshake line. The sidecar prints exactly one
 /// JSON line before uvicorn starts; anything else on stdout first is a bug we fail
 /// loudly rather than paper over.
-fn spawn_sidecar() -> Result<(Handshake, Child), String> {
-    let (program, args) = sidecar_command()?;
+fn spawn_sidecar(
+    package_info: &tauri::utils::PackageInfo,
+) -> Result<(Handshake, Child), String> {
+    let (program, args) = sidecar_command(package_info)?;
     // Supervision is bidirectional: the shell kills the sidecar on graceful exit, and
     // --shell-pid makes the sidecar exit on its own if the shell is hard-killed.
     let shell_pid = std::process::id().to_string();
@@ -138,8 +168,13 @@ fn spawn_sidecar() -> Result<(Handshake, Child), String> {
 }
 
 pub fn run() {
+    // Built before the spawn purely to borrow its `PackageInfo`: locating a bundled
+    // resource needs the product name and version, and the sidecar has to be up before
+    // the builder runs, since the handshake supplies the URL the window loads.
+    let context = tauri::generate_context!();
+
     // Spawn before the event loop: if the sidecar cannot start there is no app.
-    let (handshake, child) = match spawn_sidecar() {
+    let (handshake, child) = match spawn_sidecar(context.package_info()) {
         Ok(v) => v,
         Err(e) => {
             eprintln!("research-desktop: {e}");
@@ -169,7 +204,7 @@ pub fn run() {
             eprintln!("research-desktop: sidecar ready at {base_url}");
             Ok(())
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building the desktop shell");
 
     app.run(|app_handle, event| {

@@ -78,6 +78,7 @@ these was found in shipped code, not imagined:
 | Request fields reaching `Session(...)` (`corpus_mode`, `demo`) | 3 | 3 |
 | Resolving `corpus_dir` | 2 | 2 — both relative, so upload and run disagreed |
 | Validating a `provider:model` route | 2 | 1 — routing accepted what pricing refused |
+| Where the bundled sidecar lives | 3 | 3 — see below |
 
 **When you change any of these, grep for the other copy before you finish:**
 
@@ -89,6 +90,17 @@ these was found in shipped code, not imagined:
   `research_engine/llm_factory.py::validate_pricing`
 - Schema → an Alembic migration for Postgres *and* the ORM model, which is what the
   desktop's `create_all` plus startup column sync reads
+- Sidecar location → `desktop/tauri.conf.json` (`bundle.resources`), `desktop/src/lib.rs`
+  (`sidecar_command`), *and* `.github/workflows/desktop.yml` (the `shell` job must
+  `needs: sidecar` and download the artifact)
+
+That last row is the worst case so far, because all three copies were wrong at once and
+nothing failed until someone ran the build: `tauri.conf.json` had no `resources` key, so
+the sidecar was never copied in; `lib.rs` looked for it next to the executable, which is
+not where `resources` puts it; and the CI `shell` job raced `sidecar` instead of depending
+on it, so even a correct config would have bundled nothing. The result was a 5 MB `.app`
+that passed CI, uploaded cleanly, and died on first launch. **A desktop bundle that has
+not been launched is not verified** — check the artifact is ~180 MB, not ~5 MB.
 
 The failure mode is always the same: the server path is exercised constantly, the desktop
 path only at release time, so a divergence ships. Prefer extracting the shared logic into
@@ -141,8 +153,10 @@ colors, no hardcoded backend URLs, and no web-storage access without an inline
   not a page reload.
 - Postgres must be a **pgvector** image — migration 0006 enables the extension and 0007
   creates a vector column, so stock Postgres fails `alembic upgrade head` outright.
-- Research is rate-limited to **5 runs/hour per user** (`app/services/rate_limit.py`),
-  enforced before model routing is consulted — a free local model does not exempt you.
+- Research and chat rate limits default to **0, which means unlimited**
+  (`research_rate_limit_per_hour` / `chat_rate_limit_per_hour` in `app/config.py`). They
+  were once a hardcoded 5/hour that applied even to a free local model; if you set a
+  non-zero value, note it is enforced before model routing is consulted.
 
 ## Skills worth reaching for
 

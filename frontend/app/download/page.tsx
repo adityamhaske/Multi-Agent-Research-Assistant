@@ -214,8 +214,11 @@ export default function DownloadPage() {
           <a href={RELEASES} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
             Get the latest release →
           </a>
+          {/* Measured on the arm64 build: an 81 MB .dmg that installs to 182 MB. Only
+              macOS has actually been built and launched, so only macOS gets a number. */}
           <span className="font-mono text-xs text-text-muted">
-            ~150–180 MB · runs on any laptop from the last decade
+            ~80 MB download, ~180 MB installed (macOS) · runs on any laptop from the last
+            decade
           </span>
         </div>
 
