@@ -129,96 +129,112 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Depth as one compact segmented control, anchored to the right rather than
-              stretched across the card — it is one setting among several, not a second
-              headline. Selection reads from a tinted fill, not a solid one: noticeable
-              without competing with the question above it. Real radios underneath, so
-              keyboard and screen-reader behaviour is unchanged. */}
-          <fieldset>
-            <div className="flex items-center justify-between gap-3">
-              <legend className="font-mono text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                Depth
-              </legend>
-              <div className="inline-flex border border-border">
-                {DEPTHS.map((d) => {
-                  const selected = depth === d.value;
-                  return (
-                    <label
-                      key={d.value}
-                      className="cursor-pointer border-r border-border px-2.5 py-1 text-xs font-medium transition-colors last:border-r-0"
-                      style={{
-                        backgroundColor: selected ? "var(--accent-muted)" : "var(--bg-surface)",
-                        color: selected ? "var(--accent)" : "var(--text-secondary)",
-                      }}
-                    >
-                      <input
-                        type="radio"
-                        name="depth"
-                        value={d.value}
-                        checked={selected}
-                        onChange={() => setDepth(d.value)}
-                        className="sr-only"
-                      />
-                      {d.label}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-            {/* One line of guidance for the current choice, instead of three at once. */}
-            <p className="mt-1.5 text-xs text-text-muted">{activeDepth?.hint}</p>
-          </fieldset>
-
-          {/* Settings that almost never change from run to run. No divider above this —
-              the space-y-6 rhythm on the form already separates it from Depth. */}
-          <div>
+          {/* Footer: the action on the left, the run's settings gathered on the right.
+              Separating them by side rather than by a divider means the eye never has to
+              decide which of four equally-weighted blocks is the thing to press. Each
+              setting also states its current value in words — "Balanced", then what
+              balanced costs you — so the row explains itself without being opened. */}
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <button
-              type="button"
-              onClick={() => setShowAdvanced((v) => !v)}
-              aria-expanded={showAdvanced}
-              className="flex w-full items-center gap-2 font-mono text-xs text-text-muted transition-colors hover:text-text-primary"
+              type="submit"
+              disabled={!canSubmit}
+              className="btn btn-primary shrink-0 self-start"
             >
-              <span aria-hidden className="inline-block w-3">
-                {showAdvanced ? "▾" : "▸"}
-              </span>
-              <span className="uppercase tracking-wider">Options</span>
-              {!showAdvanced &&
-                (overrides.length > 0 ? (
-                  <span className="ml-1 font-semibold text-accent">{overrides.join(" · ")}</span>
-                ) : (
-                  <span className="ml-1">Web search · your saved model</span>
-                ))}
+              {start.isPending && <span className="spinner" />}
+              Start research
             </button>
 
-            {showAdvanced && (
-              <div className="mt-4 space-y-5">
-                <label className="flex cursor-pointer items-start gap-3 border border-border bg-bg-surface p-3">
-                  <input
-                    type="checkbox"
-                    checked={corpusMode}
-                    onChange={(e) => setCorpusMode(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 shrink-0 border-border accent-[var(--accent)]"
-                  />
-                  <span>
-                    <span className="block text-sm font-medium text-text-primary">
-                      Restrict to uploaded corpus
-                    </span>
-                    <span className="block text-xs text-text-muted">
-                      No web search. Evidence comes only from this project&apos;s documents,
-                      using a local model.
-                    </span>
-                  </span>
-                </label>
+            <div className="flex flex-col gap-2 sm:items-end">
+              {/* Real radios in a fieldset, so arrow keys and screen readers work. The
+                  legend is the accessible name; the visible "Depth" is decorative, which
+                  is what lets the group sit inline instead of stacked above its label. */}
+              <fieldset className="flex items-center gap-2.5">
+                <legend className="sr-only">Research depth</legend>
+                <span
+                  aria-hidden
+                  className="font-mono text-[0.6875rem] uppercase tracking-wider text-text-muted"
+                >
+                  Depth
+                </span>
+                <div className="inline-flex border border-border">
+                  {DEPTHS.map((d) => {
+                    const selected = depth === d.value;
+                    return (
+                      <label
+                        key={d.value}
+                        className="cursor-pointer border-r border-border px-2.5 py-1 text-xs font-medium transition-colors last:border-r-0"
+                        style={{
+                          backgroundColor: selected ? "var(--accent-muted)" : "var(--bg-surface)",
+                          color: selected ? "var(--accent)" : "var(--text-secondary)",
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="depth"
+                          value={d.value}
+                          checked={selected}
+                          onChange={() => setDepth(d.value)}
+                          className="sr-only"
+                        />
+                        {d.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
 
-                <StartModelPicker value={modelRouting} onChange={setModelRouting} />
-              </div>
-            )}
+              {/* What the current depth actually costs, in one line. */}
+              <p className="max-w-xs text-xs leading-snug text-text-muted sm:text-right">
+                {activeDepth?.hint}
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((v) => !v)}
+                aria-expanded={showAdvanced}
+                aria-controls="run-options"
+                className="flex items-center gap-1.5 font-mono text-xs text-text-muted transition-colors hover:text-text-primary"
+              >
+                <span aria-hidden className="inline-block w-2 text-center">
+                  {showAdvanced ? "▾" : "▸"}
+                </span>
+                <span className="uppercase tracking-wider">Options</span>
+                {/* Closed state still names what the run will do, so nothing is hidden. */}
+                {!showAdvanced &&
+                  (overrides.length > 0 ? (
+                    <span className="font-semibold text-accent">{overrides.join(" · ")}</span>
+                  ) : (
+                    <span>Web search · your saved model</span>
+                  ))}
+              </button>
+            </div>
           </div>
 
-          <button type="submit" disabled={!canSubmit} className="btn btn-primary">
-            {start.isPending && <span className="spinner" />}
-            Start research
-          </button>
+          {/* Expanded options run the full width — the model picker is a two-step control
+              and does not belong squeezed into the right-hand column. */}
+          {showAdvanced && (
+            <div id="run-options" className="space-y-5 border-t border-border pt-5">
+              <label className="flex cursor-pointer items-start gap-3 border border-border bg-bg-surface p-3">
+                <input
+                  type="checkbox"
+                  checked={corpusMode}
+                  onChange={(e) => setCorpusMode(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 border-border accent-[var(--accent)]"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-text-primary">
+                    Restrict to uploaded corpus
+                  </span>
+                  <span className="block text-xs text-text-muted">
+                    No web search. Evidence comes only from this project&apos;s documents, using
+                    a local model.
+                  </span>
+                </span>
+              </label>
+
+              <StartModelPicker value={modelRouting} onChange={setModelRouting} />
+            </div>
+          )}
         </form>
       </section>
 
