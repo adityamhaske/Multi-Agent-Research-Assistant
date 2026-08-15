@@ -84,6 +84,14 @@ class BundleManifest(BaseModel):
     query: str
     research_depth: str = "balanced"
 
+    # True when this report came from scripted models and fixture retrievers rather than a
+    # real provider (docs/17 §6.2). Placed here, beside the identity of the run, rather
+    # than among the metrics: a reader deciding whether to trust this file must not have to
+    # scroll past cost and token counts to discover none of it was real. Covered by
+    # `bundle_hash`, so a demo bundle cannot be edited into a real-looking one without
+    # breaking verification.
+    demo: bool = False
+
     report: str
     report_hash: str
 
@@ -157,6 +165,7 @@ def assemble(
     approval_chain: list[dict] | None = None,
     trace: list[dict] | None = None,
     trace_available: bool = True,
+    demo: bool = False,
 ) -> BundleManifest:
     """Build a complete bundle from session data. Pure — no DB, no ORM."""
 

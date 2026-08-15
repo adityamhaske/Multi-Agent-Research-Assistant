@@ -69,6 +69,13 @@ class Session(Base):
     # Airgapped corpus mode (docs/12 M10).
     corpus_mode: Mapped[bool] = mapped_column(nullable=False, server_default="false")
 
+    # This run used scripted models and fixture retrievers rather than a real provider
+    # (docs/17 §6.2). Persisted rather than inferred from the process's LLM_MODE, because
+    # every export path must be able to stamp the artifact long after the run — and
+    # because a report that cannot prove it is a demo is exactly the kind of unverifiable
+    # output this product exists to refuse.
+    demo: Mapped[bool] = mapped_column(nullable=False, server_default="false")
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
