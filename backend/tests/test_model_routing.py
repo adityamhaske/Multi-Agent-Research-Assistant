@@ -92,6 +92,22 @@ def test_unpriced_model_is_rejected_because_it_would_break_the_budget_guard():
         catalog.CATALOG.pop("claude-test-unpriced", None)
 
 
+def test_the_two_validators_agree_on_endpoint_defined_routes():
+    """`model_routing.validate` and `llm_factory.validate_pricing` must accept the same set.
+
+    They diverged once: routing was relaxed to accept exact Ollama tags while pricing still
+    looked them up in the catalog, so `ollama:qwen2.5:7b` became selectable in the UI and
+    was then refused at startup. Two validators disagreeing about one string is the kind of
+    bug that only shows up on someone else's machine.
+    """
+    from research_engine.llm_factory import validate_pricing
+    from research_engine.runconfig import ROLES, RunConfig
+
+    for route in ("ollama:qwen2.5:7b", "custom:auto/best-fast", "openrouter:anthropic/x"):
+        model_routing.validate(_valid() | {"planner": route})
+        validate_pricing(RunConfig(llm_mode="real", models=dict.fromkeys(ROLES, route)))
+
+
 def test_endpoint_defined_providers_skip_the_catalog_and_keep_the_exact_tag():
     """Ollama/custom/openrouter ids belong to the endpoint, not to our catalog.
 

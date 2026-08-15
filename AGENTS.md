@@ -66,6 +66,35 @@ production guard to a laptop and rejecting every local model server.
 implementation that rewrites `localhost` → `host.docker.internal` inside a container. Use
 it; do not re-implement it. Three copies of this logic existed once and two were wrong.
 
+## The recurring bug: two hosts, one contract
+
+Server and desktop are **parallel implementations of the same contract**. Every shared
+behaviour has two homes, and the second one gets forgotten. Not hypothetical — each of
+these was found in shipped code, not imagined:
+
+| Behaviour | Copies | How many were wrong |
+|---|---|---|
+| `localhost` → `host.docker.internal` | 3 | 2 |
+| Request fields reaching `Session(...)` (`corpus_mode`, `demo`) | 3 | 3 |
+| Resolving `corpus_dir` | 2 | 2 — both relative, so upload and run disagreed |
+| Validating a `provider:model` route | 2 | 1 — routing accepted what pricing refused |
+
+**When you change any of these, grep for the other copy before you finish:**
+
+- Config → `app/runtime.py` *and* `research_engine/local.py`
+- Request → session → `app/api/v1/research.py` *and* `desktop/sidecar.py`
+- Per-session run config → `app/workers/pipeline_runner.py` *and*
+  `desktop/sidecar.py::_drive_session`
+- Route validation → `app/services/model_routing.py::validate` *and*
+  `research_engine/llm_factory.py::validate_pricing`
+- Schema → an Alembic migration for Postgres *and* the ORM model, which is what the
+  desktop's `create_all` plus startup column sync reads
+
+The failure mode is always the same: the server path is exercised constantly, the desktop
+path only at release time, so a divergence ships. Prefer extracting the shared logic into
+one function over keeping two copies in step by discipline — `map_local_host` is the
+worked example of doing that after the fact.
+
 ## Provider and cost rules
 
 - Routing is `"provider:model"`, split on the **first** colon only — `ollama:qwen2.5:7b`

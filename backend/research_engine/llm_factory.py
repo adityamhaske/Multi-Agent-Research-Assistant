@@ -12,10 +12,13 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 
+import structlog
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from research_engine import catalog
 from research_engine.runconfig import RunConfig, get_run_config
+
+logger = structlog.get_logger()
 
 # Roles → per-role generation config.
 _ROLE_CONFIG = {
@@ -62,14 +65,50 @@ def validate_pricing(cfg: RunConfig | None = None) -> None:
 
     An unpriced model is refused rather than defaulted to zero: the price feeds the budget
     guard, and a silently-zero price turns the per-session spend cap into a no-op.
+
+    That invariant does **not** hold for endpoint-defined providers, and stating it
+    unconditionally was the bug. A custom proxy and OpenRouter serve model ids this catalog
+    does not know, so they cannot be priced and are not refused — refusing would make a
+    working proxied setup unstartable. The consequence is real and was previously silent:
+    `estimate_cost` returns 0.0 for them, so `max_cost_per_session_usd` never triggers and
+    a `$0.00` in the UI does not mean the run was free. Warned at startup so an operator
+    can cap spend at the provider, since this layer cannot.
     """
     cfg = cfg or get_run_config()
     if cfg.llm_mode == "fake":
         return
+
+    # Ollama is genuinely free, so an uncapped local run costs nothing and earns no
+    # warning; these two front models that bill.
+    uncapped = sorted(
+        {
+            cfg.model_for(role)
+            for role in cfg.models
+            if cfg.model_for(role).partition(":")[0] in ("custom", "openrouter")
+        }
+    )
+    if uncapped:
+        logger.warning(
+            "spend_cap_not_enforced",
+            models=uncapped,
+            reason=(
+                "these providers serve model ids this catalog cannot price, so "
+                "max_cost_per_session_usd does not bind and reported cost reads $0.00 — "
+                "set a spending limit at the provider"
+            ),
+        )
+
     missing = set()
     for role in cfg.models:
         provider, _, name = cfg.model_for(role).partition(":")
-        if provider in ("custom", "openrouter"):
+        # Endpoint-defined providers are exempt, and ollama belongs in that set for the
+        # same reason as the other two: it serves whatever tags the user pulled, so
+        # `ollama:qwen2.5:7b` is not a catalog key even though the `qwen2.5` family is.
+        # Omitting it here made this validator reject routes that `model_routing.validate`
+        # accepts — two validators disagreeing about the same string, which surfaced the
+        # moment local routing started naming exact tags instead of families. Local
+        # inference is free, so there is no spend to cap and no warning to give.
+        if provider in ("custom", "openrouter", "ollama"):
             continue
         spec = catalog.get(name)
         if spec is None or not spec.priced:

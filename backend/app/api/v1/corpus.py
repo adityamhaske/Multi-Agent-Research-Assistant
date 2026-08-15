@@ -7,9 +7,7 @@ for isolating documents and embeddings.
 
 from __future__ import annotations
 
-import os
 import uuid
-from pathlib import Path
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
@@ -30,8 +28,11 @@ router = APIRouter(prefix="/projects/{project_id}/corpus", tags=["Corpus"])
 
 async def _get_corpus_store(project_id: uuid.UUID) -> CorpusStore:
     """Returns a CorpusStore instance for the given project."""
-    os.makedirs(settings.corpus_dir, exist_ok=True)
-    db_path = Path(settings.corpus_dir) / f"corpus_{project_id}.sqlite"
+    # `corpus_path`, not `corpus_dir`: the raw setting is relative by default and resolves
+    # against the working directory, so the same project got a different corpus depending
+    # on where the process was started from (app/config.py).
+    settings.corpus_path.mkdir(parents=True, exist_ok=True)
+    db_path = settings.corpus_path / f"corpus_{project_id}.sqlite"
     # We resolve the embedder to whatever the deployment defaults to.
     embedder = await embeddings_for(None)
     return CorpusStore(db_path, embedder)

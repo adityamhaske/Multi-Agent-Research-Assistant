@@ -144,8 +144,6 @@ async def _execute(
                 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
                 if session.corpus_mode:
-                    from pathlib import Path
-
                     from research_engine.corpus import CorpusStore
 
                     embedder = await adapters.embeddings_for(ports["provider_keys"])
@@ -163,7 +161,11 @@ async def _execute(
                         )
                         return
 
-                    db_path = Path(settings.corpus_dir) / f"corpus_{session.project_id}.sqlite"
+                    # Must be `corpus_path`, matching app/api/v1/corpus.py. The worker and
+                    # the API are separate processes with their own working directories,
+                    # so resolving a relative setting independently is what let a document
+                    # upload succeed and then be invisible to the run that needed it.
+                    db_path = settings.corpus_path / f"corpus_{session.project_id}.sqlite"
                     if not db_path.exists():
                         session.status = SessionStatus.FAILED
                         session.error_message = f"Corpus database not found for project {session.project_id}. Ingest documents first."

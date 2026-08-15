@@ -6,6 +6,7 @@ Startup validation fails fast on dangerous values (docs/09 §3, docs/06 §7).
 """
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import model_validator
@@ -77,6 +78,10 @@ class Settings(BaseSettings):
     # ── Data stores ────────────────────────────────────────────────────────────
     database_url: str
     redis_url: str = "redis://localhost:6379/0"
+    # Relative by default, which is fine in Docker (WORKDIR is fixed) and a trap outside
+    # it: resolved against the process working directory, running from the repo root and
+    # from `backend/` produced two different corpus roots, so a document uploaded by one
+    # was invisible to the other. Read it through `corpus_path` below, never directly.
     corpus_dir: str = "data/corpus"
 
     # ── Auth ───────────────────────────────────────────────────────────────────
@@ -164,6 +169,24 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @property
+    def corpus_path(self) -> Path:
+        """Where per-project corpus databases live, as an absolute path.
+
+        A relative `corpus_dir` is anchored to the backend package root rather than the
+        process working directory, so the answer does not depend on where the server
+        happened to be started from. An absolute setting is honoured as given.
+
+        This is a data-location bug, which is the expensive kind: nothing errors, the
+        upload succeeds, and the document is simply not there when the next process looks
+        for it under a different root.
+        """
+        configured = Path(self.corpus_dir)
+        if configured.is_absolute():
+            return configured
+        # config.py lives at <backend>/app/config.py, so parents[1] is <backend>.
+        return Path(__file__).resolve().parents[1] / configured
 
 
 @lru_cache
