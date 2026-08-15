@@ -12,6 +12,7 @@ import { Field, Section } from "@/components/account/Section";
 import {
   useDeleteApiKey,
   useMe,
+  useReadiness,
   useSetApiKey,
   useUpdateProfile,
   useUsage,
@@ -130,6 +131,11 @@ function DesktopSettings() {
 function WebSettings() {
   const { data: user, isLoading } = useMe();
   const { data: usage } = useUsage();
+  const { data: readiness } = useReadiness();
+  // Nothing configured yet: lead with the thing that makes the app work, and let usage,
+  // spending limits and appearance wait their turn (docs/17 §8a). Absent data is treated
+  // as configured — a slow request must not shuffle the page under someone mid-edit.
+  const setupFirst = readiness ? !readiness.ready : false;
   const updateProfile = useUpdateProfile();
   const setApiKey = useSetApiKey();
   const deleteApiKey = useDeleteApiKey();
@@ -200,6 +206,26 @@ function WebSettings() {
 
   return (
     <AccountShell title="Settings" description="Usage, keys, and preferences.">
+      {/* Says why the page is ordered the way it is. Without it the reshuffle looks like
+          a glitch rather than the page helping. */}
+      {setupFirst && (
+        <div
+          role="note"
+          className="border px-4 py-3"
+          style={{
+            order: -3,
+            borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+            backgroundColor: "color-mix(in srgb, var(--accent) 6%, var(--bg-surface))",
+          }}
+        >
+          <p className="text-sm font-semibold text-text-primary">Finish setting up</p>
+          <p className="mt-1 text-sm leading-relaxed text-text-secondary">
+            Research needs one model source — a provider key below, or a local server.
+            Everything else on this page is optional and can wait.
+          </p>
+        </div>
+      )}
+
       {/* ── Usage ────────────────────────────────────────────────────────── */}
       <Section
         title="Token usage"
@@ -245,7 +271,7 @@ function WebSettings() {
       </Section>
 
       {/* ── BYOK ─────────────────────────────────────────────────────────── */}
-      <form onSubmit={saveKey}>
+      <form onSubmit={saveKey} style={setupFirst ? { order: -2 } : undefined}>
         <Section
           title="API key"
           description="Bring your own key and research runs on your provider account instead of this server's. It's encrypted before storage and never shown again."
@@ -407,9 +433,13 @@ function WebSettings() {
       </Section>
 
       {/* ── Preferences ──────────────────────────────────────────────────── */}
-      <LocalLLMCard />
-
-      <ModelPicker />
+      {/* Grouped so the two model cards move together and keep their spacing. Local
+          models sit directly under the key form during setup, because "free, already on
+          your machine" is the better first option to offer. */}
+      <div className="flex flex-col gap-5" style={setupFirst ? { order: -1 } : undefined}>
+        <LocalLLMCard />
+        <ModelPicker />
+      </div>
 
       <AppearanceSection />
     </AccountShell>

@@ -50,7 +50,10 @@ export function AccountShell({
         </div>
       </nav>
 
-      <div className="space-y-5">{children}</div>
+      {/* flex rather than space-y so children can reorder with CSS `order` — Settings
+          promotes setup above usage when nothing is configured yet (docs/17 §8a). Same
+          spacing: `gap-5` and `space-y-5` render identically for a column. */}
+      <div className="flex flex-col gap-5">{children}</div>
     </div>
   );
 }
