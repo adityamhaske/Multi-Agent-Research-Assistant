@@ -171,6 +171,68 @@ without a terminal, and without documentation.
   and since OpenRouter proxies the others, it is the sensible one-click path if pursued.
   Its current spec must be verified before any design depends on it.
 
+## 8a. Design notes for the remaining Phase 2 work
+
+Written before implementation, because both decisions are the kind where the wrong choice
+means rework. Measured 2026-08-14.
+
+### The seeded demo session — generate on first launch
+
+Three options were considered: freeze a pre-built session into the bundle, generate one at
+release time as a build artifact, or generate it live on first launch. The first two were
+attempts to avoid a first-launch latency cost that **does not exist**:
+
+| Measurement | Result |
+|---|---|
+| Pipeline alone, fake mode (`cli --fake`) | **0.04 s** |
+| Full API start → approval gate, via Celery and Postgres | **0.67 s** |
+
+An earlier estimate of ~40 s was wrong. It came from a session whose recorded
+`elapsed_seconds` of 42.6 was almost entirely the *human gate wait* — the operator polling
+and then approving — not work. The figure was quoted twice before anyone measured it.
+
+**Decision: generate on first launch.** At sub-second cost it beats both alternatives on
+every axis that matters:
+
+- Always matches the shipped pipeline, prompts and citation format, because it *is* the
+  shipped pipeline. A frozen bundle rots silently and nobody regenerates it before a
+  release.
+- No release-pipeline step, so no new build failure mode and no stale demo baked into a
+  bad build.
+- **No ID rewriting.** A pre-baked session would carry a `user_id` and `project_id` that do
+  not exist until first boot. Creating it through the normal path gets correct IDs for
+  free — this was the fiddliest part of the build-artifact option and it disappears.
+
+What still needs care:
+
+- **Seeding must not resurrect a deleted demo.** "No sessions exist" is the obvious trigger
+  and it is wrong: it re-creates the demo on every launch after the user deletes it. Needs
+  a persisted marker, shared with the first-run dismissal below.
+- Generation failure must be non-fatal. A demo that cannot be created is a worse first run
+  than no demo, but it is not a reason to refuse to start the app.
+
+### First run — route into Settings, do not build a wizard
+
+A separate key-entry wizard would duplicate the model picker in Settings, and this codebase
+has already paid for that pattern once: `map_local_host` existed in three copies and two
+were wrong. A second key surface diverges the first time a provider is added or a
+validation rule changes.
+
+**Decision: reuse Settings.** But routing a first-time user to Settings as it stands is its
+own wall — the page opens with token usage, spending limits and appearance before it
+reaches the thing they need. So Settings gains a **first-run layout** (key section pinned,
+the rest collapsed) rather than a wizard being born. One component, one validation path.
+
+**The trigger is computed, not stored.** First-run guidance shows when the user has *no
+usable model source*: no provider key **and** no reachable local server. That condition is
+self-healing — it stops the moment a model exists, it never fires for someone who only ever
+uses Ollama, and it cannot desynchronise from reality the way a stored
+"has-completed-onboarding" flag would.
+
+**One thing is stored:** an explicit dismissal, so someone who wants to explore first is not
+nagged. That same marker is what stops the demo seed from returning after deletion — one
+flag, two uses.
+
 ## 9. Risks
 
 | Risk | Handling |

@@ -6,6 +6,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 
 import { useActiveProject } from "@/components/ActiveProject";
+import { FirstRunNotice } from "@/components/FirstRunNotice";
 import { SessionCard } from "@/components/SessionCard";
 import { StartModelPicker } from "@/components/StartModelPicker";
 import { useSessions, useStartResearch } from "@/hooks/queries";
@@ -92,6 +93,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-10">
+      {/* Above the form, not inside it: someone with no model configured needs to see the
+          next step before they type a question they cannot run. Renders nothing once a
+          model exists (docs/17 §8a). */}
+      <FirstRunNotice />
+
       <section aria-labelledby="new-research">
         <h1
           id="new-research"

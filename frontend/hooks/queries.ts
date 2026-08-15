@@ -474,6 +474,31 @@ export interface CorpusStatus {
   current_model: string;
 }
 
+export interface Readiness {
+  /** Whether research can run at all right now — a key, or a local server with a chat model. */
+  ready: boolean;
+  has_cloud_key: boolean;
+  local_reachable: boolean;
+  local_chat_models: number;
+}
+
+/**
+ * Can this user run research right now? (docs/17 §8a)
+ *
+ * Computed server-side on every request rather than stored, so it can never disagree with
+ * reality: it stops being false the moment a key is added or Ollama starts, and it is not
+ * a "has seen onboarding" flag that outlives the condition it described.
+ */
+export function useReadiness() {
+  return useQuery({
+    queryKey: ["readiness"],
+    queryFn: () => apiFetch<Readiness>("/models/readiness"),
+    // Cheap and worth being current: the answer changes the moment the user adds a key
+    // in another tab or starts Ollama, and a stale "not ready" is a false accusation.
+    staleTime: 30_000,
+  });
+}
+
 export function useCorpusDocuments(projectId?: string | null) {
   return useQuery({
     queryKey: ["corpus", projectId, "documents"],

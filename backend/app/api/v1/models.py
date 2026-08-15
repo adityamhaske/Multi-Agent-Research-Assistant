@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.dependencies import get_current_user, get_db
 from app.models.user import User
 from app.services import local_llm, model_routing
@@ -70,6 +71,17 @@ class LocalLLMStatusResponse(BaseModel):
     hint: str | None
 
 
+class ReadinessResponse(BaseModel):
+    """Whether this user can run research at all right now (docs/17 §8a)."""
+
+    ready: bool
+    # Which half is satisfied, so the UI can say something specific rather than
+    # "not configured" — the two have completely different next steps.
+    has_cloud_key: bool
+    local_reachable: bool
+    local_chat_models: int
+
+
 class RoutingRequest(BaseModel):
     routing: dict[str, str]
 
@@ -122,6 +134,48 @@ async def _ollama_presets_from_installed() -> dict[str, dict[str, str]] | None:
         "balanced": dict.fromkeys(ROLES, route_of(strongest)),
         "best": dict.fromkeys(ROLES, route_of(strongest)),
     }
+
+
+@router.get("/readiness", response_model=ReadinessResponse)
+async def get_readiness(current_user: User = Depends(get_current_user)):
+    """Can this user run research right now? (docs/17 §8a)
+
+    Deliberately computed on every request rather than stored as a
+    "has-completed-onboarding" flag. A stored flag desynchronises from reality — it stays
+    true after a key is revoked and false after Ollama starts — whereas this answer is
+    always the current truth and stops being shown the moment a model exists.
+
+    `available_providers()` cannot answer this: it lists ollama unconditionally, because
+    local inference needs no key, so it is never empty and would report every user as
+    ready. Reachability is the thing that matters here, not permission.
+    """
+    has_cloud_key = bool(
+        current_user.api_key_provider
+        or settings.google_api_key
+        or settings.anthropic_api_key
+        or settings.openai_api_key
+        or settings.openrouter_api_key
+        or settings.custom_api_key
+    )
+
+    local_reachable = False
+    chat_models = 0
+    try:
+        status_ = await local_llm.probe()
+        local_reachable = status_.reachable
+        chat_models = sum(1 for m in status_.models if not m.is_embedding)
+    except Exception:  # noqa: BLE001 — a dead probe means "no local models", not an error
+        pass
+
+    return ReadinessResponse(
+        # An embedding-only Ollama cannot fill an agent role, so a reachable server with
+        # no chat model is not readiness — that distinction is the whole reason this
+        # counts chat models rather than trusting `reachable`.
+        ready=has_cloud_key or chat_models > 0,
+        has_cloud_key=has_cloud_key,
+        local_reachable=local_reachable,
+        local_chat_models=chat_models,
+    )
 
 
 @router.get("", response_model=CatalogResponse)
