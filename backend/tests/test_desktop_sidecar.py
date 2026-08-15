@@ -36,6 +36,60 @@ def _auth(token: str | None = TOKEN) -> dict:
     return {"Authorization": f"Bearer {token}"} if token else {}
 
 
+# ── Schema evolution on an existing install ──────────────────────────────────────
+
+
+async def test_existing_database_gains_columns_added_after_release(tmp_path):
+    """An older desktop file must pick up columns added since it was created.
+
+    The desktop builds its schema with `create_all`, not Alembic — the migrations are
+    Postgres-shaped from 0001 (JSONB, later pgvector) and only the ORM's `with_variant`
+    types are portable. But `create_all` never alters an existing table, so before this
+    every column added after a user's first launch was invisible to them, and the first
+    release adding one would have broken every install in the field.
+
+    Simulated the only way that matters: build the schema, drop a column so the file looks
+    older, put a row in it, then boot the sidecar and check the column returns without
+    losing the row.
+    """
+    from sqlalchemy import create_engine, inspect
+
+    from app.models.base import Base
+    from app.models.memory_chunk import MemoryChunk
+
+    # Must be the file the sidecar actually opens (see `create_sidecar_app`), or the test
+    # silently passes against a fresh database it created itself and proves nothing.
+    db = tmp_path / "desktop.sqlite"
+    tables = [t for t in Base.metadata.sorted_tables if t.name != MemoryChunk.__tablename__]
+    engine = create_engine(f"sqlite:///{db}")
+    Base.metadata.create_all(engine, tables=tables)
+
+    with engine.begin() as conn:
+        conn.exec_driver_sql("ALTER TABLE sessions DROP COLUMN demo")
+        conn.exec_driver_sql(
+            "INSERT INTO sessions (id, user_id, project_id, prompt, status, research_depth,"
+            " total_cost_usd, total_tokens_input, total_tokens_output, rework_count,"
+            " created_at, updated_at) VALUES ('a', 'b', 'c', 'older run', 'COMPLETED',"
+            " 'fast', 0, 0, 0, 0, datetime('now'), datetime('now'))"
+        )
+    assert "demo" not in {c["name"] for c in inspect(engine).get_columns("sessions")}
+    engine.dispose()
+
+    app = create_sidecar_app(data_dir=tmp_path, token=TOKEN, fake=True)
+    async with app.router.lifespan_context(app):
+        pass
+
+    engine = create_engine(f"sqlite:///{db}")
+    columns = {c["name"] for c in inspect(engine).get_columns("sessions")}
+    assert "demo" in columns, "startup must add columns the ORM declares"
+    with engine.connect() as conn:
+        assert conn.exec_driver_sql("SELECT COUNT(*) FROM sessions").scalar() == 1
+        # Defaults to "real research" — mislabelling real work as a demo is recoverable,
+        # the reverse is not.
+        assert conn.exec_driver_sql("SELECT demo FROM sessions").scalar() == 0
+    engine.dispose()
+
+
 # ── The security contract ────────────────────────────────────────────────────────
 
 

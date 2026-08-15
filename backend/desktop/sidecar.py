@@ -57,6 +57,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from sqlalchemy import event, func, select
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.models import Base
@@ -163,6 +164,50 @@ class PersistingSink:
 
 
 # ── Keys ─────────────────────────────────────────────────────────────────────────
+
+
+def _add_missing_columns(sync_conn, tables) -> None:
+    """Add ORM-declared columns that an existing SQLite file is missing.
+
+    The desktop deliberately builds its schema with `create_all` rather than Alembic:
+    the migrations are Postgres-shaped from 0001 onward (JSONB, and later pgvector), and
+    the ORM's `with_variant` types are what make one model set serve both hosts
+    (app/models/types.py). But `create_all` only creates *missing tables* — it never
+    alters an existing one, so every column added after a user's first launch was
+    invisible to them. Nothing has shipped yet, which is exactly why this is worth fixing
+    now: the first release that adds a column would otherwise break every install.
+
+    Derived from `Base.metadata` rather than a hand-written list, so a column added to a
+    model reaches the desktop without anyone remembering a second place to edit — the
+    class of drift this codebase has already paid for more than once.
+
+    **Additive only.** Renames, drops, type changes and data backfills are not handled and
+    pass silently; SQLite cannot express most of them without a table rebuild. If one is
+    ever needed, it needs explicit handling here rather than an assumption that this
+    covers it.
+    """
+    inspector = sa_inspect(sync_conn)
+    existing_tables = set(inspector.get_table_names())
+
+    for table in tables:
+        if table.name not in existing_tables:
+            continue  # create_all just made it, so it is already current
+        have = {c["name"] for c in inspector.get_columns(table.name)}
+        for column in table.columns:
+            if column.name in have:
+                continue
+            ddl_type = column.type.compile(dialect=sync_conn.dialect)
+            clause = f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {ddl_type}'
+            # SQLite requires a non-null default when adding a NOT NULL column to a table
+            # that already has rows. Use the column's own server_default so the value
+            # matches what a fresh install would get.
+            default = getattr(column.server_default, "arg", None)
+            if default is not None:
+                clause += f" DEFAULT {default}"
+            if not column.nullable:
+                clause += " NOT NULL"
+            sync_conn.exec_driver_sql(clause)
+            logger.info("sidecar_schema_column_added", table=table.name, column=column.name)
 
 
 def _keyring():
@@ -473,6 +518,7 @@ def create_sidecar_app(
             await conn.run_sync(
                 lambda sync_conn: Base.metadata.create_all(sync_conn, tables=tables)
             )
+            await conn.run_sync(lambda sync_conn: _add_missing_columns(sync_conn, tables))
 
         saver = AsyncSqliteSaver.from_conn_string(str(data_path / "checkpoints.sqlite"))
         state["saver"] = await saver.__aenter__()
