@@ -7,8 +7,15 @@ name: Desktop
 on:
   push:
     branches: [main]
+    # A `v*` tag additionally publishes the bundles to a GitHub Release (docs/17 §5).
+    # Branch and PR runs keep uploading 14-day artifacts and publish nothing, so the
+    # build that gates a merge is the same build that ships.
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write # the release job attaches bundles to a GitHub Release
 
 jobs:
   sidecar:
@@ -108,3 +115,64 @@ jobs:
           path: |
             desktop/target/release/bundle/
           retention-days: 14
+
+  release:
+    name: Publish release
+    # Only on a version tag. Every other trigger stops at the 14-day artifacts above.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [sidecar, shell]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download every shell bundle
+        uses: actions/download-artifact@v8
+        with:
+          pattern: research-desktop-shell-*
+          path: artifacts
+      - name: Collect installers and checksum them
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          # Bundle layouts differ per OS (dmg/, msi/, appimage/, deb/), so collect by
+          # extension rather than by path and flatten into one directory.
+          find artifacts -type f \
+            \( -name '*.dmg' -o -name '*.msi' -o -name '*.AppImage' -o -name '*.deb' \) \
+            -exec cp {} release/ \;
+          cd release
+          # An unsigned artifact that also cannot be verified is worse than an unsigned
+          # one that can: the checksum is what lets a careful user confirm the download
+          # matches what CI produced (docs/17 §5).
+          sha256sum * > SHA256SUMS
+          echo "--- published artifacts ---"
+          cat SHA256SUMS
+      - name: Fail if no installers were produced
+        run: |
+          # A green release with an empty asset list is the worst outcome: it looks like
+          # a successful ship and hands users nothing.
+          count=$(find release -type f ! -name SHA256SUMS | wc -l)
+          echo "installer count: $count"
+          test "$count" -gt 0
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v3
+        with:
+          files: release/*
+          draft: false
+          # Pre-release for anything carrying a suffix (v1.0.0-rc1, -beta). Unsigned
+          # desktop bundles are new territory here; the tag decides, not a human.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body: |
+            Desktop bundles for ${{ github.ref_name }}.
+
+            **These builds are not code-signed.** Your OS will warn you on first launch:
+
+            | OS | What you will see | What to do |
+            |---|---|---|
+            | macOS | "Apple could not verify this app is free of malware" | System Settings → Privacy & Security → **Open Anyway** |
+            | Windows | SmartScreen warning | **More info** → **Run anyway** |
+            | Linux | AppImage is not executable | `chmod +x *.AppImage` (`.deb` needs nothing) |
+
+            Verify your download against `SHA256SUMS` before running it:
+
+            ```
+            sha256sum -c SHA256SUMS --ignore-missing
+            ```

@@ -476,15 +476,27 @@ finished report stays attributable to what wrote it.
 - ✅ **Sidecar bound to `127.0.0.1` on an ephemeral port with a per-launch bearer token**
   (not optional — see §7 of the architecture doc)
 - ✅ No-login local mode; SQLite storage; keys in the OS keychain
-- ✅ Signed and notarized for macOS and Windows; AppImage + `.deb` for Linux
-- ✅ Auto-update against GitHub Releases
+- ☐ **Signed and notarized** — *not built.* No signing secrets in
+  [`desktop.yml`](../../.github/workflows/desktop.yml), no certificate config in
+  `tauri.conf.json`. Bundles are unsigned: macOS shows a Gatekeeper block, Windows shows
+  SmartScreen. Deferred deliberately — see [17 §8](17_Desktop_Distribution.md).
+- ☐ **Auto-update against GitHub Releases** — *not built.* No updater plugin in
+  `desktop/Cargo.toml`, no `updater` key in `tauri.conf.json`. Deferred to its own cycle
+  ([17 §8](17_Desktop_Distribution.md)); the Cargo comment was always honest about this.
+- ✅ AppImage + `.deb` for Linux, `.dmg` for macOS, `.msi` for Windows — CI builds all four
 - ✅ Desktop PDF via WebView print; WeasyPrint excluded from the bundle
 
-**DoD:** a fresh non-developer machine on each of the three OSes installs from a released
-artifact, runs a research session with a pasted key, hits the gate, approves, and exports —
-with no terminal, no Docker, no login · macOS Gatekeeper and Windows SmartScreen both pass
-clean · auto-update moves n−1 → n successfully · the sidecar rejects an unauthenticated
-localhost request.
+**DoD (revised).** The original DoD asserted an install from "a released artifact" and that
+"auto-update moves n−1 → n" — neither is reachable: CI publishes 14-day artifacts behind a
+GitHub login, and no updater exists. What M9 actually delivers, and what is verified:
+
+- ✅ The sidecar rejects an unauthenticated localhost request (asserted in CI).
+- ✅ A research session runs, gates, approves and exports with no terminal, Docker or login.
+- ☐ Distribution to a non-developer — a public download, an unblock path for Gatekeeper and
+  SmartScreen, and a first run that survives having no API key.
+
+That remaining item is **not** a gap in M9's code; it is distribution and onboarding, and is
+specified separately in [17. Desktop Distribution and First Run](17_Desktop_Distribution.md).
 
 ## M10 — Airgapped corpus mode  *(≈ 2 weeks)*  ← **LAUNCH HERE**
 
