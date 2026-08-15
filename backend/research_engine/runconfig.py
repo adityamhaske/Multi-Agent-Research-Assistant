@@ -60,6 +60,12 @@ class RunConfig:
     """
 
     llm_mode: Literal["real", "fake"] = "real"
+    # Selects the *content* the scripted models produce, not whether they are scripted:
+    # a demo run is `llm_mode="fake", demo=True` (docs/17 §6.1). Deliberately not a third
+    # `llm_mode` value — every `llm_mode == "fake"` comparison in the engine gates a
+    # no-network guard, and a missed one would send a demo run to a real provider. As a
+    # separate flag the worst case is a demo showing test filler, never a surprise call.
+    demo: bool = False
     models: Mapping[str, str] = field(default_factory=lambda: dict(DEFAULT_MODELS))
     provider_keys: Mapping[str, str] = field(default_factory=dict)
 

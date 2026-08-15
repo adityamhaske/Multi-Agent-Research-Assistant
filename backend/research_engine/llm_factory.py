@@ -268,6 +268,12 @@ def get_llm(role: str) -> BaseChatModel:
     """Return the chat model for an agent role."""
     cfg = get_run_config()
     if cfg.llm_mode == "fake":
+        # Same scripted plumbing either way; `demo` only picks the content a user reads
+        # (docs/17 §6.1). Test fixtures stay the default so existing assertions hold.
+        if cfg.demo:
+            from research_engine.demo_fixtures import demo_model
+
+            return demo_model()
         from research_engine.fakes import fake_model
 
         return fake_model()

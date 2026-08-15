@@ -70,7 +70,12 @@ async def read_webpage(url: str) -> dict:
             "error": "blocked: corpus-only mode — network access is disabled",
         }
 
-    if get_run_config().llm_mode == "fake":
+    cfg = get_run_config()
+    if cfg.llm_mode == "fake":
+        if cfg.demo:
+            from research_engine.demo_fixtures import demo_read_webpage
+
+            return demo_read_webpage(url)
         from research_engine.fakes import fake_read_webpage
 
         return fake_read_webpage(url)

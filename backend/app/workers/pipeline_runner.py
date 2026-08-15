@@ -98,7 +98,9 @@ async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
         # what a first-run experience needs, since the user demos first and then connects
         # a key without restarting anything. `llm_mode` also gates the retrievers, so a
         # demo run reaches no provider and no search API.
-        return replace(base, llm_mode="fake", models=routing)
+        # `demo` picks the seeded content (docs/17 §6.1); `llm_mode` keeps the run
+        # offline. Desktop counterpart: `sidecar.sidecar_run_config`.
+        return replace(base, llm_mode="fake", demo=True, models=routing)
 
     return replace(base, models=routing)
 

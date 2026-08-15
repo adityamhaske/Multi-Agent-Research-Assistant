@@ -95,7 +95,12 @@ async def search(query: str, max_results: int = 5) -> list[SearchResult]:
         # through to the web chain (docs/12 M10 DoD: no network calls at all).
         return await get_corpus().search(query, max_results)
 
-    if get_run_config().llm_mode == "fake":
+    cfg = get_run_config()
+    if cfg.llm_mode == "fake":
+        if cfg.demo:
+            from research_engine.demo_fixtures import demo_search
+
+            return demo_search(query, max_results)
         from research_engine.fakes import fake_search
 
         return fake_search(query, max_results)

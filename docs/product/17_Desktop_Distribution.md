@@ -111,6 +111,26 @@ Demo mode becomes a **first-class runtime state**, not an environment variable:
 - A persistent, unmissable banner while active.
 - Leaving demo mode is a single action from that banner.
 
+**Demo content lives in `research_engine/demo_fixtures.py`, not `fakes.py`.** The first
+seed shipped the *test* fixtures — "A citable fact [1]" citing "Fixture Source 1" at
+`example.com` — because a demo run is just `llm_mode="fake"`. A stranger's first ten
+seconds were placeholder data making the product's headline claim.
+
+Two rules hold that module honest:
+
+- **Snippets are verbatim, fetched from the URL they are attributed to.** The UI presents
+  a snippet as the quote supporting a claim, so an invented snippet under a real DOI is a
+  fabricated citation — the precise failure this product exists to prevent. Re-fetch when
+  editing; never paraphrase.
+- **Every claim is grounded in the snippet it cites**, carrying no number absent from it,
+  so the graph's own citation-fidelity pass leaves the draft untouched.
+  `tests/test_demo_fixtures.py` enforces both.
+
+Selection is `RunConfig.demo`, a separate flag from `llm_mode`, which stays `"fake"`.
+A third `llm_mode` value would fail *open*: every `llm_mode == "fake"` comparison in the
+engine gates a no-network guard, and one missed comparison would send a demo run to a
+real provider. As a flag, the worst case is a demo showing test filler.
+
 ### 6.2 Demo output must never be mistakable for research
 
 This is the **P0 constraint**, and it follows from the project's own invariant: the product

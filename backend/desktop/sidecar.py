@@ -419,15 +419,20 @@ def make_corpus_store(data_dir: str | Path) -> CorpusStore:
     return CorpusStore(Path(data_dir) / "corpus.sqlite", embedder)
 
 
-def sidecar_run_config(*, fake: bool, data_dir: str | Path | None = None) -> RunConfig:
+def sidecar_run_config(
+    *, fake: bool, demo: bool = False, data_dir: str | Path | None = None
+) -> RunConfig:
     """The desktop's RunConfig: env keys merged with keychain keys (keychain wins).
 
     The desktop counterpart of `local.run_config_from_env` — same shape, but a user who
     pasted a key into the settings screen keeps working after a restart, because the
     keychain is consulted at every launch (docs/12 M9: keys in the OS keychain).
+
+    `demo` selects the seeded session's content (docs/17 §6.1) and is meaningful only
+    alongside `fake`; the server's counterpart is `pipeline_runner._run_config_for`.
     """
     if fake:
-        return RunConfig(llm_mode="fake", corpus_mode=corpus_only_enabled(data_dir))
+        return RunConfig(llm_mode="fake", demo=demo, corpus_mode=corpus_only_enabled(data_dir))
 
     load_env_file()
     env_names = {
@@ -837,7 +842,7 @@ def create_sidecar_app(
 
         try:
             config = sidecar_run_config(
-                fake=app.state.fake or is_demo, data_dir=app.state.data_dir
+                fake=app.state.fake or is_demo, demo=is_demo, data_dir=app.state.data_dir
             )
         except RuntimeError as e:
             async with session_factory() as db:
