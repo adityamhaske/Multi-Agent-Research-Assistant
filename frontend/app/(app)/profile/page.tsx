@@ -17,7 +17,6 @@ export default function ProfilePage() {
   const changePassword = useChangePassword();
 
   const [name, setName] = useState("");
-  const [avatar, setAvatar] = useState("");
   const [copied, setCopied] = useState(false);
 
   const [currentPw, setCurrentPw] = useState("");
@@ -26,11 +25,10 @@ export default function ProfilePage() {
 
   // Seed from the server copy; re-seed if it changes (React's adjust-state-on-prop-change).
   const [seeded, setSeeded] = useState<string | null>(null);
-  const seedKey = user ? `${user.id}|${user.display_name}|${user.avatar_url}` : null;
+  const seedKey = user ? `${user.id}|${user.display_name}` : null;
   if (user && seedKey !== seeded) {
     setSeeded(seedKey);
     setName(user.display_name ?? "");
-    setAvatar(user.avatar_url ?? "");
   }
 
   if (isLoading || !user) {
@@ -42,11 +40,11 @@ export default function ProfilePage() {
     );
   }
 
-  const dirty = name !== (user.display_name ?? "") || avatar !== (user.avatar_url ?? "");
+  const dirty = name !== (user.display_name ?? "");
 
   const saveProfile = async () => {
     try {
-      await updateProfile.mutateAsync({ display_name: name.trim(), avatar_url: avatar.trim() });
+      await updateProfile.mutateAsync({ display_name: name.trim(), avatar_url: user.avatar_url ?? "" });
       toast.success("Profile updated.");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not save your profile.");
@@ -87,7 +85,7 @@ export default function ProfilePage() {
       {/* ── Identity ─────────────────────────────────────────────────────── */}
       <Section
         title="Your details"
-        description="Your name and picture appear in the top bar and on your sessions."
+        description="Your name appears in the top bar and on your sessions."
         footer={
           <>
             <span className="text-xs text-text-muted">
@@ -106,37 +104,17 @@ export default function ProfilePage() {
         }
       >
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-          <div className="flex shrink-0 flex-col items-center gap-2">
-            <Avatar user={{ ...user, avatar_url: avatar || null }} size={72} />
-            <span className="eyebrow">Preview</span>
-          </div>
-
           <div className="min-w-0 flex-1 space-y-4">
             <Field
               label="Display name"
               htmlFor="name"
-              hint="Shown in the top bar. Your initials are used when you have no picture."
+              hint="Shown in the top bar."
             >
               <input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value.slice(0, 80))}
                 placeholder="Your name"
-                className="input-base"
-              />
-            </Field>
-
-            <Field
-              label="Picture URL"
-              htmlFor="avatar"
-              hint="An https link to an image. Leave blank to use your initials."
-            >
-              <input
-                id="avatar"
-                type="url"
-                value={avatar}
-                onChange={(e) => setAvatar(e.target.value)}
-                placeholder="https://…"
                 className="input-base"
               />
             </Field>

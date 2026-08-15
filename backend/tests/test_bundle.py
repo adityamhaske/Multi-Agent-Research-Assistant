@@ -296,3 +296,46 @@ def test_format_json_round_trips():
     data = json.loads(format_json(result))
     assert data["passed"] is True
     assert len(data["checks"]) >= 7
+
+
+# ── Demo provenance (docs/17 §6.2) ────────────────────────────────────────────────
+
+
+def test_real_bundle_is_not_marked_demo():
+    """The default must be "real". Mislabelling real work as a demo is recoverable;
+    the inverse is not, so the flag defaults off."""
+    result = verify(_bundle())
+    assert result.demo is False
+    assert "DEMO" not in format_text(result)
+    assert json.loads(format_json(result))["demo"] is False
+
+
+def test_demo_bundle_announces_itself_above_the_verdict():
+    """A demo bundle passes every integrity check — its hashes are real hashes of
+    scripted output — so PASS alone is true and dangerously misleading. The warning has
+    to be the first thing read, not a note after the checks."""
+    result = verify(_bundle(demo=True))
+    assert result.passed is True, "a demo bundle is still internally consistent"
+    assert result.demo is True
+
+    text = format_text(result)
+    assert "DEMO BUNDLE" in text
+    assert "NOT REAL RESEARCH" in text
+    # Above the verdict, not merely present somewhere in the output.
+    assert text.index("DEMO BUNDLE") < text.index("Bundle verification:")
+    assert json.loads(format_json(result))["demo"] is True
+
+
+def test_demo_flag_cannot_be_edited_away():
+    """Laundering a demo bundle into a real-looking one must break verification.
+
+    Without this the stamp is advisory: anyone could flip one boolean in the JSON and
+    pass scripted output off as research. `bundle_hash` covers the flag, so the edit is
+    caught by the same check that catches a doctored report.
+    """
+    honest = _bundle(demo=True)
+    assert verify(honest).passed is True
+
+    doctored = BundleManifest(**{**json.loads(serialize(honest)), "demo": False})
+    integrity = next(c for c in verify(doctored).checks if c.name == "bundle_integrity")
+    assert integrity.passed is False, "flipping demo must break the bundle hash"

@@ -57,6 +57,12 @@ class VerifyResult:
     checks: list[CheckResult] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
+    # Whether the bundle records itself as a demo (docs/17 §6.2). Carried alongside
+    # `passed` rather than inside `notes`, because a demo bundle verifies perfectly well —
+    # its hashes match and its citations resolve — and would otherwise print a clean PASS
+    # with nothing to say that none of it was real research.
+    demo: bool = False
+
 
 # ── Individual checks ─────────────────────────────────────────────────────────────
 
@@ -217,7 +223,7 @@ def verify(bundle: BundleManifest) -> VerifyResult:
         notes.append("Trace is empty (no agent events recorded for this session).")
 
     passed = all(c.passed for c in checks)
-    return VerifyResult(passed=passed, checks=checks, notes=notes)
+    return VerifyResult(passed=passed, checks=checks, notes=notes, demo=bundle.demo)
 
 
 def verify_file(path: str | Path) -> VerifyResult:
@@ -269,6 +275,16 @@ def format_text(result: VerifyResult) -> str:
         lines.append(f"  ℹ {note}")
     verdict = "PASS" if result.passed else "FAIL"
     lines.insert(0, f"Bundle verification: {verdict}")
+    if result.demo:
+        # Above the verdict, not below it. A demo bundle passes every integrity check —
+        # the hashes are real hashes of scripted output — so "PASS" is true and, on its
+        # own, dangerously misleading. Whoever reads this must see what it is first.
+        lines.insert(
+            0,
+            "!! DEMO BUNDLE — scripted models and fixture sources. NOT REAL RESEARCH.\n"
+            "!! The checks below confirm this file is internally consistent,\n"
+            "!! not that its findings are true.\n",
+        )
     return "\n".join(lines)
 
 
@@ -276,6 +292,7 @@ def format_json(result: VerifyResult) -> str:
     return json.dumps(
         {
             "passed": result.passed,
+            "demo": result.demo,
             "checks": [
                 {"name": c.name, "passed": c.passed, "detail": c.detail or None}
                 for c in result.checks

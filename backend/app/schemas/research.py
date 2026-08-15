@@ -26,6 +26,10 @@ class ResearchStartRequest(BaseModel):
     # Airgapped corpus mode (docs/12 M10): research is performed exclusively over the
     # installed corpus with no outbound network calls.
     corpus_mode: bool = False
+    # Run with scripted models and fixture sources instead of a real provider
+    # (docs/17 §6.2), so the product can be demonstrated before any key exists. Persisted
+    # on the session, which is what lets every export stamp itself as not-real research.
+    demo: bool = False
 
 
 class ApprovalRequest(BaseModel):
@@ -76,6 +80,10 @@ class SessionSummary(BaseModel):
     rework_count: int = 0
     created_at: datetime
     archived_at: datetime | None = None
+    # On the summary rather than the detail: history lists sessions side by side, and a
+    # demo run sitting unmarked next to real ones is the thing this flag exists to prevent.
+    demo: bool = False
+    corpus_mode: bool = False
 
     model_config = {"from_attributes": True, "populate_by_name": True}
 

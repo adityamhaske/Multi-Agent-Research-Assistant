@@ -201,6 +201,7 @@ def assemble(
         session_id=session_id,
         query=query,
         research_depth=research_depth,
+        demo=demo,
         report=report,
         report_hash=report_h,
         claims=claims,

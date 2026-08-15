@@ -88,6 +88,11 @@ async def start_research(
         status=SessionStatus.PENDING,
         research_depth=payload.depth,
         model_routing=routing,
+        # Both of these were accepted by the request schema and then dropped on the floor:
+        # the session took the column default instead, so "Restrict to uploaded corpus"
+        # silently ran an ordinary web search. Persist what the caller actually asked for.
+        corpus_mode=payload.corpus_mode,
+        demo=payload.demo,
     )
     db.add(session)
     await db.commit()
@@ -228,11 +233,41 @@ async def stream_events(
     )
 
 
-def _report_or_404(session: Session) -> str:
+#: Prepended to the report text of any demo export (docs/17 §6.2). Markdown, so it
+#: survives into the PDF renderer as well as the `.md` file.
+_DEMO_STAMP = (
+    "> ## ⚠ DEMO — NOT REAL RESEARCH\n"
+    ">\n"
+    "> This report was produced with **scripted models and fixture sources** so the\n"
+    "> product could be demonstrated without an API key. The citations below resolve to\n"
+    "> real-looking references, but **nothing here was researched and nothing here is\n"
+    "> verified**. Do not cite, share, or act on it.\n"
+    "\n"
+    "---\n\n"
+)
+
+
+def _report_or_404(session: Session, *, stamp_demo: bool = True) -> str:
+    """The report to export, stamped in place if this session was a demo.
+
+    Every export route funnels through here on purpose, and stamping is the default:
+    stamping at each call site would work until someone adds a fourth export and forgets,
+    and an unstamped demo report is indistinguishable from real research the moment it
+    leaves the app.
+
+    `stamp_demo=False` exists for exactly one caller, the bundle. A bundle is a
+    *verifiable* artifact: `report_hash` is checked against the `draft_hash` recorded when
+    the human approved the draft, so injecting prose into the report body afterwards
+    breaks the approval chain and makes every demo bundle fail verification for a reason
+    that has nothing to do with its integrity. Teaching a reader that FAIL is normal for
+    demos would defeat the verifier far more thoroughly than a missing banner. The bundle
+    carries its provenance in the hash-covered `demo` field instead, and the verifier
+    prints it above the verdict.
+    """
     report = session.final_report or session.draft_report
     if not report:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No report available to export.")
-    return report
+    return f"{_DEMO_STAMP}{report}" if (session.demo and stamp_demo) else report
 
 
 @router.get("/{session_id}/export.md")
@@ -286,7 +321,10 @@ async def export_bundle_json(
             detail="Bundle export is only available for COMPLETED sessions.",
         )
 
-    report = _report_or_404(session)
+    # Unstamped on purpose — see `_report_or_404`. The bundle's `demo` field carries the
+    # provenance and is covered by `bundle_hash`; prose in the report body would break the
+    # approval-chain check instead.
+    report = _report_or_404(session, stamp_demo=False)
 
     agent_logs = (
         (
@@ -344,6 +382,7 @@ async def export_bundle_json(
         approval_chain=approval_chain,
         trace=trace,
         trace_available=True,
+        demo=session.demo,
     )
 
     filename = f"research-{str(session.id)[:8]}.bundle.json"

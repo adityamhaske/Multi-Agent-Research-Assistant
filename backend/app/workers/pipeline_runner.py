@@ -90,7 +90,17 @@ async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
         session.model_routing = routing
         await db.commit()
 
-    return replace(run_config_from_settings(), models=routing)
+    base = run_config_from_settings()
+    if session.demo:
+        # Scripted models and fixture retrievers for this run only (docs/17 §6.2). Per
+        # session rather than per process: the old `LLM_MODE=fake` switch made the whole
+        # deployment fake, so a demo and a real run could not coexist — which is exactly
+        # what a first-run experience needs, since the user demos first and then connects
+        # a key without restarting anything. `llm_mode` also gates the retrievers, so a
+        # demo run reaches no provider and no search API.
+        return replace(base, llm_mode="fake", models=routing)
+
+    return replace(base, models=routing)
 
 
 async def _execute(
