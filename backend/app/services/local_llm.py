@@ -118,19 +118,23 @@ def _is_underpowered(name: str) -> bool:
     return any(word in lowered for word in _SMALL_WORDS)
 
 
-def _match_catalog_route(name: str) -> tuple[str | None, bool]:
-    """Map an installed Ollama tag to a catalog route.
+def _match_catalog_route(name: str) -> tuple[str, bool]:
+    """Route for an installed Ollama tag, plus whether its family is in the catalog.
 
-    Ollama tags carry a version suffix ("qwen2.5:7b", "llama3.3:latest") while the catalog
-    keys the family ("qwen2.5"). Match on the family so a user who pulled any tag of a
-    known model still gets a routable entry, and fall back to the raw tag — which the
-    factory accepts, since `provider:model` splits on the first colon only.
+    The route is always the **exact installed tag**. Returning the catalog's family route
+    instead collapsed distinct models onto one entry and then failed to run them: picking
+    `deepseek-r1:1.5b` or `deepseek-r1:14b` both produced `ollama:deepseek-r1`, which
+    Ollama 404s because no `deepseek-r1:latest` exists — and picking `qwen2.5:7b` produced
+    `ollama:qwen2.5`, which silently ran `qwen2.5:latest`, a different model than the one
+    the user selected. Silently running the wrong model is the worse of the two.
+
+    Catalog membership is still reported: it is what tells the UI a model has known
+    pricing and capabilities. It just no longer decides what gets dialled.
     """
     family = name.split(":", 1)[0]
     spec = catalog.get(family)
-    if spec is not None and spec.provider == "ollama":
-        return spec.route, True
-    return f"ollama:{name}", False
+    in_catalog = spec is not None and spec.provider == "ollama"
+    return f"ollama:{name}", in_catalog
 
 
 async def probe(base_url: str | None = None) -> LocalLLMStatus:

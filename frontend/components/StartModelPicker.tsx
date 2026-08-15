@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { useLocalLLMStatus, useModelCatalog } from "@/hooks/queries";
@@ -49,6 +50,19 @@ export function StartModelPicker({
     [catalog]
   );
 
+  // Models this deployment knows but cannot reach, because no key is configured for their
+  // provider. These used to be filtered out silently, so a list of four Gemini entries
+  // looked like the whole world — with nothing to suggest eight Anthropic models were one
+  // API key away. Counted per provider and named, rather than hidden.
+  const lockedProviders = useMemo(() => {
+    const byProvider = new Map<string, number>();
+    for (const m of catalog?.models ?? []) {
+      if (m.provider === "ollama" || m.available) continue;
+      byProvider.set(m.provider, (byProvider.get(m.provider) ?? 0) + 1);
+    }
+    return [...byProvider.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [catalog]);
+
   // Only models that can actually fill an agent role: an embedding model would fail
   // immediately, and a model the server doesn't have can't run at all.
   const localModels = useMemo(
@@ -70,32 +84,41 @@ export function StartModelPicker({
 
   return (
     <div>
-      <span className="mb-2 block text-xs font-medium text-text-secondary">Model</span>
+      <span className="mb-2 block font-mono text-[0.6875rem] uppercase tracking-wider text-text-muted">
+        Model
+      </span>
 
-      {/* Step 1 — where the model runs. */}
-      <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Model source">
+      {/* Step 1 — where the model runs. Same segmented shape and tinted-selection
+          treatment as the Depth control on the form, so two adjacent choices of the same
+          kind do not look like two different kinds of control. `text-white` was also
+          wrong here: on a light accent it is legible, on the dark theme's mint accent it
+          is not — the token pair exists precisely to survive both. */}
+      <div className="inline-flex border border-border" role="radiogroup" aria-label="Model source">
         {(
           [
             { key: "default", label: "Use my settings" },
             { key: "cloud", label: "Cloud API" },
             { key: "local", label: "Local" },
           ] as { key: Source; label: string }[]
-        ).map((opt) => (
-          <button
-            key={opt.key}
-            type="button"
-            role="radio"
-            aria-checked={source === opt.key}
-            onClick={() => pick(opt.key)}
-            className={`px-3 py-1 font-mono text-xs font-medium border transition-colors ${
-              source === opt.key
-                ? "bg-accent text-white border-accent"
-                : "bg-bg-surface text-text-muted border-border hover:text-text-primary"
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
+        ).map((opt) => {
+          const selected = source === opt.key;
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => pick(opt.key)}
+              className="border-r border-border px-2.5 py-1 text-xs font-medium transition-colors last:border-r-0"
+              style={{
+                backgroundColor: selected ? "var(--accent-muted)" : "var(--bg-surface)",
+                color: selected ? "var(--accent)" : "var(--text-secondary)",
+              }}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Step 2 — which model, scoped to the chosen source. */}
@@ -105,7 +128,7 @@ export function StartModelPicker({
         </p>
       )}
       {source === "cloud" && (
-        <div className="mt-2.5">
+        <div className="mt-2.5 space-y-1.5">
           {cloudModels.length === 0 ? (
             <p className="text-[0.75rem] text-text-muted">
               No cloud models available — add an API key in Settings.
@@ -123,6 +146,22 @@ export function StartModelPicker({
                 </option>
               ))}
             </select>
+          )}
+
+          {/* Why the list is shorter than the catalog. Without this the omission looks
+              like the product simply does not support those providers. */}
+          {lockedProviders.length > 0 && (
+            <p className="text-[0.6875rem] leading-relaxed text-text-muted">
+              {lockedProviders
+                .map(([provider, count]) => `${count} ${provider}`)
+                .join(", ")}{" "}
+              {lockedProviders.reduce((n, [, c]) => n + c, 0) === 1 ? "model is" : "models are"}{" "}
+              hidden — no API key configured. Add one in{" "}
+              <Link href="/settings" className="text-accent hover:underline">
+                Settings
+              </Link>
+              .
+            </p>
           )}
         </div>
       )}

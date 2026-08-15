@@ -57,6 +57,14 @@ class ModelSpec:
     # rather than taking a 400.
     sampling_params_supported: bool = True
 
+    # ISO date this entry was last checked against the provider's own published model list
+    # and price sheet. This catalog is hand-maintained, and a hand-maintained copy of a
+    # fast-moving external fact has exactly one failure mode: it rots silently. Nothing
+    # expires automatically — an unverified entry still routes and still runs — but
+    # `stale_entries()` can report what has not been looked at recently, so "is this
+    # current?" has an answer other than reading the file and guessing.
+    verified_on: str | None = None
+
     notes: str = ""
 
     @property
@@ -256,6 +264,42 @@ CATALOG: dict[str, ModelSpec] = {spec.model_id: spec for spec in (*_ANTHROPIC, *
 # prices are not ours to guess. Route to them explicitly and register the model with
 # `register()` (below) so pricing is a conscious act.
 KNOWN_PROVIDERS = ("anthropic", "google", "openai", "openrouter", "ollama", "custom")
+
+
+def stale_entries(today: str, max_age_days: int = 120) -> list[tuple[str, str | None]]:
+    """Catalog entries not verified against their provider within `max_age_days`.
+
+    Returns `(route, verified_on)` pairs, `verified_on` being None for entries that were
+    never dated at all. Purely advisory — this refuses nothing and expires nothing.
+
+    Model line-ups and prices change on the provider's schedule, not ours, so the only
+    honest thing a hand-maintained catalog can do is say when it was last checked.
+    Answering "are these current?" otherwise means diffing this file against six vendors'
+    pricing pages by hand, which is precisely the work nobody does.
+
+    `today` is passed in rather than read from the clock: the engine takes no ambient
+    dependencies, and a caller-supplied date keeps this testable.
+    """
+    from datetime import date
+
+    def parse(value: str) -> date:
+        y, m, d = (int(part) for part in value.split("-"))
+        return date(y, m, d)
+
+    now = parse(today)
+    out: list[tuple[str, str | None]] = []
+    for spec in CATALOG.values():
+        if spec.verified_on is None:
+            out.append((spec.route, None))
+            continue
+        try:
+            age = (now - parse(spec.verified_on)).days
+        except (ValueError, TypeError):
+            out.append((spec.route, spec.verified_on))  # unparseable is not verified
+            continue
+        if age > max_age_days:
+            out.append((spec.route, spec.verified_on))
+    return sorted(out)
 
 
 def register(spec: ModelSpec) -> None:

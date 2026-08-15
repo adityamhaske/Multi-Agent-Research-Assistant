@@ -31,11 +31,25 @@ def test_api_root_strips_the_openai_suffix():
     assert local_llm._api_root("http://localhost:11434") == "http://localhost:11434"
 
 
-def test_catalog_route_matches_on_family_not_exact_tag():
-    # A user who pulled qwen2.5:7b should still get the catalog's routable entry.
+def test_route_is_the_exact_tag_even_when_the_family_is_catalogued():
+    """Routing must name the tag the user actually pulled, not its catalog family.
+
+    This previously returned the family route `ollama:qwen2.5`, which reads as harmless
+    and is not: Ollama resolves a bare family to its `:latest` tag, so selecting
+    `qwen2.5:7b` silently ran `qwen2.5:latest` — a different model than the one chosen.
+    For a family with no `:latest` pulled (`deepseek-r1`) the same behaviour 404'd, and
+    collapsed `deepseek-r1:1.5b` and `deepseek-r1:14b` onto one indistinguishable entry.
+    """
     route, in_catalog = local_llm._match_catalog_route("qwen2.5:7b")
-    assert route == "ollama:qwen2.5"
+    assert route == "ollama:qwen2.5:7b"
+    # Still catalogued — that is what carries known pricing and capabilities to the UI.
     assert in_catalog is True
+
+
+def test_sibling_tags_of_one_family_stay_distinct():
+    small, _ = local_llm._match_catalog_route("deepseek-r1:1.5b")
+    large, _ = local_llm._match_catalog_route("deepseek-r1:14b")
+    assert small != large, "two very different models must not share a route"
 
 
 def test_unknown_model_still_gets_a_usable_route():
