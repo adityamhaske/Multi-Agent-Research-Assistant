@@ -83,10 +83,67 @@ async def test_existing_database_gains_columns_added_after_release(tmp_path):
     columns = {c["name"] for c in inspect(engine).get_columns("sessions")}
     assert "demo" in columns, "startup must add columns the ORM declares"
     with engine.connect() as conn:
-        assert conn.exec_driver_sql("SELECT COUNT(*) FROM sessions").scalar() == 1
+        # Assert on the row this test inserted, not a total: startup also seeds a demo
+        # session on first launch, so a count would couple this test to that feature.
+        row = conn.exec_driver_sql(
+            "SELECT demo FROM sessions WHERE prompt = 'older run'"
+        ).fetchone()
+        assert row is not None, "the pre-existing row must survive the column addition"
         # Defaults to "real research" — mislabelling real work as a demo is recoverable,
         # the reverse is not.
-        assert conn.exec_driver_sql("SELECT demo FROM sessions").scalar() == 0
+        assert row[0] == 0
+    engine.dispose()
+
+
+async def test_first_launch_seeds_a_demo_and_never_reseeds(tmp_path):
+    """First launch leaves a finished demo waiting; later launches must not add more.
+
+    The obvious trigger — "no sessions exist" — is wrong, because it re-creates the demo
+    every launch after the user deletes it. A marker file is what makes a deletion stick
+    (docs/17 §8a), so this deletes the seeded session and boots again to prove it.
+    """
+    from sqlalchemy import create_engine
+
+    from desktop.sidecar import DEMO_QUERY, demo_already_seeded
+
+    async def boot():
+        app = create_sidecar_app(data_dir=tmp_path, token=TOKEN, fake=True)
+        async with app.router.lifespan_context(app):
+            await asyncio.sleep(0.5)  # let the seeded run finish; measured well under this
+
+    assert not demo_already_seeded(tmp_path)
+    await boot()
+    assert demo_already_seeded(tmp_path), "the marker is what stops a re-seed"
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'desktop.sqlite'}")
+    with engine.connect() as conn:
+        rows = conn.exec_driver_sql(
+            "SELECT demo, status FROM sessions WHERE prompt = ?", (DEMO_QUERY,)
+        ).fetchall()
+    assert len(rows) == 1, "exactly one demo on first launch"
+    assert rows[0][0] == 1, "the seeded session must be marked as a demo"
+
+    # A second launch must not add another.
+    await boot()
+    with engine.connect() as conn:
+        assert (
+            conn.exec_driver_sql(
+                "SELECT COUNT(*) FROM sessions WHERE prompt = ?", (DEMO_QUERY,)
+            ).scalar()
+            == 1
+        )
+
+    # Deleting it must stick — this is the case the marker exists for.
+    with engine.begin() as conn:
+        conn.exec_driver_sql("DELETE FROM sessions WHERE prompt = ?", (DEMO_QUERY,))
+    await boot()
+    with engine.connect() as conn:
+        assert (
+            conn.exec_driver_sql(
+                "SELECT COUNT(*) FROM sessions WHERE prompt = ?", (DEMO_QUERY,)
+            ).scalar()
+            == 0
+        ), "a deleted demo must not come back"
     engine.dispose()
 
 

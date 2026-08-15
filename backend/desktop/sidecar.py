@@ -320,6 +320,37 @@ def save_routing(data_dir: str | Path, routing: dict[str, str] | None) -> None:
 
 # ── Custom Endpoint ──────────────────────────────────────────────────────────────
 
+#: The demo session shown on first launch. Deliberately a real question rather than
+#: lorem: the point of leading with it is to show what the product produces, and
+#: "Fixture Report" demonstrates only that the plumbing runs.
+DEMO_QUERY = "What is retrieval-augmented generation, and when does it beat fine-tuning?"
+
+
+def _demo_seeded_path(data_dir: str | Path) -> Path:
+    return Path(data_dir) / "demo_seeded.json"
+
+
+def demo_already_seeded(data_dir: str | Path) -> bool:
+    """Whether first-launch seeding has already happened.
+
+    A marker, not a count of sessions. "No sessions exist" is the obvious test and it is
+    wrong: it resurrects the demo every launch after the user deletes it, which is a
+    peculiarly annoying way to disrespect a deletion (docs/17 §8a).
+    """
+    return _demo_seeded_path(data_dir).exists()
+
+
+def mark_demo_seeded(data_dir: str | Path) -> None:
+    """Record that seeding ran. Written *before* the run, not after.
+
+    A run that crashes halfway still counts as seeded: retrying it on every launch would
+    turn one broken demo into an endless supply of them.
+    """
+    _demo_seeded_path(data_dir).write_text(
+        json.dumps({"seeded": True, "query": DEMO_QUERY}, indent=2), encoding="utf-8"
+    )
+
+
 def _custom_endpoint_path(data_dir: str | Path) -> Path:
     return Path(data_dir) / "custom_endpoint.json"
 
@@ -553,6 +584,37 @@ def create_sidecar_app(
                 db.add(Project(user_id=user.id, name=DEFAULT_PROJECT_NAME))
                 await db.commit()
 
+        # First launch: leave a finished demo report waiting, so the app opens on what it
+        # produces rather than an empty form and a request for an API key (docs/17 §6.1).
+        # Generated rather than shipped pre-built: measured at 0.67s end to end, and a
+        # generated one cannot drift from the pipeline the way a frozen fixture does.
+        if not demo_already_seeded(data_path):
+            try:
+                # Marked before running, so a crash mid-run cannot produce a fresh broken
+                # demo on every subsequent launch.
+                mark_demo_seeded(data_path)
+                async with session_factory() as db:
+                    project = (
+                        await db.execute(select(Project).where(Project.user_id == user.id).limit(1))
+                    ).scalar_one()
+                    seed = Session(
+                        user_id=user.id,
+                        project_id=project.id,
+                        prompt=DEMO_QUERY,
+                        status=SessionStatus.RUNNING,
+                        research_depth="fast",
+                        demo=True,
+                    )
+                    db.add(seed)
+                    await db.commit()
+                    await db.refresh(seed)
+                # Not awaited: the window should paint immediately, and the run resolves
+                # into the session list on its own.
+                asyncio.create_task(_drive_session(seed.id, approved=None, feedback=None))
+                logger.info("sidecar_demo_seeded", session_id=str(seed.id))
+            except Exception as e:  # noqa: BLE001 — a missing demo must never block boot
+                logger.warning("sidecar_demo_seed_failed", error=str(e))
+
         yield
 
         await state["_saver_cm"].__aexit__(None, None, None)
@@ -764,8 +826,19 @@ def create_sidecar_app(
         """Run or resume one session in-process — the desktop's Celery replacement."""
         sidecar = app.state.sidecar
         sink = PersistingSink(sidecar["bus"], session_factory)
+
+        # Per-session demo, not just the process-wide `--fake` flag (docs/17 §6.2). The
+        # desktop is single-process, so without this a user who ticks "demo run" while the
+        # app is configured with a real key would spend that key — and get a report stamped
+        # as a demo, which is the worst of both.
+        async with session_factory() as db:
+            session = await _authorized_session(db, session_id, sidecar["user_id"])
+            is_demo = bool(session.demo)
+
         try:
-            config = sidecar_run_config(fake=app.state.fake, data_dir=app.state.data_dir)
+            config = sidecar_run_config(
+                fake=app.state.fake or is_demo, data_dir=app.state.data_dir
+            )
         except RuntimeError as e:
             async with session_factory() as db:
                 session = await _authorized_session(db, session_id, sidecar["user_id"])
@@ -824,6 +897,12 @@ def create_sidecar_app(
             prompt=payload.query,
             status=SessionStatus.PENDING,
             research_depth=payload.depth,
+            # Both were accepted by the request schema and then dropped, exactly as they
+            # were on the server path: the session silently took the column default, so
+            # "restrict to corpus" ran an ordinary search and a demo run produced an
+            # unstamped report indistinguishable from real research.
+            corpus_mode=payload.corpus_mode,
+            demo=payload.demo,
         )
         db.add(session)
         await db.commit()
