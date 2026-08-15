@@ -584,12 +584,18 @@ def _cited_claims(draft: str) -> list[str]:
     skipping = False
     for raw in (draft or "").splitlines():
         line = raw.strip()
+        # Tested BEFORE the heading guard below. That guard `continue`s on anything
+        # starting with '#', which left this break unreachable for the `## Sources`
+        # heading the synthesizer actually emits — so the source list was judged as
+        # claims, and each line failed `_numbers_grounded` on the digits in its own URL
+        # (arXiv ids, years). Every report shipped with the unverified note appended to
+        # every line of its own bibliography.
+        if re.match(r"(?i)#{0,6}\s*(sources|references|citations|bibliography)\b", line):
+            break
         if not line or line.startswith("#"):
             if line:
                 skipping = bool(_VLIMITATIONS_HEADING_RE.match(line))
             continue
-        if re.match(r"(?i)#{0,6}\s*(sources|references|citations|bibliography)\b", line):
-            break
         if skipping:
             continue
         content = _VLIST_MARKER_RE.sub("", line)

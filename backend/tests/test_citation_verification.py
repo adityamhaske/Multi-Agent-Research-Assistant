@@ -291,6 +291,26 @@ def test_claim_split_matches_the_eval_judge():
     ]
 
 
+def test_markdown_sources_heading_ends_the_claim_scan():
+    """A `## Sources` heading must stop the scan, not be skipped as an ordinary heading.
+
+    The heading guard ran first and `continue`d, so the `break` below it was unreachable
+    for any heading written with `#` — which is every heading the synthesizer emits. The
+    source list was then judged as claims, and each line failed the numeric grounding
+    check on the digits in its own URL (arXiv ids, years). Every report shipped with
+    "(citation could not be verified)" appended to every line of its own bibliography —
+    the product's headline claim failing on the one section that proves it.
+    """
+    draft = (
+        "## Findings\nA citable fact [1].\n\n"
+        "## Sources\n"
+        "[1] https://arxiv.org/abs/2005.11401\n"
+        "[2] https://example.org/report/2024\n"
+    )
+
+    assert graph_mod._cited_claims(draft) == ["A citable fact [1]."]
+
+
 def test_planner_output_schema_still_valid():
     """Sanity: the schema the planner is judged against is unchanged."""
     parsed = PlannerOutput.model_validate(
