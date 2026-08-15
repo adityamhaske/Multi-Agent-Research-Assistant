@@ -28,6 +28,7 @@ docs/
 | 10 | [Roadmap](product/10_Roadmap.md) | Vertical-slice milestones with verifiable Definitions of Done |
 | 12 | [v2 Launch Plan](product/12_Launch_Plan.md) | Local-first strategy, milestones M5–M17, budget, binding out-of-scope list |
 | — | [Launch Go/No-Go](product/Launch_Go_No_Go.md) | Verification outcome and checklist for release readiness |
+| 17 | [Desktop Distribution and First Run](product/17_Desktop_Distribution.md) | **[PLANNED]** Release pipeline, demo-first onboarding, and install guidance for the desktop build |
 
 ### Architecture (`architecture/`)
 
