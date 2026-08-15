@@ -1,0 +1,49 @@
+name: Pages
+
+# Publishes the project landing page in `site/` to GitHub Pages: what the project is,
+# how to use it, how to deploy it, and where the source and downloads live.
+#
+# Deliberately a plain static upload with no build step. The page is one self-contained
+# HTML file with inlined CSS and no scripts, so there is nothing to compile and no
+# dependency that can rot between releases. The in-app docs site (`/docs`, rendered from
+# `docs/**/*.md` by the frontend) remains the place for engineering documentation — this
+# is the front door, not a second copy of the manual.
+
+on:
+  push:
+    branches: [main]
+    # Only republish when the page itself changes; a backend commit should not redeploy it.
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time. `cancel-in-progress: false` because cancelling a half-finished
+# Pages deployment can leave the live site on an older commit than the queue implies.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fail if the page is missing
+        # A green deploy that published nothing looks like success and serves a 404.
+        run: test -f site/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy
+        id: deploy
+        uses: actions/deploy-pages@v4
