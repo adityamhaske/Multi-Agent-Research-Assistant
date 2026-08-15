@@ -129,43 +129,49 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Depth as one segmented control rather than three competing cards. Real radios
-              underneath, so keyboard and screen-reader behaviour is unchanged. */}
+          {/* Depth as one compact segmented control, anchored to the right rather than
+              stretched across the card — it is one setting among several, not a second
+              headline. Selection reads from a tinted fill, not a solid one: noticeable
+              without competing with the question above it. Real radios underneath, so
+              keyboard and screen-reader behaviour is unchanged. */}
           <fieldset>
-            <legend className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-text-secondary">
-              Depth
-            </legend>
-            <div className="flex w-full border border-border">
-              {DEPTHS.map((d) => {
-                const selected = depth === d.value;
-                return (
-                  <label
-                    key={d.value}
-                    className="flex-1 cursor-pointer border-r border-border px-3 py-2 text-center text-sm font-medium transition-colors last:border-r-0"
-                    style={{
-                      backgroundColor: selected ? "var(--accent)" : "var(--bg-surface)",
-                      color: selected ? "var(--accent-contrast)" : "var(--text-secondary)",
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="depth"
-                      value={d.value}
-                      checked={selected}
-                      onChange={() => setDepth(d.value)}
-                      className="sr-only"
-                    />
-                    {d.label}
-                  </label>
-                );
-              })}
+            <div className="flex items-center justify-between gap-3">
+              <legend className="font-mono text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                Depth
+              </legend>
+              <div className="inline-flex border border-border">
+                {DEPTHS.map((d) => {
+                  const selected = depth === d.value;
+                  return (
+                    <label
+                      key={d.value}
+                      className="cursor-pointer border-r border-border px-2.5 py-1 text-xs font-medium transition-colors last:border-r-0"
+                      style={{
+                        backgroundColor: selected ? "var(--accent-muted)" : "var(--bg-surface)",
+                        color: selected ? "var(--accent)" : "var(--text-secondary)",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="depth"
+                        value={d.value}
+                        checked={selected}
+                        onChange={() => setDepth(d.value)}
+                        className="sr-only"
+                      />
+                      {d.label}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
             {/* One line of guidance for the current choice, instead of three at once. */}
             <p className="mt-1.5 text-xs text-text-muted">{activeDepth?.hint}</p>
           </fieldset>
 
-          {/* Settings that almost never change from run to run. */}
-          <div className="border-t border-border pt-4">
+          {/* Settings that almost never change from run to run. No divider above this —
+              the space-y-6 rhythm on the form already separates it from Depth. */}
+          <div>
             <button
               type="button"
               onClick={() => setShowAdvanced((v) => !v)}
