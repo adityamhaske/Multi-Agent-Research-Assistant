@@ -153,6 +153,13 @@ jobs:
             \( -name '*.dmg' -o -name '*.msi' -o -name '*.AppImage' -o -name '*.deb' \) \
             -exec cp {} release/ \;
           cd release
+          # Squeeze spaces out of the names BEFORE hashing. The bundler names files after
+          # productName ("Research Assistant_1.0.1_aarch64.dmg"), and GitHub rewrites the
+          # space to a dot when it serves the asset — so a SHA256SUMS generated from the
+          # original names lists a file nobody can download under that name, and
+          # `shasum -c` answers "no file was verified". The hashes were right; the names
+          # were not, which is worse than shipping no checksums at all.
+          for f in *\ *; do [ -e "$f" ] && mv "$f" "${f// /.}"; done
           # An unsigned artifact that also cannot be verified is worse than an unsigned
           # one that can: the checksum is what lets a careful user confirm the download
           # matches what CI produced (docs/17 §5).
