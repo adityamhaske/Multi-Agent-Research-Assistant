@@ -81,9 +81,21 @@ async function startResearchToGate(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible();
 
   // SSE delivers pipeline events into the feed (replayed from agent_logs on connect).
+  //
+  // 120s, not 60s, and the difference is cold start rather than slack. The FIRST
+  // pipeline of a CI run pays for a Celery worker that has just booted, a LangGraph
+  // graph compiled on first use, and fresh pool connections; later journeys reuse all
+  // three. Measured across two consecutive CI runs: while the screenshot tool still ran
+  // first it absorbed that cost and journey 1 passed outright; the run after it was
+  // removed, journey 1 failed this assertion at 60s and passed on retry — flaky, which
+  // `retries: 1` then hid behind a green check.
+  //
+  // This asserts that SSE *delivers*, not that the pipeline is fast, so waiting out a
+  // cold start is correct. If it ever exceeds 120s the cause is not cold start and the
+  // timeout should not be raised again.
   await expect(page.getByLabel("Agent activity log")).toContainText(
     /planner|executor|critic|synthesizer/i,
-    { timeout: 60_000 },
+    { timeout: 120_000 },
   );
 
   await expect(page.getByRole("heading", { name: /review gate/i })).toBeVisible({
