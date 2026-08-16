@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import { useActiveProject } from "@/components/ActiveProject";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   corpusDownloadUrl,
   useCorpusDocuments,
@@ -113,15 +114,10 @@ export default function CorpusPage() {
 
   if (!activeId) {
     return (
-      <div className="card flex flex-col items-center py-10 text-center">
-        <span aria-hidden className="mb-2 text-2xl opacity-60">
-          ◇
-        </span>
-        <p className="text-sm font-medium text-text-primary">No active project</p>
-        <p className="mt-0.5 text-xs text-text-muted">
-          Select or create a project to manage its corpus.
-        </p>
-      </div>
+      <EmptyState
+        title="No active project"
+        description="Select or create a project to manage its corpus."
+      />
     );
   }
 
@@ -363,7 +359,8 @@ export default function CorpusPage() {
           </div>
 
           <div className="space-y-4">
-            <h2 className="font-serif text-lg font-bold text-text-primary">Telemetry Status</h2>
+            {/* Was "Telemetry Status" — this is corpus stats, not telemetry (docs/07 §2). */}
+            <h2 className="font-serif text-lg font-bold text-text-primary">Corpus Stats</h2>
             <div className="space-y-4 border border-border bg-bg-surface p-5">
               <div>
                 <div className="font-mono text-xs uppercase tracking-wider text-text-muted">

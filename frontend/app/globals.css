@@ -111,6 +111,60 @@
 
   /* Typography */
   --font-serif: "Times New Roman", Times, Georgia, Cambria, serif;
+
+  /* ─── Scales (theme-independent) ─────────────────────────────────────────
+   * Declared in :root only. These carry no colour, so the light/dark
+   * duplication rule does not apply — repeating them in `.dark` would create a
+   * second home for one value, which is the drift pattern AGENTS.md warns about.
+   *
+   * Before this block, spacing came from whichever Tailwind step each component
+   * author reached for: the same "card with a title and a body" appears with
+   * p-5/p-6, p-4/py-3.5, p-3 and p-2.5 across four files, so nothing lines up
+   * across a component boundary. The primitives in components/ui consume these
+   * rather than picking a step each time.
+   */
+
+  /* Spacing — 4px base, plus the two half-steps the dense surfaces need. */
+  --space-3xs: 0.125rem; /*  2px — optical nudge between icon and text */
+  --space-2xs: 0.25rem;  /*  4px — inside a chip */
+  --space-xs: 0.5rem;    /*  8px — between siblings in a row */
+  --space-sm: 0.75rem;   /* 12px — dense list padding */
+  --space-md: 1rem;      /* 16px — default gap between controls */
+  --space-lg: 1.5rem;    /* 24px — card padding, gap between cards */
+  --space-xl: 2.5rem;    /* 40px — gap between page sections */
+  --space-2xl: 4rem;     /* 64px — page top/bottom breathing room */
+
+  /* Type — six steps, no more. The sizes that existed only as one-off arbitrary
+   * values (text-[0.6875rem], text-[0.8125rem], text-[0.625rem]) are named here,
+   * so the scale is auditable instead of being rediscovered per component. */
+  --text-micro: 0.6875rem; /* 11px — mono eyebrows, badges, timestamps */
+  --text-xs: 0.75rem;      /* 12px — hints, secondary metadata */
+  --text-sm: 0.8125rem;    /* 13px — labels, controls, dense body */
+  --text-base: 0.875rem;   /* 14px — body */
+  --text-lg: 1.125rem;     /* 18px — section headings */
+  --text-xl: 1.5rem;       /* 24px — page title */
+
+  --leading-tight: 1.25;
+  --leading-snug: 1.4;
+  --leading-relaxed: 1.65; /* reading measure — reports, descriptions */
+
+  /* Geometry. The identity is square; this states the value once rather than
+   * leaving it implied by forty separate `border-radius: 0` declarations. */
+  --radius: 0;
+
+  /* Density. `comfortable` is the default; `compact` is what the activity feed
+   * and long document lists switch to. Components read these instead of
+   * branching on a prop at every padding site. */
+  --density-pad-y: 0.625rem;
+  --density-pad-x: 0.875rem;
+  --density-row-gap: var(--space-xs);
+}
+
+/* Opt-in compact density: set on a container, inherited by everything inside. */
+[data-density="compact"] {
+  --density-pad-y: 0.3125rem;
+  --density-pad-x: 0.5rem;
+  --density-row-gap: var(--space-2xs);
 }
 
 .dark {

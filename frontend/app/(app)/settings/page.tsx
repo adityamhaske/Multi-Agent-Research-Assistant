@@ -1,6 +1,5 @@
 "use client";
 
-import { useTheme } from "next-themes";
 import { useState } from "react";
 import toast from "react-hot-toast";
 
@@ -82,37 +81,13 @@ function UsageStat({ label, sub, window: w }: { label: string; sub: string; wind
   );
 }
 
-function AppearanceSection() {
-  const { resolvedTheme, setTheme } = useTheme();
-  return (
-    <Section title="Appearance" description="Choose how the interface looks on this device.">
-      <div
-        className="segmented"
-        role="radiogroup"
-        aria-label="Theme"
-      >
-        {(["light", "dark"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="radio"
-            aria-checked={resolvedTheme === t}
-            onClick={() => setTheme(t)}
-            className="segmented-item capitalize font-mono text-xs"
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-    </Section>
-  );
-}
-
 /**
  * Desktop settings (docs/12 M9). There is no account on the desktop build — no
  * usage meters, no spending limits, no server-side BYOK — so the page keeps only
- * what exists locally: keychain keys, the local LLM bridge, model routing, and
- * appearance. Two components (not conditional hooks) keep both variants honest.
+ * what exists locally: keychain keys, the local LLM bridge, and model routing.
+ * Two components (not conditional hooks) keep both variants honest. Theme lives
+ * only in the account menu's toggle now — a standalone Appearance section here
+ * was a second, redundant place to do the same thing (docs/07 §2).
  */
 function DesktopSettings() {
   return (
@@ -122,8 +97,6 @@ function DesktopSettings() {
       <LocalLLMCard />
 
       <ModelPicker />
-
-      <AppearanceSection />
     </AccountShell>
   );
 }
@@ -132,9 +105,9 @@ function WebSettings() {
   const { data: user, isLoading } = useMe();
   const { data: usage } = useUsage();
   const { data: readiness } = useReadiness();
-  // Nothing configured yet: lead with the thing that makes the app work, and let usage,
-  // spending limits and appearance wait their turn (docs/17 §8a). Absent data is treated
-  // as configured — a slow request must not shuffle the page under someone mid-edit.
+  // Nothing configured yet: lead with the thing that makes the app work, and let usage
+  // and spending limits wait their turn (docs/17 §8a). Absent data is treated as
+  // configured — a slow request must not shuffle the page under someone mid-edit.
   const setupFirst = readiness ? !readiness.ready : false;
   const updateProfile = useUpdateProfile();
   const setApiKey = useSetApiKey();
@@ -440,8 +413,6 @@ function WebSettings() {
         <LocalLLMCard />
         <ModelPicker />
       </div>
-
-      <AppearanceSection />
     </AccountShell>
   );
 }

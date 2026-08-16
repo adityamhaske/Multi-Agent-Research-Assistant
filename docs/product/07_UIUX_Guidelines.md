@@ -22,30 +22,80 @@ Typography is split strictly into three distinct duties: editorial structure, na
 
 ### 🎨 Structural & Status Color Matrix
 
-All colors are bound to CSS variables defined in `globals.css` with dark mode support (`next-themes` class strategy):
+All colors are bound to CSS variables defined in `globals.css` with dark mode support (`next-themes` class strategy). Values below are read from the token source, not restated from memory — check `globals.css` `:root` / `.dark` directly before trusting a color number in a review:
 
 | Token | Light Theme | Dark Theme | Purpose & Element Binding |
 | :--- | :--- | :--- | :--- |
 | `--bg-base` (Paper) | `#FBFBFA` | `#121214` | Root viewport canvas / document paper background |
 | `--bg-surface` (Card) | `#FFFFFF` | `#1A1A1E` | Card surfaces, modal surfaces, table backgrounds |
-| `--bg-elevated` | `#F2F2EE` | `#222226` | Interactive hover states, secondary backgrounds |
+| `--bg-elevated` | `#F2F2EF` | `#242428` | Interactive hover states, secondary backgrounds |
 | `--border` (Strict Rule) | `#D1D1CD` | `#2E2E34` | Hairline borders (1px) for all structural dividers |
 | `--text-primary` (Ink) | `#111111` | `#F4F4F6` | Academic titles, primary text, active states |
-| `--text-secondary` | `#444440` | `#B0B0B8` | Body paragraphs, form labels |
-| `--text-muted` (Muted Ink) | `#666662` | `#8E8E93` | Metadata, helper hints, timestamps |
-| `--accent` (Academic Accent) | `#3F5E4D` | `#527A65` | Forest academic accent for active items, focus rings |
-| `--accent-muted` | `#E8EFEA` | `#1C2E24` | Active row tints, user chat bubbles |
-| `--success` (Status OK) | `#10B981` | `#10B981` | Completed states, healthy nodes |
-| `--warning` (Status Warn) | `#F59E0B` | `#F59E0B` | Awaiting review, missing API keys |
-| `--danger` (Status Fail) | `#EF4444` | `#EF4444` | Exceptions, failed stages, destructive actions |
-| `--badge-block-bg` | `#EAEAE6` | `#242428` | Technical tag frames, code chips |
+| `--text-secondary` | `#666662` | `#8E8E93` | Body paragraphs, form labels |
+| `--text-muted` | `#8C8C88` | `#707075` | Metadata, helper hints, timestamps |
+| `--accent` (Academic Accent) | `#15654A` | `#5FD3A6` | Forest academic accent for active items, focus rings — deepened/brightened from an earlier `#3F5E4D`/`#527A65` that only cleared ~3.9:1 |
+| `--accent-muted` | `#E8EFE9` | `#1B2E27` | Active row tints, user chat bubbles |
+| `--success` (Status OK) | `#15803D` | `#4ADE80` | Completed states, healthy nodes |
+| `--warning` (Status Warn) | `#B45309` | `#FBBF24` | Awaiting review, missing API keys |
+| `--danger` (Status Fail) | `#DC2626` | `#F87171` | Exceptions, failed stages, destructive actions |
+| `--info` | `#2F52C8` | `#8AA6FF` | "Running"-type badges — deliberately **not** `--accent`, so an in-progress state never reads as ordinary accented chrome |
+| `--agent-planner\|executor\|critic\|synthesizer\|hitl` | see `globals.css` | see `globals.css` | One hue per pipeline stage on `PipelineRail`/`LiveFeed`, spread around the wheel so adjacent stages never collide — hue reinforces the rail's numbering, never carries meaning alone |
+
+Every pair above clears WCAG AA (4.5:1) against **both** `--bg-base` and `--bg-surface`, in both themes. Re-audit any pair that moves ground when it changes.
+
+---
+
+### 📏 Spacing, Type & Density Scale
+
+Added in Phase 0 of the researcher-workspace overhaul (`.claude/plans/researcher-workspace-overhaul.plan.md`) once the same "card with a title and a body" turned up with four different padding values across four files. Declared once in `globals.css` `:root` — theme-independent, so (unlike color) they are **not** repeated in `.dark`. Components consume them as CSS custom properties (`style={{ padding: "var(--space-lg)" }}`) or via Tailwind's arbitrary-value syntax (`text-[length:var(--text-micro)]`); they are not registered under `@theme`, so bare Tailwind utilities like `text-sm` still mean Tailwind's own scale, not this one.
+
+| Step | Value | Use |
+| :--- | :--- | :--- |
+| `--space-3xs` | 2px | Optical nudge between icon and text |
+| `--space-2xs` | 4px | Inside a chip |
+| `--space-xs` | 8px | Between siblings in a row |
+| `--space-sm` | 12px | Dense list padding |
+| `--space-md` | 16px | Default gap between controls |
+| `--space-lg` | 24px | Card padding, gap between cards |
+| `--space-xl` | 40px | Gap between page sections |
+| `--space-2xl` | 64px | Page top/bottom breathing room |
+
+| Step | Value | Use |
+| :--- | :--- | :--- |
+| `--text-micro` | 11px | Mono eyebrows, badges, timestamps |
+| `--text-xs` | 12px | Hints, secondary metadata |
+| `--text-sm` | 13px | Labels, controls, dense body |
+| `--text-base` | 14px | Body |
+| `--text-lg` | 18px | Section headings |
+| `--text-xl` | 24px | Page title |
+
+Six steps, no more — an arbitrary size that doesn't match one of the above (`text-[0.625rem]` was a recurring offender) should round up to the nearest named step rather than adding a seventh.
+
+`--radius: 0` states the square identity once instead of leaving it implied by scattered `border-radius: 0` declarations. `--density-pad-y`/`--density-pad-x`/`--density-row-gap` default to comfortable and switch to a tighter set under `[data-density="compact"]` on an ancestor — the activity feed and long document lists are the intended compact consumers.
+
+---
+
+### 🧩 Shared Primitives
+
+`components/icons.tsx` is the one icon vocabulary: 24×24 viewBox, 1.75 stroke, square caps and miter joins — no rounded strokes, matching `--radius: 0`. It replaced the SVGs that used to live only inside `SideNav.tsx`, plus the nine emoji section headers `LiveFeed.tsx` used for its expanded detail blocks (💭🎯🔍📋📖🌐📄📚⚖️⚠️📝). The `⚠` chip used for an unresolved citation (`lib/citations.tsx`, `lib/memoryCitations.tsx`) is a separate, deliberately-literal character load-bearing to its own tests — it is not part of this icon set and Phase 0 leaves it untouched.
+
+`components/ui/` holds the primitives that replace the ad-hoc `border border-border bg-bg-surface`, `.badge`, and hand-rolled label patterns found across the app:
+
+| Primitive | Replaces | Notes |
+| :--- | :--- | :--- |
+| `Card` | `border border-border bg-bg-surface p-*` boxes; the titled-card shape `account/Section.tsx` established | `padding` is `"sm" \| "md" \| "lg"` off the scale above, not a raw Tailwind step |
+| `StatusDot` | Hand-assembled `.badge` + `.status-marker` combinations | Color is reinforcement — the label text is always present, never dot-alone |
+| `Field` | The label/control/hint block from `account/Section.tsx` | Canonical home outside `account/` for Phase 3's settings IA and later forms |
+| `Disclosure` | The dashboard run form's "Options" toggle | Closed state always names its own non-default summary rather than hiding behind a bare arrow |
+| `EmptyState` | The `◇` glyph used in the corpus and dashboard empty states | No icon by default — a glyph that carries no meaning is decoration, not replaced by a different one |
+| `Toolbar` | `LiveFeed`'s title/meta/actions header row | title (+ meta) left, actions right |
 
 ---
 
 ### 📐 Geometry & Element Rules
 
 1. **Strict 0px Border-Radius**:
-   - `*, *::before, *::after { border-radius: 0 !important; }` enforced globally.
+   - `*, *::before, *::after { border-radius: 0; }` enforced globally in `@layer base` — not `!important`, so a component that reaches for Tailwind's `rounded` utility can still defeat it. `LiveFeed.tsx` did exactly that before Phase 0; there is no lint rule catching a stray `rounded` class, only review.
    - Zero rounded corners on buttons, cards, inputs, avatars, badges, chips, progress bars, or modal surfaces.
 2. **Status Markers**:
    - Replaced all round dots with uniform **8px × 8px square `.status-marker` blocks**.
@@ -64,7 +114,7 @@ All colors are bound to CSS variables defined in `globals.css` with dark mode su
 /                → redirects: authed → /dashboard, else → /login
 /login           → login + register (academic segmented switcher)
 /dashboard       → new research query, depth selector, airgapped corpus mode, recent sessions
-/corpus          → local document upload & chunk telemetry for airgapped research
+/corpus          → local document upload & corpus stats for airgapped research
 /history         → full session history (filter by status, active / archived view, pagination)
 /chat            → project memory chat (cross-session search over approved reports)
 /session/[id]    → live research session lifecycle (5 distinct states below)
@@ -72,7 +122,7 @@ All colors are bound to CSS variables defined in `globals.css` with dark mode su
 /settings        → monthly token usage, spending limits, BYOK keys, local Ollama models, role model routing
 ```
 
-**Sidebar Shell**: Collapsible sidebar with square brand logo (`§`), active project selector dropdown (`ProjectSwitcher`), primary navigation tabs, and user account popup (`AccountMenu`).
+**Sidebar Shell**: Collapsible sidebar with square brand logo, active project selector dropdown (`ProjectSwitcher`), a "New Research" button that is the *only* entry point to `/dashboard` (Phase 0 removed the redundant `/dashboard` nav item that duplicated it), unlabeled nav icons for Corpus/History/Chat, and user account popup (`AccountMenu`) — which is also where the light/dark toggle lives now that Settings' standalone Appearance section (a second, redundant place to do the same thing) is gone.
 
 ---
 

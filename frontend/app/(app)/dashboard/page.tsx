@@ -9,6 +9,7 @@ import { useActiveProject } from "@/components/ActiveProject";
 import { FirstRunNotice } from "@/components/FirstRunNotice";
 import { SessionCard } from "@/components/SessionCard";
 import { StartModelPicker } from "@/components/StartModelPicker";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useSessions, useStartResearch } from "@/hooks/queries";
 import { ApiError } from "@/lib/api";
 import { sessionHref } from "@/lib/desktop";
@@ -312,22 +313,19 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="card flex flex-col items-center py-10 text-center">
-            <span aria-hidden className="mb-2 text-2xl opacity-60">
-              ◇
-            </span>
-            <p className="text-sm font-medium text-text-primary">No research yet</p>
-            <p className="mt-0.5 text-xs text-text-muted">
-              Your completed reports will appear here.
-            </p>
-            <button
-              type="button"
-              onClick={() => setQuery(SAMPLE_QUERY)}
-              className="mt-2 text-sm text-accent hover:underline"
-            >
-              Try a sample question
-            </button>
-          </div>
+          <EmptyState
+            title="No research yet"
+            description="Your completed reports will appear here."
+            action={
+              <button
+                type="button"
+                onClick={() => setQuery(SAMPLE_QUERY)}
+                className="text-sm text-accent hover:underline"
+              >
+                Try a sample question
+              </button>
+            }
+          />
         )}
       </section>
     </div>

@@ -8,182 +8,17 @@ import { isDesktop } from "@/lib/desktop";
 import type { User } from "@/lib/types";
 
 import { AccountMenu } from "./AccountMenu";
+import {
+  BrandLogo,
+  IconChat,
+  IconClose,
+  IconCollapse,
+  IconCorpus,
+  IconHistory,
+  IconMenu,
+  IconPlus,
+} from "./icons";
 import { ProjectSwitcher } from "./ProjectSwitcher";
-
-/* ─── Consistent Icons (24x24, 1.75 stroke, round caps/joins) ─────────────── */
-
-function BrandLogo({ className }: { className?: string }) {
-  return (
-    <div
-      className={`flex items-center justify-center bg-accent text-accent-contrast border border-accent ${
-        className || "h-7 w-7"
-      }`}
-    >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="square"
-        strokeLinejoin="miter"
-        className="h-4 w-4"
-      >
-        <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" />
-        <line x1="12" y1="22" x2="12" y2="15.5" />
-        <polyline points="22 8.5 12 15.5 2 8.5" />
-      </svg>
-    </div>
-  );
-}
-
-function IconDashboard({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="square"
-      strokeLinejoin="miter"
-      className={className || "h-5 w-5"}
-    >
-      <rect width="7" height="9" x="3" y="3" />
-      <rect width="7" height="5" x="14" y="3" />
-      <rect width="7" height="9" x="14" y="12" />
-      <rect width="7" height="5" x="3" y="16" />
-    </svg>
-  );
-}
-
-function IconCorpus({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="square"
-      strokeLinejoin="miter"
-      className={className || "h-5 w-5"}
-    >
-      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
-      <path d="M6 6h10" />
-      <path d="M6 10h10" />
-      <path d="M6 14h6" />
-    </svg>
-  );
-}
-
-function IconHistory({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="square"
-      strokeLinejoin="miter"
-      className={className || "h-5 w-5"}
-    >
-      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-      <path d="M3 3v5h5" />
-      <path d="M12 7v5l4 2" />
-    </svg>
-  );
-}
-
-function IconChat({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="square"
-      strokeLinejoin="miter"
-      className={className || "h-5 w-5"}
-    >
-      <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-      <path d="M8 12h.01" />
-      <path d="M12 12h.01" />
-      <path d="M16 12h.01" />
-    </svg>
-  );
-}
-
-function IconPlus({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="square"
-      strokeLinejoin="miter"
-      className={className || "h-4 w-4"}
-    >
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
-}
-
-function IconCollapse({ className, collapsed }: { className?: string; collapsed: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="square"
-      strokeLinejoin="miter"
-      className={className || "h-4 w-4"}
-    >
-      <rect width="18" height="18" x="3" y="3" />
-      <path d="M9 3v18" />
-      {collapsed ? (
-        <path d="m14 15 3-3-3-3" />
-      ) : (
-        <path d="m16 15-3-3 3-3" />
-      )}
-    </svg>
-  );
-}
-
-function IconMenu({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="square"
-      strokeLinejoin="miter"
-      className={className || "h-6 w-6"}
-    >
-      <line x1="4" x2="20" y1="12" y2="12" />
-      <line x1="4" x2="20" y1="6" y2="6" />
-      <line x1="4" x2="20" y1="18" y2="18" />
-    </svg>
-  );
-}
-
-function IconClose({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="square"
-      strokeLinejoin="miter"
-      className={className || "h-5 w-5"}
-    >
-      <path d="M18 6 6 18" />
-      <path d="m6 6 12 12" />
-    </svg>
-  );
-}
 
 /* ─── Navigation Item ─────────────────────────────────────────────────────── */
 
@@ -300,20 +135,11 @@ export function SideNav({ user }: { user?: User }) {
           </Link>
         </div>
 
-        {/* Nav Links */}
+        {/* Nav Links. No "Dashboard" entry here — the New Research button above
+            already points at /dashboard, and a second link to the same route
+            was the sidebar's duplicate entry point (docs/07 §2). No section
+            label either: three icons need no header to explain them. */}
         <nav className="space-y-1 pt-2">
-          {(!collapsed || isMobile) && (
-            <div className="px-2 pb-1 font-mono text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted">
-              Navigation
-            </div>
-          )}
-          <NavItem
-            href="/dashboard"
-            label="Dashboard"
-            icon={<IconDashboard />}
-            collapsed={collapsed && !isMobile}
-            onClick={() => isMobile && setMobileOpen(false)}
-          />
           <NavItem
             href="/corpus"
             label="Corpus"

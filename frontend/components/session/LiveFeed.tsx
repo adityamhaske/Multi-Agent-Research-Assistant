@@ -1,10 +1,26 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { StreamState } from "@/hooks/useSessionStream";
 import { AGENT_TOKEN } from "@/lib/pipeline";
 import type { AgentEvent, AgentName } from "@/lib/types";
+
+import {
+  IconBookOpen,
+  IconEdit,
+  IconFileText,
+  IconGlobe,
+  IconLibrary,
+  IconList,
+  IconScale,
+  IconSearch,
+  IconTarget,
+  IconThought,
+  IconWarningTriangle,
+} from "@/components/icons";
+import { StatusDot } from "@/components/ui/StatusDot";
+import { Toolbar } from "@/components/ui/Toolbar";
 
 function agentColor(agent?: AgentName | null): string {
   if (agent && agent in AGENT_TOKEN) return `var(--${AGENT_TOKEN[agent]})`;
@@ -15,24 +31,61 @@ function ConnectionPill({ state }: { state: StreamState }) {
   if (state === "reconnecting") {
     return (
       <span
-        className="badge font-mono text-[0.6875rem] font-semibold"
-        style={{ color: "var(--warning)", backgroundColor: "color-mix(in srgb, var(--warning) 10%, var(--bg-surface))", borderColor: "color-mix(in srgb, var(--warning) 30%, var(--border))" }}
+        className="badge font-mono text-[length:var(--text-micro)] font-semibold"
+        style={{
+          color: "var(--warning)",
+          backgroundColor: "color-mix(in srgb, var(--warning) 10%, var(--bg-surface))",
+          borderColor: "color-mix(in srgb, var(--warning) 30%, var(--border))",
+        }}
       >
         <span className="spinner" style={{ width: 8, height: 8 }} /> Reconnecting…
       </span>
     );
   }
   if (state === "connecting") {
-    return <span className="font-mono text-[0.6875rem] text-text-muted">Connecting…</span>;
-  }
-  if (state === "open") {
     return (
-      <span className="badge font-mono text-[0.6875rem] text-text-muted border-border">
-        <span className="status-marker" style={{ backgroundColor: "var(--success)" }} /> Live
+      <span className="font-mono text-[length:var(--text-micro)] text-text-muted">
+        Connecting…
       </span>
     );
   }
+  if (state === "open") {
+    return <StatusDot tone="success">Live</StatusDot>;
+  }
   return null;
+}
+
+/**
+ * One label + body pattern, reused across the nine detail kinds below instead
+ * of nine near-identical `bg-bg-elevated/70 border p-2.5` blocks each with its
+ * own emoji and its own margin. Square, not rounded — the app's identity
+ * (`--radius: 0`) rather than the `rounded` utility this block used to carry.
+ */
+function DetailBlock({
+  icon,
+  label,
+  tone = "muted",
+  children,
+}: {
+  icon: ReactNode;
+  label: ReactNode;
+  tone?: "muted" | "warning";
+  children: ReactNode;
+}) {
+  return (
+    <div className="border border-border/50 bg-bg-elevated/70 p-2.5">
+      <span
+        className="mb-1.5 flex items-center gap-1.5 text-[length:var(--text-micro)] font-semibold uppercase tracking-wider"
+        style={{ color: tone === "warning" ? "var(--warning)" : "var(--text-muted)" }}
+      >
+        <span aria-hidden className="shrink-0">
+          {icon}
+        </span>
+        {label}
+      </span>
+      {children}
+    </div>
+  );
 }
 
 export function LiveFeed({ events, state }: { events: AgentEvent[]; state: StreamState }) {
@@ -87,24 +140,26 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
 
   return (
     <div className="card relative flex h-full flex-col p-0">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-        <div className="flex items-center gap-3">
-          <h3 className="text-sm font-serif font-semibold text-text-primary">Activity Log</h3>
-          <span className="text-[0.6875rem] font-mono text-text-muted">
-            ({events.length} event{events.length === 1 ? "" : "s"})
-          </span>
-          {events.some((e) => e.detail && Object.keys(e.detail).length > 0) && (
-            <button
-              type="button"
-              onClick={toggleAll}
-              className="text-[0.6875rem] font-mono text-accent hover:underline cursor-pointer"
-            >
-              {expandedIds.size > 0 ? "Collapse all" : "Expand all"}
-            </button>
-          )}
-        </div>
-        <ConnectionPill state={state} />
-      </div>
+      <Toolbar
+        title="Activity Log"
+        meta={
+          <>
+            <span className="text-[length:var(--text-micro)] font-mono text-text-muted">
+              ({events.length} event{events.length === 1 ? "" : "s"})
+            </span>
+            {events.some((e) => e.detail && Object.keys(e.detail).length > 0) && (
+              <button
+                type="button"
+                onClick={toggleAll}
+                className="text-[length:var(--text-micro)] font-mono text-accent hover:underline cursor-pointer"
+              >
+                {expandedIds.size > 0 ? "Collapse all" : "Expand all"}
+              </button>
+            )}
+          </>
+        }
+        actions={<ConnectionPill state={state} />}
+      />
 
       <div
         ref={scrollRef}
@@ -126,7 +181,7 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
               return (
                 <li
                   key={eventKey}
-                  className={`rounded border transition-colors p-2 ${
+                  className={`border transition-colors p-2 ${
                     isExpanded
                       ? "border-accent/40 bg-bg-surface"
                       : "border-transparent hover:border-border/60 hover:bg-bg-surface/50"
@@ -139,7 +194,7 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
                       </span>
                       {e.agent && (
                         <span
-                          className="w-24 shrink-0 font-mono text-[0.6875rem] font-semibold uppercase tracking-wider"
+                          className="w-24 shrink-0 font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-wider"
                           style={{ color: agentColor(e.agent) }}
                         >
                           {e.agent}
@@ -154,7 +209,7 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
                       <button
                         type="button"
                         onClick={() => toggleExpand(eventKey)}
-                        className="shrink-0 font-mono text-[0.6875rem] px-1.5 py-0.5 border border-border bg-bg-elevated hover:bg-bg-surface text-text-secondary hover:text-text-primary transition-colors rounded"
+                        className="shrink-0 font-mono text-[length:var(--text-micro)] px-1.5 py-0.5 border border-border bg-bg-elevated hover:bg-bg-surface text-text-secondary hover:text-text-primary transition-colors"
                         title={isExpanded ? "Collapse thoughts & details" : "Expand thoughts & details"}
                       >
                         {isExpanded ? "▲ Hide" : "▼ Details"}
@@ -163,47 +218,38 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
                   </div>
 
                   {hasDetail && isExpanded && detail && (
-                    <div className="mt-2.5 pt-2 border-t border-border/70 space-y-2.5 text-[0.6875rem]">
+                    <div className="mt-2.5 pt-2 border-t border-border/70 space-y-2.5 text-[length:var(--text-micro)]">
                       {/* Thought Process */}
                       {Boolean(detail.thought && typeof detail.thought === "string") && (
-                        <div className="rounded bg-bg-elevated/70 p-2.5 border border-border/50">
-                          <span className="block font-semibold uppercase tracking-wider text-text-muted text-[0.625rem] mb-1">
-                            💭 Thought Process
-                          </span>
+                        <DetailBlock icon={<IconThought />} label="Thought Process">
                           <p className="whitespace-pre-wrap font-mono text-text-secondary leading-relaxed">
                             {String(detail.thought)}
                           </p>
-                        </div>
+                        </DetailBlock>
                       )}
 
                       {/* Targeted Research Query */}
                       {Boolean(detail.query && typeof detail.query === "string") && (
-                        <div className="rounded bg-bg-elevated/70 p-2.5 border border-border/50">
-                          <span className="block font-semibold uppercase tracking-wider text-text-muted text-[0.625rem] mb-0.5">
-                            🎯 Research Query
-                          </span>
+                        <DetailBlock icon={<IconTarget />} label="Research Query">
                           <p className="text-text-primary font-medium">{String(detail.query)}</p>
-                        </div>
+                        </DetailBlock>
                       )}
 
                       {/* Tool and Arguments / Query */}
                       {Boolean(detail.args && typeof detail.args === "object") && (
-                        <div className="rounded bg-bg-elevated/70 p-2.5 border border-border/50">
-                          <span className="block font-semibold uppercase tracking-wider text-text-muted text-[0.625rem] mb-1">
-                            🔍 Search / Tool Parameters
-                          </span>
+                        <DetailBlock icon={<IconSearch />} label="Search / Tool Parameters">
                           <pre className="overflow-x-auto text-text-primary whitespace-pre-wrap">
                             {JSON.stringify(detail.args, null, 2)}
                           </pre>
-                        </div>
+                        </DetailBlock>
                       )}
 
                       {/* Planned Tasks */}
                       {Boolean(Array.isArray(detail.tasks) && (detail.tasks as unknown[]).length > 0) && (
-                        <div className="rounded bg-bg-elevated/70 p-2.5 border border-border/50">
-                          <span className="block font-semibold uppercase tracking-wider text-text-muted text-[0.625rem] mb-1.5">
-                            📋 Planned Sub-tasks ({(detail.tasks as unknown[]).length})
-                          </span>
+                        <DetailBlock
+                          icon={<IconList />}
+                          label={`Planned Sub-tasks (${(detail.tasks as unknown[]).length})`}
+                        >
                           <ul className="space-y-1.5 pl-1">
                             {(detail.tasks as unknown[]).map((t, idx) => {
                               const queryText =
@@ -215,7 +261,7 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
                                   ? String((t as Record<string, unknown>).id)
                                   : null;
                               return (
-                                <li key={idx} className="flex items-start gap-2 text-text-secondary text-[0.6875rem]">
+                                <li key={idx} className="flex items-start gap-2 text-text-secondary text-[length:var(--text-micro)]">
                                   <span className="badge font-mono text-[0.625rem] py-0 px-1 shrink-0 mt-0.5">
                                     {taskId ?? `#${idx + 1}`}
                                   </span>
@@ -224,38 +270,48 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
                               );
                             })}
                           </ul>
-                        </div>
+                        </DetailBlock>
                       )}
 
                       {/* Observations / Output / Webpage Content */}
                       {Boolean(detail.observation) && (
-                        <div className="rounded bg-bg-elevated/70 p-2.5 border border-border/50">
-                          <span className="block font-semibold uppercase tracking-wider text-text-muted text-[0.625rem] mb-1">
-                            {detail.tool === "read_webpage"
-                              ? "📖 Page Content Read by Agent"
+                        <DetailBlock
+                          icon={
+                            detail.tool === "read_webpage" ? (
+                              <IconBookOpen />
+                            ) : detail.tool === "web_search" ? (
+                              <IconGlobe />
+                            ) : (
+                              <IconFileText />
+                            )
+                          }
+                          label={
+                            detail.tool === "read_webpage"
+                              ? "Page Content Read by Agent"
                               : detail.tool === "web_search"
-                              ? "🌐 Search Engine Results"
-                              : "📄 Tool Result / Retrieved Content"}
-                          </span>
-                          <pre className="max-h-60 overflow-y-auto overflow-x-auto text-text-secondary whitespace-pre-wrap leading-relaxed text-[0.6875rem] bg-bg-surface p-2 border border-border/40 rounded">
+                              ? "Search Engine Results"
+                              : "Tool Result / Retrieved Content"
+                          }
+                        >
+                          <pre className="max-h-60 overflow-y-auto overflow-x-auto text-text-secondary whitespace-pre-wrap leading-relaxed text-[length:var(--text-micro)] bg-bg-surface p-2 border border-border/40">
                             {typeof detail.observation === "string"
                               ? detail.observation
                               : JSON.stringify(detail.observation, null, 2)}
                           </pre>
-                        </div>
+                        </DetailBlock>
                       )}
 
                       {/* Submitted Evidence & Collected Facts */}
                       {Boolean(Array.isArray(detail.evidence) && (detail.evidence as unknown[]).length > 0) && (
-                        <div className="rounded bg-bg-elevated/70 p-2.5 border border-border/50">
-                          <span className="block font-semibold uppercase tracking-wider text-text-muted text-[0.625rem] mb-2">
-                            📚 Evidence & Collected Facts ({(detail.evidence as unknown[]).length})
-                          </span>
+                        <DetailBlock
+                          icon={<IconLibrary />}
+                          label={`Evidence & Collected Facts (${(detail.evidence as unknown[]).length})`}
+                        >
                           <div className="space-y-2">
                             {(detail.evidence as Array<Record<string, unknown>>).map((ev, idx) => (
                               <div
                                 key={idx}
-                                className="p-2.5 rounded bg-bg-surface border border-border/50 text-[0.6875rem] space-y-1.5"
+                                className="p-2.5 bg-bg-surface border border-border/50 text-[length:var(--text-micro)] space-y-1.5"
                               >
                                 <div className="flex items-baseline justify-between gap-2">
                                   <span className="font-semibold text-text-primary">
@@ -274,7 +330,9 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
                                 </div>
                                 {Boolean(ev.key_fact && ev.key_fact !== ev.title) && (
                                   <p className="text-text-secondary font-sans text-xs">
-                                    <strong className="text-text-primary font-mono text-[0.6875rem]">Fact:</strong>{" "}
+                                    <strong className="text-text-primary font-mono text-[length:var(--text-micro)]">
+                                      Fact:
+                                    </strong>{" "}
                                     {String(ev.key_fact)}
                                   </p>
                                 )}
@@ -286,41 +344,41 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
                               </div>
                             ))}
                           </div>
-                        </div>
+                        </DetailBlock>
                       )}
 
                       {/* Critic Evaluation Reasons & Feedback */}
                       {Boolean(Array.isArray(detail.reasons) && (detail.reasons as unknown[]).length > 0) && (
-                        <div className="rounded bg-bg-elevated/70 p-2.5 border border-border/50">
-                          <span className="block font-semibold uppercase tracking-wider text-text-muted text-[0.625rem] mb-1">
-                            ⚖️ Evaluation Reasons
-                          </span>
+                        <DetailBlock icon={<IconScale />} label="Evaluation Reasons">
                           <ul className="list-disc pl-4 space-y-0.5 text-text-secondary">
                             {(detail.reasons as unknown[]).map((r, idx) => (
                               <li key={idx}>{String(r)}</li>
                             ))}
                           </ul>
-                        </div>
+                        </DetailBlock>
                       )}
                       {Boolean(detail.feedback_for_executor) && (
-                        <div className="rounded bg-bg-elevated/70 p-2.5 border border-border/50 text-warning">
-                          <span className="block font-semibold uppercase tracking-wider text-[0.625rem] mb-1">
-                            ⚠️ Critic Feedback For Rework
-                          </span>
-                          <p>{String(detail.feedback_for_executor)}</p>
-                        </div>
+                        <DetailBlock
+                          icon={<IconWarningTriangle />}
+                          label="Critic Feedback For Rework"
+                          tone="warning"
+                        >
+                          <p className="text-warning">{String(detail.feedback_for_executor)}</p>
+                        </DetailBlock>
                       )}
 
                       {/* Report Synthesis Preview */}
                       {Boolean(detail.preview) && (
-                        <div className="rounded bg-bg-elevated/70 p-2.5 border border-border/50">
-                          <span className="block font-semibold uppercase tracking-wider text-text-muted text-[0.625rem] mb-1">
-                            📝 Draft Report Preview ({String(detail.word_count ?? "")} words, {String(detail.sources_count ?? "")} sources)
-                          </span>
-                          <pre className="max-h-48 overflow-y-auto overflow-x-auto text-text-secondary whitespace-pre-wrap leading-relaxed text-[0.6875rem] bg-bg-surface p-2 border border-border/40 rounded">
+                        <DetailBlock
+                          icon={<IconEdit />}
+                          label={`Draft Report Preview (${String(detail.word_count ?? "")} words, ${String(
+                            detail.sources_count ?? ""
+                          )} sources)`}
+                        >
+                          <pre className="max-h-48 overflow-y-auto overflow-x-auto text-text-secondary whitespace-pre-wrap leading-relaxed text-[length:var(--text-micro)] bg-bg-surface p-2 border border-border/40">
                             {String(detail.preview)}
                           </pre>
-                        </div>
+                        </DetailBlock>
                       )}
                     </div>
                   )}
