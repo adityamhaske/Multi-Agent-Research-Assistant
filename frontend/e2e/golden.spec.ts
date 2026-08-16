@@ -18,6 +18,27 @@ function uniqueEmail(): string {
   return `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@mara-demo.dev`;
 }
 
+/**
+ * Submit the auth form, located by submit type rather than by its label.
+ *
+ * The label is deliberately NOT used. This button's copy changed once already — the
+ * landing-page redesign renamed it "Create Account" → "Initialize Account" — and that
+ * silently broke all three golden journeys plus the screenshot tool, leaving `main` red
+ * for days. The failure was maximally unhelpful: a role+name query that never matches
+ * makes `click()` wait for the element rather than fail, so CI burned 51 minutes to
+ * report "Test timeout of 180000ms exceeded" instead of one second to report "no button
+ * named /create account/i".
+ *
+ * The mode tab above already chose login vs register, so the form's submit control is
+ * unambiguous. The accessible name is still asserted — that keeps the a11y coverage the
+ * role-based query was there for, without coupling the suite to marketing copy.
+ */
+async function submitAuthForm(page: Page): Promise<void> {
+  const submit = page.locator('form button[type="submit"]');
+  await expect(submit).toHaveAccessibleName(/\S/);
+  await submit.click();
+}
+
 /** Register a fresh account; the app logs straight in and lands on the dashboard. */
 async function registerAndLogin(page: Page): Promise<string> {
   const email = uniqueEmail();
@@ -25,7 +46,7 @@ async function registerAndLogin(page: Page): Promise<string> {
   await page.getByRole("tab", { name: /create account/i }).click();
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
-  await page.getByRole("button", { name: /create account/i }).click();
+  await submitAuthForm(page);
   await page.waitForURL("**/dashboard");
   return email;
 }

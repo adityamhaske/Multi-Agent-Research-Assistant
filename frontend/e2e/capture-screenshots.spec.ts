@@ -49,7 +49,12 @@ test("capture product screenshots", async ({ page }) => {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await shot(page, "01-login");
-  await page.getByRole("button", { name: /create account/i }).click();
+  // By submit type, not by label — see golden.spec.ts::submitAuthForm. The copy here was
+  // "Create Account" until the landing-page redesign renamed it "Initialize Account",
+  // which hung this file on a locator that could never match.
+  const submit = page.locator('form button[type="submit"]');
+  await expect(submit).toHaveAccessibleName(/\S/);
+  await submit.click();
   await page.waitForURL("**/dashboard");
 
   // ── 2. Dashboard (light) ──────────────────────────────────────────────────
