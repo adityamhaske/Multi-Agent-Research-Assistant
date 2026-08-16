@@ -175,6 +175,13 @@ async def update_me(
             if field in ("display_name", "avatar_url") and value == "":
                 value = None
             setattr(current_user, field, value)
+    if payload.preferences is not None:
+        # Merged, never replaced (docs/07 §2, Phase 3): a request from one settings
+        # section only carries that section's fields, and a naive overwrite would
+        # blank every preference set from any other section.
+        merged = dict(current_user.preferences or {})
+        merged.update(payload.preferences.model_dump(exclude_unset=True))
+        current_user.preferences = merged
     await db.commit()
     await db.refresh(current_user)
     logger.info("profile_updated", user_id=str(current_user.id), fields=sorted(fields))

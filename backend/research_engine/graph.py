@@ -397,7 +397,16 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
         for call in tool_calls:
             if call["name"] == "submit_evidence":
                 try:
-                    parsed = submit_evidence.model_validate(call["args"])
+                    args = call["args"]
+                    # Truncate to the configured cap before validation (docs/07 §2,
+                    # Phase 3) — this can only tighten `EvidenceChunk.snippet`'s own
+                    # max_length=500, never loosen it, since the config's default (500)
+                    # equals that ceiling and nothing here raises it.
+                    snip_cap = get_run_config().snippet_max_chars
+                    for item in args.get("evidence", []) or []:
+                        if isinstance(item, dict) and isinstance(item.get("snippet"), str):
+                            item["snippet"] = item["snippet"][:snip_cap]
+                    parsed = submit_evidence.model_validate(args)
                     evidence = [e.model_dump() for e in parsed.evidence]
                     thought_snippet = text_of(resp) if resp else ""
                     await emit(
@@ -572,6 +581,20 @@ async def _criticize_one(
     task_evidence = [
         e for e in state.get("evidence", []) if str(e.get("task_id")) == _task_key(task)
     ]
+
+    # A configured floor (docs/07 §2, Phase 3; 0 = no floor, today's behaviour) fails
+    # closed without spending a model call — evidence that is already too thin to meet
+    # the floor cannot become sufficient by asking a model to grade it.
+    min_sources = get_run_config().min_sources_per_task
+    if min_sources > 0 and len(task_evidence) < min_sources:
+        verdict = CriticVerdict(
+            passed=False,
+            confidence=1.0,
+            reasons=[f"only {len(task_evidence)} source(s) gathered, {min_sources} required"],
+            feedback_for_executor=f"Gather at least {min_sources} sources before resubmitting.",
+        )
+        return _task_key(task), verdict, 0.0, 0, 0
+
     messages = [
         SystemMessage(content=prompts.CRITIC_PROMPT_V2),
         HumanMessage(

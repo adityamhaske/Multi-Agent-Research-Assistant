@@ -104,6 +104,32 @@ class RunConfig:
     # `graph._BudgetGuard` on why concurrency can only bound overshoot, not eliminate it.
     max_parallel_tasks: int = 4
 
+    # ── Customization surface (docs/07 §2, Phase 3) ────────────────────────────
+    # Every default below reproduces today's behaviour exactly — turning this field
+    # into a setting must never change what an account that has not touched Settings
+    # gets. Where a default mirrors a value hardcoded elsewhere, the source of that
+    # value is named so the two cannot silently drift apart.
+
+    # Was `web_search`'s hardcoded default (`research_engine/tools.py`).
+    retrieval_k: int = 5
+    # 0 = unlimited/no floor, matching this codebase's existing "0 = unlimited"
+    # convention (docs/04 §6) — today the critic enforces no minimum at all.
+    min_sources_per_task: int = 0
+    # Was `EvidenceChunk.snippet`'s Pydantic `max_length` (`research_engine/schemas.py`)
+    # — that ceiling still applies; this truncates *before* it, so it can only ever
+    # tighten the cap, never loosen the schema's own limit.
+    snippet_max_chars: int = 500
+
+    # Phase 4 fields: declared and threaded through both config paths now, consumed
+    # by the plan/outline gate this phase does not yet build. An empty default means
+    # "no seed topics, no outline template" — exactly today's unconstrained planner.
+    outline_template: str | None = None
+    topic_seeds: tuple[str, ...] = ()
+    # Role → replacement prompt text. No consumer yet in this phase; declared so the
+    # config path exists ahead of whichever future phase reads it, rather than adding
+    # a fourth place this contract has to be threaded through later.
+    prompt_overrides: Mapping[str, str] = field(default_factory=dict)
+
     def model_for(self, role: str) -> str:
         """The "provider:model" string routed to a role."""
         try:

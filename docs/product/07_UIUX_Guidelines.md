@@ -119,7 +119,14 @@ Six steps, no more — an arbitrary size that doesn't match one of the above (`t
 /chat            → project memory chat (cross-session search over approved reports)
 /session/[id]    → live research session lifecycle (5 distinct states below)
 /profile         → display name, user ID, avatar initials
-/settings        → monthly token usage, spending limits, BYOK keys, local Ollama models, role model routing
+/settings        → redirects to /settings/models; sectioned IA, not one scroll (docs/07 §2 Phase 3):
+                   /settings/models       Ollama status + per-role model routing
+                   /settings/connections  BYOK key (web) / keychain keys (desktop) + live probe
+                   /settings/research     retrieval_k, min_sources_per_task, snippet_max_chars
+                   /settings/corpus       links to /corpus — no dedicated settings yet
+                   /settings/exports      states current export behaviour — no knobs yet
+                   /settings/appearance   theme + density (folded back in from Phase 0's removal)
+                   /settings/advanced     token usage + monthly spending limit (web only)
 ```
 
 **Sidebar Shell**: Collapsible sidebar with square brand logo, active project selector dropdown (`ProjectSwitcher`), a "New Research" button that is the *only* entry point to `/dashboard` (Phase 0 removed the redundant `/dashboard` nav item that duplicated it), unlabeled nav icons for Corpus/History/Chat, and user account popup (`AccountMenu`) — which is also where the light/dark toggle lives now that Settings' standalone Appearance section (a second, redundant place to do the same thing) is gone.

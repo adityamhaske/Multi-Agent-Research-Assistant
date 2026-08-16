@@ -31,14 +31,18 @@ _MAX_REDIRECTS = 3
 
 
 @tool
-async def web_search(query: str, max_results: int = 5) -> list[dict]:
+async def web_search(query: str, max_results: int | None = None) -> list[dict]:
     """Search the web and return results as a list of {title, url, snippet}.
 
     Use this first to find relevant pages for a research task. Include date ranges
     in the query when the topic is time-sensitive.
     """
+    # The agent may specify a count; omitting it falls back to the configured
+    # `retrieval_k` (docs/07 §2, Phase 3) rather than a value baked into the schema —
+    # the default here used to be the literal 5 this config's own default mirrors.
+    k = max_results if max_results is not None else get_run_config().retrieval_k
     try:
-        return await search(query, max_results=max_results)
+        return await search(query, max_results=k)
     except Exception as e:  # noqa: BLE001 — surface a usable message to the agent
         return [{"title": "Search unavailable", "url": "", "snippet": str(e)}]
 

@@ -45,6 +45,13 @@ class User(Base):
     # on write, so an unroutable or unpriced model can never be persisted here.
     model_routing: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
 
+    # ── Research/UI preferences (docs/07 §2, Phase 3) ──────────────────────────
+    # Free-form JSON, validated shape-side by `app.schemas.auth.UserPreferences` —
+    # a column per setting would mean a migration for every future knob. NULL means
+    # "every preference is unset", which every reader treats as "use the default",
+    # same convention `model_routing`'s NULL already uses.
+    preferences: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
+
     sessions: Mapped[list["Session"]] = relationship(  # noqa: F821
         "Session",
         back_populates="user",

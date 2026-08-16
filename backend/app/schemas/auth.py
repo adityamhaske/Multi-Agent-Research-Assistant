@@ -32,6 +32,25 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class UserPreferences(BaseModel):
+    """The settings IA's customization surface (docs/07 §2, Phase 3).
+
+    Every field is optional and `None` means "use the default" — the same value
+    today's behaviour already produces, so an account that has never touched Settings
+    is indistinguishable from one with every preference explicitly set to the default.
+    A field declared here with no consumer yet (`density`) is still validated and
+    stored now so Settings has somewhere real to write it; it is not decorative, it is
+    ahead of the UI that reads it.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    retrieval_k: int | None = Field(default=None, ge=1, le=20)
+    min_sources_per_task: int | None = Field(default=None, ge=0, le=20)
+    snippet_max_chars: int | None = Field(default=None, ge=100, le=500)
+    density: Literal["comfortable", "compact"] | None = None
+
+
 class UserResponse(BaseModel):
     id: UUID
     email: str
@@ -53,7 +72,17 @@ class UserResponse(BaseModel):
     # changed. `None` on every other endpoint returning this schema (docs/07 §2).
     connection_verdict: ConnectionVerdict | None = None
 
+    preferences: UserPreferences = Field(default_factory=UserPreferences)
+
     model_config = {"from_attributes": True}
+
+    @field_validator("preferences", mode="before")
+    @classmethod
+    def preferences_default_when_unset(cls, v: dict | None) -> dict:
+        """The ORM column is NULL for every account that has never touched Settings —
+        map that to an all-defaults object rather than a validation error, so the
+        response always carries a complete, well-formed `preferences`."""
+        return v or {}
 
 
 class ProfileUpdate(BaseModel):
@@ -64,6 +93,9 @@ class ProfileUpdate(BaseModel):
     display_name: str | None = Field(default=None, max_length=80)
     avatar_url: str | None = Field(default=None, max_length=2000)
     monthly_token_limit: int | None = Field(default=None, ge=0)
+    # Merged into the stored preferences, not replaced — a page that only exposes the
+    # "Research" section must not silently blank "Appearance"'s density choice.
+    preferences: UserPreferences | None = None
 
     @field_validator("avatar_url")
     @classmethod

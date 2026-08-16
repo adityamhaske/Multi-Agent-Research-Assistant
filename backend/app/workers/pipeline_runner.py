@@ -69,6 +69,17 @@ async def _user_provider_keys(db, user_id: str) -> dict[str, str]:
     return keys
 
 
+#: Preference keys that map 1:1 onto a `RunConfig` field of the same name (docs/07 §2,
+#: Phase 3). `None`/absent means "use the deployment default" — the class default
+#: already is that default, so an unset preference contributes nothing to `replace()`.
+_PREFERENCE_FIELDS = ("retrieval_k", "min_sources_per_task", "snippet_max_chars")
+
+
+def _preference_overrides(user: User | None) -> dict:
+    prefs = (user.preferences if user else None) or {}
+    return {k: prefs[k] for k in _PREFERENCE_FIELDS if prefs.get(k) is not None}
+
+
 async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
     """The engine config for this run, with model routing resolved and snapshotted.
 
@@ -91,6 +102,7 @@ async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
         await db.commit()
 
     base = run_config_from_settings()
+    overrides = _preference_overrides(user)
     if session.demo:
         # Scripted models and fixture retrievers for this run only (docs/17 §6.2). Per
         # session rather than per process: the old `LLM_MODE=fake` switch made the whole
@@ -100,9 +112,9 @@ async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
         # demo run reaches no provider and no search API.
         # `demo` picks the seeded content (docs/17 §6.1); `llm_mode` keeps the run
         # offline. Desktop counterpart: `sidecar.sidecar_run_config`.
-        return replace(base, llm_mode="fake", demo=True, models=routing)
+        return replace(base, llm_mode="fake", demo=True, models=routing, **overrides)
 
-    return replace(base, models=routing)
+    return replace(base, models=routing, **overrides)
 
 
 async def _execute(

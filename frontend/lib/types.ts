@@ -41,6 +41,18 @@ export interface ConnectionVerdict {
   model_count: number | null;
 }
 
+/**
+ * The settings IA's customization surface (docs/07 §2, Phase 3). Every field is
+ * optional — `undefined`/`null` means "use the default", the same behaviour a user
+ * who has never opened Settings already gets.
+ */
+export interface UserPreferences {
+  retrieval_k?: number | null;
+  min_sources_per_task?: number | null;
+  snippet_max_chars?: number | null;
+  density?: "comfortable" | "compact" | null;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -57,12 +69,15 @@ export interface User {
   // Set only by the response to PUT /me/api-key — saving a key tests it in the same
   // request. `null`/absent everywhere else this type is used.
   connection_verdict?: ConnectionVerdict | null;
+  preferences: UserPreferences;
 }
 
 export interface ProfileUpdate {
   display_name?: string | null;
   avatar_url?: string | null;
   monthly_token_limit?: number;
+  /** Merged into stored preferences server-side, never replaced (docs/07 §2). */
+  preferences?: UserPreferences;
 }
 
 export interface UsageWindow {

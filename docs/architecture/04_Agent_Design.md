@@ -120,9 +120,25 @@ Tools (each with one responsibility, defined in `app/agent/tools.py`):
 
 | Tool | Contract | Guards |
 |---|---|---|
-| `web_search(query, max_results=5)` | Retriever chain: Tavily → Brave → ddgs, first success wins; results normalized to `{title, url, snippet}` | Redis cache (24h); per-retriever timeout 10s; chain exhaustion returns an explicit error the executor must surface |
+| `web_search(query, max_results=None)` | Retriever chain: Tavily → Brave → ddgs, first success wins; results normalized to `{title, url, snippet}`. `max_results` omitted falls back to `RunConfig.retrieval_k` (docs/07 §2, Phase 3) — a user preference, default 5 (today's old hardcoded value) | Redis cache (24h); per-retriever timeout 10s; chain exhaustion returns an explicit error the executor must surface |
 | `read_webpage(url)` | Fetch + extract main text (≤ 8000 chars), title | **SSRF guard** ([06](../engineering/06_Security.md) §3): scheme allowlist, resolve-and-check IPs, redirect re-validation, response size cap 2 MB, content-type must be text/html |
 | `calculate(expression)` | AST-restricted arithmetic | numbers + `+ - * / **` only |
+
+**Customization surface (docs/07 §2, Phase 3).** Three `RunConfig` fields are threaded
+through and consumed today; three more are declared and threaded but not yet consumed
+(their consumers are later phases):
+
+| Field | Default (= today's behaviour) | Consumer |
+|---|---|---|
+| `retrieval_k` | 5 | `tools.py::web_search`'s fallback when the agent omits `max_results` |
+| `min_sources_per_task` | 0 (no floor) | `graph.py::_criticize_one` — fails a task closed, without a model call, before it has this many sources |
+| `snippet_max_chars` | 500 (the schema's own ceiling) | `graph.py`'s `submit_evidence` handling — truncates before validation, never loosens `EvidenceChunk.snippet`'s `max_length=500` |
+| `outline_template`, `topic_seeds`, `prompt_overrides` | unset / empty | none yet — declared so the config path exists ahead of the phase that reads them (`topic_seeds`/`outline_template`: the plan gate, docs/07 §2 Phase 4) |
+
+Resolution order for the first three is session → **user `preferences`** → deployment
+default (`app/workers/pipeline_runner.py::_preference_overrides`, mirrored in
+`desktop/sidecar.py::_drive_session` — third home is `app/api/v1/auth.py`'s
+`PATCH /me`, which merges rather than replaces the stored JSON).
 
 **Untrusted-content framing:** all retrieved text enters prompts wrapped in
 `<untrusted_web_content>` tags with a standing instruction that content inside the tags

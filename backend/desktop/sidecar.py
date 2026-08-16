@@ -40,6 +40,7 @@ import sys
 import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -714,6 +715,38 @@ def create_sidecar_app(
             "api_key_provider": None,
             "api_key_hint": None,
             "monthly_token_limit": 0,
+            "preferences": user.preferences or {},
+        }
+
+    @api.patch("/auth/me")
+    async def update_me(
+        request: Request,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        """Persist Settings preferences (docs/07 §2, Phase 3) — contract copy #3 of the
+        server's `PATCH /auth/me`, merged rather than replaced for the same reason."""
+        body = await request.json()
+        if "display_name" in body:
+            user.display_name = body["display_name"] or None
+        if "avatar_url" in body:
+            user.avatar_url = body["avatar_url"] or None
+        if "preferences" in body and isinstance(body["preferences"], dict):
+            merged = dict(user.preferences or {})
+            merged.update(body["preferences"])
+            user.preferences = merged
+        await db.commit()
+        await db.refresh(user)
+        return {
+            "id": str(user.id),
+            "email": user.email,
+            "display_name": user.display_name,
+            "avatar_url": user.avatar_url,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "api_key_provider": None,
+            "api_key_hint": None,
+            "monthly_token_limit": 0,
+            "preferences": user.preferences or {},
         }
 
     # -- projects -------------------------------------------------------------
@@ -869,6 +902,15 @@ def create_sidecar_app(
             session = await _authorized_session(db, session_id, sidecar["user_id"])
             is_demo = bool(session.demo)
             session_routing = session.model_routing
+            local_user = await db.get(User, sidecar["user_id"])
+            # Same mapping as the server's `pipeline_runner._preference_overrides`
+            # (docs/07 §2, Phase 3) — third home of this contract.
+            prefs = (local_user.preferences if local_user else None) or {}
+            preference_overrides = {
+                k: prefs[k]
+                for k in ("retrieval_k", "min_sources_per_task", "snippet_max_chars")
+                if prefs.get(k) is not None
+            }
 
         try:
             config = sidecar_run_config(
@@ -877,6 +919,8 @@ def create_sidecar_app(
                 data_dir=app.state.data_dir,
                 session_routing=session_routing,
             )
+            if preference_overrides:
+                config = replace(config, **preference_overrides)
         except RuntimeError as e:
             async with session_factory() as db:
                 session = await _authorized_session(db, session_id, sidecar["user_id"])
