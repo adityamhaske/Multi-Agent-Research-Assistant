@@ -169,9 +169,30 @@ jobs:
       - name: Start Celery worker (fake-LLM)
         working-directory: backend
         run: |
-          celery -A app.workers.celery_app.celery_app worker --concurrency=1 --loglevel=warning &
+          # Readiness is checked, not assumed. The API and the frontend steps both poll
+          # until they answer; this one slept 5 seconds and hoped — for a worker that
+          # imports LangGraph, LangChain and every provider client before it consumes
+          # anything. When that took longer than 5s (or the worker died on boot, which
+          # `&` hides completely) the job carried on, research tasks sat unconsumed in
+          # the queue, no agent_logs rows were ever written, and the golden journeys
+          # failed with the live feed stuck on "Waiting for the pipeline to start…".
+          # That is a nondeterministic failure whose symptom points at SSE rather than
+          # at the worker, which is why it read as flaky for so long.
+          celery -A app.workers.celery_app.celery_app worker --concurrency=1 --loglevel=info \
+            > /tmp/worker.log 2>&1 &
           echo $! > /tmp/worker.pid
-          sleep 5
+          for i in $(seq 1 60); do
+            if celery -A app.workers.celery_app.celery_app inspect ping -t 2 >/dev/null 2>&1; then
+              echo "worker ready after ${i}s"; break
+            fi
+            if ! kill -0 "$(cat /tmp/worker.pid)" 2>/dev/null; then
+              echo "::error::Celery worker exited during startup"; cat /tmp/worker.log; exit 1
+            fi
+            sleep 1
+          done
+          celery -A app.workers.celery_app.celery_app inspect ping -t 5 || {
+            echo "::error::Celery worker never became ready"; cat /tmp/worker.log; exit 1
+          }
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -200,6 +221,12 @@ jobs:
           E2E_NO_SERVER: "1"
           E2E_BASE_URL: http://localhost:3000
         run: npm run e2e
+      - name: Worker log (on failure)
+        # A golden journey that fails on "Waiting for the pipeline to start…" is telling
+        # you the worker never ran the task, not that SSE broke. Print its log so the
+        # next person reads that from the job output instead of inferring it.
+        if: failure()
+        run: tail -100 /tmp/worker.log || echo "no worker log"
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v7
