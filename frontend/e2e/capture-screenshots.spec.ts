@@ -5,7 +5,11 @@
  * real run against whatever LLM_MODE the stack is in and saves the resulting
  * screens to disk, so the README shows the actual product rather than mockups.
  *
- *   npx playwright test e2e/capture-screenshots.spec.ts --project=chromium
+ *   npm run screenshots
+ *
+ * It is excluded from the golden config's `testIgnore`, so naming this file directly on
+ * the command line will NOT run it — use the script above, which points Playwright at
+ * playwright.screenshots.config.ts.
  *
  * Requires the full stack running (docker compose -f docker-compose.full.yml up).
  */

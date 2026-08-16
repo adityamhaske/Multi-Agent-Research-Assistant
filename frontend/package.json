@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "node scripts/prepare-session-routes.mjs web && playwright test"
+    "e2e": "node scripts/prepare-session-routes.mjs web && playwright test",
+    "screenshots": "node scripts/prepare-session-routes.mjs web && playwright test --config=playwright.screenshots.config.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.0",
