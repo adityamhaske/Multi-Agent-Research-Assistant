@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "description": "Scholarly eval query set (docs/12 M18 workstream B). PhD-level questions answerable only from primary literature, used to measure whether scholarly retrieval (M19) reaches a different source population than general web search. Every question here has had its named works checked against the published record -- see queries_scholarly_rubric.json for the per-question verification record. Questions whose citations have NOT been checked live in queries_scholarly_pending.json and are deliberately absent from this file so they cannot grade anything by accident. This set is 3 questions, not 10: it is not padded, and 6 of 12 drafted candidates were rejected by an adversarial pass before verification even began.",
+  "queries": [
+    {
+      "id": "fed-information-effect",
+      "domain": "economics",
+      "depth": "comprehensive",
+      "query": "Does purging the 'Fed information effect' from high-frequency monetary policy surprises change the sign of the estimated output and price impulse responses, or only their magnitude? Set out side by side the identifying assumption each approach actually imposes -- Nakamura and Steinsson's policy news shock, Jarocinski and Karadi's sign restrictions on the co-movement of the interest-rate and stock-price surprise, Miranda-Agrippino and Ricco's orthogonalization against the Fed's own internal (Greenbook/Tealbook) forecasts, and Bauer and Swanson's alternative in which the surprises are simply predictable from pre-FOMC macro and financial data -- and report which of the resulting impulse responses genuinely differ, on which sample (pre-2008 versus samples including the zero lower bound and the 2008-09 window), at which event window (30-minute intraday versus daily), and with what first-stage instrument strength where the approach is IV-based, or with what identifying restriction and diagnostic where it is not. State the outlet and vintage you used for each paper, since several exist as both working papers and published articles with different samples. Distinguish 'different point estimate' from 'statistically distinguishable' using the papers' own error bands, and state plainly whether these surprise series are interchangeable off the shelf."
+    },
+    {
+      "id": "kagome-trsb-evidence",
+      "domain": "physics",
+      "depth": "comprehensive",
+      "query": "In the kagome metals AV3Sb5 (A = K, Rb, Cs), do the reported signatures of time-reversal symmetry breaking below the charge-density-wave transition actually agree with each other? Reconcile the positive zero-field muon-spin-relaxation and magneto-optical Kerr reports against the null Kerr results and the STM re-analyses. For each measurement, give the measured quantity with units and uncertainty, the instrument type (zero-area-loop Sagnac vs free-space) and stated noise floor for Kerr, and the applied-field protocol and crystal growth method (flux vs self-flux) for muSR. State which effects have been reproduced by an independent group on independently grown crystals and which have not. Then state which of sample provenance, field-training protocol, or instrument calibration the disagreement has actually been shown to track -- if the literature does not establish an attribution, say so and give the evidence for each candidate explanation rather than choosing one."
+    },
+    {
+      "id": "muon-g2-hvp-window",
+      "domain": "physics",
+      "depth": "comprehensive",
+      "query": "Where does the hadronic-vacuum-polarization disagreement in muon g-2 stand as of the most recent Muon g-2 Theory Initiative white paper, whose edition and date you must name? Decompose the difference between lattice QCD and e+e- data-driven evaluations of a_mu^HVP by Euclidean time window (short, intermediate, long distance), reporting window values in units of 1e-10 with uncertainties from at least three independent lattice collaborations, each with its lattice action, ensemble set, and stated treatment of finite-volume, isospin-breaking, and QED corrections. State the CMD-3 pi+pi- cross-section separately from the KLOE, BaBar, and BESIII inputs rather than averaging them into a single 'data-driven value'. Address correlations explicitly: an answer that subtracts central values without stating whether the uncertainties are correlated is wrong. Finally, quantify what a pi+pi- shift large enough to reconcile the two approaches would do to alpha(M_Z) and the global electroweak fit, and to the hadronic tau-decay route. Numbers must be traceable to a collaboration paper or a HEPData record, not to a summary talk or news write-up."
+    }
+  ]
+}
