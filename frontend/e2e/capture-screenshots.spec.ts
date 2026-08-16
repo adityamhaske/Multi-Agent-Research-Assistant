@@ -87,7 +87,9 @@ test("capture product screenshots", async ({ page }) => {
 
   // ── 5. Completed report + citations ───────────────────────────────────────
   await page.getByRole("button", { name: /approve & finalize/i }).click();
-  await expect(page.getByRole("heading", { name: "Report", exact: true })).toBeVisible({
+  // Same drift as golden.spec.ts: the heading now reads "Research Report", so an
+  // exact-name locator waits instead of matching. Anchor on the labelled region.
+  await expect(page.locator('section[aria-labelledby="report-heading"]')).toBeVisible({
     timeout: 600_000,
   });
   await page.waitForTimeout(1500);

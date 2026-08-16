@@ -39,6 +39,26 @@ async function submitAuthForm(page: Page): Promise<void> {
   await submit.click();
 }
 
+/**
+ * The finalized report view, located by its labelled region rather than the heading's
+ * words.
+ *
+ * Same lesson as `submitAuthForm`, found the same way. The heading read "Report" when
+ * these tests were written and now reads "Research Report" (`ReportView.tsx`), so
+ * `getByRole("heading", { name: "Report", exact: true })` stopped matching — and an
+ * exact-name locator that stops matching *waits* rather than failing, so both journeys
+ * burned 150 s apiece to report "element(s) not found" instead of naming the heading
+ * that moved.
+ *
+ * `section[aria-labelledby="report-heading"]` is the accessibility relationship the view
+ * is actually built on, so it is a sounder anchor than the words inside it. The heading's
+ * accessible name is still asserted separately, so a genuinely unlabelled report still
+ * fails.
+ */
+function reportView(page: Page) {
+  return page.locator('section[aria-labelledby="report-heading"]');
+}
+
 /** Register a fresh account; the app logs straight in and lands on the dashboard. */
 async function registerAndLogin(page: Page): Promise<string> {
   const email = uniqueEmail();
@@ -97,9 +117,11 @@ test.describe("Golden journey 2 — approval completes the session", () => {
     await page.getByRole("button", { name: /approve & finalize/i }).click();
 
     // Finalizer resumes from the checkpoint and completes.
-    await expect(page.getByRole("heading", { name: "Report", exact: true })).toBeVisible({
-      timeout: 150_000,
-    });
+    await expect(reportView(page)).toBeVisible({ timeout: 150_000 });
+    // The region is located by its aria-labelledby relationship, so assert the heading
+    // it points at actually has a name — otherwise a report that lost its label would
+    // still pass. The words are not pinned; their presence is.
+    await expect(page.locator("#report-heading")).toHaveAccessibleName(/\S/);
     await expect(page.getByText("Completed")).toBeVisible();
 
     // Metrics row + sources panel.
@@ -140,9 +162,7 @@ test.describe("Golden journey 3 — rework loops and chat works", () => {
 
     // Approve the revised draft.
     await page.getByRole("button", { name: /approve & finalize/i }).click();
-    await expect(page.getByRole("heading", { name: "Report", exact: true })).toBeVisible({
-      timeout: 150_000,
-    });
+    await expect(reportView(page)).toBeVisible({ timeout: 150_000 });
 
     // Grounded follow-up chat streams an answer.
     const question = "What are the main limitations?";
