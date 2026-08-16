@@ -7,6 +7,20 @@ from pydantic import AnyHttpUrl, BaseModel, EmailStr, Field, field_validator
 from app.services.passwords import MIN_LENGTH
 
 
+class ConnectionVerdict(BaseModel):
+    """The API shape of `app.services.provider_health.Verdict` (docs/07 §2, Phase 2a).
+
+    Three states, never a bare boolean (AGENTS.md, "Honest three-state status"): `ok`,
+    `degraded` (the server answered but rejected the key / hit quota / had an outage —
+    a different fix than "nothing answered"), and `failed` (no response at all).
+    """
+
+    state: Literal["ok", "degraded", "failed"]
+    reason: str
+    checked_at: str
+    model_count: int | None = None
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr
     # Policy enforced in the service (breached-list + byte limit); length floor here.
@@ -34,6 +48,10 @@ class UserResponse(BaseModel):
     api_key_base_url: str | None = None
     api_key_hint: str | None = None
     api_key_set_at: datetime | None = None
+    # Set only by `PUT /me/api-key` — saving a key tests it in the same request, so the
+    # UI never shows a stale "connected" for a key nobody has actually probed since it
+    # changed. `None` on every other endpoint returning this schema (docs/07 §2).
+    connection_verdict: ConnectionVerdict | None = None
 
     model_config = {"from_attributes": True}
 

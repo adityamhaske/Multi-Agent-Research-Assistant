@@ -27,6 +27,20 @@ export interface DesktopKeyStatus {
 }
 export type DesktopKeys = Record<ApiKeyProvider, DesktopKeyStatus>;
 
+/**
+ * Three states, never a bare boolean (docs/07 §2, Phase 2a; AGENTS.md "Honest
+ * three-state status"). `degraded` is load-bearing: "the server answered but rejected
+ * the key" and "nothing answered at all" have different fixes.
+ */
+export type ConnectionState = "ok" | "degraded" | "failed";
+
+export interface ConnectionVerdict {
+  state: ConnectionState;
+  reason: string;
+  checked_at: string;
+  model_count: number | null;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -40,6 +54,9 @@ export interface User {
   api_key_provider: ApiKeyProvider | null;
   api_key_hint: string | null;
   api_key_set_at: string | null;
+  // Set only by the response to PUT /me/api-key — saving a key tests it in the same
+  // request. `null`/absent everywhere else this type is used.
+  connection_verdict?: ConnectionVerdict | null;
 }
 
 export interface ProfileUpdate {

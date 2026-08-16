@@ -22,6 +22,7 @@ from app.dependencies import get_client_ip, get_current_user
 from app.models.user import User
 from app.schemas.auth import (
     ApiKeyRequest,
+    ConnectionVerdict,
     LoginRequest,
     PasswordChangeRequest,
     ProfileUpdate,
@@ -29,7 +30,7 @@ from app.schemas.auth import (
     UsageResponse,
     UserResponse,
 )
-from app.services import auth_service, crypto, rate_limit, tokens, usage
+from app.services import auth_service, crypto, provider_health, rate_limit, tokens, usage
 from app.services.passwords import WeakPassword, hash_password, verify_password
 from research_engine.net_guard import SSRFBlocked, validate_url
 
@@ -254,7 +255,23 @@ async def set_api_key(
     await db.refresh(current_user)
     # Log the event, never the key or its hint.
     logger.info("api_key_set", user_id=str(current_user.id), provider=payload.provider)
-    return UserResponse.model_validate(current_user)
+
+    # Saving *is* testing (docs/07 §2, Phase 2a) — probed after the commit, so the
+    # verdict describes the key that is now actually stored, and a probe failure never
+    # blocks the save itself (the key is good to have on file even if the check flakes).
+    verdict = await provider_health.probe(
+        payload.provider,
+        payload.api_key,
+        str(payload.api_base_url) if payload.api_base_url else None,
+    )
+    response = UserResponse.model_validate(current_user)
+    response.connection_verdict = ConnectionVerdict(
+        state=verdict.state,
+        reason=verdict.reason,
+        checked_at=verdict.checked_at,
+        model_count=verdict.model_count,
+    )
+    return response
 
 
 @router.delete("/me/api-key", response_model=UserResponse)

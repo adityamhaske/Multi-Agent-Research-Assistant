@@ -3,10 +3,11 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 
-import { useDeleteDesktopKey, useDesktopKeys, useSetDesktopKey, useDesktopCustomEndpoint, useSetDesktopCustomEndpoint } from "@/hooks/queries";
+import { useDeleteDesktopKey, useDesktopCustomEndpoint, useDesktopKeys, useProviderHealth, useSetDesktopCustomEndpoint, useSetDesktopKey } from "@/hooks/queries";
 import { ApiError } from "@/lib/api";
-import type { ApiKeyProvider } from "@/lib/types";
+import type { ApiKeyProvider, DesktopKeyStatus } from "@/lib/types";
 
+import { ConnectionStatus } from "./ConnectionStatus";
 import { Section } from "./Section";
 
 const PROVIDERS: { value: ApiKeyProvider; label: string; help: string; url: string }[] = [
@@ -41,6 +42,115 @@ const PROVIDERS: { value: ApiKeyProvider; label: string; help: string; url: stri
     url: "#",
   },
 ];
+
+/** One provider row, isolated so each can hold its own re-probe query state
+ * (docs/07 §2, Phase 2a) — hooks cannot live inside the parent's `.map()`. */
+function DesktopKeyRow({
+  provider,
+  status,
+  input,
+  onInputChange,
+  onSave,
+  onRemove,
+  busy,
+}: {
+  provider: (typeof PROVIDERS)[number];
+  status: DesktopKeyStatus;
+  input: string;
+  onInputChange: (v: string) => void;
+  onSave: () => void;
+  onRemove: () => void;
+  busy: boolean;
+}) {
+  const health = useProviderHealth(provider.value, false);
+
+  return (
+    <div className="flex flex-wrap items-start gap-3 border border-border bg-bg-surface px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-xs font-semibold uppercase tracking-wider text-text-primary">
+            {provider.label}
+          </span>
+          {status.keychain && (
+            <span
+              className="px-2 py-0.5 font-mono text-[0.6875rem] font-semibold border"
+              style={{
+                color: "var(--success)",
+                backgroundColor: "color-mix(in srgb, var(--success) 10%, var(--bg-surface))",
+                borderColor: "color-mix(in srgb, var(--success) 30%, var(--border))",
+              }}
+            >
+              Keychain
+            </span>
+          )}
+          {status.environment && (
+            <span
+              className="px-2 py-0.5 font-mono text-[0.6875rem] font-semibold border"
+              style={{
+                color: "var(--text-muted)",
+                backgroundColor: "var(--bg-elevated)",
+                borderColor: "var(--border)",
+              }}
+            >
+              Environment
+            </span>
+          )}
+        </div>
+        <div className="mt-0.5 text-xs text-text-muted">
+          Get one from{" "}
+          <a
+            href={provider.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono text-xs font-medium text-accent hover:underline"
+          >
+            {provider.label}
+          </a>
+          .
+        </div>
+        {/* "Keychain" only means a key is stored, not that it still works — the badge
+            above was a static green regardless of reality. This is the live check. */}
+        {status.keychain && (
+          <div className="mt-2">
+            <ConnectionStatus
+              verdict={health.data ?? null}
+              loading={health.isFetching}
+              retesting={health.isFetching}
+              onRetest={() => health.refetch()}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="password"
+          autoComplete="off"
+          spellCheck={false}
+          aria-label={`${provider.label} API key`}
+          value={input}
+          onChange={(e) => onInputChange(e.target.value)}
+          placeholder={status.keychain ? "Replace key…" : provider.help}
+          className="input-base w-56 font-mono"
+        />
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={busy || input.trim().length < 8}
+          className="btn btn-primary"
+        >
+          {busy && <span className="spinner" />}
+          {status.keychain ? "Replace" : "Save"}
+        </button>
+        {status.keychain && (
+          <button type="button" onClick={onRemove} disabled={busy} className="btn btn-danger">
+            Remove
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Desktop BYOK (docs/12 M9). Unlike the server — one key on the user row — the
@@ -103,93 +213,18 @@ export function DesktopKeysCard() {
         <div className="card h-24 animate-pulse" aria-hidden />
       ) : (
         <div className="space-y-4">
-          {PROVIDERS.map((p) => {
-            const status = keys[p.value];
-            const busy =
-              setKey.isPending || (deleteKey.isPending && deleteKey.variables === p.value);
-            return (
-              <div
-                key={p.value}
-                className="flex flex-wrap items-center gap-3 border border-border bg-bg-surface px-4 py-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-semibold uppercase tracking-wider text-text-primary">
-                      {p.label}
-                    </span>
-                    {status.keychain && (
-                      <span
-                        className="px-2 py-0.5 font-mono text-[0.6875rem] font-semibold border"
-                        style={{
-                          color: "var(--success)",
-                          backgroundColor: "color-mix(in srgb, var(--success) 10%, var(--bg-surface))",
-                          borderColor: "color-mix(in srgb, var(--success) 30%, var(--border))",
-                        }}
-                      >
-                        Keychain
-                      </span>
-                    )}
-                    {status.environment && (
-                      <span
-                        className="px-2 py-0.5 font-mono text-[0.6875rem] font-semibold border"
-                        style={{
-                          color: "var(--text-muted)",
-                          backgroundColor: "var(--bg-elevated)",
-                          borderColor: "var(--border)",
-                        }}
-                      >
-                        Environment
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-0.5 text-xs text-text-muted">
-                    Get one from{" "}
-                    <a
-                      href={p.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-mono text-xs font-medium text-accent hover:underline"
-                    >
-                      {p.label}
-                    </a>
-                    .
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="password"
-                    autoComplete="off"
-                    spellCheck={false}
-                    aria-label={`${p.label} API key`}
-                    value={inputs[p.value] ?? ""}
-                    onChange={(e) => setInputs((s) => ({ ...s, [p.value]: e.target.value }))}
-                    placeholder={status.keychain ? "Replace key…" : p.help}
-                    className="input-base w-56 font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => save(p.value)}
-                    disabled={busy || (inputs[p.value] ?? "").trim().length < 8}
-                    className="btn btn-primary"
-                  >
-                    {busy && <span className="spinner" />}
-                    {status.keychain ? "Replace" : "Save"}
-                  </button>
-                  {status.keychain && (
-                    <button
-                      type="button"
-                      onClick={() => remove(p.value)}
-                      disabled={busy}
-                      className="btn btn-danger"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {PROVIDERS.map((p) => (
+            <DesktopKeyRow
+              key={p.value}
+              provider={p}
+              status={keys[p.value]}
+              input={inputs[p.value] ?? ""}
+              onInputChange={(v) => setInputs((s) => ({ ...s, [p.value]: v }))}
+              onSave={() => save(p.value)}
+              onRemove={() => remove(p.value)}
+              busy={setKey.isPending || (deleteKey.isPending && deleteKey.variables === p.value)}
+            />
+          ))}
 
           <div className="flex flex-col gap-2 border border-border bg-bg-surface px-4 py-3">
             <div className="flex items-center gap-2">

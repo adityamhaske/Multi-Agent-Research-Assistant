@@ -359,6 +359,66 @@ async def test_routing_round_trip(sidecar, tmp_path):
     assert not (tmp_path / "routing.json").exists()
 
 
+def _mock_probe_transport(handler):
+    """Same convention as `tests/test_local_llm.py` and `test_provider_health.py`:
+    stub the transport, never `provider_health.probe` itself."""
+
+    class _Client(httpx.AsyncClient):
+        def __init__(self, *a, **kw):
+            kw["transport"] = httpx.MockTransport(handler)
+            super().__init__(*a, **kw)
+
+    return _Client
+
+
+async def test_provider_test_probes_a_submitted_key_before_storing(sidecar, monkeypatch):
+    """`POST /models/providers/test` — contract copy #2 of the server's endpoint
+    (docs/07 §2, Phase 2a)."""
+    import httpx as httpx_mod
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, json={"error": "bad key"})
+
+    monkeypatch.setattr(httpx_mod, "AsyncClient", _mock_probe_transport(handler))
+
+    resp = await sidecar.post(
+        "/api/v1/models/providers/test",
+        headers=_auth(),
+        json={"provider": "openai", "api_key": "sk-wrong"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["state"] == "degraded"
+    assert body["checked_at"]
+
+
+async def test_provider_health_checks_the_stored_keychain_key(sidecar, monkeypatch):
+    """`GET /models/providers/health/{provider}` re-probes what is actually stored —
+    404s when nothing is, 200s with the verdict when something is. Keychain access is
+    stubbed (same convention as `test_key_delete_forgets_the_keychain_entry`) rather
+    than touching a real OS keyring, which a headless test box may not have."""
+    import httpx as httpx_mod
+
+    import desktop.sidecar as sc
+
+    missing = await sidecar.get("/api/v1/models/providers/health/openai", headers=_auth())
+    assert missing.status_code == 404
+
+    monkeypatch.setattr(sc, "stored_keys", lambda: {"openai": "sk-stored-key"})
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers.get("authorization") == "Bearer sk-stored-key"
+        return httpx.Response(200, json={"data": [{"id": "gpt-5"}]})
+
+    monkeypatch.setattr(httpx_mod, "AsyncClient", _mock_probe_transport(handler))
+
+    checked = await sidecar.get("/api/v1/models/providers/health/openai", headers=_auth())
+    assert checked.status_code == 200
+    body = checked.json()
+    assert body["state"] == "ok"
+    assert body["model_count"] == 1
+
+
 async def test_key_delete_forgets_the_keychain_entry(sidecar, monkeypatch):
     import desktop.sidecar as sc
 

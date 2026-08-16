@@ -10,14 +10,17 @@ comparison is most of the point.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import AnyHttpUrl, BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.dependencies import get_current_user, get_db
 from app.models.user import User
-from app.services import local_llm, model_routing
+from app.schemas.auth import ConnectionVerdict
+from app.services import crypto, local_llm, model_routing, provider_health
 from research_engine import catalog
 from research_engine.runconfig import ROLES
 
@@ -80,6 +83,16 @@ class ReadinessResponse(BaseModel):
     has_cloud_key: bool
     local_reachable: bool
     local_chat_models: int
+
+
+class ProviderTestRequest(BaseModel):
+    """A key to probe before it is stored (docs/07 §2, Phase 2a)."""
+
+    model_config = {"str_strip_whitespace": True}
+
+    provider: Literal["google", "anthropic", "openai", "openrouter", "custom"]
+    api_key: str = Field(min_length=8, max_length=500)
+    api_base_url: AnyHttpUrl | None = Field(default=None)
 
 
 class RoutingRequest(BaseModel):
@@ -252,6 +265,57 @@ async def local_llm_status(_current_user: User = Depends(get_current_user)):
         ],
         error=status_.error,
         hint=status_.hint,
+    )
+
+
+@router.post("/providers/test", response_model=ConnectionVerdict)
+async def test_provider(
+    payload: ProviderTestRequest, _current_user: User = Depends(get_current_user)
+):
+    """Probe a submitted key BEFORE it is stored (docs/07 §2, Phase 2a) — the picker's
+    "test connection" action, separate from saving.
+
+    Live I/O, same reason `/local/status` is split from `GET /models`: it can
+    legitimately be slow or time out, and the catalog must stay instant either way.
+    """
+    verdict = await provider_health.probe(
+        payload.provider,
+        payload.api_key,
+        str(payload.api_base_url) if payload.api_base_url else None,
+    )
+    return ConnectionVerdict(
+        state=verdict.state,
+        reason=verdict.reason,
+        checked_at=verdict.checked_at,
+        model_count=verdict.model_count,
+    )
+
+
+@router.get("/providers/health", response_model=ConnectionVerdict)
+async def provider_health_check(current_user: User = Depends(get_current_user)):
+    """Re-probe this user's own stored BYOK key on demand (docs/07 §2, Phase 2a).
+
+    404s when there is no key to check — a settings page with no key stored already
+    says so in prose; this endpoint has nothing of the user's own to verify, and a
+    "degraded: no key" verdict here would be a second, redundant way to say the same
+    thing the empty-state text already covers.
+    """
+    if not current_user.api_key_provider or not current_user.api_key_encrypted:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No key stored to check.")
+
+    key = crypto.decrypt(current_user.api_key_encrypted)
+    verdict = (
+        provider_health.failed_verdict("The stored key could not be decrypted — save it again.")
+        if not key
+        else await provider_health.probe(
+            current_user.api_key_provider, key, current_user.api_key_base_url
+        )
+    )
+    return ConnectionVerdict(
+        state=verdict.state,
+        reason=verdict.reason,
+        checked_at=verdict.checked_at,
+        model_count=verdict.model_count,
     )
 
 

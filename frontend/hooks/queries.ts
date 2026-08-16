@@ -8,6 +8,7 @@ import type {
   ApiKeyProvider,
   ChatMessage,
   ChatThread,
+  ConnectionVerdict,
   DesktopKeys,
   LocalLLMStatus,
   MemoryStatus,
@@ -112,6 +113,37 @@ export function useDeleteApiKey() {
   return useMutation({
     mutationFn: () => apiFetch<User>("/auth/me/api-key", { method: "DELETE" }),
     onSuccess: (user) => qc.setQueryData(queryKeys.me, user),
+  });
+}
+
+/**
+ * Probe a key BEFORE it is stored (docs/07 §2, Phase 2a) — the picker's "test
+ * connection" action, separate from saving. Same request/response shape on both
+ * hosts: `POST /models/providers/test`.
+ */
+export function useTestProviderKey() {
+  return useMutation({
+    mutationFn: (body: { provider: ApiKeyProvider; api_key: string; api_base_url?: string }) =>
+      apiFetch<ConnectionVerdict>("/models/providers/test", { method: "POST", body }),
+  });
+}
+
+/**
+ * Re-probe a stored key on demand. The web host checks the current user's single BYOK
+ * key (`GET /models/providers/health`); desktop can hold a key per provider at once,
+ * so it is scoped by provider (`GET /models/providers/health/{provider}`). 404s when
+ * nothing is stored — the caller should only enable this once a key exists.
+ */
+export function useProviderHealth(provider: ApiKeyProvider | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ["provider-health", provider],
+    queryFn: () =>
+      apiFetch<ConnectionVerdict>(
+        isDesktop ? `/models/providers/health/${provider}` : "/models/providers/health",
+      ),
+    enabled: enabled && !!provider,
+    retry: false,
+    staleTime: 30_000,
   });
 }
 

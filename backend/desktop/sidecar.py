@@ -75,6 +75,7 @@ from app.schemas.research import (
     SessionListResponse,
     SessionSummary,
 )
+from app.services import provider_health
 from app.services.sse import SSE_HEADERS
 from research_engine import bundle, catalog
 from research_engine.corpus import CorpusStore
@@ -1222,6 +1223,45 @@ def create_sidecar_app(
         if routing:
             models.update(routing)
         return models
+
+    def _verdict_dict(verdict: provider_health.Verdict) -> dict:
+        return {
+            "state": verdict.state,
+            "reason": verdict.reason,
+            "checked_at": verdict.checked_at,
+            "model_count": verdict.model_count,
+        }
+
+    @api.post("/models/providers/test")
+    async def test_provider(request: Request):
+        """Probe a submitted key BEFORE it is stored in the keychain (docs/07 §2, Phase
+        2a) — contract copy #2 of the server's `POST /models/providers/test`."""
+        body = await request.json()
+        provider = body.get("provider", "")
+        if provider not in ("google", "anthropic", "openai", "openrouter", "custom"):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown provider.")
+        key = (body.get("api_key") or "").strip()
+        base_url = body.get("api_base_url")
+        verdict = await provider_health.probe(provider, key, base_url)
+        return _verdict_dict(verdict)
+
+    @api.get("/models/providers/health/{provider}")
+    async def provider_health_check(provider: str):
+        """Re-probe a stored keychain key on demand (docs/07 §2, Phase 2a).
+
+        Desktop can hold a key per provider simultaneously — unlike the server's single
+        `user.api_key_provider` — so this is scoped by provider rather than "the" key.
+        404s when nothing is stored for it, same reason as the server's endpoint: the
+        keys screen already says "not connected" in prose for that case.
+        """
+        if provider not in ("google", "anthropic", "openai", "openrouter", "custom"):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown provider.")
+        key = stored_keys().get(provider)
+        if not key:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No key stored to check.")
+        base_url = stored_custom_endpoint(app.state.data_dir) if provider == "custom" else None
+        verdict = await provider_health.probe(provider, key, base_url)
+        return _verdict_dict(verdict)
 
     @api.put("/models/routing")
     async def set_routing(payload: dict, user: User = Depends(get_local_user)):  # noqa: ARG001

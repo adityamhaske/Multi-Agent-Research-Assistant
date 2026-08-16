@@ -4,6 +4,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 
 import { AccountShell } from "@/components/account/AccountShell";
+import { ConnectionStatus } from "@/components/account/ConnectionStatus";
 import { DesktopKeysCard } from "@/components/account/DesktopKeysCard";
 import { LocalLLMCard } from "@/components/account/LocalLLMCard";
 import { ModelPicker } from "@/components/account/ModelPicker";
@@ -11,6 +12,7 @@ import { Field, Section } from "@/components/account/Section";
 import {
   useDeleteApiKey,
   useMe,
+  useProviderHealth,
   useReadiness,
   useSetApiKey,
   useUpdateProfile,
@@ -112,6 +114,10 @@ function WebSettings() {
   const updateProfile = useUpdateProfile();
   const setApiKey = useSetApiKey();
   const deleteApiKey = useDeleteApiKey();
+  // Not auto-fetched (docs/07 §2, Phase 2a: "probe on save, re-probe on demand" — never
+  // silently on every page load). Saving already returns a verdict inline; this is only
+  // for the explicit "Test connection" re-probe of a key stored in an earlier session.
+  const providerHealth = useProviderHealth(user?.api_key_provider ?? null, false);
 
   const [limit, setLimit] = useState("0");
   const [provider, setProvider] = useState<ApiKeyProvider>("anthropic");
@@ -265,28 +271,30 @@ function WebSettings() {
           }
         >
           {user.api_key_provider ? (
-            <div
-              className="mb-5 flex flex-wrap items-center justify-between gap-3 border border-border bg-bg-surface px-4 py-3"
-            >
-              <div className="flex items-center gap-2.5">
-                <span
-                  aria-hidden
-                  className="status-marker"
-                  style={{ backgroundColor: "var(--success)" }}
-                />
-                <div className="text-[0.8125rem]">
-                  <span className="font-medium text-text-primary">
-                    {PROVIDERS.find((p) => p.value === user.api_key_provider)?.label}
-                  </span>{" "}
-                  <span className="font-mono text-text-muted">{user.api_key_hint}</span>
-                  <div className="font-mono text-xs text-text-muted">Active — used for your research.</div>
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border border-border bg-bg-surface px-4 py-3">
+              <div className="min-w-0 text-[0.8125rem]">
+                <span className="font-medium text-text-primary">
+                  {PROVIDERS.find((p) => p.value === user.api_key_provider)?.label}
+                </span>{" "}
+                <span className="font-mono text-text-muted">{user.api_key_hint}</span>
+                <div className="mt-2">
+                  {/* The freshest verdict wins: an on-demand re-probe, else what saving
+                      this key last returned. Never a hardcoded green — that hid exactly
+                      the "server answered, key refused" case this component exists to
+                      show (docs/07 §2). */}
+                  <ConnectionStatus
+                    verdict={providerHealth.data ?? setApiKey.data?.connection_verdict ?? null}
+                    loading={providerHealth.isFetching}
+                    retesting={providerHealth.isFetching}
+                    onRetest={() => providerHealth.refetch()}
+                  />
                 </div>
               </div>
               <button
                 type="button"
                 onClick={removeKey}
                 disabled={deleteApiKey.isPending}
-                className="btn btn-danger"
+                className="btn btn-danger shrink-0"
               >
                 {deleteApiKey.isPending && <span className="spinner" />}
                 Remove
