@@ -21,6 +21,12 @@ class AgentState(TypedDict, total=False):
 
     # Planner
     tasks: list[dict[str, Any]]
+    # The planner's proposed report structure, editable at the plan gate (docs/07 §2,
+    # Phase 4). Empty when the planner proposed none or the gate was skipped.
+    proposed_outline: list[dict[str, Any]]
+    # Set by plan_gate_node once the gate has been passed (approved or skipped) — lets
+    # a resumed run tell "never reached the gate" apart from "passed it".
+    plan_approved: bool | None
 
     # Executor / Critic rounds. Tasks run concurrently, so progress is tracked per task
     # rather than by a moving index (docs/12 M7).

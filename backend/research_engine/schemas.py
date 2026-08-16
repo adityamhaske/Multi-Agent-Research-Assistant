@@ -11,6 +11,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from research_engine.runconfig import get_run_config
+
 TaskStatus = Literal["pending", "running", "passed", "failed"]
 
 
@@ -19,6 +21,14 @@ class ResearchTask(BaseModel):
     query: str = Field(min_length=3, description="A concrete, independently searchable query")
     rationale: str = ""
     status: TaskStatus = "pending"
+    # Plan gate fields (docs/07 §2, Phase 4). Absent/empty is the exact shape a task
+    # had before this field existed, so a run that skips the gate is unaffected.
+    subtopics: list[str] = Field(default_factory=list)
+    # False means the reviewer dropped this task at the gate — plan_gate_node filters
+    # these out before the executor ever sees the list. True (the default) is what
+    # every task effectively was before this field existed: nothing was ever excluded.
+    include: bool = True
+    source_hint: str | None = None
 
     @field_validator("id", mode="before")
     @classmethod
@@ -30,8 +40,16 @@ class ResearchTask(BaseModel):
         return v or 0
 
 
+class OutlineSection(BaseModel):
+    """One section of the proposed report structure (docs/07 §2, Phase 4)."""
+
+    title: str = Field(min_length=1)
+    description: str = ""
+
+
 class PlannerOutput(BaseModel):
     tasks: list[ResearchTask]
+    proposed_outline: list[OutlineSection] = Field(default_factory=list)
 
     @model_validator(mode="before")
     @classmethod
@@ -45,8 +63,13 @@ class PlannerOutput(BaseModel):
     def _bounded(cls, v: list[ResearchTask]) -> list[ResearchTask]:
         if not v:
             raise ValueError("planner must produce at least 1 task")
-        if len(v) > 6:
-            v = v[:6]
+        # A default, not a wall (docs/07 §2, Phase 4) — the plan gate is what lets a
+        # user raise this per-run by adding tasks themselves; the configured cap is
+        # only what the *planner* may propose unprompted. 6 reproduces today's
+        # hardcoded ceiling exactly.
+        cap = get_run_config().max_planner_tasks
+        if len(v) > cap:
+            v = v[:cap]
         # Normalize ids to 1..n so downstream tagging is stable.
         for i, t in enumerate(v, start=1):
             t.id = i

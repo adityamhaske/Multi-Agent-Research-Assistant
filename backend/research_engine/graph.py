@@ -196,15 +196,18 @@ async def planner_node(state: AgentState) -> dict:
         return {"error": "planner: could not produce a valid task list", **_acc(state, cost, i, o)}
 
     tasks = [t.model_dump() for t in parsed.tasks]
+    outline = [s.model_dump() for s in parsed.proposed_outline]
     await emit(
         sid,
         "agent_log",
         agent="planner",
         message=f"Created {len(tasks)} research tasks",
-        detail={"tasks": tasks},
+        detail={"tasks": tasks, "proposed_outline": outline},
     )
     return {
         "tasks": tasks,
+        "proposed_outline": outline,
+        "plan_approved": None,
         "evidence": [],
         "verdicts": {},
         "retries": {},
@@ -1113,6 +1116,37 @@ async def synthesizer_node(state: AgentState) -> dict:
     }
 
 
+def plan_gate_node(state: AgentState) -> dict:
+    """Pause after the planner for the user to edit subtopics and the outline before
+    any search spends money (docs/07 §2, Phase 4). Mirrors `hitl_gate_node` exactly:
+    `interrupt()` persists the checkpoint and suspends; a resume carries the decision.
+
+    Resumed with `{"tasks": [...], "outline": [...]}` — both optional; an absent key
+    means "unedited, use what the planner proposed". `include: false` on a task drops
+    it from what the executor runs, which is the whole point of a *review* gate rather
+    than a rubber stamp: the reviewer's edits change the run, not just what is shown.
+    """
+    decision = interrupt(
+        {
+            "type": "PLAN_READY",
+            "tasks": state.get("tasks", []),
+            "proposed_outline": state.get("proposed_outline", []),
+        }
+    )
+    tasks = decision.get("tasks") if decision.get("tasks") is not None else state.get("tasks", [])
+    outline = (
+        decision.get("outline")
+        if decision.get("outline") is not None
+        else state.get("proposed_outline", [])
+    )
+    tasks = [t for t in tasks if t.get("include", True)]
+    return {"tasks": tasks, "proposed_outline": outline, "plan_approved": True}
+
+
+def route_after_plan_gate(state: AgentState) -> str:
+    return "executor"
+
+
 def hitl_gate_node(state: AgentState) -> dict:
     """Pause for human review. interrupt() persists the checkpoint and suspends."""
     decision = interrupt(
@@ -1186,7 +1220,10 @@ def _over_budget(state: AgentState) -> str | None:
 def route_after_planner(state: AgentState) -> str:
     if state.get("error"):
         return "failer"
-    return "executor"
+    # Opt-out, not opt-in (docs/07 §2, Phase 4) — the extra pause is the default.
+    if get_run_config().skip_plan_gate:
+        return "executor"
+    return "plan_gate"
 
 
 def route_after_critic(state: AgentState) -> str:
@@ -1215,6 +1252,7 @@ def route_after_gate(state: AgentState) -> str:
 def build_graph(checkpointer):
     g = StateGraph(AgentState)
     g.add_node("planner", planner_node)
+    g.add_node("plan_gate", plan_gate_node)
     g.add_node("executor", executor_node)
     g.add_node("critic", critic_node)
     g.add_node("contradiction_detector", contradiction_detector_node)
@@ -1225,8 +1263,11 @@ def build_graph(checkpointer):
 
     g.add_edge(START, "planner")
     g.add_conditional_edges(
-        "planner", route_after_planner, {"executor": "executor", "failer": "failer"}
+        "planner",
+        route_after_planner,
+        {"executor": "executor", "plan_gate": "plan_gate", "failer": "failer"},
     )
+    g.add_conditional_edges("plan_gate", route_after_plan_gate, {"executor": "executor"})
     g.add_edge("executor", "critic")
     g.add_conditional_edges(
         "critic",

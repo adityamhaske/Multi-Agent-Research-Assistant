@@ -76,6 +76,25 @@ class Session(Base):
     # output this product exists to refuse.
     demo: Mapped[bool] = mapped_column(nullable=False, server_default="false")
 
+    # ── Plan gate (docs/07 §2, Phase 4) ────────────────────────────────────────
+    # The reviewer's decision, not the planner's proposal — plan_json/outline_json
+    # hold the request as edited at the gate, same as model_routing snapshots what
+    # actually ran rather than a current, possibly-since-changed preference.
+    plan_json: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
+    outline_json: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
+    plan_approved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # False is the product default — the confirmed decision is a second gate after
+    # the planner, opt-out not opt-in (docs/07 §2 header). The *engine*'s own bare
+    # default is the opposite (RunConfig.skip_plan_gate=True) so engine-level code
+    # with no opinion about this column — every existing test, the CLI, the eval
+    # harness — keeps today's behaviour. NOT YET wired to override the engine
+    # default for real runs (see pipeline_runner.py::_run_config_for) — nothing can
+    # resume a session past plan_gate_node's interrupt yet, so activating it would
+    # strand a real run with no way to continue.
+    skip_plan_gate: Mapped[bool] = mapped_column(nullable=False, server_default="false")
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

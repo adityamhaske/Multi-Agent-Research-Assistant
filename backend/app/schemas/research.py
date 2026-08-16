@@ -30,6 +30,14 @@ class ResearchStartRequest(BaseModel):
     # (docs/17 §6.2), so the product can be demonstrated before any key exists. Persisted
     # on the session, which is what lets every export stamp itself as not-real research.
     demo: bool = False
+    # NOT YET (docs/07 §2, Phase 4): topic_seeds/outline_template/skip_plan_gate are
+    # deliberately not accepted here. The engine-level plan-gate primitives exist
+    # (research_engine/schemas.py, graph.py::plan_gate_node) but nothing can resume a
+    # session past that interrupt yet — accepting these fields now and silently
+    # dropping them would be exactly the "accepted by the schema, dropped on the
+    # floor" bug AGENTS.md documents for corpus_mode/demo. Add them back in the same
+    # change that adds SessionStatus.AWAITING_PLAN, the resume dispatch, and the
+    # /{id}/plan endpoint.
 
 
 class ApprovalRequest(BaseModel):

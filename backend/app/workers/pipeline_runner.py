@@ -114,6 +114,14 @@ async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
         # offline. Desktop counterpart: `sidecar.sidecar_run_config`.
         return replace(base, llm_mode="fake", demo=True, models=routing, **overrides)
 
+    # NOT YET: skip_plan_gate is intentionally never overridden from session.skip_plan_gate
+    # here. The plan-gate engine primitives (schemas.py, graph.py::plan_gate_node,
+    # runconfig.py) exist and are tested, but resuming *past* a plan-gate interrupt has
+    # no SessionStatus value, no runner.py dispatch, and no API endpoint yet — wiring
+    # this override would let a real run hit plan_gate_node's interrupt() with no way
+    # to ever resume it. RunConfig.skip_plan_gate's bare engine default (True) is what
+    # every real run gets until that follow-up work lands; see AGENTS.md "never fake,
+    # never swallow" — an unreachable gate would be worse than no gate.
     return replace(base, models=routing, **overrides)
 
 

@@ -109,3 +109,44 @@ async def test_events_are_emitted_for_each_agent():
 async def test_emit_is_noop_without_a_sink():
     """emit() is safe with no configured sink (default no-op)."""
     await emit("s", "agent_log", agent="planner", message="hi")
+
+
+# ─── Plan gate groundwork (docs/07 §2, Phase 4) ─────────────────────────────────────
+#
+# The engine primitives exist (plan_gate_node, route_after_planner routing to it) but
+# nothing can resume a session past that interrupt yet — no SessionStatus value, no
+# runner.py dispatch, no API endpoint. Activating it for a real run would strand that
+# run permanently after the planner. This pins that the *bare* engine default keeps
+# every untouched caller (every other test in this file included) on today's exact
+# behaviour: straight through to the executor, no second interrupt.
+
+
+@pytest.mark.asyncio
+async def test_plan_gate_is_dormant_under_the_bare_engine_default():
+    """The graph reaches the HITL gate directly — no second interrupt — for any host
+    that has not explicitly opted in, which today is every host."""
+    graph = build_graph(MemorySaver())
+    result = await graph.ainvoke(_initial_state(), _config())
+
+    assert "__interrupt__" in result
+    assert result["__interrupt__"][0].value["type"] == "HITL_READY"
+
+
+@pytest.mark.asyncio
+async def test_plan_gate_interrupts_when_explicitly_enabled():
+    """Proves the node itself works — a host that *does* wire skip_plan_gate=False
+    (once resuming past it exists) gets a real second interrupt with the proposed
+    tasks and outline, not a silently-skipped no-op."""
+    from research_engine.runconfig import RunConfig, reset_run_config, set_run_config
+
+    token = set_run_config(RunConfig(llm_mode="fake", skip_plan_gate=False))
+    try:
+        graph = build_graph(MemorySaver())
+        result = await graph.ainvoke(_initial_state(), _config())
+    finally:
+        reset_run_config(token)
+
+    assert "__interrupt__" in result
+    interrupt = result["__interrupt__"][0].value
+    assert interrupt["type"] == "PLAN_READY"
+    assert len(interrupt["tasks"]) >= 1

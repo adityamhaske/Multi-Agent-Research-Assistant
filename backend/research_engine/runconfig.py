@@ -120,15 +120,31 @@ class RunConfig:
     # tighten the cap, never loosen the schema's own limit.
     snippet_max_chars: int = 500
 
-    # Phase 4 fields: declared and threaded through both config paths now, consumed
-    # by the plan/outline gate this phase does not yet build. An empty default means
-    # "no seed topics, no outline template" — exactly today's unconstrained planner.
+    # Consumed by the plan gate (docs/07 §2, Phase 4). Empty/unset means "no seed
+    # topics, no outline template" — exactly today's unconstrained planner.
     outline_template: str | None = None
     topic_seeds: tuple[str, ...] = ()
-    # Role → replacement prompt text. No consumer yet in this phase; declared so the
-    # config path exists ahead of whichever future phase reads it, rather than adding
-    # a fourth place this contract has to be threaded through later.
+    # Role → replacement prompt text. No consumer yet; declared so the config path
+    # exists ahead of whichever future phase reads it, rather than adding a fourth
+    # place this contract has to be threaded through later.
     prompt_overrides: Mapping[str, str] = field(default_factory=dict)
+
+    # ── Plan gate (docs/07 §2, Phase 4) ────────────────────────────────────────
+    # A default, not a wall: the planner may still propose fewer, and a user can add
+    # more at the gate. 6 reproduces today's hardcoded PlannerOutput cap exactly.
+    max_planner_tasks: int = 6
+    # True here, not False — this is the bare *engine* default read by every test,
+    # the CLI, and the eval harness that has never heard of this field and has no
+    # way to render or resume a second interrupt. A host that forgets to wire this
+    # must degrade to today's exact behaviour (AGENTS.md — module defaults mirror
+    # settings defaults exactly, so an unconfigured host is never surprised).
+    #
+    # The *product* decision — "second human gate after Planner", opt-out not
+    # opt-in — lives one layer up: `pipeline_runner._run_config_for` and
+    # `sidecar._drive_session` always pass an explicit `skip_plan_gate` sourced from
+    # `Session.skip_plan_gate`, whose own column default is False. A real run
+    # created through either host's API gets the gate; a bare RunConfig() does not.
+    skip_plan_gate: bool = True
 
     def model_for(self, role: str) -> str:
         """The "provider:model" string routed to a role."""
