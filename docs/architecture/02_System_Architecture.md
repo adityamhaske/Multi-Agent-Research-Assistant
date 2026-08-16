@@ -123,7 +123,10 @@ session scope per task run. The API changes session state in exactly one place:
 
 - Token usage read from each model response's `usage_metadata`; accumulated per session
   in graph state; persisted on every checkpoint.
-- `MAX_COST_PER_SESSION_USD` (default 0.50) and `MAX_WALLCLOCK_SECONDS` (default 600)
+- `MAX_COST_PER_SESSION_USD`, `MAX_WALLCLOCK_SECONDS` and `MAX_INPUT_TOKENS` — **0 means
+  unlimited, and 0 is the default for all three**. `MAX_COST_PER_SESSION_USD` is inert on
+  `openrouter`/`custom`, whose prices are not in the catalog, so estimated cost stays 0.00
+  there; the token ceiling is the only guard that works on every provider
   enforced at conditional edges; exceeding either → graceful FAILED with partial
   results preserved and reason surfaced in UI.
 - Costs computed from a versioned price table in config (`model → $/1M tokens`), which

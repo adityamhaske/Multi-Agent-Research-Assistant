@@ -5,6 +5,7 @@ import time
 import pytest
 
 from research_engine import graph as graph_mod
+from research_engine.runconfig import RunConfig, reset_run_config, set_run_config
 from research_engine.schemas import CriticVerdict
 
 
@@ -71,6 +72,9 @@ def test_confidence_percentage_is_normalized_not_rejected():
 
 
 def test_over_budget_routes_to_failer():
+    # An explicit cap, because limits are now opt-in (0 = unlimited). This used to rely on
+    # the shipped 0.50 default, so it was really asserting the default rather than the
+    # routing it names.
     state = {
         "cost_usd": 999.0,
         "tokens_input": 0,
@@ -79,7 +83,42 @@ def test_over_budget_routes_to_failer():
         "verdicts": {"1": {"passed": True}},
         "retries": {},
     }
-    assert graph_mod.route_after_critic(state) == "failer"
+    token = set_run_config(RunConfig(max_cost_per_session_usd=0.50))
+    try:
+        assert graph_mod.route_after_critic(state) == "failer"
+    finally:
+        reset_run_config(token)
+
+
+def test_zero_means_unlimited_for_every_budget_guard():
+    """0 disables a limit, matching the rate-limit convention already used elsewhere.
+
+    The input-token ceiling used to be a hardcoded 1_000_000 with no way to raise it,
+    while its two siblings were configurable — so on a provider whose pricing is not in
+    the catalog (`estimate_cost()` returns 0.0 for openrouter/custom, making the dollar
+    cap inert) the only live backstop was the one nobody could tune. A real run died at
+    1,003,721 input tokens with no recourse.
+    """
+    unlimited = RunConfig(max_cost_per_session_usd=0, max_wallclock_seconds=0, max_input_tokens=0)
+    token = set_run_config(unlimited)
+    try:
+        assert not graph_mod._over_budget(
+            {"cost_usd": 10_000.0, "tokens_input": 50_000_000, "started_at": 0.0}
+        )
+    finally:
+        reset_run_config(token)
+
+
+def test_a_configured_limit_still_stops_the_run():
+    """Removing the hardcoded ceiling must not remove the mechanism: a deployment that
+    sets a limit still gets it enforced."""
+    capped = RunConfig(max_cost_per_session_usd=0, max_wallclock_seconds=0, max_input_tokens=1000)
+    token = set_run_config(capped)
+    try:
+        assert graph_mod._over_budget({"cost_usd": 0.0, "tokens_input": 1000, "started_at": 0.0})
+        assert not graph_mod._over_budget({"cost_usd": 0.0, "tokens_input": 999, "started_at": 0.0})
+    finally:
+        reset_run_config(token)
 
 
 def test_routing_retries_only_while_a_task_has_retries_left():

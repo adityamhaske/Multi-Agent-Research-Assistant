@@ -101,9 +101,15 @@ class Settings(BaseSettings):
     default_monthly_token_limit: int = 0
 
     # ── Agent budgets (docs/04 §6) ─────────────────────────────────────────────
+    # 0 = unlimited, for all three (docs/04 §6) — the same convention as the rate limits.
+    # Unlimited by default: the dollar cap cannot act as a backstop on openrouter/custom,
+    # where `estimate_cost()` returns 0.0, so a shipped default only ever killed runs on
+    # the providers it *could* measure. Set these when a deployment wants a hard stop; cap
+    # real spend at the provider. Mirrored in `research_engine/local.py` — change both.
     max_critic_loops: int = 2
-    max_cost_per_session_usd: float = 0.50
-    max_wallclock_seconds: int = 600
+    max_cost_per_session_usd: float = 0.0
+    max_wallclock_seconds: int = 0
+    max_input_tokens: int = 0
     # Research tasks run concurrently within a round (docs/12 M7). 1 = strictly
     # sequential, which is the only setting where budget overshoot is impossible.
     max_parallel_tasks: int = 4

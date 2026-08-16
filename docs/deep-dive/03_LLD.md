@@ -117,8 +117,10 @@ increments `rework_count`.
 
 ```python
 def _over_budget(state):
-    return (state["cost_usd"] >= settings.max_cost_per_session_usd
-            or state["tokens_input"] >= 1_000_000
+    # 0 disables a guard, and all three default to 0. The token ceiling was once a
+    # hardcoded 1_000_000 that no config could reach — it killed a real run at 1,003,721.
+    return (cost_cap and state["cost_usd"] >= cost_cap
+            or token_cap and state["tokens_input"] >= token_cap
             or time.time() - state["started_at"] >= settings.max_wallclock_seconds)
 
 def route_after_critic(state):

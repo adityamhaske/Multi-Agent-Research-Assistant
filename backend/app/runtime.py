@@ -42,6 +42,7 @@ def run_config_from_settings(s: Settings | None = None) -> RunConfig:
         max_critic_loops=s.max_critic_loops,
         max_cost_per_session_usd=s.max_cost_per_session_usd,
         max_wallclock_seconds=s.max_wallclock_seconds,
+        max_input_tokens=s.max_input_tokens,
         max_parallel_tasks=s.max_parallel_tasks,
     )
 

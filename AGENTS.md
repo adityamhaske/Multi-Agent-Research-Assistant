@@ -142,6 +142,16 @@ worked example of doing that after the fact.
 - `validate_pricing()` skips `openrouter` and `custom`, so `estimate_cost()` returns `0.0`
   for them and **`MAX_COST_PER_SESSION_USD` is a no-op on those providers**. A `$0.00` in
   the UI does not mean a run was free. Cap spend at the provider.
+- **Every run limit is `0 = unlimited`, and `0` is the default** — cost, wallclock, and
+  `max_input_tokens`. The token ceiling used to be a hardcoded `1_000_000` inside
+  `graph._over_budget`, unreachable from any config; since the dollar cap is inert on
+  `openrouter`/`custom`, it was the only guard that could fire, and a real run died at
+  1,003,721 input tokens with no way to raise it. **The rule has two homes** —
+  `graph._over_budget` *and* `graph._BudgetGuard.exceeded`; a zero limit reads as "already
+  exceeded" to a naive `>=`, which skips every task at zero spend. Change both.
+- A guard that fires must say which one, and by how much. `failer_node` reports the breach
+  reason; a bare "budget or loop limit exceeded" made a user read the source to learn
+  which of three numbers had been crossed.
 - Router aliases (`auto/*`) are **not** pinned models: they resolve differently per call
   and the alias can disagree with what served the request. Never treat one as a disclosed
   model — record what actually answered.

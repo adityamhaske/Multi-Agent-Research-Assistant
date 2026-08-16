@@ -225,7 +225,10 @@ class _BudgetGuard:
             self._spent += cost
 
     def exceeded(self) -> bool:
-        return self._spent >= self._limit
+        # 0 = unlimited, matching `_over_budget`. Without the guard on `_limit`, a zero
+        # cap reads as "already exceeded" at zero spend and every task is skipped before
+        # it runs — the second home of this rule, and the one easy to miss.
+        return bool(self._limit) and self._spent >= self._limit
 
     @property
     def spent(self) -> float:
@@ -1082,19 +1085,46 @@ def finalizer_node(state: AgentState) -> dict:
 
 
 def failer_node(state: AgentState) -> dict:
-    return {"error": state.get("error") or "budget or loop limit exceeded"}
+    # Recomputed here because a router cannot write state: whichever guard sent us here
+    # still reads the same way from the same state. A generic "budget or loop limit
+    # exceeded" made the user open the source to find which limit tripped and by how much.
+    return {
+        "error": state.get("error")
+        or _over_budget(state)
+        or "retry limit reached: every task exhausted its critic rounds"
+    }
 
 
 # ── Conditional routing ────────────────────────────────────────────────────────────
 
 
-def _over_budget(state: AgentState) -> bool:
+def _over_budget(state: AgentState) -> str | None:
+    """The breach reason if a guard has tripped, else None. **0 disables a guard.**
+
+    Every limit is opt-in (docs/04 §6). The token ceiling was hardcoded at 1_000_000 and
+    reachable from no config, so on a provider whose pricing the catalog does not carry —
+    `estimate_cost()` returns 0.0 for openrouter/custom, which makes the dollar cap inert
+    — it was the only guard that could fire, and it killed a real run at 1,003,721 tokens.
+
+    Returning the reason rather than a bare bool is the point: "budget or loop limit
+    exceeded" made a user read the source to learn which of three numbers was crossed.
+    """
     cfg = get_run_config()
-    return (
-        state.get("cost_usd", 0.0) >= cfg.max_cost_per_session_usd
-        or state.get("tokens_input", 0) >= 1_000_000
-        or (time.time() - state.get("started_at", time.time())) >= cfg.max_wallclock_seconds
-    )
+
+    cost, cost_cap = state.get("cost_usd", 0.0), cfg.max_cost_per_session_usd
+    if cost_cap and cost >= cost_cap:
+        return f"cost ceiling reached: ${cost:.4f} of ${cost_cap:.2f}"
+
+    tokens, token_cap = state.get("tokens_input", 0), cfg.max_input_tokens
+    if token_cap and tokens >= token_cap:
+        return f"input-token ceiling reached: {tokens:,} of {token_cap:,}"
+
+    time_cap = cfg.max_wallclock_seconds
+    elapsed = time.time() - state.get("started_at", time.time())
+    if time_cap and elapsed >= time_cap:
+        return f"time limit reached: {elapsed:.0f}s of {time_cap}s"
+
+    return None
 
 
 def route_after_planner(state: AgentState) -> str:

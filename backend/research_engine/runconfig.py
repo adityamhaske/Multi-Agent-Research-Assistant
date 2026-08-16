@@ -86,10 +86,18 @@ class RunConfig:
     # can point at a remote box on the LAN instead of the machine it runs on.
     ollama_base_url: str = "http://localhost:11434/v1"
 
-    # Budgets (docs/04 §6)
+    # Budgets (docs/04 §6). **0 means unlimited** for all three, the same convention the
+    # rate limits use. They default to unlimited: a run must not be killed mid-flight by a
+    # ceiling the operator never chose, and the dollar cap cannot serve as a backstop
+    # anyway — `estimate_cost()` returns 0.0 for openrouter/custom, so it never fires
+    # there. Cap spend at the provider; set these when a deployment wants its own stop.
     max_critic_loops: int = 2
-    max_cost_per_session_usd: float = 0.50
-    max_wallclock_seconds: int = 600
+    max_cost_per_session_usd: float = 0.0
+    max_wallclock_seconds: int = 0
+    # Cumulative input tokens across the whole session, critic loops and rework included.
+    # Was a hardcoded 1_000_000 inside `graph._over_budget` with no way to raise it, which
+    # killed a real run at 1,003,721 tokens — the only live guard was the untunable one.
+    max_input_tokens: int = 0
 
     # How many research tasks may run at once (docs/12 M7). 1 restores the old strictly
     # sequential behaviour, which also makes budget overshoot impossible — see
