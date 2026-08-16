@@ -4,7 +4,7 @@
 > human-in-the-loop approval gate and verifiable per-claim citations.
 
 [![CI](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml)
-[![citation support](https://img.shields.io/badge/citation%20support-90%25%20(interim)-red)](backend/evals/results/eval-2026-08-13.json)
+[![citation support](https://img.shields.io/badge/citation%20support-90%25%20(interim)-red)](backend/evals/results/eval-2026-08-13-ollama-run7.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -244,8 +244,8 @@ verifies every routed model provider has a key.
 Most projects in this category claim citation fidelity. Here are the numbers, the method,
 and the failures — measured, not asserted.
 
-Latest real-model run: [`eval-2026-08-13.json`](backend/evals/results/eval-2026-08-13.json),
-10 queries across 10 domains.
+Latest real-model run: [`eval-2026-08-13-ollama-run7.json`](backend/evals/results/eval-2026-08-13-ollama-run7.json),
+10 queries across 8 domains.
 
 | Metric | Result |
 |---|---|
@@ -256,8 +256,10 @@ Latest real-model run: [`eval-2026-08-13.json`](backend/evals/results/eval-2026-
 | Cost | $0.00 — local model run |
 | Latency | 514 s per report |
 
-**Method.** Models: local `ollama:qwen2.5:7b` for every role — writer **and** judge —
-because the Gemini API key hit its monthly spend cap mid-measurement. Search: Tavily.
+**Method.** Models: local `ollama:qwen2.5` for every role — writer **and** judge —
+because the Gemini API key hit its monthly spend cap mid-measurement. The artifact records
+that id **untagged**, so the exact weights are not pinned by the record: Ollama resolves an
+untagged name to whichever tag is installed. Search: Tavily.
 Citation support is judged per *sentence* by an LLM shown only the snippets that sentence
 cites, answering YES/NO. This is an **interim measurement** of the same pipeline that
 previously measured 74.16% support and 20% completion on Gemini 2.5 Flash (the completion

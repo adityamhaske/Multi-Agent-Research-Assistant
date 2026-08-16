@@ -62,7 +62,7 @@ Existing per-operation rate limits handle abuse.
   `LICENSE` file; the "no license set" text is gone.
 - **Record a real-model eval run.** ☑ *Interim.* Gemini's monthly spend cap returned
   `429` on every probe, so the measurement ran on local `ollama:qwen2.5:7b` (all roles,
-  including judge), per user direction: [`eval-2026-08-13.json`](../../backend/evals/results/eval-2026-08-13.json)
+  including judge), per user direction: [`eval-2026-08-13-ollama-run7.json`](../../backend/evals/results/eval-2026-08-13-ollama-run7.json)
   — completion **1.00**, citation support **0.90** (metrics v3), `citation_support_ok:
   false` recorded honestly. ☐ **Remaining:** re-run on Gemini 2.5 Flash when quota
   resets and replace the interim number.
@@ -265,7 +265,7 @@ on a live probe, so two full local evals measured the fix on the substitute mode
 | Ollama #4 | **1.00** | 0.85 | strict “answer NO when unsure” verifier — over-stripping experiment, reverted |
 | Ollama #5 | **1.00** | 0.9217 (v2) / **0.9459 re-scored v3** | balanced verifier; 2 residual NOs, one a judge error on a near-verbatim claim |
 | Ollama #6 | **1.00** | 0.9167 (v3) | first run measured natively under metrics v3 |
-| Ollama #7 | **1.00** | 0.90 (v3) | committed as [`eval-2026-08-13.json`](../../backend/evals/results/eval-2026-08-13.json); 4 NOs across 36 claims, none a deterministic-strip class |
+| Ollama #7 | **1.00** | 0.90 (v3) | committed as [`eval-2026-08-13-ollama-run7.json`](../../backend/evals/results/eval-2026-08-13-ollama-run7.json); 4 NOs across 36 claims, none a deterministic-strip class |
 
 Per-claim verdicts split the remaining 11 NO rulings of run #2 into three root causes:
 1. **Deictic fragments (4/11).** Sentences like “This is detailed in Article 55 [4].”

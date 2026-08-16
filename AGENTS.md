@@ -37,6 +37,22 @@ results as findings, recorded `claude-sonnet-4-6` in every trace while calling
 `benchmark.py`'s `_build_judge` and `calc_support_rate` and preserve the distinction
 between *unmeasured* and *zero*.
 
+That fix landed in `benchmark.py` and **was never propagated to `harness.py`**, which is
+what actually produces every committed `eval-*.json`. Until M18, its
+`judge_citation_support` divided by *all* cited claims while a provider error, a partial
+model reply, and an unparseable answer each silently contributed a miss — so an exhausted
+quota was indistinguishable from a quality collapse. Both files now exclude unjudged
+claims from the denominator and return `None` when nothing was judged. They remain two
+homes for one rule: **change both.**
+
+**A committed eval result is evidence, and evidence is write-once.** `cbde168` — a
+frontend commit — overwrote `eval-2026-08-13.json`, destroying a real 10/10 `ollama` run
+and leaving the README citing numbers whose proof no longer existed. Nothing failed and
+nothing warned; the measurement was recoverable only from git history. Never modify a file
+under `backend/evals/results/`; add a new one named `eval-<date>-<routing>-run<N>.json`,
+because a date alone is not a run identity. CI enforces this (`ci.yml`, job
+`eval-artifacts`).
+
 ## Docs are the build contract
 
 `docs/` is authoritative — see [`docs/00_INDEX.md`](docs/00_INDEX.md). Code that
@@ -88,6 +104,8 @@ these was found in shipped code, not imagined:
   `desktop/sidecar.py::_drive_session`
 - Route validation → `app/services/model_routing.py::validate` *and*
   `research_engine/llm_factory.py::validate_pricing`
+- Unmeasured-vs-zero in the support rate → `evals/harness.py::judge_citation_support`
+  *and* `evals/benchmark.py::calc_support_rate`
 - Schema → an Alembic migration for Postgres *and* the ORM model, which is what the
   desktop's `create_all` plus startup column sync reads
 - Sidecar location → `desktop/tauri.conf.json` (`bundle.resources`), `desktop/src/lib.rs`
