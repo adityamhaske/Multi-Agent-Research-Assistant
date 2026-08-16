@@ -106,6 +106,16 @@ these was found in shipped code, not imagined:
   `research_engine/llm_factory.py::validate_pricing`
 - Unmeasured-vs-zero in the support rate → `evals/harness.py::judge_citation_support`
   *and* `evals/benchmark.py::calc_support_rate`
+- Embedder locality → every `Embeddings` adapter must expose `is_local`
+  (`research_engine/embeddings.py`, `app/adapters.py`); the corpus airgap guard reads it
+  and **defaults to remote** for anything that does not declare itself
+
+**A test that stubs the thing it is testing proves nothing.** `test_corpus_egress.py`
+asserted zero network calls in corpus mode while injecting a `FakeEmbeddings` — and the
+query embedding was the only call that egressed, so the suite was green precisely because
+it had replaced the defect. When writing a test for an *absence* (no egress, no writes, no
+spend), check what the fixtures replaced: if the mechanism under test is the thing you
+mocked, the test is decorative.
 - Schema → an Alembic migration for Postgres *and* the ORM model, which is what the
   desktop's `create_all` plus startup column sync reads
 - Sidecar location → `desktop/tauri.conf.json` (`bundle.resources`), `desktop/src/lib.rs`

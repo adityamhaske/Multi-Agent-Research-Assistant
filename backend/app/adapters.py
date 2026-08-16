@@ -24,7 +24,7 @@ import structlog
 from app.config import settings
 from app.db.redis import publish_event
 from app.models.agent_log import AgentLog
-from research_engine.embeddings import EmbeddingsUnavailable, NoEmbeddings
+from research_engine.embeddings import EmbeddingsUnavailable, NoEmbeddings, is_local_endpoint
 from research_engine.llm_factory import map_local_host
 from research_engine.ports import Embeddings, EventSink
 
@@ -149,6 +149,11 @@ class OllamaEmbeddings:
         self._base_url = map_local_host(base_url.rstrip("/"))
 
     @property
+    def is_local(self) -> bool:
+        # OLLAMA_BASE_URL can point anywhere; only the endpoint decides (docs/12 M10).
+        return is_local_endpoint(self._base_url)
+
+    @property
     def model_id(self) -> str:
         return f"ollama:{self._model}"
 
@@ -196,6 +201,12 @@ class HostedEmbeddings:
         self._provider = provider
         self._model = model
         self._api_key = api_key
+
+    # A hosted provider is a network call by definition. This is the adapter that made
+    # corpus-only mode's "no network calls at all" claim untrue whenever a deployment set
+    # EMBEDDINGS_PROVIDER=google|openai: the query embedding at corpus.py::search left the
+    # machine on every corpus search. The airgap guard now refuses it outright.
+    is_local = False
 
     @property
     def model_id(self) -> str:

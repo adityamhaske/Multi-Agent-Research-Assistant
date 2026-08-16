@@ -52,6 +52,12 @@ class FakeEmbeddings:
     documents tie, which no real embedding model does.
     """
 
+    # Truthful, not a convenience: these vectors are computed in-process and this class
+    # opens no socket, so it satisfies the corpus-mode airgap guard honestly. The guard
+    # defaults to False for anything that does not declare itself, which is why a test
+    # double has to say so — fail closed (research_engine/corpus.py).
+    is_local = True
+
     def __init__(self, name: str = "fake", dims: int = 1024) -> None:
         self._model_id = f"fake:{name}"
         self._dims = dims

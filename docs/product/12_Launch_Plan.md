@@ -504,7 +504,15 @@ specified separately in [17. Desktop Distribution and First Run](17_Desktop_Dist
 
 - ✅ Document ingest (PDF/MD/TXT) → chunk → bundled local embeddings → SQLite vector store
 - ✅ A retrieval connector shaped like `retrievers.search()`; **the graph does not change**
-- ✅ Corpus-only mode: no network calls at all, verified by test
+- ✅ Corpus-only mode: no network calls at all — **enforced**, not merely configured
+  (M18). The query embedding is the one model call retrieval makes, and until M18 nothing
+  checked that it was local: a server with `EMBEDDINGS_PROVIDER=google|openai` sent every
+  corpus query to a hosted API while this line already claimed otherwise. The egress test
+  could not see it, because it injected a `FakeEmbeddings` — stubbing out precisely the
+  call that egressed. `CorpusStore.search` now refuses a non-local embedder in corpus
+  mode, locality is decided by endpoint rather than class name
+  (`embeddings.is_local_endpoint`), and the suite covers the refusal. The desktop host was
+  never affected: `sidecar.py` always builds `LocalEmbeddings` against Ollama.
 - ✅ Citation snippets resolve to exact document locations (page/offset)
 
 **DoD:** with networking disabled at the OS level, a local-model run over a user corpus

@@ -19,6 +19,7 @@ import pytest
 from langgraph.checkpoint.memory import MemorySaver
 
 from research_engine.corpus import CorpusStore, parse_corpus_url, reset_corpus, set_corpus
+from research_engine.embeddings import EmbeddingsUnavailable, LocalEmbeddings
 from research_engine.runconfig import RunConfig, reset_run_config, set_run_config
 from research_engine.runner import run
 from research_engine.tools import read_webpage, web_search
@@ -113,6 +114,68 @@ async def test_read_webpage_refuses_the_web_in_corpus_mode(corpus_store, no_egre
         reset_run_config(token_cfg)
 
     assert no_egress == []
+
+
+class RemoteEmbeddings(FakeEmbeddings):
+    """A hosted embedder, i.e. what `HostedEmbeddings` is when EMBEDDINGS_PROVIDER is
+    google or openai. Computes locally so the test needs no network — the point is the
+    *declaration*, which is what the airgap guard reads."""
+
+    is_local = False
+
+    @property
+    def model_id(self) -> str:
+        return "google:text-embedding-004"
+
+
+@pytest.mark.asyncio
+async def test_corpus_mode_refuses_a_remote_embedder(tmp_path, no_egress):
+    """The hole this suite could not see until M18.
+
+    The query embedding is the one model call corpus retrieval makes, and the original
+    test injected a FakeEmbeddings — stubbing out precisely the call that egresses. So a
+    server with EMBEDDINGS_PROVIDER=google shipped a "no network calls at all" claim while
+    sending every corpus query to a hosted API, and this file stayed green.
+
+    Corpus mode must now refuse rather than quietly phone out.
+    """
+    store = CorpusStore(tmp_path / "corpus.sqlite", RemoteEmbeddings())
+    await store.ingest("solar.txt", SOLAR_TEXT.encode())
+
+    token = set_run_config(RunConfig(llm_mode="fake", corpus_mode=True))
+    try:
+        with pytest.raises(EmbeddingsUnavailable, match="zero network calls"):
+            await store.search("photovoltaic sunlight", max_results=1)
+    finally:
+        reset_run_config(token)
+
+    assert no_egress == [], "the refusal must happen before any socket is opened"
+
+
+@pytest.mark.asyncio
+async def test_remote_embedder_is_allowed_outside_corpus_mode(tmp_path):
+    """Only corpus-only mode makes the zero-egress promise. A hosted embedder is the
+    normal, correct choice for ordinary project memory, so the guard must stay silent."""
+    store = CorpusStore(tmp_path / "corpus.sqlite", RemoteEmbeddings())
+    await store.ingest("solar.txt", SOLAR_TEXT.encode())
+
+    token = set_run_config(RunConfig(llm_mode="fake", corpus_mode=False))
+    try:
+        hits = await store.search("photovoltaic sunlight", max_results=1)
+        assert hits, "a non-airgapped run must still be able to search the corpus"
+    finally:
+        reset_run_config(token)
+
+
+def test_locality_is_decided_by_endpoint_not_class_name():
+    """`LocalEmbeddings` is named for its intent, not its configuration: point
+    OLLAMA_BASE_URL at a remote host and it is a network client wearing a local name."""
+    assert LocalEmbeddings("nomic-embed-text", "http://localhost:11434/v1").is_local
+    assert LocalEmbeddings("nomic-embed-text", "http://127.0.0.1:11434/v1").is_local
+    # map_local_host rewrites localhost to this inside a container.
+    assert LocalEmbeddings("nomic-embed-text", "http://host.docker.internal:11434/v1").is_local
+    assert not LocalEmbeddings("nomic-embed-text", "https://ollama.example.com/v1").is_local
+    assert not LocalEmbeddings("nomic-embed-text", "http://10.0.0.5:11434/v1").is_local
 
 
 @pytest.mark.asyncio
