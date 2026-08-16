@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "description": "UNVERIFIED scholarly candidates -- DO NOT RUN. These three questions survived the adversarial design pass but nobody has checked their citations against the published record, and the rubrics in queries_scholarly_rubric.json make specific factual claims about what named methods measure and what named studies found. A rubric that names the wrong study penalises a CORRECT answer, which would make every downstream number meaningless while looking fine (AGENTS.md, 'the invariant everything else serves'). They live in a separate file rather than behind a flag in queries_scholarly.json so that grading them requires a deliberate act, not the absence of one. Move a question into queries_scholarly.json only after its four checks pass -- see the verification protocol in queries_scholarly_rubric.json.",
+  "blocked_on": "A reader who can confirm, per question: (1) every named paper/author/venue/method exists and is correctly attributed; (2) claims about what those studies found or those methods measure are accurate; (3) a correct answer would cite primary research rather than reviews; (4) an honest answer can score full marks. Biology and chemistry need a reader from those fields -- this is a citation check, not a peer review, and takes roughly 20 minutes per field.",
+  "queries": [
+    {
+      "id": "checkpoint-clonal-replacement",
+      "domain": "biology",
+      "depth": "comprehensive",
+      "query": "In paired single-cell RNA-seq/TCR-seq studies of human tumors treated with PD-1 blockade, some report that the CD8 clonotypes expanding after therapy are largely absent from the pre-treatment tumor (clonal replacement), while others report expansion of pre-existing intratumoral clonotypes; in parallel, mouse work variously localizes the productive PD-1/PD-L1 interaction to the tumor microenvironment or to the tumor-draining lymph node. For a solid tumor carrying a TCF7+/TCF1+ progenitor-exhausted CD8 compartment, what does the evidence actually support about where the responding clones are primed and expanded, and how much of the between-study disagreement is attributable to tumor type, biopsy timepoint, TCR capture depth and the clonotype-overlap metric used, and the operational definition of an 'expanded' clone? For every cohort you cite, report the exact clonotype-overlap statistic and expansion threshold used, and state explicitly where repertoire sampling depth is insufficient to distinguish a genuinely novel clone from an undersampled pre-existing one."
+    },
+    {
+      "id": "m6a-site-calibration",
+      "domain": "biology",
+      "depth": "comprehensive",
+      "query": "Before committing a project to a specific candidate m6A site in a given transcript, how concordant are antibody-based maps (MeRIP-seq/m6A-seq, miCLIP) with antibody-free quantitative methods (GLORI, eTAM-seq, m6A-SAC-seq, direct-RNA nanopore basecalling) at single-base resolution and at the level of measured stoichiometry when run on the same cell line, and which published FTO- or ALKBH5-dependent 'eraser' phenotypes require reinterpretation once cap-adjacent m6Am and antibody cross-reactivity are separated from internal m6A? Report no concordance figure without the cell line, input RNA fraction, coverage threshold, and the stoichiometry cutoff at which overlap was computed, since overlap is a monotone function of that cutoff. Where no matched same-cell-line comparison has been published for a given method pair, say so explicitly rather than substituting an unmatched one."
+    },
+    {
+      "id": "nickel-photoredox-mechanism",
+      "domain": "chemistry",
+      "depth": "comprehensive",
+      "query": "As of the primary literature published through 2025-12-31, for Ni/photoredox C(sp2)-N cross-coupling using Ir(III) sensitizers with bipyridine- or phenanthroline-ligated nickel: report, per study, the measured excited-state lifetime and its assignment (MLCT / metal-centred d-d / LMCT) for the Ni(II) aryl amido complexes, with the stated instrument response function, and the Stern-Volmer constants for the Ir sensitizer against each candidate quencher (Ni(0), Ni(I), Ni(II), amine, base) with the concentration ranges used. From those numbers alone, state whether triplet energy transfer to Ni(II) is kinetically competent at diffusion-limited rates in the specific systems where it was proposed. Then identify every study that tested both the energy-transfer and the Ni(I)/Ni(III) proposals on the same ligand and substrate class, and state which apparent disagreements in the literature are attributable to differing ligand/substrate scope rather than to conflicting measurements. Name the level of theory (TD-DFT vs CASSCF/CASPT2/NEVPT2) behind any computational state ordering you rely on. If no study tested both proposals on the same system, say so explicitly rather than reporting either mechanism as the field consensus."
+    }
+  ]
+}

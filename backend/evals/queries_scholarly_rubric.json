@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "description": "Grading rubrics and verification records for the scholarly query set, keyed by question id. Kept in a sidecar rather than inside queries_scholarly.json because the harness reads that file's record shape ({id, domain, depth, query}) and adding fields to it would change a contract shared with queries.json. Covers questions in BOTH queries_scholarly.json (verified) and queries_scholarly_pending.json (not).",
+  "verification_protocol": {
+    "why": "These questions were drafted by a language model and filtered by a second one. A rubric that names the wrong study, or asserts a finding a paper does not report, penalises a CORRECT answer -- and every rate computed against it is then meaningless while looking fine. That is the same defect class as publishing an unmeasured zero.",
+    "scope": "This is a citation check, not a peer review. The reviewer does not evaluate the science.",
+    "checks": [
+      "real: every named paper, author, venue and method exists and is attributed correctly; a wrong year or journal counts as a miss",
+      "accurate: claims about what those studies found, or what those methods physically measure, are right at abstract level",
+      "primary: a correct answer would cite primary research (articles, preprints, datasets), not a review or news write-up mistaken for the source",
+      "fair: an honest answer can score full marks -- nothing is demanded that does not exist, or a diagnostic a given method does not have"
+    ],
+    "outcome_rule": "All four pass -> the question moves into queries_scholarly.json. Any check fails or cannot be assessed -> it stays in queries_scholarly_pending.json. 'I could not tell' is a valid and useful outcome; a guess is not."
+  },
+  "rubrics": {
+    "fed-information-effect": {
+      "answer_requires": "Must cite and characterise: the construction of the underlying surprise series (Gurkaynak-Sack-Swanson-style fed funds and eurodollar futures windows around FOMC announcements) including window length and which announcements are excluded; Nakamura and Steinsson (QJE 2018) and their policy news shock; Campbell, Evans, Fisher and Justiniano (BPEA 2012) for the Delphic versus Odyssean framing that motivates the whole debate; Jarocinski and Karadi (AEJ: Macroeconomics 2020); Miranda-Agrippino and Ricco (AEJ: Macroeconomics 2021); and Bauer and Swanson's predictability evidence and their reassessment of high-frequency identification -- the answer must state the outlet and vintage it actually used for each, since several exist as both NBER working papers and published articles with different samples. For each approach it must report: sample period, event window, and the instrument's first-stage strength WHERE THE APPROACH IS IV-BASED, or the identifying restriction and its diagnostic where it is not. Credit an answer that states plainly whether the four surprise series are interchangeable off the shelf.",
+      "expected_source_types": [
+        "journal article (QJE, AER, AEJ: Macroeconomics)",
+        "NBER working paper and NBER Macroeconomics Annual",
+        "Brookings Papers on Economic Activity",
+        "published shock-series dataset or replication package (author-maintained surprise series)",
+        "handbook survey chapter, cited for framing only and labelled as such"
+      ],
+      "verification": {
+        "status": "verified",
+        "date": "2026-08-16",
+        "method": "Each named work looked up against the published record; venue, volume, issue and pages confirmed.",
+        "confirmed": [
+          "Nakamura & Steinsson, 'High-Frequency Identification of Monetary Non-Neutrality: The Information Effect', QJE 133(3), Aug 2018, 1283-1330. Also NBER WP 19260.",
+          "Campbell, Evans, Fisher & Justiniano, 'Macroeconomic Effects of Federal Reserve Forward Guidance', BPEA Spring 2012. The Delphic/Odyssean distinction is theirs.",
+          "Jarocinski & Karadi, 'Deconstructing Monetary Policy Surprises -- The Role of Information Shocks', AEJ: Macroeconomics 12(2), 2020, 1-43.",
+          "Miranda-Agrippino & Ricco, 'The Transmission of Monetary Policy Shocks', AEJ: Macroeconomics 13(3), 2021, 74-107.",
+          "Bauer & Swanson, 'A Reassessment of Monetary Policy Surprises and High-Frequency Identification', NBER Macroeconomics Annual vol. 37; also NBER WP 29939."
+        ],
+        "defect_found_and_fixed": "The drafted rubric demanded a first-stage instrument-strength diagnostic for EVERY approach. Jarocinski-Karadi is a sign-restricted structural VAR with no IV first stage, so that demand would have marked a correct answer wrong -- check 'fair' failed as drafted. Reworded to 'first-stage strength where the approach is IV-based, or the identifying restriction and its diagnostic where it is not'.",
+        "not_checked": "Gurkaynak-Sack-Swanson was not looked up individually; it is the canonical surprise-series construction and is named without a specific vintage, so no attribution claim rests on it."
+      }
+    },
+    "kagome-trsb-evidence": {
+      "answer_requires": "Named primary papers on both sides with the measured quantity, its units, and its uncertainty -- reviews may map the field but may not be the evidence. Specifically: (1) zero-field muSR relaxation-rate enhancements with onset temperature, applied-field protocol, and crystal growth method (flux vs self-flux), for at least one positive report and any non-reproducing report; (2) polar Kerr rotation in nrad with the instrument type (zero-area-loop Sagnac vs free-space) and the stated noise floor, for at least one positive and one null measurement, including how each excluded spurious birefringence; (3) the STM chiral / 2x2 intensity-anisotropy claim plus the follow-up work testing it against drift and setpoint artifacts; (4) any structural redetermination of the CDW stacking periodicity and what it implies for the symmetry classification; (5) an explicit statement of which effects have been independently reproduced and which have not. Credit an answer that declines to attribute the disagreement when the literature does not establish an attribution.",
+      "expected_source_types": [
+        "journal article (Nature / Nat. Phys. / Nat. Mater. / PRX / PRL / PRB)",
+        "preprint (arXiv cond-mat.supr-con, cond-mat.str-el)",
+        "supplementary information (instrument calibration and sample-growth details)",
+        "facility dataset (PSI / ISIS muSR spectra, Zenodo deposits)",
+        "review (for orientation only, explicitly not as evidence for a number)"
+      ],
+      "verification": {
+        "status": "verified",
+        "date": "2026-08-16",
+        "method": "Checked that the described controversy, its instruments, and its disagreement structure match the published record.",
+        "confirmed": [
+          "The AV3Sb5 TRS-breaking controversy is real and unresolved: positive reports from STM, muSR, non-linear resistivity and Kerr rotation, with other groups finding no signature using the same probes.",
+          "muSR shows broad agreement on an order-parameter-like enhancement of the relaxation rate below the charge-ordering temperature.",
+          "Kerr is the genuine point of conflict: initial reports of TRS breaking below the CDW in all three variants, followed by polar Kerr measurements using a Sagnac interferometer that failed to resolve it. The Sagnac-vs-free-space distinction the question insists on is the actual crux, not an invented detail.",
+          "Reported magnitudes are consistent with the question's demand for units and noise floors -- a large isotropic optical rotation component that does not respond to applied field, against a spontaneous Kerr signal bounded well below it."
+        ],
+        "not_checked": "Individual paper-level attributions (which specific group, which specific crystal batch) were not enumerated; the question asks the answerer to supply those, so no rubric claim depends on them."
+      }
+    },
+    "muon-g2-hvp-window": {
+      "answer_requires": "(1) a_mu^HVP and the short/intermediate/long-distance window values in units of 1e-10 with uncertainties from at least three independent lattice collaborations, each with the lattice action, ensemble set, and stated treatment of finite-volume, isospin-breaking, and QED corrections; (2) the data-driven evaluations with the specific channels and energy ranges driving the spread, and the CMD-3 pi+pi- measurement stated separately from the KLOE/BaBar/BESIII inputs rather than averaged into them; (3) the measured a_mu from the storage-ring experiment with its run breakdown and final uncertainty, and whether the quoted analysis was blinded; (4) the current Theory Initiative white paper's stated Standard Model prediction and its explicit justification for which HVP basis it adopts; (5) an explicit treatment of correlations -- an answer that subtracts central values without stating whether the uncertainties are correlated is wrong.",
+      "expected_source_types": [
+        "journal article (PRL / PRD / JHEP / Nature)",
+        "preprint (arXiv hep-lat, hep-ph, hep-ex)",
+        "community white paper (Muon g-2 Theory Initiative report)",
+        "dataset (HEPData records for e+e- hadronic cross sections; tabulated lattice window values in supplements)",
+        "conference proceedings (PoS LATTICE, for window comparisons predating journal publication)"
+      ],
+      "verification": {
+        "status": "verified_with_caveat",
+        "date": "2026-08-16",
+        "method": "Checked that the named white paper exists, that the window decomposition is a real construct, and that the CMD-3 tension is as described.",
+        "confirmed": [
+          "A 2025 Muon g-2 Theory Initiative White Paper exists and supersedes the 2020 edition; requiring the answerer to name the edition and date is therefore load-bearing, not decorative.",
+          "CMD-3's e+e- -> pi+pi- cross-section increased tensions among data-driven dispersive evaluations to the point that they cannot be meaningfully combined -- so the demand to state CMD-3 separately rather than averaging is well-founded.",
+          "The Euclidean-window decomposition of the lattice-vs-data-driven difference is a standard construct in this literature."
+        ],
+        "caveat_for_a_physics_reader": "The 2025 white paper moved to lattice-based HVP and its Standard Model value now agrees with the measured average, so the theory-vs-experiment ANOMALY is substantially resolved while the lattice-vs-data-driven HVP disagreement persists. The question asks about the latter and therefore still stands, but a physics reader should confirm the framing 'the hadronic-vacuum-polarization disagreement' is not read as presupposing the former. If it is, reword to name the lattice-vs-data-driven comparison explicitly.",
+        "not_checked": "Specific window values, per-collaboration uncertainties, and the current SM prediction's numerals were not verified; the question asks the answerer to supply them and the rubric asserts no particular value."
+      }
+    },
+    "checkpoint-clonal-replacement": {
+      "answer_requires": "(1) enumerate the specific paired scRNA-seq/TCR-seq human cohorts relied on with tumor type, n, treatment, and pre/post biopsy timing, and for each report the exact clonotype-overlap statistic and expansion threshold used; (2) show that repertoire sampling depth is sufficient to distinguish a genuinely novel clone from an undersampled pre-existing one, and say so explicitly when a study cannot; (3) cite the mouse localization experiments by their specific interventions and controls, naming the manipulation rather than the conclusion (draining-lymph-node resection, FTY720 egress blockade, node-restricted or compartment-restricted PD-L1 blockade, photoconversion or congenic tracking); (4) cite the progenitor-exhausted characterisation by the markers and functional assay used (TCF7/TCF1, SLAMF6, CXCR5, PD-1-intermediate) including adoptive-transfer evidence.",
+      "expected_source_types": [
+        "journal article (Nature / Cell / Immunity / Cancer Cell / Nat. Med.)",
+        "preprint (bioRxiv)",
+        "dataset (GEO / dbGaP accessions for paired scRNA-seq/TCR-seq)",
+        "supplementary information (clonotype definitions and overlap statistics)"
+      ],
+      "verification": {
+        "status": "unverified",
+        "blocked_on": "a reader in tumor immunology / T-cell exhaustion",
+        "specific_risk": "The rubric asserts a pattern of which tumor types report clonal replacement versus expansion of pre-existing clones. If that mapping is wrong, an answer reporting the real pattern is scored incorrect."
+      }
+    },
+    "m6a-site-calibration": {
+      "answer_requires": "(1) compare methods by chemistry and failure mode rather than by name, stating for each what the readout physically measures and what it cannot distinguish (antibody affinity for m6A versus m6Am and sequence bias in immunoprecipitation; nitrite-mediated deamination or enzymatic/chemical labelling for antibody-free methods; current-signal models and their training-set dependence for nanopore); (2) report matched-sample concordance with the cell line, input RNA fraction, coverage threshold, and the stoichiometry cutoff at which overlap was computed, since overlap is a monotone function of it; (3) report the measured stoichiometry distribution from a quantitative method and what fraction of called sites are low-stoichiometry; (4) disclose whether each caller uses a DRACH or motif prior, since motif-constrained callers inflate apparent agreement.",
+      "expected_source_types": [
+        "journal article (Nature / Nat. Methods / Nat. Biotechnol. / Mol. Cell)",
+        "preprint (bioRxiv)",
+        "dataset (GEO accessions for matched-cell-line method comparisons)",
+        "supplementary information (stoichiometry cutoffs, coverage thresholds)"
+      ],
+      "verification": {
+        "status": "unverified",
+        "blocked_on": "a reader in RNA modification biology / epitranscriptomics",
+        "specific_risk": "FLAGGED BY THE ADVERSARIAL PASS: requirement (2) demands actual matched-sample concordance numbers, but matched same-cell-line data may not exist for every method pair. If it does not, the rubric must credit 'no matched comparison has been published for this pair' as CORRECT rather than scoring it a miss -- otherwise it penalises the honest answer, which is the same unmeasured-vs-zero conflation this project treats as P0. Resolve before use."
+      }
+    },
+    "nickel-photoredox-mechanism": {
+      "answer_requires": "Specific measurements, not a mechanistic narrative. (a) Time-resolved data on the relevant Ni(II) aryl amido complexes: transient absorption or ultrafast IR lifetimes with the excited-state assignment (MLCT vs metal-centred d-d vs LMCT) and the stated instrument response, since the argument turns on whether the Ni(II) excited state lives long enough to accept triplet energy at a diffusion-limited rate. (b) Stern-Volmer quenching constants for the Ir sensitizer against each candidate quencher with the concentration ranges used, so the kinetically competent quencher is identified rather than assumed. (c) Direct evidence bearing on Ni(I)/Ni(III): EPR or spectroelectrochemical characterisation of a Ni(I) resting state, and independently synthesised Ni(III) aryl amido complexes with measured thermal vs photochemical reductive-elimination rates. (d) Control experiments defining the photocatalyst-free regime: irradiation wavelength, photon flux or lamp specification, and yields with and without the Ir sensitizer.",
+      "expected_source_types": [
+        "journal article (JACS / Nature / Science / ACS Catal. / Chem. Sci.)",
+        "preprint (ChemRxiv)",
+        "supporting information (Stern-Volmer plots, transient absorption traces, lamp specifications)",
+        "crystallographic data (CCDC deposition for independently synthesised complexes)"
+      ],
+      "verification": {
+        "status": "unverified",
+        "blocked_on": "a reader in organometallic / photoredox catalysis",
+        "specific_risk": "The rubric asserts that the secondary literature still repeats an earlier energy-transfer picture as settled, and that specific excited-state assignments are contested. Both are claims about the state of a field; if either is stale or overstated, the question may no longer discriminate between a good and a bad answer."
+      }
+    }
+  }
+}
