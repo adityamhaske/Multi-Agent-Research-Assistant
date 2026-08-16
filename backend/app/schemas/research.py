@@ -63,6 +63,14 @@ class SourceSchema(BaseModel):
     url: str
     title: str = ""
     snippet: str = ""
+    # Every verbatim snippet extracted from this source (docs/12 M5 defect D3). Omitting
+    # it here silently undid that fix on BOTH hosts: the engine produces `snippets`
+    # (research_engine/schemas.py::Source) and the browser reads it
+    # (frontend/lib/citations.tsx:141), but this response model sits between them and
+    # Pydantic drops undeclared fields — so every hovercard fell back to the single
+    # `snippet`, showing one quote for the ~8 different claims that cite a page.
+    # Third copy of one contract; see AGENTS.md "two hosts, one contract".
+    snippets: list[str] = Field(default_factory=list)
 
 
 class SessionSummary(BaseModel):

@@ -58,7 +58,7 @@ because the failure mode of a project like this is becoming four half-products.
 | **Reviewer / approver** (may be the same person, different hat) | To see the evidence *before* the artifact is final, and for that decision to be recorded | HITL gate with source count, cost, rework budget; every decision writes an `audit_log` row with a **SHA-256 of the exact draft approved** | `api/v1/research.py::approve_or_rework`, `models/audit_log.py` |
 | **Operator / self-hoster** | To run this without leaking keys or getting a surprise bill | One-command compose; migrations on start; per-session cost ceiling; per-user monthly token limits; BYOK so users spend their own money | `docker-compose.full.yml`, `config.py`, `services/usage.py` |
 | **Security reviewer** | To approve it for a network with real data | Threat model, SSRF guard, untrusted-content framing, cookie auth with rotation + reuse detection, encrypted BYOK, strict CSP | [../06_Security.md](../engineering/06_Security.md), `agent/net_guard.py` |
-| **Engineer inheriting it** | To change it without fear | Specs that match the code, 69 backend + 39 frontend tests, named regression tests per historical bug, eval baseline | `docs/`, `backend/tests/`, `backend/evals/` |
+| **Engineer inheriting it** | To change it without fear | Specs that match the code, backend + frontend suites (`pytest` / `npm test` — counts deliberately not hardcoded here, they went stale twice), named regression tests per historical bug, committed eval runs | `docs/`, `backend/tests/`, `backend/evals/` |
 | **Interviewer / reviewer of the author** | Evidence of judgment, not just output | This folder; the bug post-mortems in [04](04_Interview_Defense.md) | — |
 
 ## 4. Applications
@@ -386,8 +386,8 @@ of thing you only find by shipping, and both are documented with their reproduct
 | Auth, rate limits, SSRF, BYOK encryption | ✅ Tested |
 | Frontend (five session states, citations, SSE, account) | ✅ Verified in a real browser |
 | Packaging (images, compose, migrate-on-start) | ✅ Full stack runs from one command |
-| Eval harness + committed baseline | ✅ Fake-mode baseline; real-model run pending keys |
-| Tests | ✅ 69 backend, 39 frontend, 3 Playwright golden journeys |
+| Eval harness + committed baseline | ✅ Four real-model runs committed; latest `eval-2026-08-13-ollama-run7.json` — 10/10 completion, 0.90 support, **self-judged and below the ≥0.95 bar** |
+| Tests | ✅ `cd backend && pytest` · `cd frontend && npm test` · 3 Playwright golden journeys |
 | `v1.0.0` tag / GHCR publish | ⏳ Deliberately not done — needs green CI on `main` |
 
 Real verified run: **18 sources** (arXiv, Wikipedia, Meilisearch, Microsoft Learn), a

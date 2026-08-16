@@ -504,7 +504,15 @@ specified separately in [17. Desktop Distribution and First Run](17_Desktop_Dist
 
 - ✅ Document ingest (PDF/MD/TXT) → chunk → bundled local embeddings → SQLite vector store
 - ✅ A retrieval connector shaped like `retrievers.search()`; **the graph does not change**
-- ✅ Corpus-only mode: no network calls at all, verified by test
+- ✅ Corpus-only mode: no network calls at all — **enforced**, not merely configured
+  (M18). The query embedding is the one model call retrieval makes, and until M18 nothing
+  checked that it was local: a server with `EMBEDDINGS_PROVIDER=google|openai` sent every
+  corpus query to a hosted API while this line already claimed otherwise. The egress test
+  could not see it, because it injected a `FakeEmbeddings` — stubbing out precisely the
+  call that egressed. `CorpusStore.search` now refuses a non-local embedder in corpus
+  mode, locality is decided by endpoint rather than class name
+  (`embeddings.is_local_endpoint`), and the suite covers the refusal. The desktop host was
+  never affected: `sidecar.py` always builds `LocalEmbeddings` against Ollama.
 - ✅ Citation snippets resolve to exact document locations (page/offset)
 
 **DoD:** with networking disabled at the OS level, a local-model run over a user corpus
@@ -638,6 +646,48 @@ test** (including two projects owned by the same user) and proof that rejected d
 never surface, both against real Postgres + pgvector. 231 backend and 57 frontend tests.
 
 **Measured (2026-08-12):** Memory eval ran with `Gemini 2.5 Flash`. Achieved a **100% pass rate** on accurately citing supported claims and correctly refusing unsupported claims across 10 memory queries. This verifies the memory capability is robust and ready for production.
+
+---
+
+## M18 — Honest baseline  *(≈ 1 week)*  ← must precede M19
+
+Nothing new is built until the measurement surface is trustworthy: M19's whole claim is
+that a number moved, which is unreadable if the starting number is wrong.
+
+**Workstream A — artifact & doc repair.** ✅ P0s complete (`2ce29e7`):
+
+- ✅ Restored `eval-2026-08-13-ollama-run7.json`, destroyed when `cbde168` (a *frontend*
+  commit) overwrote it. The README's numbers were honest work whose proof was deleted.
+- ✅ `harness.py::judge_citation_support` no longer scores unjudged claims as unsupported;
+  it now matches `benchmark.py::calc_support_rate`. Every prior
+  `citation_support_rate` was depressed by provider errors and partial replies.
+- ✅ Eval results are write-once — CI job `eval-artifacts`, plus `_result_path()` which
+  can no longer return a live filename.
+- ✅ Deleted `benchmark_v1/` (both trace files were `[]`, so every `0.0` was unmeasured).
+- ✅ `login/page.tsx` no longer advertises `95.2% Verified Baseline` in success green: it
+  was a metrics-v2 number on a v4 codebase, and it misses the ≥95% bar it sat beside.
+- ☐ P2 doc cleanups (domain counts, `docs/00_INDEX` row 16, staleness banners).
+
+**Workstream B — `queries_scholarly.json`.** ☐ 6 of 12 drafted questions survived
+adversarial critique; the set is **deliberately not padded** to match `queries.json`'s 10.
+
+> ⛔ **Blocking gate — a domain reader must verify the six before the set grades
+> anything.** The questions and their rubrics were produced without any agent opening a
+> cited paper. A rubric naming the wrong study silently penalizes a *correct* answer,
+> which would make every M19 number meaningless while looking fine. This cannot be
+> delegated to a model: it has the same blind spot the tool does. Biology and chemistry
+> need a reader from those fields.
+
+**Workstream C — `primary_source_rate`.** ☐ Blocked pending the fetched-URL gate.
+
+> ⛔ `source_url` is model-authored, so a hallucinated `arxiv.org/abs/<plausible-id>`
+> would classify as **primary with full confidence**. A fakeable metric on a
+> verifiability product is worse than no metric. If the engine cannot record which URLs
+> it actually fetched, this ships as `[unmeasured]` and M19 proceeds without it.
+
+**DoD:** no committed artifact reports a number it did not measure · no user-facing
+surface claims a rate its artifact does not support · the scholarly query set is
+domain-verified or explicitly marked unverified and unused.
 
 ---
 

@@ -28,6 +28,31 @@ import httpx
 
 _EMBED_TIMEOUT_SECONDS = 60.0
 
+# Hosts that mean "this machine". `host.docker.internal` is included because
+# `llm_factory.map_local_host` rewrites `localhost` to it inside a container, so a
+# genuinely local Ollama presents under that name and must not read as remote.
+_LOCAL_HOSTS = frozenset(
+    {"localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0", "host.docker.internal"}
+)
+
+
+def is_local_endpoint(base_url: str) -> bool:
+    """True when `base_url` points at this machine.
+
+    Corpus-only mode claims **zero** network calls (docs/12 M10). The query embedding is
+    the one model call retrieval makes, so whether that endpoint is local is the whole
+    difference between an airgapped run and a run that quietly phones a provider. One
+    implementation, used by every Embeddings adapter on both hosts — the alternative is
+    the duplicated-predicate failure `AGENTS.md` documents.
+    """
+    from urllib.parse import urlsplit
+
+    try:
+        host = urlsplit(base_url).hostname or ""
+    except ValueError:  # malformed URL — treat as remote, i.e. fail closed
+        return False
+    return host.lower() in _LOCAL_HOSTS
+
 
 class EmbeddingsUnavailable(RuntimeError):
     """No embeddings provider is configured, or the configured one could not be reached.
@@ -44,6 +69,9 @@ class NoEmbeddings:
 
     model_id = "none"
     dimensions = 0
+    # Vacuously true: it raises before any I/O, so it can never egress. Saying so
+    # explicitly keeps the airgap guard from having to special-case the absent provider.
+    is_local = True
 
     async def embed(self, texts: list[str]) -> list[list[float]]:  # noqa: ARG002
         raise EmbeddingsUnavailable(
@@ -68,6 +96,12 @@ class LocalEmbeddings:
         self._model = model
         self._base_url = base_url.rstrip("/")
         self._dimensions = dimensions
+
+    @property
+    def is_local(self) -> bool:
+        # Named "Local" but pointed by config: OLLAMA_BASE_URL can be set to a remote
+        # host, and then this class is a network client wearing a local name.
+        return is_local_endpoint(self._base_url)
 
     @property
     def model_id(self) -> str:

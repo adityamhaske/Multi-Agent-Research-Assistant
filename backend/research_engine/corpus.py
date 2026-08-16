@@ -42,7 +42,9 @@ import structlog
 
 from research_engine.chunking import chunk_document
 from research_engine.documents import extract_document
+from research_engine.embeddings import EmbeddingsUnavailable
 from research_engine.ports import Corpus, Embeddings
+from research_engine.runconfig import get_run_config
 
 logger = structlog.get_logger()
 
@@ -361,11 +363,33 @@ class CorpusStore:
     # -- retrieval (the Corpus port) ────────────────────────────────────────────
 
     async def search(self, query: str, max_results: int) -> list[dict]:
-        # The query embedding is the ONLY model call retrieval makes, and it is local
-        # in the airgapped tier — it runs on the caller's loop; the store itself never
-        # opens a socket.
+        # The query embedding is the ONLY model call retrieval makes — the store itself
+        # never opens a socket. That made corpus mode's zero-egress claim rest entirely on
+        # the host having configured a *local* embedder, and nothing checked: with
+        # EMBEDDINGS_PROVIDER=google|openai the server embedded every corpus query through
+        # a hosted API while docs/12 M10 advertised "no network calls at all, verified by
+        # test". The test could not catch it either — it injects a FakeEmbeddings, so the
+        # one call that egresses was the one call stubbed out. Enforce, don't trust.
+        self._require_local_embedder_in_corpus_mode()
         query_vector = (await self._embedder.embed([query]))[0]
         return await asyncio.to_thread(self._search_sync, query_vector, max_results)
+
+    def _require_local_embedder_in_corpus_mode(self) -> None:
+        """Refuse to embed off-machine while claiming to be airgapped (docs/12 M10).
+
+        Only corpus-only mode makes the zero-egress promise, so this is silent otherwise:
+        a hosted embedder is perfectly correct for ordinary project memory.
+        """
+        if not get_run_config().corpus_mode:
+            return
+        if getattr(self._embedder, "is_local", False):
+            return
+        raise EmbeddingsUnavailable(
+            f"Corpus-only mode guarantees zero network calls, but the configured "
+            f"embeddings provider '{self._embedder.model_id}' is remote — every corpus "
+            f"search would send the query off this machine. Set EMBEDDINGS_PROVIDER=ollama "
+            f"with a local OLLAMA_BASE_URL, or run without corpus-only mode."
+        )
 
     def _search_sync(self, query_vector: list[float], max_results: int) -> list[dict]:
         import numpy as np

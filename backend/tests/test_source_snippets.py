@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.schemas.research import SourceSchema
 from research_engine.graph import synthesizer_node
 from research_engine.schemas import Source
 
@@ -112,6 +113,45 @@ async def test_evidence_without_a_url_is_skipped():
 
 
 def test_source_schema_defaults_to_an_empty_snippet_list():
-    """Old `sessions.sources` rows carry no `snippets` key and must still validate."""
+    """Old `sessions.sources` rows carry no `snippets` key and must still validate.
+
+    NOTE the name is misleading and was load-bearing in a real defect: this constructs the
+    *engine* `Source`, not the API's `SourceSchema`. See the two tests below.
+    """
     legacy = Source(index=1, url="https://a.com", title="A", snippet="only one")
     assert legacy.snippets == []
+
+
+def test_api_source_schema_carries_every_field_the_engine_produces():
+    """The drift that silently undid M5 defect D3 on both hosts.
+
+    `SourceSchema` is the API's copy of `Source` and is what `SessionDetail.sources` is
+    typed as — on the server *and* in the desktop sidecar. It omitted `snippets`, so
+    Pydantic filtered the field out en route to a browser that reads it
+    (`frontend/lib/citations.tsx:141`), and every citation hovercard fell back to one
+    quote for the ~8 claims that cite a page. The fix was shipped, tested, and
+    documented; only this copy never got it.
+
+    Compare field *sets* rather than naming one field, so the next field added to the
+    engine model cannot be silently dropped here either.
+    """
+    missing = set(Source.model_fields) - set(SourceSchema.model_fields)
+    assert not missing, (
+        f"SourceSchema is missing {sorted(missing)}: the API would drop these on the way "
+        f"to the browser (AGENTS.md — two hosts, one contract)"
+    )
+
+
+def test_api_source_schema_round_trips_every_snippet():
+    source = Source(
+        index=1,
+        url="https://a.com",
+        title="A",
+        snippet="first",
+        snippets=["first", "second", "third"],
+    )
+    assert SourceSchema.model_validate(source.model_dump()).snippets == [
+        "first",
+        "second",
+        "third",
+    ]
