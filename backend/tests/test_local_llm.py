@@ -91,12 +91,16 @@ async def test_probe_reports_not_reachable_when_nothing_is_listening(monkeypatch
         raise httpx.ConnectError("connection refused", request=request)
 
     monkeypatch.setattr(httpx, "AsyncClient", _mock_client(handler))
+    # Pinned regardless of whether the box running this suite happens to have Ollama
+    # installed — the install-state test below covers that branch explicitly.
+    monkeypatch.setattr(local_llm, "_binary_installed", lambda: False)
     status = await local_llm.probe("http://localhost:11434/v1")
 
     assert status.reachable is False
     assert status.usable is False
     assert status.error
     assert "ollama serve" in status.hint  # actionable, user-facing
+    assert status.install_state == "not_installed"
 
 
 @pytest.mark.asyncio
@@ -166,3 +170,127 @@ async def test_probe_warns_when_only_embedding_models_are_installed(monkeypatch)
     assert only.is_embedding is True
     assert only.likely_underpowered is False  # it is not weak, it is a different kind
     assert "embedding models" in status.hint
+
+
+# ─── install_state (docs/07 §2, Phase 2b) ───────────────────────────────────────────
+#
+# "Not detected" used to conflate two states with different fixes: a machine with no
+# Ollama installed needs the installer link, a machine with Ollama installed but not
+# running needs the one-click Start button. Both looked identical over HTTP.
+
+
+@pytest.mark.asyncio
+async def test_install_state_is_running_when_the_server_answers(monkeypatch):
+    def handler(request):
+        return httpx.Response(200, json={"models": []})
+
+    monkeypatch.setattr(httpx, "AsyncClient", _mock_client(handler))
+    status = await local_llm.probe("http://localhost:11434/v1")
+
+    assert status.install_state == "running"
+
+
+@pytest.mark.asyncio
+async def test_install_state_distinguishes_not_running_from_not_installed(monkeypatch):
+    def handler(request):
+        raise httpx.ConnectError("connection refused", request=request)
+
+    monkeypatch.setattr(httpx, "AsyncClient", _mock_client(handler))
+
+    monkeypatch.setattr(local_llm, "_binary_installed", lambda: True)
+    installed = await local_llm.probe("http://localhost:11434/v1")
+    assert installed.install_state == "installed_not_running"
+
+    monkeypatch.setattr(local_llm, "_binary_installed", lambda: False)
+    missing = await local_llm.probe("http://localhost:11434/v1")
+    assert missing.install_state == "not_installed"
+
+
+def test_binary_installed_checks_path_first(monkeypatch):
+    monkeypatch.setattr(local_llm.shutil, "which", lambda name: "/usr/local/bin/ollama")
+    assert local_llm._binary_installed() is True
+
+
+def test_binary_installed_falls_back_to_known_install_locations(monkeypatch, tmp_path):
+    monkeypatch.setattr(local_llm.shutil, "which", lambda name: None)
+    fake_binary = tmp_path / "ollama"
+    fake_binary.touch()
+    monkeypatch.setattr(local_llm, "_OLLAMA_BINARY_CANDIDATES", (str(fake_binary),))
+    assert local_llm._binary_installed() is True
+
+
+def test_binary_installed_is_false_when_nothing_is_found(monkeypatch):
+    monkeypatch.setattr(local_llm.shutil, "which", lambda name: None)
+    monkeypatch.setattr(local_llm, "_OLLAMA_BINARY_CANDIDATES", ("/no/such/path/ollama",))
+    assert local_llm._binary_installed() is False
+
+
+# ─── pull() — streaming download progress (docs/07 §2, Phase 2b) ───────────────────
+
+
+@pytest.mark.asyncio
+async def test_pull_streams_progress_events(monkeypatch):
+    lines = [
+        '{"status": "pulling manifest"}',
+        '{"status": "downloading", "completed": 50, "total": 100}',
+        '{"status": "downloading", "completed": 100, "total": 100}',
+        '{"status": "success"}',
+    ]
+
+    def handler(request):
+        return httpx.Response(200, content="\n".join(lines).encode())
+
+    monkeypatch.setattr(httpx, "AsyncClient", _mock_client(handler))
+
+    events = [e async for e in local_llm.pull("qwen2.5:14b", "http://localhost:11434/v1")]
+
+    assert [e.status for e in events] == [
+        "pulling manifest",
+        "downloading",
+        "downloading",
+        "success",
+    ]
+    assert events[2].completed == 100
+    assert events[2].total == 100
+
+
+@pytest.mark.asyncio
+async def test_pull_never_raises_on_a_transport_failure(monkeypatch):
+    def handler(request):
+        raise httpx.ConnectError("connection refused", request=request)
+
+    monkeypatch.setattr(httpx, "AsyncClient", _mock_client(handler))
+
+    events = [e async for e in local_llm.pull("qwen2.5:14b", "http://localhost:11434/v1")]
+
+    assert len(events) == 1
+    assert events[0].status == "error"
+    assert events[0].error
+
+
+@pytest.mark.asyncio
+async def test_pull_surfaces_a_non_200_as_an_error_event(monkeypatch):
+    def handler(request):
+        return httpx.Response(404, content=b"")
+
+    monkeypatch.setattr(httpx, "AsyncClient", _mock_client(handler))
+
+    events = [e async for e in local_llm.pull("not-a-real-model", "http://localhost:11434/v1")]
+
+    assert len(events) == 1
+    assert events[0].status == "error"
+    assert "404" in events[0].error
+
+
+@pytest.mark.asyncio
+async def test_pull_ignores_blank_lines_and_unparseable_json(monkeypatch):
+    lines = ['{"status": "pulling manifest"}', "", "not json at all", '{"status": "success"}']
+
+    def handler(request):
+        return httpx.Response(200, content="\n".join(lines).encode())
+
+    monkeypatch.setattr(httpx, "AsyncClient", _mock_client(handler))
+
+    events = [e async for e in local_llm.pull("qwen2.5:14b", "http://localhost:11434/v1")]
+
+    assert [e.status for e in events] == ["pulling manifest", "success"]

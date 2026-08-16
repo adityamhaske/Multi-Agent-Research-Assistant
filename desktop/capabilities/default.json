@@ -1,7 +1,19 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The shell carries no plugin permissions — keychain, storage, and networking all live in the sidecar. Least privilege by construction (docs/13 §7).",
+  "description": "The shell carries no plugin permissions beyond core — keychain, storage, and networking all live in the sidecar (docs/13 §7). shell:allow-execute is the one deliberate, narrowly-scoped exception (docs/07 §2, Phase 2b): it authorizes exactly one command, sidecar-ollama-serve, bound below to the literal `ollama` binary — not an arbitrary-command permission. UNVERIFIED: this capability file, its scope object, and the matching `ollama-serve` shell command definition it implies have never been validated against `tauri build`'s schema in this environment (no Rust/Tauri toolchain here) — confirm the exact scope shape against the installed tauri-plugin-shell version's schema before trusting this narrows anything.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "sidecar-ollama-serve",
+          "cmd": "ollama",
+          "args": ["serve"]
+        }
+      ]
+    }
+  ]
 }

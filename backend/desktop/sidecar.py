@@ -75,7 +75,7 @@ from app.schemas.research import (
     SessionListResponse,
     SessionSummary,
 )
-from app.services import provider_health
+from app.services import local_llm, provider_health
 from app.services.sse import SSE_HEADERS
 from research_engine import bundle, catalog
 from research_engine.corpus import CorpusStore
@@ -550,6 +550,10 @@ def create_sidecar_app(
         "saver": None,
         "cache": None,
         "corpus": None,
+        # The `ollama serve` process this app started, if any (docs/07 §2, Phase 2b).
+        # Only ever populated by `/local/start` — a server the user started themselves
+        # outside the app is never touched by `/local/stop`.
+        "local_llm_process": None,
     }
 
     async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -1262,6 +1266,111 @@ def create_sidecar_app(
         base_url = stored_custom_endpoint(app.state.data_dir) if provider == "custom" else None
         verdict = await provider_health.probe(provider, key, base_url)
         return _verdict_dict(verdict)
+
+    @api.get("/models/local/status")
+    async def local_status():
+        """Probe the configured local model server — same shape as the server's
+        `GET /models/local/status`, which this build had no counterpart for at all."""
+        status_ = await local_llm.probe()
+        return {
+            "configured_base_url": status_.configured_base_url,
+            "reachable": status_.reachable,
+            "usable": status_.usable,
+            "models": [
+                {
+                    "name": m.name,
+                    "size_bytes": m.size_bytes,
+                    "route": m.route,
+                    "in_catalog": m.in_catalog,
+                    "likely_underpowered": m.likely_underpowered,
+                    "is_embedding": m.is_embedding,
+                    "params_b": m.params_b,
+                }
+                for m in status_.models
+            ],
+            "error": status_.error,
+            "hint": status_.hint,
+            "install_state": status_.install_state,
+        }
+
+    @api.post("/models/local/start")
+    async def start_local_server():
+        """One-click local model server (docs/07 §2, Phase 2b) — the honest boundary
+        stated in the UI: the web build can only guide, the desktop build can act,
+        because only here does the request originate from a process already running
+        on the user's own machine.
+
+        No-ops if a server is already reachable — this checks live state rather than
+        trusting a stale "we started it" flag, the same reasoning `get_readiness`
+        documents for not caching a boolean across requests.
+        """
+        status_ = await local_llm.probe()
+        if status_.reachable:
+            return {"already_running": True}
+
+        existing = app.state.sidecar.get("local_llm_process")
+        if existing is not None and existing.returncode is None:
+            return {"already_running": True}
+
+        binary = local_llm.resolve_binary()
+        if binary is None:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                detail="Ollama is not installed on this machine. Install it, then try again.",
+            )
+        try:
+            process = await asyncio.create_subprocess_exec(
+                binary, "serve", stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL
+            )
+        except OSError as e:
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Could not start Ollama: {e}"
+            ) from e
+        app.state.sidecar["local_llm_process"] = process
+        return {"started": True}
+
+    @api.post("/models/local/stop")
+    async def stop_local_server():
+        """Stop the server this app started. A server the user started themselves
+        (outside the app, or before the app's own start) is never touched — this
+        process handle is only ever set by `/local/start`."""
+        process = app.state.sidecar.get("local_llm_process")
+        if process is None or process.returncode is not None:
+            return {"stopped": False, "reason": "Not started by this app."}
+        process.terminate()
+        try:
+            await asyncio.wait_for(process.wait(), timeout=5.0)
+        except TimeoutError:
+            process.kill()
+        app.state.sidecar["local_llm_process"] = None
+        return {"stopped": True}
+
+    @api.post("/models/local/pull")
+    async def pull_model(request: Request):
+        """Stream download progress for a recommended model (docs/07 §2, Phase 2b) —
+        newline-delimited JSON, one `PullProgress` per line, same shape the frontend
+        already knows how to read incrementally from the research SSE stream's raw
+        body (this is plain chunked HTTP, not SSE — Ollama's own wire format)."""
+        body = await request.json()
+        model = (body.get("model") or "").strip()
+        if not model:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No model given.")
+
+        async def gen():
+            async for progress in local_llm.pull(model):
+                yield (
+                    json.dumps(
+                        {
+                            "status": progress.status,
+                            "completed": progress.completed,
+                            "total": progress.total,
+                            "error": progress.error,
+                        }
+                    )
+                    + "\n"
+                )
+
+        return StreamingResponse(gen(), media_type="application/x-ndjson")
 
     @api.put("/models/routing")
     async def set_routing(payload: dict, user: User = Depends(get_local_user)):  # noqa: ARG001

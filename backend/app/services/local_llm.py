@@ -14,8 +14,13 @@ never drags in a model client or costs a token.
 
 from __future__ import annotations
 
+import json
 import re
+import shutil
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Literal
 
 import httpx
 import structlog
@@ -67,6 +72,41 @@ class LocalModel:
     params_b: float | None = None
 
 
+#: "Not detected" used to conflate two states with different fixes: no Ollama
+#: installed needs the installer link, Ollama installed but not running needs the
+#: one-click Start button (docs/07 §2, Phase 2b). Both looked identical over HTTP.
+InstallState = Literal["running", "installed_not_running", "not_installed"]
+
+# Installer locations the platform installer sometimes doesn't add to PATH.
+_OLLAMA_BINARY_CANDIDATES = (
+    "/usr/local/bin/ollama",
+    "/opt/homebrew/bin/ollama",
+    "/usr/bin/ollama",
+    "/Applications/Ollama.app/Contents/Resources/ollama",
+)
+
+
+def resolve_binary() -> str | None:
+    """The `ollama` executable's path on this machine, checked beyond PATH — the
+    macOS/Windows installers do not always add it there. `None` when nothing is found.
+    Public: `sidecar.py::start_local_server` needs the actual path to spawn, not just
+    whether one exists.
+    """
+    on_path = shutil.which("ollama")
+    if on_path:
+        return on_path
+    windows_candidate = Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe"
+    for candidate in (*_OLLAMA_BINARY_CANDIDATES, str(windows_candidate)):
+        if Path(candidate).exists():
+            return candidate
+    return None
+
+
+def _binary_installed() -> bool:
+    """Whether an `ollama` executable exists on this machine, beyond just PATH."""
+    return resolve_binary() is not None
+
+
 @dataclass
 class LocalLLMStatus:
     """Everything the settings UI needs to describe the local-LLM connection."""
@@ -77,6 +117,7 @@ class LocalLLMStatus:
     error: str | None = None
     # Actionable next step, phrased for a user rather than an operator.
     hint: str | None = None
+    install_state: InstallState = "not_installed"
 
     @property
     def usable(self) -> bool:
@@ -162,12 +203,18 @@ async def probe(base_url: str | None = None) -> LocalLLMStatus:
         # The Docker/localhost rewrite already happened above, so a stale "retype the
         # address as host.docker.internal" instruction here would tell the user to do by
         # hand what the code just did for them and failed at anyway — worse than no hint.
+        installed = _binary_installed()
         return LocalLLMStatus(
             configured_base_url=configured,
             reachable=False,
             error=str(exc),
-            hint="No local model server answered at this address. Start Ollama with "
-            "`ollama serve`, then reload.",
+            hint=(
+                "Ollama is installed but not running. Start it, then reload."
+                if installed
+                else "No local model server answered at this address. Start Ollama with "
+                "`ollama serve`, then reload."
+            ),
+            install_state="installed_not_running" if installed else "not_installed",
         )
 
     models: list[LocalModel] = []
@@ -211,4 +258,58 @@ async def probe(base_url: str | None = None) -> LocalLLMStatus:
             "structured-evidence step — pull a larger model for research runs."
         )
 
-    return LocalLLMStatus(configured_base_url=configured, reachable=True, models=models, hint=hint)
+    return LocalLLMStatus(
+        configured_base_url=configured,
+        reachable=True,
+        models=models,
+        hint=hint,
+        install_state="running",
+    )
+
+
+@dataclass
+class PullProgress:
+    """One line of Ollama's streaming `/api/pull` response."""
+
+    status: str
+    completed: int | None = None
+    total: int | None = None
+    error: str | None = None
+
+
+async def pull(model: str, base_url: str | None = None) -> AsyncIterator[PullProgress]:
+    """Stream Ollama's pull progress for `model` (docs/07 §2, Phase 2b: "recommended-
+    model one-click pull with progress"). Never raises — a transport failure or a
+    non-200 response yields one `PullProgress(status="error")` instead of propagating,
+    matching `probe`'s "every failure becomes a status a user can act on" contract.
+    """
+    configured = base_url or settings.ollama_base_url
+    dial_url = map_local_host(configured)
+    url = f"{_api_root(dial_url)}/api/pull"
+
+    try:
+        async with httpx.AsyncClient(timeout=None) as client:
+            async with client.stream("POST", url, json={"name": model, "stream": True}) as resp:
+                if resp.status_code != 200:
+                    body = await resp.aread()
+                    yield PullProgress(
+                        status="error",
+                        error=f"HTTP {resp.status_code}: {body.decode(errors='replace')[:200]}",
+                    )
+                    return
+                async for line in resp.aiter_lines():
+                    if not line.strip():
+                        continue
+                    try:
+                        payload = json.loads(line)
+                    except Exception:  # noqa: BLE001 — a stray non-JSON line is not fatal
+                        continue
+                    yield PullProgress(
+                        status=payload.get("status", ""),
+                        completed=payload.get("completed"),
+                        total=payload.get("total"),
+                        error=payload.get("error"),
+                    )
+    except Exception as exc:  # noqa: BLE001 — every transport failure is "no response"
+        logger.info("local_llm_pull_failed", model=model, error=str(exc))
+        yield PullProgress(status="error", error=str(exc))

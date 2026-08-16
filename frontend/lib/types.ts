@@ -308,6 +308,13 @@ export interface LocalModelInfo {
   params_b: number | null;
 }
 
+/**
+ * "Not detected" used to conflate two states with different fixes (docs/07 §2, Phase
+ * 2b): `not_installed` needs the installer link, `installed_not_running` needs the
+ * one-click Start button.
+ */
+export type LocalLLMInstallState = "running" | "installed_not_running" | "not_installed";
+
 export interface LocalLLMStatus {
   configured_base_url: string;
   reachable: boolean;
@@ -316,4 +323,13 @@ export interface LocalLLMStatus {
   models: LocalModelInfo[];
   error: string | null;
   hint: string | null;
+  install_state: LocalLLMInstallState;
+}
+
+/** One line of Ollama's streaming pull response (docs/07 §2, Phase 2b). */
+export interface PullProgress {
+  status: string;
+  completed: number | null;
+  total: number | null;
+  error: string | null;
 }

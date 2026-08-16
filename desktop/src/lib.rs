@@ -21,9 +21,75 @@ use std::time::Duration;
 
 use serde::Deserialize;
 use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_shell::process::CommandChild;
+use tauri_plugin_shell::ShellExt;
 
 /// Keeps the child handle alive so `RunEvent::Exit` can kill it.
 struct SidecarChild(Mutex<Option<Child>>);
+
+/// Tracks the `ollama serve` process this app started via the "Start local models"
+/// button, if any — separate from `SidecarChild` above, which is the Python sidecar
+/// this app *always* spawns at launch. A server the user started themselves outside
+/// the app (or before clicking the button) is never touched by `stop_local_server`:
+/// this state starts `None` and is only ever set by a successful `start_local_server`.
+///
+/// UNVERIFIED (docs/07 §2, Phase 2b): this struct, both commands below, the
+/// `tauri-plugin-shell` dependency, and the matching `capabilities/default.json`
+/// scope were all written to the plan's spec and never compiled — this environment
+/// has no Rust/Tauri toolchain. `cargo build` and a real desktop launch must confirm
+/// this before it ships.
+///
+/// This is also a second mechanism for the same job the Python sidecar's
+/// `start_local_server`/`stop_local_server` endpoints already do via
+/// `asyncio.create_subprocess_exec` (desktop/sidecar.py) — that path needs no Tauri
+/// permission at all, since the sidecar is a plain OS process outside the WebView
+/// sandbox, and it is tested and working today. Whether the frontend should call
+/// this Tauri command (`invoke("start_local_server")`) or keep using the sidecar's
+/// HTTP endpoint is an open decision this file does not resolve.
+struct LocalLLMChild(Mutex<Option<CommandChild>>);
+
+/// Start `ollama serve`, scoped by `capabilities/default.json`'s `shell:allow-execute`
+/// entry to exactly that command — the shell's `core:default`-only posture is widened
+/// deliberately for this one binary, not opened up generally (docs/13 §7).
+///
+/// No-ops if this app already started one — mirrors the sidecar endpoint's own
+/// "check live state, not a stale flag" reasoning. It deliberately does NOT probe
+/// whether a server is already reachable (unlike the sidecar's HTTP counterpart,
+/// which does): that check lives in `local_llm.probe()` on the Python side, and
+/// duplicating it here in Rust would be a third copy of one fact.
+#[tauri::command]
+fn start_local_server(
+    app: tauri::AppHandle,
+    state: tauri::State<LocalLLMChild>,
+) -> Result<(), String> {
+    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+    if guard.is_some() {
+        return Ok(());
+    }
+    // UNVERIFIED: `.command("ollama")` assumes tauri-plugin-shell's scoped-execute API
+    // resolves against the `cmd` value declared in the capability file above. Confirm
+    // this against the installed plugin version's docs/schema — the exact method name
+    // and capability shape have changed across Tauri 2.x point releases.
+    let (_rx, child) = app
+        .shell()
+        .command("ollama")
+        .args(["serve"])
+        .spawn()
+        .map_err(|e| format!("failed to start ollama serve: {e}"))?;
+    *guard = Some(child);
+    Ok(())
+}
+
+/// Stop the server this app started. A server the user started themselves is never
+/// touched, because `guard` is only ever populated by `start_local_server` above.
+#[tauri::command]
+fn stop_local_server(state: tauri::State<LocalLLMChild>) -> Result<(), String> {
+    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+    if let Some(child) = guard.take() {
+        child.kill().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
 
 #[derive(Debug, Deserialize)]
 struct Handshake {
@@ -193,7 +259,11 @@ pub fn run() {
     );
 
     let app = tauri::Builder::default()
+        // UNVERIFIED (docs/07 §2, Phase 2b) — see the `LocalLLMChild` doc comment above.
+        .plugin(tauri_plugin_shell::init())
         .manage(SidecarChild(Mutex::new(Some(child))))
+        .manage(LocalLLMChild(Mutex::new(None)))
+        .invoke_handler(tauri::generate_handler![start_local_server, stop_local_server])
         .setup(move |app| {
             WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Research Assistant")
@@ -216,6 +286,16 @@ pub fn run() {
                         let _ = child.wait();
                     }
                     *guard = None;
+                }
+            }
+            // Nothing survives the app closing (see the module doc comment) — a local
+            // model server this app started is no exception. A server the user started
+            // themselves was never put in this state, so it is never touched here.
+            if let Some(state) = app_handle.try_state::<LocalLLMChild>() {
+                if let Ok(mut guard) = state.0.lock() {
+                    if let Some(child) = guard.take() {
+                        let _ = child.kill();
+                    }
                 }
             }
         }

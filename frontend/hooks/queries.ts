@@ -17,6 +17,7 @@ import type {
   Project,
   ProjectListResponse,
   ProfileUpdate,
+  PullProgress,
   ResearchDepth,
   ResearchStartResponse,
   RoutingResponse,
@@ -456,13 +457,85 @@ export function useModelCatalog() {
  * because it does real network I/O and can legitimately time out — the catalog must
  * stay instant. Not retried: "nothing is running" is an answer, not a failure.
  */
-export function useLocalLLMStatus() {
+export function useLocalLLMStatus(pollUntilReady = false) {
   return useQuery({
     queryKey: queryKeys.localLLM,
     queryFn: () => apiFetch<LocalLLMStatus>("/models/local/status"),
     retry: false,
     staleTime: 15_000,
+    // "2s polling that flips to green the moment the server appears" (docs/07 §2,
+    // Phase 2b) — only while opted in and not yet reachable; a card idly showing
+    // "Connected" has no reason to keep polling every 2 seconds forever.
+    refetchInterval: pollUntilReady
+      ? (query) => (query.state.data?.install_state === "running" ? false : 2000)
+      : undefined,
   });
+}
+
+/**
+ * One-click local server (docs/07 §2, Phase 2b) — desktop only. The web build has no
+ * counterpart: it cannot spawn a process on the user's machine, so `LocalLLMCard`
+ * shows an OS-detected command to copy instead of a button that calls this.
+ */
+export function useStartLocalServer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch<{ started?: boolean; already_running?: boolean }>(
+      "/models/local/start",
+      { method: "POST" },
+    ),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.localLLM }),
+  });
+}
+
+export function useStopLocalServer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<{ stopped: boolean }>("/models/local/stop", { method: "POST" }),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.localLLM }),
+  });
+}
+
+/**
+ * Pull a model with streaming progress (docs/07 §2, Phase 2b). Works on both hosts —
+ * pulling is one HTTP call to an already-running Ollama, no local process access
+ * needed, unlike starting the server. Newline-delimited JSON, not `EventSource`
+ * (this is a POST with a body); read as a plain fetch stream instead.
+ */
+export async function pullLocalModel(
+  model: string,
+  onProgress: (p: PullProgress) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = await fetch(`${apiBase()}/models/local/pull`, {
+    method: "POST",
+    credentials: isDesktop ? "omit" : "include",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ model }),
+    signal,
+  });
+  if (!res.ok || !res.body) {
+    throw new ApiError(res.status, await res.text().catch(() => "Pull failed."));
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        onProgress(JSON.parse(line) as PullProgress);
+      } catch {
+        // A stray non-JSON line is not fatal — skip it.
+      }
+    }
+  }
 }
 
 export function useSetModelRouting() {

@@ -11,6 +11,23 @@ and no prompt or document ever leaves your computer.**
 
 ---
 
+## 0. The one-click path (desktop build)
+
+On the **desktop app**, Settings → Local models (Ollama) can do steps 1–2 for you:
+
+- **Ollama already installed but not running** → a **Start local models** button
+  appears; click it and the card flips to Connected once the server is up.
+- **Nothing installed** → the card explains that and links the installer; there is
+  nothing to click yet because there is no process to start.
+- Once connected with no models pulled, a **Pull `qwen2.5:14b`** button appears with
+  live download progress — no terminal required.
+
+**Honest boundary:** this only exists on desktop. The **web build** cannot start a
+process on your machine — it can only guide you. If you are on the web build, Settings
+shows the install command for your OS (detected automatically) with a copy button, and
+polls every couple of seconds so the card updates itself the moment you start Ollama
+yourself. The rest of this section is that manual path, spelled out.
+
 ## 1. Install Ollama
 
 | Platform | Command |
@@ -32,6 +49,11 @@ curl http://localhost:11434/api/tags
 ```
 
 ## 2. Pull a model
+
+Settings → Local models (Ollama) can do this with a one-click **Pull** button and a
+live progress readout once a server is connected (desktop and web both — pulling is
+one HTTP call to an already-running Ollama, not a new process, so the web build can do
+it too). Or from a terminal:
 
 ```bash
 ollama pull qwen2.5:14b
@@ -84,7 +106,9 @@ Open **Settings → Local models (Ollama)**. You should see:
 - each model tagged **research ready** or **chat only**
 - **Test connection** to re-probe after starting Ollama or pulling a model
 
-If it says **Not detected**, work through §7.
+If it says **Not detected**, work through §7 — and note the desktop build now tells
+you *which* kind of not-detected it is (installed but not running, vs. not installed
+at all), since those need different fixes and used to look identical.
 
 ## 5. Per-role routing (recommended)
 

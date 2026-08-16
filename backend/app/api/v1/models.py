@@ -10,9 +10,11 @@ comparison is most of the point.
 
 from __future__ import annotations
 
+import json
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from pydantic import AnyHttpUrl, BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -72,6 +74,9 @@ class LocalLLMStatusResponse(BaseModel):
     models: list[LocalModelInfo]
     error: str | None
     hint: str | None
+    # "Not detected" used to conflate two states with different fixes (docs/07 §2,
+    # Phase 2b): install vs. start.
+    install_state: Literal["running", "installed_not_running", "not_installed"]
 
 
 class ReadinessResponse(BaseModel):
@@ -265,6 +270,7 @@ async def local_llm_status(_current_user: User = Depends(get_current_user)):
         ],
         error=status_.error,
         hint=status_.hint,
+        install_state=status_.install_state,
     )
 
 
@@ -317,6 +323,37 @@ async def provider_health_check(current_user: User = Depends(get_current_user)):
         checked_at=verdict.checked_at,
         model_count=verdict.model_count,
     )
+
+
+@router.post("/local/pull")
+async def pull_local_model(request: Request, _current_user: User = Depends(get_current_user)):
+    """Stream download progress for a recommended model (docs/07 §2, Phase 2b).
+
+    Unlike `/local/start` (spawning a server process), pulling a model is just an
+    HTTP call to an already-running Ollama — no local process access required, so
+    this works on the web build too wherever `/local/status` already does, not only
+    on desktop. Newline-delimited JSON, one `PullProgress` per line.
+    """
+    body = await request.json()
+    model = (body.get("model") or "").strip()
+    if not model:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No model given.")
+
+    async def gen():
+        async for progress in local_llm.pull(model):
+            yield (
+                json.dumps(
+                    {
+                        "status": progress.status,
+                        "completed": progress.completed,
+                        "total": progress.total,
+                        "error": progress.error,
+                    }
+                )
+                + "\n"
+            )
+
+    return StreamingResponse(gen(), media_type="application/x-ndjson")
 
 
 @router.put("/routing", response_model=RoutingResponse)

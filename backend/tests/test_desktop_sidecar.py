@@ -14,6 +14,7 @@ thin adapter, so testing it through HTTP is the honest scope.
 from __future__ import annotations
 
 import asyncio
+import json
 
 import httpx
 import pytest
@@ -417,6 +418,92 @@ async def test_provider_health_checks_the_stored_keychain_key(sidecar, monkeypat
     body = checked.json()
     assert body["state"] == "ok"
     assert body["model_count"] == 1
+
+
+# ── One-click local models (docs/07 §2, Phase 2b) ────────────────────────────────
+
+
+async def test_local_status_reports_install_state(sidecar, monkeypatch):
+    """The sidecar had no `/local/status` counterpart to the server's endpoint at
+    all — the "Local models" card 404'd on every desktop build."""
+    import desktop.sidecar as sc
+    from app.services import local_llm
+
+    async def fake_probe(base_url=None):
+        return local_llm.LocalLLMStatus(
+            configured_base_url="http://localhost:11434/v1",
+            reachable=False,
+            install_state="not_installed",
+            hint="Install Ollama.",
+        )
+
+    monkeypatch.setattr(sc.local_llm, "probe", fake_probe)
+
+    resp = await sidecar.get("/api/v1/models/local/status", headers=_auth())
+    assert resp.status_code == 200
+    assert resp.json()["install_state"] == "not_installed"
+
+
+async def test_local_start_no_ops_when_already_reachable(sidecar, monkeypatch):
+    import desktop.sidecar as sc
+    from app.services import local_llm
+
+    async def fake_probe(base_url=None):
+        return local_llm.LocalLLMStatus(
+            configured_base_url="http://localhost:11434/v1", reachable=True, install_state="running"
+        )
+
+    monkeypatch.setattr(sc.local_llm, "probe", fake_probe)
+
+    resp = await sidecar.post("/api/v1/models/local/start", headers=_auth())
+    assert resp.status_code == 200
+    assert resp.json()["already_running"] is True
+
+
+async def test_local_start_404s_when_ollama_is_not_installed(sidecar, monkeypatch):
+    import desktop.sidecar as sc
+    from app.services import local_llm
+
+    async def fake_probe(base_url=None):
+        return local_llm.LocalLLMStatus(
+            configured_base_url="http://localhost:11434/v1",
+            reachable=False,
+            install_state="not_installed",
+        )
+
+    monkeypatch.setattr(sc.local_llm, "probe", fake_probe)
+    monkeypatch.setattr(sc.local_llm, "resolve_binary", lambda: None)
+
+    resp = await sidecar.post("/api/v1/models/local/start", headers=_auth())
+    assert resp.status_code == 404
+
+
+async def test_local_stop_is_a_no_op_when_this_app_never_started_one(sidecar):
+    """A server the user started outside the app must never be touched — the process
+    handle is only ever set by `/local/start`, and it starts as None."""
+    resp = await sidecar.post("/api/v1/models/local/stop", headers=_auth())
+    assert resp.status_code == 200
+    assert resp.json()["stopped"] is False
+
+
+async def test_local_pull_streams_newline_delimited_progress(sidecar, monkeypatch):
+    import desktop.sidecar as sc
+    from app.services import local_llm
+
+    async def fake_pull(model, base_url=None):
+        yield local_llm.PullProgress(status="pulling manifest")
+        yield local_llm.PullProgress(status="downloading", completed=50, total=100)
+        yield local_llm.PullProgress(status="success")
+
+    monkeypatch.setattr(sc.local_llm, "pull", fake_pull)
+
+    resp = await sidecar.post(
+        "/api/v1/models/local/pull", headers=_auth(), json={"model": "qwen2.5:14b"}
+    )
+    assert resp.status_code == 200
+    lines = [line for line in resp.text.strip().split("\n") if line]
+    statuses = [json.loads(line)["status"] for line in lines]
+    assert statuses == ["pulling manifest", "downloading", "success"]
 
 
 async def test_key_delete_forgets_the_keychain_entry(sidecar, monkeypatch):
