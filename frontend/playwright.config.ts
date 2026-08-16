@@ -25,6 +25,11 @@ export default defineConfig({
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
+  // A retry-masked failure is indistinguishable from a pass, and this gate exists to be
+  // trusted: golden-e2e reported green on "1 flaky / 2 passed" while a real intermittent
+  // failure went unreported. Retries stay, so a retry still tells us the failure was
+  // intermittent rather than hard — but in CI a flake now fails the run.
+  failOnFlakyTests: Boolean(process.env.CI),
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : [["list"]],
   use: {
     baseURL: BASE_URL,
