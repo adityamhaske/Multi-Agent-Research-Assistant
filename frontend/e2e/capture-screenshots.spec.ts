@@ -5,7 +5,11 @@
  * real run against whatever LLM_MODE the stack is in and saves the resulting
  * screens to disk, so the README shows the actual product rather than mockups.
  *
- *   npx playwright test e2e/capture-screenshots.spec.ts --project=chromium
+ *   npm run screenshots
+ *
+ * It is excluded from the golden config's `testIgnore`, so naming this file directly on
+ * the command line will NOT run it — use the script above, which points Playwright at
+ * playwright.screenshots.config.ts.
  *
  * Requires the full stack running (docker compose -f docker-compose.full.yml up).
  */
@@ -49,7 +53,12 @@ test("capture product screenshots", async ({ page }) => {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await shot(page, "01-login");
-  await page.getByRole("button", { name: /create account/i }).click();
+  // By submit type, not by label — see golden.spec.ts::submitAuthForm. The copy here was
+  // "Create Account" until the landing-page redesign renamed it "Initialize Account",
+  // which hung this file on a locator that could never match.
+  const submit = page.locator('form button[type="submit"]');
+  await expect(submit).toHaveAccessibleName(/\S/);
+  await submit.click();
   await page.waitForURL("**/dashboard");
 
   // ── 2. Dashboard (light) ──────────────────────────────────────────────────
@@ -78,7 +87,9 @@ test("capture product screenshots", async ({ page }) => {
 
   // ── 5. Completed report + citations ───────────────────────────────────────
   await page.getByRole("button", { name: /approve & finalize/i }).click();
-  await expect(page.getByRole("heading", { name: "Report", exact: true })).toBeVisible({
+  // Same drift as golden.spec.ts: the heading now reads "Research Report", so an
+  // exact-name locator waits instead of matching. Anchor on the labelled region.
+  await expect(page.locator('section[aria-labelledby="report-heading"]')).toBeVisible({
     timeout: 600_000,
   });
   await page.waitForTimeout(1500);
