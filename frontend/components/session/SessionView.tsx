@@ -150,7 +150,11 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       {(status === "PENDING" || status === "RUNNING") && (
         <div className="space-y-4">
           <div className="card">
-            <PipelineRail events={stream.events} status={session.status} />
+            <PipelineRail
+              events={stream.events}
+              status={session.status}
+              modelRouting={session.model_routing}
+            />
           </div>
           <StatusBar session={session} events={stream.events} running />
           <div className="h-[28rem]">
@@ -165,7 +169,11 @@ export function SessionView({ sessionId }: { sessionId: string }) {
               exactly when its last node, Review, becomes the active step — so the one
               stage the user is personally responsible for was never shown as current. */}
           <div className="card">
-            <PipelineRail events={stream.events} status={session.status} />
+            <PipelineRail
+              events={stream.events}
+              status={session.status}
+              modelRouting={session.model_routing}
+            />
           </div>
           <ApprovalGate session={session} />
         </div>

@@ -19,6 +19,17 @@ export const AGENT_TOKEN: Record<AgentName, string> = {
   synthesizer: "agent-synthesizer",
 };
 
+/**
+ * The bare model id from a "provider:model" route, for compact display (docs/07 §2,
+ * "truthful per-agent model attribution"). `undefined`/`null` — routing not resolved
+ * for this role — renders as "—", never a guessed default (the unmeasured-vs-zero rule).
+ */
+export function routeModelLabel(route: string | undefined | null): string {
+  if (!route) return "—";
+  const i = route.indexOf(":");
+  return i === -1 ? route : route.slice(i + 1);
+}
+
 /** Order index of the furthest-along agent seen so far, or -1 if none. */
 export function latestAgentOrder(events: AgentEvent[]): number {
   let order = -1;

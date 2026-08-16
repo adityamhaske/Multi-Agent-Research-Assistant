@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { AGENTS, latestAgentOrder, taskProgress } from "./pipeline";
+import { AGENTS, latestAgentOrder, routeModelLabel, taskProgress } from "./pipeline";
 import type { AgentEvent } from "./types";
 
 const log = (agent: AgentEvent["agent"], message: string, detail?: Record<string, unknown>): AgentEvent => ({
@@ -62,5 +62,22 @@ describe("taskProgress", () => {
       log("executor", "Gathered 1 source(s) for task t2", { task_id: "t2" }),
     ];
     expect(taskProgress(events).done).toBe(1);
+  });
+});
+
+describe("routeModelLabel", () => {
+  it("strips the provider prefix for compact display", () => {
+    expect(routeModelLabel("anthropic:claude-opus-5")).toBe("claude-opus-5");
+  });
+
+  it("keeps everything after the first colon, matching the backend's split-on-first-colon rule", () => {
+    // ollama:qwen2.5:7b is provider "ollama", model "qwen2.5:7b" (AGENTS.md).
+    expect(routeModelLabel("ollama:qwen2.5:7b")).toBe("qwen2.5:7b");
+  });
+
+  it("renders unresolved routing as — rather than a guessed default", () => {
+    expect(routeModelLabel(undefined)).toBe("—");
+    expect(routeModelLabel(null)).toBe("—");
+    expect(routeModelLabel("")).toBe("—");
   });
 });

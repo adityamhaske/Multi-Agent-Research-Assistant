@@ -14,6 +14,13 @@ import re
 
 import markdown as md
 
+# Re-exported so `research.py` can keep calling `export.render_model_attribution_md`.
+# The implementation lives in `research_engine.bundle` (not here) because the desktop
+# sidecar needs it too, and this module lazily imports WeasyPrint —
+# `test_sidecar_import_tree_excludes_weasyprint` pins that the sidecar process never
+# imports this module at all (docs/13 §7). Import it directly from there instead.
+from research_engine.bundle import render_model_attribution_md  # noqa: F401
+
 # Print stylesheet — self-contained, no external assets (works offline in the renderer).
 _PDF_CSS = """
 @page { size: A4; margin: 2cm; }
@@ -35,6 +42,9 @@ pre { background: #f3f3f5; padding: 8pt; border-radius: 4px; overflow-x: auto; }
 .sources li { margin-bottom: 5pt; }
 .sources .domain { color: #777; }
 .sources .snippet { color: #555; font-style: italic; }
+.models { margin-top: 14pt; padding-top: 8pt; font-size: 9pt; color: #777; }
+.models ul { padding-left: 18pt; list-style: none; }
+.models code { background: none; padding: 0; }
 """
 
 # Matches single and grouped citation markers — `[1]` and `[1, 3]` alike.
@@ -74,8 +84,28 @@ def _sources_html(sources: list[dict]) -> str:
     return '<div class="sources"><h2>Sources</h2><ol>' + "".join(items) + "</ol></div>"
 
 
+def _models_html(model_routing: dict[str, str] | None) -> str:
+    """A role → route breakdown (requirement 1: disclosure "in the report/export").
+
+    Empty when routing was never resolved — a run that failed before the planner, or a
+    report exported from before this field existed — never a guessed default (the
+    unmeasured-vs-zero rule).
+    """
+    if not model_routing:
+        return ""
+    items = "".join(
+        f"<li><strong>{html.escape(role)}</strong> — <code>{html.escape(route)}</code></li>"
+        for role, route in sorted(model_routing.items())
+    )
+    return f'<div class="models"><h2>Models used</h2><ul>{items}</ul></div>'
+
+
 def render_html(
-    report_markdown: str, sources: list[dict], *, title: str = "Research Report"
+    report_markdown: str,
+    sources: list[dict],
+    *,
+    title: str = "Research Report",
+    model_routing: dict[str, str] | None = None,
 ) -> str:
     """Full standalone HTML document for the report (used by the PDF renderer)."""
     # Render inline [n] markers as superscripts before markdown conversion so they
@@ -86,13 +116,17 @@ def render_html(
     return (
         "<!DOCTYPE html><html><head><meta charset='utf-8'>"
         f"<title>{safe_title}</title><style>{_PDF_CSS}</style></head><body>"
-        f"{body_html}{_sources_html(sources)}"
+        f"{body_html}{_sources_html(sources)}{_models_html(model_routing)}"
         "</body></html>"
     )
 
 
 def render_pdf(
-    report_markdown: str, sources: list[dict], *, title: str = "Research Report"
+    report_markdown: str,
+    sources: list[dict],
+    *,
+    title: str = "Research Report",
+    model_routing: dict[str, str] | None = None,
 ) -> bytes:
     """Render the report to PDF. Raises RuntimeError if WeasyPrint's native libs are
     unavailable — the caller maps that to a clear 501."""
@@ -101,5 +135,5 @@ def render_pdf(
     except (OSError, ImportError) as e:  # missing Pango/Cairo native libs
         raise RuntimeError(f"PDF rendering is unavailable in this environment: {e}") from e
 
-    document = render_html(report_markdown, sources, title=title)
+    document = render_html(report_markdown, sources, title=title, model_routing=model_routing)
     return HTML(string=document).write_pdf()

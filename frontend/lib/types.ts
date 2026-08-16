@@ -127,6 +127,12 @@ export interface SessionDetail extends SessionSummary {
   sources: Source[] | null;
   error_message: string | null;
   updated_at: string;
+  /**
+   * Resolved per-role routing (docs/07 §2, "truthful per-agent model attribution").
+   * `null` means "not resolved" — a run that failed before the planner, or a session
+   * that predates this field — never a guessed default (the unmeasured-vs-zero rule).
+   */
+  model_routing: Record<string, string> | null;
 }
 
 export interface SessionListResponse {

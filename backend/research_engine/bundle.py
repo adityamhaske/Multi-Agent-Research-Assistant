@@ -226,3 +226,30 @@ def assemble(
 def serialize(bundle: BundleManifest) -> str:
     """Canonical JSON for storage/export — readable, deterministic key order."""
     return json.dumps(bundle.model_dump(), sort_keys=True, indent=2, ensure_ascii=False) + "\n"
+
+
+def render_model_attribution_md(model_routing: dict[str, str] | None) -> str:
+    """A "Models used" Markdown footer — the `.md`/`.pdf` export counterpart of this
+    module's `models` field (requirement 1: disclosure "in the report/export").
+
+    Lives here, not in `app.services.export`, because both the API server AND the
+    desktop sidecar's `.md` export need it, and `app.services.export` lazily imports
+    WeasyPrint — `test_sidecar_import_tree_excludes_weasyprint` pins that the sidecar
+    process never touches that module at all (docs/13 §7). This module is already the
+    documented host-agnostic export home ("no DB, no ORM, no host. Both the API server
+    and the desktop sidecar produce bundles through it" — see the module docstring).
+
+    Appended by the caller, never merged into the report body itself: the body is the
+    exact text a human approved, and `report_hash` is checked against that same
+    `draft_hash` above — mutating it here would break bundle verification for a reason
+    that has nothing to do with the bundle's integrity (the same trap `_DEMO_STAMP`,
+    `app/api/v1/research.py`, documents for the demo banner).
+
+    Empty when routing was never resolved — a run that failed before the planner, or a
+    report exported from before this field existed — never a guessed default (the
+    unmeasured-vs-zero rule).
+    """
+    if not model_routing:
+        return ""
+    lines = "\n".join(f"- **{role}** — `{route}`" for role, route in sorted(model_routing.items()))
+    return f"\n\n---\n\n## Models used\n\n{lines}\n"

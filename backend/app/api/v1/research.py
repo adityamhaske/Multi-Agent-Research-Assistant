@@ -277,7 +277,7 @@ async def export_markdown(
     current_user: User = Depends(get_current_user),
 ):
     session = await _authorized_session(db, session_id, current_user.id)
-    report = _report_or_404(session)
+    report = _report_or_404(session) + export.render_model_attribution_md(session.model_routing)
     filename = f"research-{str(session.id)[:8]}.md"
     return Response(
         content=report,
@@ -296,7 +296,9 @@ async def export_pdf(
     report = _report_or_404(session)
     title = (session.prompt or "Research Report")[:120]
     try:
-        pdf = export.render_pdf(report, session.sources or [], title=title)
+        pdf = export.render_pdf(
+            report, session.sources or [], title=title, model_routing=session.model_routing
+        )
     except RuntimeError as e:
         # Native PDF libs unavailable in this environment (docs/09 §1 bakes them in).
         raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, detail=str(e)) from e

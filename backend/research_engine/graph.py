@@ -33,7 +33,13 @@ from pydantic import BaseModel, Field
 
 from research_engine import contradictions, prompts
 from research_engine.events import emit
-from research_engine.llm_factory import estimate_cost, get_llm, text_of, token_counts
+from research_engine.llm_factory import (
+    estimate_cost,
+    get_llm,
+    served_model_id,
+    text_of,
+    token_counts,
+)
 from research_engine.runconfig import get_run_config
 from research_engine.schemas import (
     ContradictionReport,
@@ -132,12 +138,22 @@ def _acc(state: AgentState, cost: float, i: int, o: int) -> dict:
 
 async def planner_node(state: AgentState) -> dict:
     sid = state["session_id"]
+    cfg = get_run_config()
     await emit(
         sid,
         "agent_log",
         agent="planner",
         message="Decomposing the query into tasks…",
-        detail={"query": state["original_query"], "depth": state.get("research_depth", "balanced")},
+        detail={
+            "query": state["original_query"],
+            "depth": state.get("research_depth", "balanced"),
+            # Requirement 1 (docs/07 §2): the full role→route mapping, disclosed at plan
+            # time — before a single task or dollar is spent — not just in the finished
+            # report. `model` on every node's own kickoff event (below) is this same
+            # data, one role at a time, for a node emitted well after this one.
+            "models": dict(cfg.models),
+            "model": cfg.model_for("planner"),
+        },
     )
     messages = [
         SystemMessage(content=prompts.PLANNER_PROMPT_V2),
@@ -344,6 +360,7 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
             "task_id": task["id"],
             "query": task["query"],
             "feedback": feedback,
+            "model": get_run_config().model_for("executor"),
         },
     )
 
@@ -506,6 +523,7 @@ async def executor_node(state: AgentState) -> dict:
                 "round": round_no,
                 "task_ids": [t["id"] for t in pending],
                 "max_parallel": cfg.max_parallel_tasks,
+                "model": cfg.model_for("executor"),
             },
         )
 
@@ -584,7 +602,7 @@ async def critic_node(state: AgentState) -> dict:
         "agent_log",
         agent="critic",
         message=f"Evaluating evidence for {len(pending)} task(s)…",
-        detail={"task_ids": [t["id"] for t in pending]},
+        detail={"task_ids": [t["id"] for t in pending], "model": cfg.model_for("critic")},
     )
 
     semaphore = asyncio.Semaphore(max(1, cfg.max_parallel_tasks))
@@ -935,7 +953,13 @@ def _number_sources(evidence: list[dict]) -> tuple[list[dict], dict[str, int]]:
 
 async def synthesizer_node(state: AgentState) -> dict:
     sid = state["session_id"]
-    await emit(sid, "agent_log", agent="synthesizer", message="Compiling the report…")
+    await emit(
+        sid,
+        "agent_log",
+        agent="synthesizer",
+        message="Compiling the report…",
+        detail={"model": get_run_config().model_for("synthesizer")},
+    )
 
     # Build a numbered source list from unique evidence URLs; the draft cites [n].
     #
@@ -1007,6 +1031,7 @@ async def synthesizer_node(state: AgentState) -> dict:
         cost += repair_cost
         i += ri
         o += ro
+        resp = repair_resp  # the repair pass's response is the last one actually served
         await emit(
             sid,
             "agent_log",
@@ -1047,6 +1072,14 @@ async def synthesizer_node(state: AgentState) -> dict:
             "word_count": len(draft.split()),
             "sources_count": len(sources),
             "preview": draft[:1200] + ("..." if len(draft) > 1200 else ""),
+            # The model id the provider actually reported serving, when it discloses one
+            # (llm_factory.served_model_id) — distinct from `model` above, which is the
+            # configured route. `None` in fake mode (no `response_metadata` at all); on
+            # a real call it ordinarily matches the configured model and would only
+            # diverge from it once a role is routed through a router alias (AGENTS.md,
+            # "auto/* are not pinned models") — no such alias exists in this codebase
+            # yet, so this field is presently descriptive rather than load-bearing.
+            "served_model": served_model_id(resp),
         },
     )
     return {

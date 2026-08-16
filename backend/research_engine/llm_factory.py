@@ -325,3 +325,25 @@ def estimate_cost(response, role: str) -> float:
 def token_counts(response) -> tuple[int, int]:
     usage = getattr(response, "usage_metadata", None) or {}
     return usage.get("input_tokens", 0), usage.get("output_tokens", 0)
+
+
+def served_model_id(response) -> str | None:
+    """The model id a provider actually reports having served this response, when it
+    discloses one — distinct from the routed "provider:model" string.
+
+    A router alias (AGENTS.md, "Router aliases (auto/*) are not pinned models: they
+    resolve differently per call and the alias can disagree with what served the
+    request. Never treat one as a disclosed model — record what actually answered.")
+    can resolve to a different model per call; this is the mechanism callers use to
+    record what actually answered instead of re-displaying the alias as if it were
+    pinned. `None` when the provider discloses nothing (fake-mode responses carry no
+    `response_metadata` at all) — never guessed, matching `estimate_cost`'s "unknown
+    contributes 0, never fabricated" posture just above.
+    """
+    meta = getattr(response, "response_metadata", None) or {}
+    # ChatOpenAI (and anything routed through its wire protocol — OpenRouter, Ollama,
+    # custom endpoints) reports `model_name`; ChatAnthropic and ChatGoogleGenerativeAI
+    # report `model`. Both checked so the caller does not need to know which client
+    # built the response.
+    served = meta.get("model_name") or meta.get("model")
+    return str(served) if served else None

@@ -6,7 +6,13 @@ they aren't (a bare dev box)."""
 
 import pytest
 
-from app.services.export import _domain, _sources_html, render_html, render_pdf
+from app.services.export import (
+    _domain,
+    _sources_html,
+    render_html,
+    render_model_attribution_md,
+    render_pdf,
+)
 
 REPORT = "# Findings\n\nA fact [1] and another [2].\n\n- bullet point [1]\n"
 SOURCES = [
@@ -61,6 +67,37 @@ def test_render_html_escapes_untrusted_fields():
 
 def test_sources_html_empty_without_sources():
     assert _sources_html([]) == ""
+
+
+# ─── Model attribution (requirement 1: disclosure "in the report/export") ──────────
+
+
+def test_render_html_appends_a_models_used_section():
+    routing = {"planner": "anthropic:claude-opus-5", "executor": "google:gemini-2.5-flash"}
+    out = render_html(REPORT, SOURCES, model_routing=routing)
+    assert "<h2>Models used</h2>" in out
+    assert "planner" in out and "anthropic:claude-opus-5" in out
+    assert "executor" in out and "google:gemini-2.5-flash" in out
+
+
+def test_render_html_omits_the_models_section_when_unresolved():
+    """The unmeasured-vs-zero rule: absent routing must render as absent, never as an
+    empty or default-filled table."""
+    assert "Models used" not in render_html(REPORT, SOURCES, model_routing=None)
+    assert "Models used" not in render_html(REPORT, SOURCES, model_routing={})
+
+
+def test_render_model_attribution_md_lists_every_role():
+    routing = {"synthesizer": "anthropic:claude-sonnet-5", "critic": "google:gemini-2.5-flash"}
+    out = render_model_attribution_md(routing)
+    assert "## Models used" in out
+    assert "**critic** — `google:gemini-2.5-flash`" in out
+    assert "**synthesizer** — `anthropic:claude-sonnet-5`" in out
+
+
+def test_render_model_attribution_md_is_empty_when_unresolved():
+    assert render_model_attribution_md(None) == ""
+    assert render_model_attribution_md({}) == ""
 
 
 def test_render_pdf_emits_a_real_pdf_where_libs_exist():

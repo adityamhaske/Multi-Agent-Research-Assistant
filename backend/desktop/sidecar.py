@@ -76,7 +76,7 @@ from app.schemas.research import (
     SessionSummary,
 )
 from app.services.sse import SSE_HEADERS
-from research_engine import catalog
+from research_engine import bundle, catalog
 from research_engine.corpus import CorpusStore
 from research_engine.documents import MAX_DOCUMENT_BYTES
 from research_engine.embeddings import EmbeddingsUnavailable, LocalEmbeddings
@@ -420,7 +420,11 @@ def make_corpus_store(data_dir: str | Path) -> CorpusStore:
 
 
 def sidecar_run_config(
-    *, fake: bool, demo: bool = False, data_dir: str | Path | None = None
+    *,
+    fake: bool,
+    demo: bool = False,
+    data_dir: str | Path | None = None,
+    session_routing: dict[str, str] | None = None,
 ) -> RunConfig:
     """The desktop's RunConfig: env keys merged with keychain keys (keychain wins).
 
@@ -430,11 +434,36 @@ def sidecar_run_config(
 
     `demo` selects the seeded session's content (docs/17 §6.1) and is meaningful only
     alongside `fake`; the server's counterpart is `pipeline_runner._run_config_for`.
-    """
-    if fake:
-        return RunConfig(llm_mode="fake", demo=demo, corpus_mode=corpus_only_enabled(data_dir))
 
-    load_env_file()
+    `session_routing` is this session's own already-validated per-run override, if the
+    caller stored one — it wins over both the saved-routing file and `MODEL_*` env,
+    mirroring the server's session → user → deployment resolution order. Resolved here
+    (not just for the real branch) so a fake/demo run's `model_routing` snapshot also
+    reflects the routing that *would* have been dialled, exactly as
+    `pipeline_runner._run_config_for` passes `models=routing` into its own demo branch.
+    """
+    if not fake:
+        # Real environment variables always win over the file (see `load_env_file`'s own
+        # docstring) — but a fake run must still never touch a developer's real `.env`,
+        # or a `--fake`/demo test process picks up real provider keys and MODEL_* values
+        # it has no business reading, and other tests running after it in the same
+        # process inherit the pollution (`os.environ` mutations outlive the test).
+        load_env_file()
+
+    if session_routing:
+        models = dict(session_routing)
+    else:
+        models = {role: os.environ.get(f"MODEL_{role.upper()}", DEFAULT_MODELS[role]) for role in ROLES}
+        if data_dir is not None:
+            saved = stored_routing(data_dir)
+            if saved:
+                models.update(saved)  # the user's saved preference beats MODEL_* env
+
+    if fake:
+        return RunConfig(
+            llm_mode="fake", demo=demo, corpus_mode=corpus_only_enabled(data_dir), models=models
+        )
+
     env_names = {
         "google": "GOOGLE_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
@@ -444,17 +473,12 @@ def sidecar_run_config(
     }
     keys = {p: os.environ[e] for p, e in env_names.items() if os.environ.get(e)}
     keys.update(stored_keys())
-    
+
     if data_dir is not None:
         custom_base_url = stored_custom_endpoint(data_dir)
         if custom_base_url:
             keys["custom_base_url"] = custom_base_url
 
-    models = {role: os.environ.get(f"MODEL_{role.upper()}", DEFAULT_MODELS[role]) for role in ROLES}
-    if data_dir is not None:
-        saved = stored_routing(data_dir)
-        if saved:
-            models.update(saved)  # the user's saved preference beats MODEL_* env
     if not keys:
         raise RuntimeError(
             "No provider key found. Paste one in Settings (stored in the OS keychain), "
@@ -839,10 +863,14 @@ def create_sidecar_app(
         async with session_factory() as db:
             session = await _authorized_session(db, session_id, sidecar["user_id"])
             is_demo = bool(session.demo)
+            session_routing = session.model_routing
 
         try:
             config = sidecar_run_config(
-                fake=app.state.fake or is_demo, demo=is_demo, data_dir=app.state.data_dir
+                fake=app.state.fake or is_demo,
+                demo=is_demo,
+                data_dir=app.state.data_dir,
+                session_routing=session_routing,
             )
         except RuntimeError as e:
             async with session_factory() as db:
@@ -853,6 +881,17 @@ def create_sidecar_app(
             payload = make_event("FAILED", message=str(e))
             payload["id"] = sidecar["bus"].append(str(session_id), payload)
             return
+
+        # Snapshot exactly what this run is about to dial — mirrors the server's
+        # `pipeline_runner._run_config_for`, which resolves-then-persists before the
+        # graph starts. Without this, `SessionDetail.model_routing` (and every export's
+        # "models used" table) stayed null on every desktop session forever, even though
+        # a real routing decision had just been made two lines above.
+        if session.model_routing != config.models:
+            async with session_factory() as db:
+                session = await _authorized_session(db, session_id, sidecar["user_id"])
+                session.model_routing = dict(config.models)
+                await db.commit()
 
         ports = {
             "event_sink": sink,
@@ -895,6 +934,19 @@ def create_sidecar_app(
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
+        # Per-run model choice, validated here so an unroutable model is rejected before
+        # a session exists — same contract as the server (`app/api/v1/research.py`).
+        # None means "use my saved settings"; `start_research` previously accepted this
+        # field and then never read it again, so a request that did NOT omit it still
+        # ran on the saved settings — the same "accepted by the schema, dropped on the
+        # floor" bug `corpus_mode`/`demo` document just below.
+        routing = None
+        if payload.model_routing:
+            try:
+                routing = validate_routing(payload.model_routing)
+            except ValueError as e:
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
+
         project = await _resolve_project(db, user.id, payload.project_id)
         session = Session(
             user_id=user.id,
@@ -902,6 +954,7 @@ def create_sidecar_app(
             prompt=payload.query,
             status=SessionStatus.PENDING,
             research_depth=payload.depth,
+            model_routing=routing,
             # Both were accepted by the request schema and then dropped, exactly as they
             # were on the server path: the session silently took the column default, so
             # "restrict to corpus" ran an ordinary search and a demo run produced an
@@ -1054,6 +1107,7 @@ def create_sidecar_app(
         report = session.final_report or session.draft_report
         if not report:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No report available to export.")
+        report += bundle.render_model_attribution_md(session.model_routing)
         filename = f"research-{str(session.id)[:8]}.md"
         return Response(
             content=report,

@@ -254,11 +254,77 @@ async def test_fake_research_gate_approve_export(sidecar):
 
     export = await sidecar.get(f"/api/v1/research/{session_id}/export.md", headers=_auth())
     assert export.status_code == 200
-    assert export.text == detail["final_report"]
+    # The report body is exported verbatim, with a "Models used" footer appended after
+    # it — never merged in, since the body is what a human approved.
+    assert export.text.startswith(detail["final_report"])
+    assert "## Models used" in export.text
 
     # Desktop PDF is WebView print-to-PDF by design (docs/13 §7): no WeasyPrint here.
     pdf = await sidecar.get(f"/api/v1/research/{session_id}/export.pdf", headers=_auth())
     assert pdf.status_code == 501
+
+
+async def test_run_persists_the_model_routing_it_actually_dialled(sidecar):
+    """`_drive_session` resolves a `RunConfig` but never wrote it back onto the session
+    row, so `model_routing` stayed null on every desktop session forever — the server's
+    `pipeline_runner._run_config_for` does this snapshot and the sidecar never grew the
+    equivalent line (docs/07 §2, "truthful per-agent model attribution")."""
+    start = await sidecar.post(
+        "/api/v1/research",
+        headers=_auth(),
+        json={"query": "What is retrieval-augmented generation?", "depth": "fast"},
+    )
+    session_id = start.json()["session_id"]
+
+    detail = await _until(sidecar, session_id, "AWAITING_APPROVAL")
+
+    assert detail["model_routing"], (
+        "resolved routing must be persisted before disclosure is possible"
+    )
+    assert set(detail["model_routing"]) == {"planner", "executor", "critic", "synthesizer", "chat"}
+    # Pinned by conftest's MODEL_* env vars — proves the sidecar actually read the
+    # configured routing rather than emitting a hardcoded placeholder.
+    assert detail["model_routing"]["planner"] == "google:gemini-2.5-flash"
+
+
+async def test_a_per_run_model_override_is_honored_not_silently_dropped(sidecar):
+    """`start_research` accepted `payload.model_routing` and then never used it — the
+    request schema promises "omit to use your saved settings", but a request that did
+    NOT omit it ran on the saved settings anyway. Same bug class as `corpus_mode`/`demo`
+    a few lines above: accepted by the schema, dropped on the floor."""
+    # Distinct from conftest's pinned MODEL_* env (all "google:gemini-2.5-flash") —
+    # otherwise a dropped override and an honored one would be indistinguishable.
+    override = {
+        r: "anthropic:claude-haiku-4-5"
+        for r in ("planner", "executor", "critic", "synthesizer", "chat")
+    }
+    start = await sidecar.post(
+        "/api/v1/research",
+        headers=_auth(),
+        json={
+            "query": "What is retrieval-augmented generation?",
+            "depth": "fast",
+            "model_routing": override,
+        },
+    )
+    assert start.status_code == 202
+    session_id = start.json()["session_id"]
+
+    detail = await _until(sidecar, session_id, "AWAITING_APPROVAL")
+    assert detail["model_routing"] == override
+
+    # An unroutable model is rejected before a session exists, same contract as the
+    # server (`app/api/v1/research.py`).
+    bad = await sidecar.post(
+        "/api/v1/research",
+        headers=_auth(),
+        json={
+            "query": "What is retrieval-augmented generation?",
+            "depth": "fast",
+            "model_routing": {"planner": "nope"},
+        },
+    )
+    assert bad.status_code == 422
 
 
 # ── Settings: saved routing + keychain keys ──────────────────────────────────

@@ -1,4 +1,4 @@
-import { AGENT_LABELS, AGENT_TOKEN, AGENTS, latestAgentOrder } from "@/lib/pipeline";
+import { AGENT_LABELS, AGENT_TOKEN, AGENTS, latestAgentOrder, routeModelLabel } from "@/lib/pipeline";
 import type { AgentEvent, SessionStatus } from "@/lib/types";
 
 type NodeState = "pending" | "active" | "done";
@@ -15,7 +15,17 @@ type NodeState = "pending" | "active" | "done";
  */
 const REVIEW_COLOR = "var(--agent-hitl)";
 
-export function PipelineRail({ events, status }: { events: AgentEvent[]; status: SessionStatus }) {
+export function PipelineRail({
+  events,
+  status,
+  modelRouting,
+}: {
+  events: AgentEvent[];
+  status: SessionStatus;
+  /** Resolved per-role routing (docs/07 §2). Absent/null renders every node's model
+   * as "—" rather than guessing — the unmeasured-vs-zero rule. */
+  modelRouting?: Record<string, string> | null;
+}) {
   const order = latestAgentOrder(events);
   const agentsDone = status === "AWAITING_APPROVAL" || status === "COMPLETED";
   const running = status === "PENDING" || status === "RUNNING";
@@ -60,6 +70,12 @@ export function PipelineRail({ events, status }: { events: AgentEvent[]; status:
                 style={{ color: s === "pending" ? "var(--text-muted)" : color }}
               >
                 {AGENT_LABELS[agent]}
+              </span>
+              <span
+                className="max-w-full truncate font-mono text-[length:var(--text-micro)] text-text-muted"
+                title={modelRouting?.[agent] || "Model not resolved"}
+              >
+                {routeModelLabel(modelRouting?.[agent])}
               </span>
               <span className="sr-only">{s}</span>
             </div>

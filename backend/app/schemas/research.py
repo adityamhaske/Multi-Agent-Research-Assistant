@@ -102,6 +102,15 @@ class SessionDetail(SessionSummary):
     sources: list[SourceSchema] | None = None
     error_message: str | None = None
     updated_at: datetime
+    # Resolved per-role routing (docs/07 §2, "truthful per-agent model attribution").
+    # `session.model_routing` has been resolved and snapshotted since before this field
+    # existed (`app/workers/pipeline_runner.py::_run_config_for`) — this class just
+    # never declared it, so Pydantic silently dropped it en route to the browser. Third
+    # copy of one contract; see the `snippets` comment on `SourceSchema` for the
+    # identical bug (AGENTS.md — two hosts, one contract). `None` means "not resolved"
+    # (a run that failed before the planner, or predates this field) — never a guessed
+    # default; the unmeasured-vs-zero rule.
+    model_routing: dict[str, str] | None = None
 
 
 class SessionListResponse(BaseModel):

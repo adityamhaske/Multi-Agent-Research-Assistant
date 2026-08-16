@@ -8,6 +8,7 @@ import { formatCost, formatDuration, formatNumber } from "@/lib/format";
 import type { SessionDetail } from "@/lib/types";
 
 import { ChatPanel } from "./ChatPanel";
+import { ModelAttribution } from "./ModelAttribution";
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
@@ -108,6 +109,10 @@ export function ReportView({ session }: { session: SessionDetail }) {
           <Metric label="Cost" value={formatCost(session.total_cost_usd)} />
           <Metric label="Tokens" value={formatNumber(tokens)} />
           <Metric label="Sources" value={String(sources.length)} />
+        </div>
+
+        <div className="mb-6">
+          <ModelAttribution modelRouting={session.model_routing} />
         </div>
 
         {report ? (
