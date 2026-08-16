@@ -56,6 +56,38 @@ RESULTS_DIR = EVALS_DIR / "results"
 MIN_CITATION_SUPPORT = 0.95
 MIN_COMPLETION_RATE = 0.90
 
+_ROLES = ("planner", "executor", "critic", "synthesizer", "chat")
+
+
+def _routing_slug() -> str:
+    """Filename-safe tag for the routing a run used: the planner role's provider.
+
+    Routing is `provider:model` split on the **first** colon (AGENTS.md), so
+    `ollama:qwen2.5:7b` yields `ollama`. Used to give each result file a run identity —
+    see `_result_path`.
+    """
+    provider = RUN_CONFIG.models["planner"].split(":", 1)[0]
+    cleaned = "".join(c if c.isalnum() else "-" for c in provider).strip("-").lower()
+    return cleaned or "unknown"
+
+
+def _result_path(run_date: str) -> Path:
+    """Where this run's result goes — never onto an existing file.
+
+    A date is not a run identity. The old default was `eval-<date>.json`, so two runs on
+    one day collided, and that is exactly how a real 10/10 ollama measurement was
+    destroyed: `cbde168` overwrote `eval-2026-08-13.json` with a failed Gemini run and
+    nothing warned. Results are write-once (AGENTS.md; CI job `eval-artifacts`), so carry
+    the routing and take the next free run number rather than clobbering.
+    """
+    routing = "fake" if RUN_CONFIG.llm_mode == "fake" else _routing_slug()
+    candidate = RESULTS_DIR / f"eval-{run_date}-{routing}.json"
+    n = 2
+    while candidate.exists():
+        candidate = RESULTS_DIR / f"eval-{run_date}-{routing}-run{n}.json"
+        n += 1
+    return candidate
+
 
 async def run_one(query: dict) -> dict:
     """Run one query to the gate; return its report metrics + timing."""
@@ -405,13 +437,15 @@ async def main() -> None:
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "llm_mode": RUN_CONFIG.llm_mode,
         "mode": args.mode,
-        "models": {
-            "planner": RUN_CONFIG.models["planner"],
-            "executor": RUN_CONFIG.models["executor"],
-            "critic": RUN_CONFIG.models["critic"],
-            "synthesizer": RUN_CONFIG.models["synthesizer"],
-            "chat": RUN_CONFIG.models["chat"],
-        },
+        # In fake mode `llm_factory` returns `fake_model()` and no provider is contacted,
+        # so writing five real-looking ids here would record models we never called —
+        # the exact rule in AGENTS.md ("never record a model id you did not actually
+        # call"). eval-2026-07-23.json is the artifact that did it.
+        "models": (
+            {"_note": "fake mode — no provider was called"}
+            if RUN_CONFIG.llm_mode == "fake"
+            else {role: RUN_CONFIG.models[role] for role in _ROLES}
+        ),
         "method": {
             "metrics_version": metrics.METRICS_VERSION,
             "retriever": _retriever_in_use() if args.mode == "report" else "none (static memory)",
@@ -423,7 +457,14 @@ async def main() -> None:
     }
 
     RESULTS_DIR.mkdir(exist_ok=True)
-    out = Path(args.out) if args.out else RESULTS_DIR / f"eval-{run_date}.json"
+    out = Path(args.out) if args.out else _result_path(run_date)
+    if out.exists():
+        # Only reachable via an explicit --out; `_result_path` never returns a live path.
+        # Refuse rather than overwrite: a committed result is evidence (AGENTS.md).
+        raise SystemExit(
+            f"{out} already exists and eval results are write-once. "
+            f"Pass a new --out, or omit --out to get an auto-numbered filename."
+        )
     out.write_text(json.dumps(payload, indent=2) + "\n")
     print(f"\nAggregate: {json.dumps(agg)}")
     print(f"Release criteria: {json.dumps(payload['release_criteria'])}")

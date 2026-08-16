@@ -641,6 +641,48 @@ never surface, both against real Postgres + pgvector. 231 backend and 57 fronten
 
 ---
 
+## M18 — Honest baseline  *(≈ 1 week)*  ← must precede M19
+
+Nothing new is built until the measurement surface is trustworthy: M19's whole claim is
+that a number moved, which is unreadable if the starting number is wrong.
+
+**Workstream A — artifact & doc repair.** ✅ P0s complete (`2ce29e7`):
+
+- ✅ Restored `eval-2026-08-13-ollama-run7.json`, destroyed when `cbde168` (a *frontend*
+  commit) overwrote it. The README's numbers were honest work whose proof was deleted.
+- ✅ `harness.py::judge_citation_support` no longer scores unjudged claims as unsupported;
+  it now matches `benchmark.py::calc_support_rate`. Every prior
+  `citation_support_rate` was depressed by provider errors and partial replies.
+- ✅ Eval results are write-once — CI job `eval-artifacts`, plus `_result_path()` which
+  can no longer return a live filename.
+- ✅ Deleted `benchmark_v1/` (both trace files were `[]`, so every `0.0` was unmeasured).
+- ✅ `login/page.tsx` no longer advertises `95.2% Verified Baseline` in success green: it
+  was a metrics-v2 number on a v4 codebase, and it misses the ≥95% bar it sat beside.
+- ☐ P2 doc cleanups (domain counts, `docs/00_INDEX` row 16, staleness banners).
+
+**Workstream B — `queries_scholarly.json`.** ☐ 6 of 12 drafted questions survived
+adversarial critique; the set is **deliberately not padded** to match `queries.json`'s 10.
+
+> ⛔ **Blocking gate — a domain reader must verify the six before the set grades
+> anything.** The questions and their rubrics were produced without any agent opening a
+> cited paper. A rubric naming the wrong study silently penalizes a *correct* answer,
+> which would make every M19 number meaningless while looking fine. This cannot be
+> delegated to a model: it has the same blind spot the tool does. Biology and chemistry
+> need a reader from those fields.
+
+**Workstream C — `primary_source_rate`.** ☐ Blocked pending the fetched-URL gate.
+
+> ⛔ `source_url` is model-authored, so a hallucinated `arxiv.org/abs/<plausible-id>`
+> would classify as **primary with full confidence**. A fakeable metric on a
+> verifiability product is worse than no metric. If the engine cannot record which URLs
+> it actually fetched, this ships as `[unmeasured]` and M19 proceeds without it.
+
+**DoD:** no committed artifact reports a number it did not measure · no user-facing
+surface claims a rate its artifact does not support · the scholarly query set is
+domain-verified or explicitly marked unverified and unused.
+
+---
+
 ## 4. Scale sizing (so we don't over-build)
 
 10,000 registered ≈ 200–500 DAU ≈ 10–30 concurrent runs. A "run" is mostly *awaiting*

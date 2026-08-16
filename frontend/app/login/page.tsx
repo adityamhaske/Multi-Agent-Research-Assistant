@@ -312,14 +312,26 @@ export default function LoginPage() {
                     <tr className="border-b border-border text-text-muted">
                       <th className="py-2.5 pr-4 font-semibold uppercase tracking-wider">Evaluation Metric</th>
                       <th className="py-2.5 px-4 font-semibold uppercase tracking-wider">Benchmark Standard</th>
-                      <th className="py-2.5 pl-4 font-semibold uppercase tracking-wider">System Guarantee</th>
+                      {/* "Guarantee" overstated every row and was actively false for the
+                          first one, where the measured rate misses the standard beside it. */}
+                      <th className="py-2.5 pl-4 font-semibold uppercase tracking-wider">This System</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50 text-text-secondary">
                     <tr>
                       <td className="py-2 pr-4 font-medium text-text-primary">Citation Support Fidelity</td>
                       <td className="py-2 px-4">≥ 95.0% Snippet-Claim Match</td>
-                      <td className="py-2 pl-4 text-success font-semibold">95.2% Verified Baseline</td>
+                      {/* 90%, not 95.2%. The 95.2% here came from eval-2026-08-03 under
+                          metrics v2, and metrics.py's own changelog states v2 is not
+                          comparable to v3/v4 — the claim denominator changed twice. The
+                          number below is the latest committed real-model run
+                          (eval-2026-08-13-ollama-run7.json, metrics v3), which records
+                          citation_support_ok: false. It MISSES the standard beside it, so
+                          it is not rendered in success green: this product's whole claim
+                          is that it shows its own misses. */}
+                      <td className="py-2 pl-4 text-warning font-semibold">
+                        90% — 2026-08-13, metrics v3
+                      </td>
                     </tr>
                     <tr>
                       <td className="py-2 pr-4 font-medium text-text-primary">State Persistence</td>
