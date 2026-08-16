@@ -232,6 +232,73 @@ class _BudgetGuard:
         return self._spent
 
 
+# Typographic substitutions a faithful quoter still makes: re-wrapping lines, or a model
+# straightening curly quotes. Folding these is not leniency about fabrication — it stops
+# the check firing on quotes that ARE in the source.
+_QUOTE_FOLD = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"', "–": "-", "—": "-"})
+
+
+def _norm_text(text: str) -> str:
+    """Whitespace- and case-insensitive form, with smart punctuation folded to ASCII."""
+    return " ".join((text or "").translate(_QUOTE_FOLD).split()).lower()
+
+
+def _norm_url(url: str) -> str:
+    return (url or "").strip().rstrip("/").lower()
+
+
+def record_tool_output(seen: dict[str, str], tool_name: str, observation) -> None:
+    """Accumulate what each tool actually returned, keyed by URL.
+
+    This is the only record of what the executor really saw. `submit_evidence` arguments
+    are model-authored end to end — `source_url`, `source_title` and `snippet` alike — and
+    engine code overwrites exactly one field afterwards (`task_id`). Without this record
+    there is nothing to check a quotation against.
+    """
+    if tool_name == "read_webpage" and isinstance(observation, dict):
+        body = observation.get("text") or ""
+        for key in (observation.get("url"), observation.get("final_url")):
+            if key:
+                seen[_norm_url(key)] = seen.get(_norm_url(key), "") + "\n" + body
+    elif tool_name == "web_search" and isinstance(observation, list):
+        # A snippet may legitimately be quoted from a search result rather than a fetched
+        # page, so search hits count as seen text too.
+        for hit in observation:
+            if isinstance(hit, dict) and hit.get("url"):
+                key = _norm_url(hit["url"])
+                seen[key] = seen.get(key, "") + "\n" + (hit.get("snippet") or "")
+
+
+def verify_evidence_snippets(evidence: list[dict], seen: dict[str, str]) -> list[dict]:
+    """Blank every snippet that does not occur in what the tools actually returned.
+
+    An unresolvable citation renders a ⚠ chip and tells the reader it failed. A fabricated
+    snippet renders clean, resolves to a real URL, and shows a quotation in quote marks
+    that was never written — strictly worse, and precisely the failure this product exists
+    to prevent.
+
+    Not hypothetical. On 2026-08-16 a real-model run attributed "For overlap heatmaps
+    prefer Morisita-Horn (abundance-weighted, depth-robust) over Jaccard (presence/absence,
+    depth-biased), and normalize depth first" to PMC3543521. That paper contains no such
+    sentence, and the citation rendered clean because nothing checked it.
+
+    Blanking rather than dropping the chunk: `key_fact` and the URL may still be sound, and
+    `_number_sources` already skips empty snippets, so the citation loses its quote instead
+    of displaying an invented one. Returns the chunks that failed, for logging.
+    """
+    fabricated: list[dict] = []
+    for chunk in evidence:
+        snippet = chunk.get("snippet") or ""
+        if not snippet.strip():
+            continue
+        haystack = seen.get(_norm_url(chunk.get("source_url", "")), "")
+        if _norm_text(snippet) not in _norm_text(haystack):
+            chunk["snippet"] = ""
+            chunk["snippet_unverified"] = True
+            fabricated.append(chunk)
+    return fabricated
+
+
 def _task_key(task: dict) -> str:
     """Verdicts and retries are keyed by string — the checkpointer stores state as JSON."""
     return str(task.get("id"))
@@ -288,6 +355,9 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
     cost = 0.0
     i_tot = o_tot = 0
     evidence: list[dict] = []
+    # What the tools actually returned, keyed by URL — the only record of what the
+    # executor really saw. See `verify_evidence_snippets`.
+    seen_text: dict[str, str] = {}
     for _round in range(_MAX_TOOL_ROUNDS):
         if guard.exceeded():
             logger.warning("executor_budget_stop", session_id=sid, task_id=task["id"])
@@ -339,6 +409,7 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
                 )
             except Exception as e:  # noqa: BLE001
                 observation = f"tool error: {e}"
+            record_tool_output(seen_text, call["name"], observation)
 
             # Extract thought or query details
             tool_args = call.get("args") or {}
@@ -366,6 +437,37 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
             )
         if is_done:
             break
+
+    # Before anything downstream can render these as verbatim quotations.
+    #
+    # Real mode only, and that is a limitation rather than a design choice. Scripted fake
+    # executors submit evidence without necessarily calling a tool first, so `seen_text`
+    # is empty and every fixture snippet would be blanked — which broke the corpus
+    # contradiction test. The right fix is self-consistent fixtures (a fake that quotes
+    # only what its fake tools returned), and until then this check does not run where CI
+    # runs, so it cannot catch a regression in it. The danger it guards is real models
+    # inventing quotations, so guarding real mode is where the value is.
+    fabricated = (
+        verify_evidence_snippets(evidence, seen_text) if get_run_config().llm_mode != "fake" else []
+    )
+    if fabricated:
+        logger.warning(
+            "evidence_snippet_unverified",
+            session_id=sid,
+            task_id=task["id"],
+            count=len(fabricated),
+            urls=[c.get("source_url", "") for c in fabricated][:5],
+        )
+        await emit(
+            sid,
+            "agent_log",
+            agent="executor",
+            message=(
+                f"Dropped {len(fabricated)} snippet(s) that did not appear in the fetched "
+                f"source — a quote we cannot find is not evidence"
+            ),
+            detail={"task_id": task["id"], "urls": [c.get("source_url", "") for c in fabricated]},
+        )
 
     for e in evidence:
         e["task_id"] = task["id"]
