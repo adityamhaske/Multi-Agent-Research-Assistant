@@ -24,7 +24,7 @@ export type StreamState = "idle" | "connecting" | "open" | "reconnecting" | "clo
  * row into the query cache and closes the stream. When the stream is degraded, the
  * caller polls the session as a fallback (see the session page).
  */
-export function useSessionStream(sessionId: string, enabled: boolean) {
+export function useSessionStream(sessionId: string, enabled: boolean, runKey?: string | null) {
   const qc = useQueryClient();
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [state, setState] = useState<StreamState>("idle");
@@ -34,7 +34,12 @@ export function useSessionStream(sessionId: string, enabled: boolean) {
   // "reset state when a prop changes" pattern (setState during render, guarded), not an
   // effect. The backend replays the full backlog on (re)connect, so a clean slate is
   // correct; we de-dup replayed rows by durable event id in onmessage.
-  const subKey = enabled && sessionId ? sessionId : null;
+  // `runKey` is the run generation — the session status. It matters because the stream is
+  // now held open for finished sessions too (history arrives on it), so `enabled` no
+  // longer toggles false→true when approving a draft restarts the pipeline. Without this
+  // the client, having closed itself on the terminal event, would never reconnect and the
+  // rework would stream nothing.
+  const subKey = enabled && sessionId ? `${sessionId}:${runKey ?? ""}` : null;
   const [prevSubKey, setPrevSubKey] = useState<string | null>(null);
   if (subKey !== prevSubKey) {
     setPrevSubKey(subKey);
@@ -96,7 +101,7 @@ export function useSessionStream(sessionId: string, enabled: boolean) {
     };
 
     return () => es.close();
-  }, [sessionId, enabled, qc]);
+  }, [sessionId, enabled, runKey, qc]);
 
   return { events, state };
 }

@@ -14,6 +14,7 @@ import { ReportView } from "@/components/session/ReportView";
 import { StatusBar } from "@/components/session/StatusBar";
 import { useCancelSession, useSession } from "@/hooks/queries";
 import { useSessionStream } from "@/hooks/useSessionStream";
+import { shouldOpenStream } from "@/lib/sessionStream";
 import { ApiError } from "@/lib/api";
 
 /**
@@ -33,8 +34,13 @@ export function SessionView({ sessionId }: { sessionId: string }) {
 
   // Stream while the pipeline is doing work. Approve/rework flips status back to RUNNING
   // (optimistically), which re-enables this and re-subscribes through the same path.
-  const streamEnabled = status === "PENDING" || status === "RUNNING";
-  const stream = useSessionStream(sessionId, streamEnabled);
+  // Open for finished sessions too: the stream is the only route by which the UI reads
+  // `agent_logs`, which the backend replays on connect. Restricting it to RUNNING left a
+  // completed run with a permanently empty activity feed and pipeline rail. `status` is
+  // passed as the run key so approving a draft — which restarts the pipeline — still
+  // reconnects now that this flag no longer toggles.
+  const streamEnabled = shouldOpenStream(status);
+  const stream = useSessionStream(sessionId, streamEnabled, status);
 
   const handleStop = async () => {
     try {
