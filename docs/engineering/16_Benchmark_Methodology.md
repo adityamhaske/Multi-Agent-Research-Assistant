@@ -174,6 +174,15 @@ Every benchmark execution must report raw completions and categorise any run fai
 
 ## 7. Execution & Audit Protocol
 
+> **No benchmark run has been recorded yet.** M13 is open (`☐` in
+> [`12_Launch_Plan.md`](../product/12_Launch_Plan.md)), and this section is the procedure
+> for a run that has **not** happened — not a description of a committed result. Any
+> `backend/evals/results/benchmark_v1/` contents produced before commit `3010a7b`
+> ("stop the benchmark reporting things it never measured") are **pre-fix output**: their
+> trace files are empty (`[]`), so every `0.0` in that summary is an unmeasured value
+> rendered as a score. Current `benchmark.py` renders that state as `n/a (unmeasured)`
+> instead. Do not cite those files as a measurement.
+
 To run the benchmark reproducibly:
 
 ```bash
@@ -187,4 +196,4 @@ BENCHMARK_JUDGE_MODEL="claude-sonnet-4-6" python -m backend.evals.benchmark --ou
 cat backend/evals/results/benchmark_v1/summary.md
 ```
 
-All benchmark runs generate timestamped JSON artifacts containing full prompt traces, extracted claims, judge rationales, and raw reports to enable independent peer verification.
+**[PLANNED]** A benchmark run is *specified* to generate timestamped JSON artifacts containing full prompt traces, extracted claims, judge rationales, and raw reports, to enable independent peer verification. This describes the intended output of `benchmark.py`, not a property of anything currently committed — see the §7 note.

@@ -118,8 +118,16 @@ async def judge_citation_support(
 ) -> tuple[float | None, list[dict]]:
     """Real-mode only: ask a model whether each cited claim is actually supported by the
     snippet it cites. Batches up to 4 claims per LLM call to reduce latency from
-    per-claim rate-limit sleeps. Returns (supported / cited-claims, per-claim rows);
-    the rate is None if there are no cited claims."""
+    per-claim rate-limit sleeps.
+
+    Returns `(supported / *judged* claims, per-claim rows)`. The denominator counts only
+    claims the judge actually ruled on: a provider error, a partial reply, or an
+    unparseable answer leaves a claim unjudged, and unjudged is **excluded** rather than
+    scored as unsupported. The rate is None when nothing could be judged — "we could not
+    measure this" has to stay distinct from "it scored zero" (docs/16 §6), and it did not
+    until M18. `benchmark.py::calc_support_rate` implements the same rule; these are two
+    homes for one contract, so change both (AGENTS.md).
+    """
     import re as _re
 
     from langchain_core.messages import HumanMessage, SystemMessage
@@ -150,7 +158,8 @@ async def judge_citation_support(
         claim_evidence.append((claim, snippets))
 
     BATCH_SIZE = 4
-    supported = 0
+    # Only claims the judge actually ruled on enter this map, and every number below is
+    # derived from it — so an unjudged claim cannot reach the rate as a miss.
     verdict_by_claim: dict[int, bool] = {}
     for batch_start in range(0, len(claim_evidence), BATCH_SIZE):
         batch = claim_evidence[batch_start : batch_start + BATCH_SIZE]
@@ -181,13 +190,12 @@ async def judge_citation_support(
             # Parse each "Claim N: YES/NO" line from the response.
             for match in _re.finditer(r"Claim\s+(\d+)\s*:\s*(YES|NO)", text, _re.IGNORECASE):
                 idx = batch_start + int(match.group(1)) - 1
-                ok = match.group(2).upper() == "YES"
-                verdict_by_claim[idx] = ok
-                if ok:
-                    supported += 1
-        except Exception as e:  # noqa: BLE001
-            # Failed batch counts 0 supported — same semantics as the old per-claim
-            # path where an individual failure also contributed nothing.
+                verdict_by_claim[idx] = match.group(2).upper() == "YES"
+        except Exception as e:  # noqa: BLE001 — one failed batch must not sink the run
+            # The batch's claims stay UNJUDGED and are excluded from the denominator
+            # below. Counting them as unsupported — which this did until M18 — is what
+            # made an exhausted quota indistinguishable from a quality collapse, and it
+            # is the same defect `benchmark.py::calc_support_rate` was written to fix.
             print(f"Citation judging error (batch {batch_start // BATCH_SIZE + 1}): {e}")
 
         # Free-tier rate limit avoidance (Gemini = 15 RPM). Applied once per batch
@@ -198,12 +206,20 @@ async def judge_citation_support(
     rows = [
         {
             "claim": claim,
-            "supported": verdict_by_claim.get(i, False),
+            # None means the judge never ruled on this claim. Distinct from False, and
+            # the two must never be collapsed by a downstream truthiness check.
+            "supported": verdict_by_claim.get(i),
+            "judged": i in verdict_by_claim,
             "cites": metrics.extract_citations(claim),
         }
         for i, claim in enumerate(claims)
     ]
-    return round(supported / len(claims), 4), rows
+    if not verdict_by_claim:
+        # Nothing was measured. Returning 0.0 here would publish an unmeasured run as a
+        # total quality failure — the unmeasured-vs-zero conflation AGENTS.md calls a P0.
+        return None, rows
+    supported = sum(1 for ok in verdict_by_claim.values() if ok)
+    return round(supported / len(verdict_by_claim), 4), rows
 
 
 async def run_one_memory(query: dict) -> dict:

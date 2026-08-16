@@ -207,3 +207,35 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 7
+
+  # A committed eval result is evidence, and evidence is write-once. This job exists
+  # because `cbde168` — a *frontend* commit ("replace TopNav with SideNav") — silently
+  # overwrote `eval-2026-08-13.json`, destroying a real 10/10 ollama measurement and
+  # leaving the README citing numbers whose proof no longer existed. Nothing failed; the
+  # loss was invisible until someone diffed the blob out of git history.
+  #
+  # Adding a new result file is always fine. Changing one that is already committed is
+  # not: record a new run under a new name (`eval-<date>-<routing>-run<N>.json`), because
+  # a date alone is not a unique run identity.
+  eval-artifacts:
+    name: Eval results are write-once
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # need the merge base to diff against
+      - name: Fail if a committed eval result was modified
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "No usable base ref; skipping (first push or shallow history)."
+            exit 0
+          fi
+          modified=$(git diff --name-only --diff-filter=M "$base" HEAD -- backend/evals/results/)
+          if [ -n "$modified" ]; then
+            echo "::error::Committed eval results were modified. They are write-once:"
+            echo "$modified"
+            echo "Commit a new file under a new name instead of overwriting a measurement."
+            exit 1
+          fi
+          echo "No committed eval result was modified."
