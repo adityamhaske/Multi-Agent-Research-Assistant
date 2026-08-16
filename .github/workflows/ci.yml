@@ -193,6 +193,23 @@ jobs:
           celery -A app.workers.celery_app.celery_app inspect ping -t 5 || {
             echo "::error::Celery worker never became ready"; cat /tmp/worker.log; exit 1
           }
+          # A ping is not readiness. It answers while LangGraph and the provider clients
+          # are still importing inside the worker, which measurably cost 35s on the FIRST
+          # task and 0.26s on the second (run 31958153365). The journeys then started
+          # against a worker that could not run anything yet and failed on "Waiting for
+          # the pipeline to start…" — blaming SSE for a worker that was still booting.
+          # The preload signal is what makes ready mean ready; wait for it to land.
+          for i in $(seq 1 120); do
+            grep -q "worker_preload_complete" /tmp/worker.log && { echo "preloaded after ${i}s"; break; }
+            if ! kill -0 "$(cat /tmp/worker.pid)" 2>/dev/null; then
+              echo "::error::Celery worker exited while preloading"; cat /tmp/worker.log; exit 1
+            fi
+            sleep 1
+          done
+          grep -q "worker_preload_complete" /tmp/worker.log || {
+            echo "::error::Worker never finished preloading the pipeline imports"
+            cat /tmp/worker.log; exit 1
+          }
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
