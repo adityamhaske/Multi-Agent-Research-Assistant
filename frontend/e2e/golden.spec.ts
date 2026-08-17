@@ -116,9 +116,42 @@ async function startResearchToGate(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Give this browser an active project, creating one if the account has none.
+ *
+ * Corpus, Overview and Chat are all scoped to an *active* project held in client state,
+ * and a freshly-registered account has neither a selection nor a project: the switcher
+ * says "No projects created yet" and the page says "No active project". The research
+ * journeys never hit either, because `POST /research` resolves — and lazily creates —
+ * the user's default project server-side. So the two halves of the app disagree about
+ * whether "no project" is a state the user has to resolve, and only the corpus half
+ * makes them do it.
+ *
+ * Driven through the switcher rather than seeded, because that is the path a real
+ * first-run user takes. Worth the words because of how the failure presented: both
+ * `setInputFiles` and `click` wait for a locator that never appears, so the journey
+ * burned its full 180s timeout and reported "timeout" rather than "there was no
+ * project" — twice, for two different missing preconditions.
+ */
+async function ensureActiveProject(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /select project/i }).click();
+
+  const existing = page.getByRole("option");
+  if ((await existing.count()) === 0) {
+    await page.getByRole("button", { name: "+ New" }).click();
+    await page.getByPlaceholder("Project name...").fill("E2E Project");
+    await page.getByRole("button", { name: "Create", exact: true }).click();
+  } else {
+    await existing.first().click();
+  }
+
+  await expect(page.getByRole("listbox", { name: "Projects" })).toBeHidden();
+}
+
 test.describe("Golden journey 6 — corpus documents preview in place", () => {
   test("uploads a document and reads it without leaving the page", async ({ page }) => {
     await registerAndLogin(page);
+    await ensureActiveProject(page);
     await page.goto("/corpus");
 
     await page.setInputFiles('input[type="file"]', {

@@ -1703,6 +1703,18 @@ def create_sidecar_app(
 
         return StreamingResponse(gen(), media_type="application/x-ndjson")
 
+    @api.get("/models/routing")
+    async def get_routing(user: User = Depends(get_local_user)):  # noqa: ARG001
+        """The saved routing and the one a run would dial. Second home of the server's
+        `GET /models/routing` — both hosts shipped this trio write-only (PUT and DELETE
+        but no GET) while the frontend already fetched it, so the read 405'd on both.
+
+        `routing` is null when nothing is saved, distinct from `effective_routing`, which
+        always resolves — see the server's docstring for why the two must not collapse.
+        """
+        saved = stored_routing(app.state.data_dir)
+        return {"routing": saved or None, "effective_routing": _effective_with(saved or None)}
+
     @api.put("/models/routing")
     async def set_routing(payload: dict, user: User = Depends(get_local_user)):  # noqa: ARG001
         """Save the per-role routing to `routing.json` in the data directory.

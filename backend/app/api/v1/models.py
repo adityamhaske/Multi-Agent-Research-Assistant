@@ -356,6 +356,31 @@ async def pull_local_model(request: Request, _current_user: User = Depends(get_c
     return StreamingResponse(gen(), media_type="application/x-ndjson")
 
 
+@router.get("/routing", response_model=RoutingResponse)
+async def get_routing(current_user: User = Depends(get_current_user)):
+    """This user's saved routing, and what a run would actually dial.
+
+    The read half of a trio that shipped write-only: PUT and DELETE existed, GET did not,
+    and `frontend/hooks/queries.ts` was already fetching it — so every dashboard load
+    logged a 405 and `useModelRouting()` never resolved. Nothing failed loudly; the
+    project hub's model panel just stayed empty.
+
+    `routing` is null when the user has expressed no preference. That is deliberately
+    distinct from `effective_routing`, which is never null because a run always dials
+    *something*: collapsing them would make "I have not chosen" read identically to "I
+    chose exactly the deployment defaults", and only one of those should survive an
+    operator changing MODEL_*.
+
+    No database write and no live provider call, so it stays as cheap as `GET /models`.
+    """
+    return RoutingResponse(
+        routing=current_user.model_routing,
+        effective_routing=model_routing.resolve(
+            session_routing=None, user_routing=current_user.model_routing
+        ),
+    )
+
+
 @router.put("/routing", response_model=RoutingResponse)
 async def set_routing(
     payload: RoutingRequest,

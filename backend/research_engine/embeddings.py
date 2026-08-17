@@ -24,6 +24,9 @@ anywhere. Fail closed (docs/00 ground rules).
 
 from __future__ import annotations
 
+import hashlib
+import math
+
 import httpx
 
 _EMBED_TIMEOUT_SECONDS = 60.0
@@ -80,6 +83,58 @@ class NoEmbeddings:
             "(`ollama pull nomic-embed-text`), or set EMBEDDINGS_PROVIDER together with "
             "that provider's API key."
         )
+
+
+class FakeEmbeddings:
+    """Deterministic in-process embeddings for `llm_mode="fake"` (docs/17 §6.2).
+
+    Fake mode promises a keyless, offline demo, and every model call in the engine is
+    gated on it. Corpus ingestion escaped that gate because embeddings are built by a
+    *host* adapter, so `./start.sh --fake` embedded against whatever provider key was in
+    `.env` — billing a run advertised as free, and dying on a provider 404 when the key
+    was stale. This is the stand-in that closes it.
+
+    **Deterministic, not random.** The corpus is a retrieval store: the same text must
+    land in the same place across a restart, or a demo's search results shift between
+    launches for no reason a user can see. A seeded hash gives that for free and needs no
+    state on disk.
+
+    The vectors are meaningless as *semantics* — nothing here understands language. What
+    they preserve is the shape retrieval depends on: stable, unit-length, uniform width,
+    and distinct per distinct input. A demo therefore exercises the real ingest→search
+    path rather than a mock of it, while proving nothing about relevance, which is
+    exactly the honest scope for fixture content.
+    """
+
+    #: `local:` because `pipeline_runner` admits corpus mode only for `ollama:`/`local:`
+    #: ids, and this genuinely is in-process. `fake` is in the name because a model id is
+    #: recorded as the thing that actually ran, and this one must never read as real.
+    model_id = "local:fake-deterministic"
+    #: 768 to match `memory_chunks.embedding`, which is a `vector(768)` column. A narrower
+    #: vector would work fine for the corpus (SQLite blobs, any width) and then fail at
+    #: project-memory ingestion — inside the handler that deliberately never raises, so a
+    #: demo would log a warning nobody reads and quietly index nothing.
+    dimensions = 768
+    #: No I/O at all, so nothing can egress. The airgap guard defaults to *remote* for
+    #: anything that does not declare itself (AGENTS.md), and refusing an embedder that
+    #: cannot reach the network would be the guard firing at the wrong target.
+    is_local = True
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        return [self._vector(t) for t in texts]
+
+    def _vector(self, text: str) -> list[float]:
+        # blake2b over the text, expanded to `dimensions` floats. Hashing per-index
+        # rather than slicing one digest keeps the width independent of the digest size.
+        raw = [
+            int.from_bytes(hashlib.blake2b(f"{i}:{text}".encode(), digest_size=4).digest(), "big")
+            for i in range(self.dimensions)
+        ]
+        # Centre on zero so vectors can oppose as well as agree; an all-positive space
+        # makes every pair look similar under cosine.
+        centred = [v / 2**31 - 1.0 for v in raw]
+        norm = math.sqrt(sum(x * x for x in centred)) or 1.0
+        return [x / norm for x in centred]
 
 
 class LocalEmbeddings:

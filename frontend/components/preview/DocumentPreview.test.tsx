@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DocumentPreview, kindForFilename } from "./DocumentPreview";
+import { DocumentPreview, documentUrl, kindForFilename } from "./DocumentPreview";
 
 /**
  * The preview renders untrusted content — uploaded documents authored by whoever made
@@ -89,5 +89,18 @@ describe("DocumentPreview honest empty states", () => {
     render(<DocumentPreview url="/api/d/5" filename="gone.txt" downloadable />);
 
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("404"));
+  });
+});
+
+describe("documentUrl", () => {
+  /**
+   * Regression: this shipped without the `/corpus` segment, so every preview rendered
+   * "Could not load this document (404)". Every other test in this file passes a stub
+   * URL in, so nothing here exercised the function that builds one — the defect was
+   * invisible to the unit suite and only the golden E2E, uploading to a real API, hit it.
+   */
+  it("includes the corpus segment the backend router is mounted at", () => {
+    const url = documentUrl("proj-1", "doc-2");
+    expect(url).toContain("/projects/proj-1/corpus/documents/doc-2/download");
   });
 });

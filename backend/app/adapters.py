@@ -24,7 +24,12 @@ import structlog
 from app.config import settings
 from app.db.redis import publish_event
 from app.models.agent_log import AgentLog
-from research_engine.embeddings import EmbeddingsUnavailable, NoEmbeddings, is_local_endpoint
+from research_engine.embeddings import (
+    EmbeddingsUnavailable,
+    FakeEmbeddings,
+    NoEmbeddings,
+    is_local_endpoint,
+)
 from research_engine.llm_factory import map_local_host
 from research_engine.ports import Embeddings, EventSink
 
@@ -291,6 +296,14 @@ async def embeddings_for(provider_keys: dict[str, str] | None = None) -> Embeddi
     """
     keys = provider_keys or {}
     choice = settings.embeddings_provider
+
+    # Checked before anything else, including `embeddings_provider`: fake mode is a
+    # promise about the whole run, not a provider preference (docs/17 §6.2). This branch
+    # was missing entirely, so `./start.sh --fake` — "keyless demo mode, no API key
+    # needed" — embedded a corpus upload against the real key in `.env`, spending money
+    # on a run the product said was free and 404-ing when that key was stale.
+    if settings.llm_mode == "fake":
+        return FakeEmbeddings()
 
     if choice == "none":
         return NoEmbeddings()
