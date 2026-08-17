@@ -354,29 +354,29 @@ Status as of 2026-08-16. Phases 0–6 are landed; Phase 7 is partial.
 - [x] Every deleted element is deleted because it carried no meaning — listed, not
       silently dropped
 
-### Phase 7 — what is done, and what is left
+### Phase 7 — done
 
-Done: one status vocabulary (`lib/status.ts`, and `AWAITING_PLAN` is filterable — it was
-not); History filters by status and depth; the preview drawer is a real modal with a
-focus trap; the density preference is applied and consumed rather than merely stored.
+One status vocabulary (`lib/status.ts`; `AWAITING_PLAN` is filterable — it was not).
+History filters by status, depth, **verified-citation rate** and **model**. `LiveFeed`'s
+nine detail blocks are four semantic groups (Reasoning · Evidence · Verdict · Draft) with
+a feed-local density toggle. The preview drawer is a real modal with a focus trap. The
+density preference is applied and consumed rather than merely stored. `docs/product/
+01_Product_Vision.md` carries the §0 positioning.
 
-Left, and why each is its own unit:
+### What is left, and why none of it can be done from a checkout
 
-- **`LiveFeed`: 9 detail blocks → 4 semantic groups (Reasoning · Evidence · Verdict ·
-  Draft).** A 403-line rewrite of the app's most-watched surface. It deserves a focused
-  pass rather than the tail end of a long one.
-- **History filters by verified-citation rate and by model.** `SessionSummary` carries
-  neither: the citation rate is computed from evidence the summary does not include, and
-  `model_routing` is on the detail only. Needs the list response to grow first.
-- **`docs/product/01_Product_Vision.md`** — §0 of this plan (why replace Scholar /
-  NotebookLM) still lives only here.
-- **`README.md` + `docs/screenshots/`** — `npm run screenshots` needs the full running
-  stack; cannot be regenerated from a checkout alone.
 - **`npm run e2e`** — the specs for the design gate (journey 0) and preview (journey 6)
-  are written but **unexecuted**; they need Docker.
+  are written and **unexecuted**; they need the full Docker stack.
+- **`README.md` + `docs/screenshots/`** — `npm run screenshots` drives a running app.
+- **Desktop bundle launched and ~180 MB** — needs `npm run tauri build` on a machine
+  with the Rust/Tauri toolchain. A bundle that has not been launched is not verified
+  (AGENTS.md), and the last three times this row was wrong, all three copies were.
 
-### Still open outside Phase 7
+### Follow-ups worth their own unit
 
-- **Report chat 404s on the desktop build.** The sidecar implements no chat endpoints,
-  while `ChatPanel.tsx` renders on desktop and POSTs to one. Pre-existing, verified by
-  enumerating the sidecar's routes, and recorded in AGENTS.md's two-hosts list.
+- **Project chat on desktop.** Report chat now exists on the sidecar; `/threads` does
+  not, and cannot until project memory has a non-pgvector story. Currently stated in the
+  UI rather than hidden.
+- **`citation_resolution_rate` has no backfill.** Existing completed sessions read
+  `Not measured`, which is honest but means the new filter is empty until new runs land.
+  A one-off backfill command could compute it from stored `final_report` + `sources`.
