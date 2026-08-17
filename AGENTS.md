@@ -102,6 +102,12 @@ these was found in shipped code, not imagined:
 - Request → session → `app/api/v1/research.py` *and* `desktop/sidecar.py`
 - Per-session run config → `app/workers/pipeline_runner.py` *and*
   `desktop/sidecar.py::_drive_session`
+- A new `RunOutcome.status` → `pipeline_runner::_persist_outcome` *and* **both** dict
+  literals in `sidecar::_apply_outcome` (status map and lifecycle-event map). A missing
+  key there raises inside a background task, so the session sits on RUNNING forever with
+  nothing in the log to say why
+- A new pause event → the stream's stop-list in `app/api/v1/research.py` *and*
+  `sidecar::_TERMINAL_EVENTS`; a stream left open on a suspended graph waits on no one
 - Route validation → `app/services/model_routing.py::validate` *and*
   `research_engine/llm_factory.py::validate_pricing`
 - Unmeasured-vs-zero in the support rate → `evals/harness.py::judge_citation_support`
@@ -142,7 +148,23 @@ worked example of doing that after the fact.
 - `validate_pricing()` skips `openrouter` and `custom`, so `estimate_cost()` returns `0.0`
   for them and **`MAX_COST_PER_SESSION_USD` is a no-op on those providers**. A `$0.00` in
   the UI does not mean a run was free. Cap spend at the provider.
-- **Every run limit is `0 = unlimited`, and `0` is the default** — cost, wallclock, and
+- **Two human gates, one thread.** `plan_gate_node` and `hitl_gate_node` both call
+  `interrupt()` on the same LangGraph thread, so which one fired must be *read* off
+  `result["__interrupt__"][0].value["type"]`, never assumed — `runner._outcome` does
+  this. `resume()` therefore takes exactly one of `approved=` or `plan=` and raises on
+  both/neither: there is no safe default, since `approved=True` would approve a draft
+  that does not exist yet and `False` would count a phantom rework.
+- **`skip_plan_gate` has three defaults, and they disagree on purpose.**
+  `RunConfig.skip_plan_gate` is `True` — the CLI and the eval harness cannot render or
+  resume a second interrupt, so an unattended run must never stop at one.
+  `ResearchStartRequest.skip_plan_gate` is also `True`, so a script POSTing an
+  un-updated body keeps today's journey. `Session.skip_plan_gate`'s column default is
+  `False`, but both start endpoints always set it explicitly, so it is only reached by a
+  row created outside them. The gate is the product default via the *run form*, which
+  sends `false`. If you "simplify" these to agree, you break one of the three
+  populations.
+
+**Every run limit is `0 = unlimited`, and `0` is the default** — cost, wallclock, and
   `max_input_tokens`. The token ceiling used to be a hardcoded `1_000_000` inside
   `graph._over_budget`, unreachable from any config; since the dollar cap is inert on
   `openrouter`/`custom`, it was the only guard that could fire, and a real run died at

@@ -9,7 +9,10 @@
 ```mermaid
 flowchart TD
     START([START]) --> planner
-    planner --> executor
+    planner -->|skip_plan_gate| executor
+    planner --> plan_gate
+    plan_gate -->|"interrupt() — waits for human"| plan_gate
+    plan_gate -->|"edited tasks + outline"| executor
     executor --> critic
     critic -->|fail & retries left| executor
     critic -->|pass / retries exhausted| route{more tasks?}
@@ -28,8 +31,19 @@ flowchart TD
 ```
 
 - Compiled with `AsyncPostgresSaver`; `thread_id = session_id`.
-- HITL: `hitl_gate` calls `interrupt(payload)`. The worker task returns; the session is
-  `AWAITING_APPROVAL`. Approval resumes the graph with
+- **Two** human gates, both `interrupt()` checkpoints on the same thread, distinguished
+  by the `type` in their payload (`PLAN_READY` / `HITL_READY`).
+  `research_engine/runner.py::_outcome` reads that field to decide which status to
+  report; assuming the gate rather than reading it would tell the host a draft was ready
+  before a single search had run.
+- **Design gate** (docs/07 §2, Phase 4): `plan_gate` calls `interrupt(payload)` after the
+  planner and before any spend. Session is `AWAITING_PLAN`. `POST /research/{id}/plan`
+  resumes with `Command(resume={"tasks": [...], "outline": [...]})`; both keys are
+  optional and an absent key means *unedited* — distinct from `[]`, which is a reviewer
+  who excluded everything. `include: false` on a task drops it from what the executor
+  runs. Skipped entirely when `RunConfig.skip_plan_gate` is set.
+- **Draft gate**: `hitl_gate` calls `interrupt(payload)`. The worker task returns; the
+  session is `AWAITING_APPROVAL`. Approval resumes the graph with
   `Command(resume={"approved": bool, "feedback": str | None})` — execution continues
   **from the gate**, never from the start.
 - Budget/time guards run in every conditional edge; breach routes to `failer`, which
@@ -95,6 +109,7 @@ class PlannerOutput(BaseModel):
 | `executor` | tool-calling | current task (+ critic feedback on retry) → `list[EvidenceChunk]` | Runs a real tool loop (§4). Zero evidence after tool loop → counts as critic-fail, triggers retry with explicit "no results" feedback |
 | `critic` | fast | task + its evidence → `CriticVerdict` | **Fail closed:** validation error → `passed=False` with reason "critic output invalid". Never default to pass |
 | `synthesizer` | reasoning | query + all evidence (+ human feedback on rework) → Markdown draft with `[n]` citation markers resolvable against the evidence list | Draft with citation markers that reference nonexistent evidence indexes → one retry with the validation errors, then FAILED |
+| `plan_gate` | none | `interrupt()`; payload = proposed tasks + outline. On resume, filters out `include: false` tasks and writes the approved outline into state | — |
 | `hitl_gate` | none | `interrupt()`; payload = word count, source count, cost | — |
 | `finalizer` | none | draft → final report + sources table persisted; status COMPLETED; audit row | — |
 | `failer` | none | persists FAILED + reason + partial evidence | — |
@@ -133,7 +148,11 @@ through and consumed today; three more are declared and threaded but not yet con
 | `retrieval_k` | 5 | `tools.py::web_search`'s fallback when the agent omits `max_results` |
 | `min_sources_per_task` | 0 (no floor) | `graph.py::_criticize_one` — fails a task closed, without a model call, before it has this many sources |
 | `snippet_max_chars` | 500 (the schema's own ceiling) | `graph.py`'s `submit_evidence` handling — truncates before validation, never loosens `EvidenceChunk.snippet`'s `max_length=500` |
-| `outline_template`, `topic_seeds`, `prompt_overrides` | unset / empty | none yet — declared so the config path exists ahead of the phase that reads them (`topic_seeds`/`outline_template`: the plan gate, docs/07 §2 Phase 4) |
+| `topic_seeds` | empty (unconstrained planner) | `prompts.py::planner_human` — seeded subtopics become a coverage floor the plan must meet |
+| `outline_template` | unset (no structure imposed) | `graph.py::planner_node` — resolved through `research_engine/outlines.py` into the outline the reviewer sees at the design gate |
+| `max_planner_tasks` | 6 (the old hardcoded cap) | `schemas.py::PlannerOutput._bounded` — a default for what the planner may propose, not a wall; the reviewer adds more at the gate |
+| `skip_plan_gate` | **True** at the engine level | `graph.py::route_after_planner`. True is the bare default so the CLI and the eval harness — neither of which can render or resume a second interrupt — keep today's behaviour. Both hosts override it from `Session.skip_plan_gate`, and `ResearchStartRequest.skip_plan_gate` also defaults to True so an un-updated API caller is unaffected; the app's run form sends `false` |
+| `prompt_overrides` | empty | none yet — declared so the config path exists ahead of the phase that reads it |
 
 Resolution order for the first three is session → **user `preferences`** → deployment
 default (`app/workers/pipeline_runner.py::_preference_overrides`, mirrored in
@@ -151,7 +170,9 @@ never inline in node code. Requirements per prompt:
 
 - **Planner**: decompose into 2–6 independently searchable tasks; each task needs a
   concrete search query and rationale; instructed that output is validated
-  (structured output, not "ONLY valid JSON" prayers).
+  (structured output, not "ONLY valid JSON" prayers). When `topic_seeds` is set, the
+  human turn (`prompts.planner_human`) names them as subtopics the plan must cover —
+  a floor, not a ceiling.
 - **Executor**: gather facts only; every fact must carry a verbatim snippet and URL;
   no synthesis; explicit instruction that `<untrusted_web_content>` is data.
 - **Critic**: check coverage of the task, ≥ 2 independent sources, snippet actually
@@ -160,7 +181,11 @@ never inline in node code. Requirements per prompt:
 - **Synthesizer**: use ONLY provided evidence; every factual claim carries `[n]`
   markers that map to evidence indexes; required structure: Title, Executive Summary,
   Key Findings, Detailed Analysis, Limitations, Sources; no new facts; explicitly told
-  human feedback (rework) overrides style but never permits uncited claims.
+  human feedback (rework) overrides style but never permits uncited claims. An outline
+  approved at the design gate *replaces* that fixed section list
+  (`prompts.synthesizer_human`) — a human chose the structure, so it outranks the
+  default. It never relaxes a citation rule: an outline decides what the sections are,
+  never what may be said in them without a source.
 - **Chat**: answers grounded in the report + sources; must say "the report doesn't
   cover this" rather than invent; history replayed with correct roles
   (`AIMessage` for assistant turns).

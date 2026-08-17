@@ -20,7 +20,7 @@
 | id | UUID PK | |
 | user_id | UUID FK users ON DELETE CASCADE, NOT NULL | |
 | prompt | text NOT NULL | |
-| status | enum(`PENDING`,`RUNNING`,`AWAITING_APPROVAL`,`COMPLETED`,`FAILED`) NOT NULL | server_default `PENDING` |
+| status | enum(`PENDING`,`RUNNING`,`AWAITING_PLAN`,`AWAITING_APPROVAL`,`COMPLETED`,`FAILED`) NOT NULL | server_default `PENDING`. `AWAITING_PLAN` is the design gate (migration 0013 `ALTER TYPE ... ADD VALUE`); it is a separate value from `AWAITING_APPROVAL` because the two gates resume with different payloads |
 | research_depth | text NOT NULL CHECK in (`fast`,`balanced`,`comprehensive`) | |
 | draft_report | text NULL | |
 | final_report | text NULL | |
@@ -30,6 +30,10 @@
 | total_tokens_input / total_tokens_output | bigint NOT NULL default 0 | |
 | elapsed_seconds | numeric(10,2) NULL | |
 | rework_count | int NOT NULL default 0 | |
+| plan_json / outline_json | JSONB NULL | The design the reviewer **approved** (`{tasks: [...]}` / `{sections: [...]}`), not the planner's raw proposal — written over at the gate, same reasoning as `model_routing` snapshotting what actually ran |
+| plan_approved_at | timestamptz NULL | Null while `AWAITING_PLAN`; stamped by `POST /{id}/plan` |
+| skip_plan_gate | bool NOT NULL default false | Both start endpoints always set this explicitly from the request, whose own default is the opposite (`true`, skip) so an un-updated caller is unaffected |
+| topic_seeds / outline_template | JSONB NULL / varchar(64) NULL | What was asked for at start time, as opposed to what was decided at the gate. Persisted because `RunConfig` is rebuilt from this row on every resume |
 | created_at / updated_at | timestamptz | |
 
 Indexes: `(user_id, created_at DESC)` composite (history query), `status`.
@@ -39,7 +43,7 @@ Indexes: `(user_id, created_at DESC)` composite (history query), `status`.
 |---|---|---|
 | id | bigserial PK | doubles as SSE `Last-Event-ID` |
 | session_id | UUID FK sessions ON DELETE CASCADE | |
-| event_type | text NOT NULL | `agent_log`, `HITL_READY`, `COMPLETED`, `FAILED` |
+| event_type | text NOT NULL | `agent_log`, `PLAN_READY`, `HITL_READY`, `COMPLETED`, `FAILED` |
 | agent_name | text NULL | planner/executor/critic/synthesizer/system |
 | payload | JSONB NOT NULL | event body (schema §4) |
 | created_at | timestamptz NOT NULL server_default now() | |
@@ -159,10 +163,13 @@ All endpoints cookie-authed unless noted. Errors follow RFC-7807-style
 ### Research
 | Endpoint | Req | Resp |
 |---|---|---|
-| `POST /research` | `{query (10..2000 chars), depth}` | 202 `{session_id, status}` |
+| `POST /research` | `{query (10..2000 chars), depth, …, skip_plan_gate=true, topic_seeds=[], outline_template=null}` | 202 `{session_id, status}` |
 | `GET /research` | `?page&limit&status` | paginated slim list — **no report bodies**; `message_count` via SQL count |
 | `GET /research/{id}` | — | full session incl. draft/final report + sources |
 | `GET /research/{id}/stream` | SSE | replay persisted logs (after `Last-Event-ID` if given), then live tail; closes after terminal event |
+| `GET /research/outline-templates` | — | the four report structures, served from `research_engine/outlines.py` so the picker previews what the synthesizer is handed. Declared **before** `/{id}` — that route parses its segment as a UUID and would 422 this path |
+| `GET /research/{id}/plan` | — | `{tasks, outline, approved_at}`; **404** when `plan_json` is null (the run never used the gate) rather than an empty plan — unmeasured is not zero |
+| `POST /research/{id}/plan` | `{tasks?: [...], outline?: [...]}` | 200 the stored plan; 409 unless `AWAITING_PLAN`; 422 if nothing is left included. Absent `tasks` means *unedited*, `[]` means "excluded everything". Writes `audit_log` (`plan_approved`) then enqueues `resume_plan_gate` |
 | `POST /research/{id}/approve` | `{approved: bool, feedback: str|null}` | 200; 409 unless `AWAITING_APPROVAL`; writes `audit_log`; enqueues resume |
 | `GET /research/{id}/export.md` / `export.pdf` | — | file download (COMPLETED only) |
 
@@ -197,6 +204,12 @@ Every event: `id: <agent_logs.id>` line + `data: <json>` line.
 {"type": "agent_log", "id": 123, "ts": "…", "agent": "executor",
  "message": "Searching: 'EU AI Act Article 14 obligations'",
  "detail": {"task_id": 2, "tool": "web_search"}}
+
+// PLAN_READY — the design gate. `cost_usd` is 0.00 on an ordinary run because the gate
+// sits before the executor; it is reported rather than assumed, so a resumed run that
+// reaches here shows a real number instead of a hardcoded zero.
+{"type": "PLAN_READY", "id": 128, "ts": "…",
+ "data": {"task_count": 5, "outline_section_count": 4, "cost_usd": 0.0}}
 
 // HITL_READY
 {"type": "HITL_READY", "id": 130, "ts": "…",

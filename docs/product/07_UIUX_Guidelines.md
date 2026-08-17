@@ -135,24 +135,31 @@ Six steps, no more — an arbitrary size that doesn't match one of the above (`t
 
 ## 3. Session Page — Core Lifecycle
 
-One page, five states driven by the LangGraph session status:
+One page, six states driven by the LangGraph session status:
 
 ### 1. PENDING / RUNNING — "Brain Monitor"
-- **Pipeline Rail**: Planner → Executor → Critic → Synthesizer with square 7×7 numbered nodes and hairline connectors.
+- **Pipeline Rail**: Planner → **Plan review** → Executor → Critic → Synthesizer → Review, square 7×7 numbered nodes and hairline connectors. Both review nodes are presentational and derived from `status` — the gates are `interrupt()` checkpoints, not agents, so nothing emits them into the stream. They share `--agent-hitl`: it is the human's hue and both nodes are the same kind of step, with position, number and label carrying the distinction (colour is never the sole carrier).
 - **Live Feed**: Monospace log stream with fixed timestamp/agent columns, auto-scroll with pause-on-scroll.
 - **Status Bar**: Monospace tabular elapsed time, running cost, and task progress count.
 - **SSE Stream**: Connect on mount, replay history first, auto-reconnect with `Last-Event-ID`, and fallback polling.
 
-### 2. AWAITING_APPROVAL — The Review Gate
+### 2. AWAITING_PLAN — The Design Gate (docs/07 §2, Phase 4)
+- **Split View**: the editable research plan and report structure beside the decision panel, mirroring the draft gate so the two read as one pattern rather than two features.
+- **Plan editor**: add / remove / reorder / reword subtopics, and an include toggle per task. Excluding a task removes it from the request entirely, not just flags it — a review whose edits do not reach the executor is a rubber stamp.
+- **Outline picker**: four templates (Literature Review, Systematic Comparison, Methods Survey, Custom) fetched from `GET /research/outline-templates`, **never** hardcoded in the component — a copy in TypeScript would silently promise a structure the report never used. Picking one replaces the section list; the sections stay editable afterwards.
+- **The pitch**: "the agent picked 6 queries" becomes "these are my six subtopics, in my review's structure" — and it is the last moment before the run spends anything, which is why the panel shows spend-to-date rather than an estimate it cannot honestly make.
+- **Opt-out, but only for the app**: the run form's "Review the research plan before searching" defaults to on and sends `skip_plan_gate: false` explicitly. The API's own default is the opposite, so a script that has not been updated keeps today's journey.
+
+### 3. AWAITING_APPROVAL — The Review Gate
 - **Split View**: Draft report (rendered academic prose with citations) beside the review decision panel.
 - **Decision Panel**: Monospace metrics, source count, rework round budget (`2 of 3 used`), Approve button, and rework feedback textarea.
 - **Skeleton Fallback**: Square skeleton placeholder if draft is still streaming.
 
-### 3. COMPLETED — Report & Grounded Follow-up
+### 4. COMPLETED — Report & Grounded Follow-up
 - **Report View**: Academic typography (`font-serif` title), booktabs tables, source citation popovers, metrics row (duration, cost, tokens, sources), and export actions (Copy, `.md`, `.pdf`, `.bundle.json`).
 - **Follow-up Chat**: Square chat card with grounded assistant replies streaming via buffered SSE.
 
-### 4. FAILED — Research Exception
+### 5. FAILED — Research Exception
 - Square crimson error block, error message reason, partial sources gathered before failure, and "Start new research from this query" restart action.
 
 ---

@@ -10,6 +10,7 @@ import { ApprovalGate } from "@/components/session/ApprovalGate";
 import { FailedState } from "@/components/session/FailedState";
 import { LiveFeed } from "@/components/session/LiveFeed";
 import { PipelineRail } from "@/components/session/PipelineRail";
+import { PlanGate } from "@/components/session/PlanGate";
 import { ReportView } from "@/components/session/ReportView";
 import { StatusBar } from "@/components/session/StatusBar";
 import { useCancelSession, useSession } from "@/hooks/queries";
@@ -160,6 +161,21 @@ export function SessionView({ sessionId }: { sessionId: string }) {
           <div className="h-[28rem]">
             <LiveFeed events={stream.events} state={stream.state} />
           </div>
+        </div>
+      )}
+
+      {status === "AWAITING_PLAN" && (
+        <div className="space-y-4">
+          {/* The rail stays up here for the same reason it does at the draft gate: its
+              Plan review node is the active step, and that step is the user's. */}
+          <div className="card">
+            <PipelineRail
+              events={stream.events}
+              status={session.status}
+              modelRouting={session.model_routing}
+            />
+          </div>
+          <PlanGate session={session} />
         </div>
       )}
 

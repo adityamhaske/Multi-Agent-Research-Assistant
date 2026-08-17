@@ -54,6 +54,12 @@ export default function DashboardPage() {
   const [depth, setDepth] = useState<ResearchDepth>("balanced");
   const [corpusMode, setCorpusMode] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
+  // The research design gate (docs/07 §2, Phase 4). On by default *here* — this is where
+  // the product's "second gate after the planner, opt-out not opt-in" decision lives. The
+  // API's own default is the opposite (skip), so an un-updated caller keeps today's
+  // journey; that is why this has to be sent explicitly on every run rather than omitted
+  // when true.
+  const [planGate, setPlanGate] = useState(true);
   // null = use the saved per-role routing (user preference, else deployment default).
   const [modelRouting, setModelRouting] = useState<ModelRouting | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -72,6 +78,9 @@ export default function DashboardPage() {
     demoMode ? "Demo" : null,
     corpusMode ? "Corpus only" : null,
     modelRouting ? "Custom model" : null,
+    // Named only when switched off: the disclosure reports departures from the default,
+    // and the gate being on *is* the default.
+    planGate ? null : "No plan review",
   ].filter(Boolean);
 
   const submit = async (e: React.FormEvent) => {
@@ -85,6 +94,7 @@ export default function DashboardPage() {
         model_routing: modelRouting,
         corpus_mode: corpusMode,
         demo: demoMode,
+        skip_plan_gate: !planGate,
       });
       router.push(sessionHref(res.session_id));
     } catch (err) {
@@ -271,6 +281,24 @@ export default function DashboardPage() {
                   <span className="block text-xs text-text-muted">
                     No web search. Evidence comes only from this project&apos;s documents, using
                     a local model.
+                  </span>
+                </span>
+              </label>
+
+              <label className="flex cursor-pointer items-start gap-3 border border-border bg-bg-surface p-3">
+                <input
+                  type="checkbox"
+                  checked={planGate}
+                  onChange={(e) => setPlanGate(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 border-border accent-[var(--accent)]"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-text-primary">
+                    Review the research plan before searching
+                  </span>
+                  <span className="block text-xs text-text-muted">
+                    Pauses after the planner so you can edit the subtopics and pick the
+                    report structure. Nothing is spent until you approve it.
                   </span>
                 </span>
               </label>

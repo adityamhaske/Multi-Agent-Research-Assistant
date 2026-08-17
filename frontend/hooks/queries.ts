@@ -14,6 +14,9 @@ import type {
   MemoryStatus,
   ModelCatalog,
   ModelRouting,
+  OutlineSection,
+  OutlineTemplate,
+  PlanTask,
   Project,
   ProjectListResponse,
   ProfileUpdate,
@@ -23,6 +26,7 @@ import type {
   RoutingResponse,
   SessionDetail,
   SessionListResponse,
+  SessionPlan,
   SessionSummary,
   ThreadListResponse,
   ThreadMessage,
@@ -42,6 +46,8 @@ export const queryKeys = {
   sessions: (page: number, archived = false, projectId?: string | null) =>
     ["sessions", page, archived, projectId ?? null] as const,
   session: (id: string) => ["session", id] as const,
+  plan: (id: string) => ["plan", id] as const,
+  outlineTemplates: ["outline-templates"] as const,
   chat: (id: string) => ["chat", id] as const,
   threads: (projectId: string) => ["threads", projectId] as const,
   threadMessages: (threadId: string) => ["thread-messages", threadId] as const,
@@ -354,8 +360,52 @@ export function useStartResearch() {
       corpus_mode?: boolean;
       /** Run on scripted models and fixture sources — no provider, no key (docs/17 §6.2). */
       demo?: boolean;
+      /**
+       * Research design gate (docs/07 §2, Phase 4). The API defaults this to `true`
+       * (skip) so an un-updated caller keeps today's journey; the run form therefore
+       * has to send `false` to *get* the gate, which is the product default here.
+       */
+      skip_plan_gate?: boolean;
+      topic_seeds?: string[];
+      outline_template?: string | null;
     }) => apiFetch<ResearchStartResponse>("/research", { method: "POST", body }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
+  });
+}
+
+// ─── Research design gate (docs/07 §2, Phase 4) ───────────────────────────────────
+
+export function useSessionPlan(id: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.plan(id),
+    queryFn: () => apiFetch<SessionPlan>(`/research/${id}/plan`),
+    enabled: enabled && Boolean(id),
+    // A run that skipped the gate 404s here by design — that is an answer, not a
+    // transient failure, so retrying it just delays the empty state.
+    retry: false,
+    staleTime: Infinity,
+  });
+}
+
+export function useSubmitPlan(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { tasks?: PlanTask[] | null; outline?: OutlineSection[] | null }) =>
+      apiFetch<SessionPlan>(`/research/${id}/plan`, { method: "POST", body }),
+    onSuccess: (plan) => {
+      qc.setQueryData(queryKeys.plan(id), plan);
+      qc.invalidateQueries({ queryKey: queryKeys.session(id) });
+    },
+  });
+}
+
+export function useOutlineTemplates(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.outlineTemplates,
+    queryFn: () => apiFetch<OutlineTemplate[]>("/research/outline-templates"),
+    enabled,
+    // Static engine data — it changes when the app is redeployed, not while it is open.
+    staleTime: Infinity,
   });
 }
 

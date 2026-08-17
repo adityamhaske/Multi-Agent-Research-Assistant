@@ -6,6 +6,13 @@
 export type SessionStatus =
   | "PENDING"
   | "RUNNING"
+  /**
+   * Paused at the research design gate (docs/07 §2, Phase 4) — the planner has proposed
+   * subtopics and an outline and is waiting on the reviewer, before any search has spent
+   * anything. Distinct from AWAITING_APPROVAL because the two resume with different
+   * payloads: this one takes an edited plan, that one takes an approve/rework decision.
+   */
+  | "AWAITING_PLAN"
   | "AWAITING_APPROVAL"
   | "COMPLETED"
   | "FAILED";
@@ -259,7 +266,14 @@ export interface MemoryStatus {
  * `id:` line carries the durable agent_logs row id used for Last-Event-ID replay.
  */
 export interface AgentEvent {
-  type: "connected" | "agent_log" | "HITL_READY" | "COMPLETED" | "FAILED" | string;
+  type:
+    | "connected"
+    | "agent_log"
+    | "PLAN_READY"
+    | "HITL_READY"
+    | "COMPLETED"
+    | "FAILED"
+    | string;
   id?: number;
   ts?: string | null;
   agent?: AgentName | null;
@@ -347,4 +361,46 @@ export interface PullProgress {
   completed: number | null;
   total: number | null;
   error: string | null;
+}
+
+/**
+ * The research design gate (docs/07 §2, Phase 4). Mirrors
+ * `backend/app/schemas/research.py::PlanTaskSchema` — the reviewer-facing shape of a
+ * research task, which is deliberately not the engine's `ResearchTask`: run state like
+ * `status` never crosses to the client, and `include` never crosses back into the graph.
+ */
+export interface PlanTask {
+  id: number;
+  query: string;
+  rationale: string;
+  subtopics: string[];
+  /** False drops this task from the run. The gate filters on it before the executor. */
+  include: boolean;
+  source_hint: string | null;
+}
+
+export interface OutlineSection {
+  title: string;
+  description: string;
+}
+
+export interface SessionPlan {
+  session_id: string;
+  status: SessionStatus;
+  tasks: PlanTask[];
+  outline: OutlineSection[];
+  /** Null while still AWAITING_PLAN — the reviewer has not decided yet. */
+  approved_at: string | null;
+}
+
+/**
+ * One report structure offered at the gate, served by `GET /research/outline-templates`.
+ * The sections come from `research_engine/outlines.py` rather than being duplicated
+ * here, so what the picker previews is what the synthesizer is actually handed.
+ */
+export interface OutlineTemplate {
+  id: string;
+  label: string;
+  summary: string;
+  sections: OutlineSection[];
 }

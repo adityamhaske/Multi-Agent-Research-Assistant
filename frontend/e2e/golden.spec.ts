@@ -71,14 +71,39 @@ async function registerAndLogin(page: Page): Promise<string> {
   return email;
 }
 
-/** Submit a research query and wait for the human-review gate. */
-async function startResearchToGate(page: Page): Promise<void> {
+/**
+ * Submit a research query and wait for the *design* gate (docs/07 §2, Phase 4).
+ *
+ * The run form ships with plan review on, so every run now pauses here first. Split out
+ * from `startResearchToGate` so one journey can edit the plan while the others take the
+ * default path through it.
+ */
+async function startResearchToPlanGate(page: Page): Promise<void> {
   await page.getByLabel(/research question/i).fill(QUERY);
   await page.getByRole("button", { name: /start research/i }).click();
   await page.waitForURL(/\/session\/[0-9a-f-]{36}/);
 
-  // The session opens in the live-monitor state before any result exists.
-  await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /design gate/i })).toBeVisible({
+    timeout: 60_000,
+  });
+  // The planner's proposal is editable, and nothing has been searched yet.
+  await expect(page.getByRole("heading", { name: /research plan/i })).toBeVisible();
+}
+
+/** Approve the proposed plan unedited, letting the run proceed to the executor. */
+async function approvePlan(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /approve & start research/i }).click();
+}
+
+/** Submit a research query, pass the design gate, and wait for the draft-review gate. */
+async function startResearchToGate(page: Page): Promise<void> {
+  await startResearchToPlanGate(page);
+  await approvePlan(page);
+
+  // The session returns to the live-monitor state before any draft exists.
+  await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({
+    timeout: 60_000,
+  });
 
   // SSE delivers pipeline events into the feed (replayed from agent_logs on connect).
   await expect(page.getByLabel("Agent activity log")).toContainText(
@@ -90,6 +115,34 @@ async function startResearchToGate(page: Page): Promise<void> {
     timeout: 150_000,
   });
 }
+
+test.describe("Golden journey 0 — the research design gate", () => {
+  test("edits the plan before any search runs, then reaches the draft", async ({ page }) => {
+    await registerAndLogin(page);
+    await startResearchToPlanGate(page);
+
+    // Drop a subtopic and reword the first. Both must change what is researched — a gate
+    // whose edits do not reach the executor is a rubber stamp (backend
+    // tests/test_plan_gate.py asserts the same claim below the HTTP layer).
+    const first = page.getByLabel(/search query for task 1/i);
+    await first.fill("how retrieval grounding is evaluated");
+
+    const checkboxes = page.getByRole("checkbox", { name: /^Include / });
+    if ((await checkboxes.count()) > 1) await checkboxes.nth(1).uncheck();
+
+    await approvePlan(page);
+
+    // Research actually runs after the gate, and the executor works the edited query.
+    await expect(page.getByLabel("Agent activity log")).toContainText(
+      /how retrieval grounding is evaluated/i,
+      { timeout: 60_000 },
+    );
+    await expect(page.getByRole("heading", { name: /review gate/i })).toBeVisible({
+      timeout: 150_000,
+    });
+    await expect(page.getByRole("heading", { name: /draft report/i })).toBeVisible();
+  });
+});
 
 test.describe("Golden journey 1 — research reaches the gate", () => {
   test("submits a query, streams pipeline events, and renders a cited draft", async ({ page }) => {
