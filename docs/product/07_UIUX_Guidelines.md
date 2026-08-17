@@ -151,6 +151,12 @@ reader stops checking sources. PDF renders through `<object>` off the download r
 one kind served `inline`); Markdown through the same `react-markdown` + `remark-gfm`
 pipeline reports use; text in a `<pre>`; **HTML in `<iframe sandbox="" srcdoc={…}>`**.
 
+The drawer is a real modal: `aria-modal="true"` is backed by a focus trap, focus returns
+to the row or citation that opened it, and Escape closes. The first version claimed
+`aria-modal` without trapping — a keyboard user tabbed straight out into a page their
+screen reader had been told was inert — which is why `PreviewDrawer.test.tsx` pins the
+cycle rather than assuming it.
+
 The sandbox is the boundary, not a sanitizer. `sandbox=""` withholds every capability —
 no `allow-scripts`, no `allow-same-origin`, and never both, since together they let a
 frame remove its own sandbox. Raw-HTML rendering stays banned in React and CI greps for
@@ -188,6 +194,24 @@ One page, six states driven by the LangGraph session status:
 - Square crimson error block, error message reason, partial sources gathered before failure, and "Start new research from this query" restart action.
 
 ---
+
+## 3b. One status vocabulary (docs/07 §2, Phase 7)
+
+`lib/status.ts` is the single home for every status label, token and urgency flag. The
+badge, the history filters and the session card all derive from it; none restates it.
+`Record<SessionStatus, StatusMeta>` makes divergence a type error, which is the point —
+the hand-written filter list had already fallen behind the badge (`AWAITING_PLAN` was
+missing, so a run parked at the design gate could be seen and not filtered for).
+
+Both human gates share the amber token. To someone scanning a list they are one urgency
+class — "waiting on you" — and the *label* says which decision is owed. A hue per gate
+would encode a difference in urgency that does not exist, and would spend a sixth
+contrast-audited colour saying it.
+
+History filters on status and depth as two independent controls, not one row of tabs:
+tabs would imply that choosing a depth clears the status. Filtering by verified-citation
+rate and by model is **[PLANNED]** — `SessionSummary` carries neither, and both need the
+list response to grow before a client-side filter can exist.
 
 ## 4. Accessibility & Quality Bar
 
