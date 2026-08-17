@@ -88,6 +88,15 @@ Server and desktop are **parallel implementations of the same contract**. Every 
 behaviour has two homes, and the second one gets forgotten. Not hypothetical — each of
 these was found in shipped code, not imagined:
 
+> **The frontend now has three build targets, not two.** `next.config.ts` branches on
+> `NEXT_PUBLIC_PAGES` (static export for GitHub Pages, `basePath` set), then
+> `NEXT_PUBLIC_DESKTOP` (static export for Tauri), then the standalone server image. A
+> flag read at build time collapses to dead code in the other two, which is what keeps
+> them isolated — but it also means **a branch is only exercised by the target that
+> builds it**. `npm run build`, `build:desktop` and `build:pages` are three separate
+> checks, and CI runs the first two. Anything touching `app/(site)/` or `app/layout.tsx`
+> needs all three run locally.
+
 | Behaviour | Copies | How many were wrong |
 |---|---|---|
 | `localhost` → `host.docker.internal` | 3 | 2 |
@@ -207,9 +216,61 @@ Note the backend lint path **includes `evals/`** and excludes `desktop/`, `alemb
 repo-root scripts. A lint-clean `app/` is not a green build.
 
 The frontend job also runs four bespoke greps that fail the build (see
-`.github/workflows/ci.yml`): no `dangerouslySetInnerHTML`/`rehype-raw`, no hardcoded hex
-colors, no hardcoded backend URLs, and no web-storage access without an inline
+`.github/workflows/ci.yml`): no raw-HTML React escape hatches, no hardcoded hex colors,
+no hardcoded backend URLs, and no web-storage access without an inline
 `ci-allow-web-storage: <reason>` marker.
+
+**Those greps are GNU grep, and your shell's `grep` may not be.** On a machine where
+`grep` resolves to `ugrep` — a shell function, an alias, a Homebrew shim — it can report
+*no match where CI finds one*. A whole session's worth of "all four greps clean" was
+wrong for exactly this reason while `main` sat red. Verify with `/usr/bin/grep`, running
+the commands from `ci.yml` verbatim.
+
+**The guards cannot tell a use from a mention.** They are plain greps over source, so a
+*comment* naming a banned token fails the build as surely as calling one. `main` was red
+for a fortnight because `DocumentPreview.tsx` explained, in prose, which two APIs are
+banned. Describe the rule without writing the names; that file now says so in place.
+
+A raw control character in a source file compounds this: GNU grep prints
+`Binary file … matches` instead of the offending line, so the failure names the file and
+hides the reason. Prefer a `\u0000` escape sequence over an embedded NUL byte.
+
+## A release is not finished until the website says so
+
+The public site (`frontend/app/(site)/`, published to GitHub Pages) is **generated from
+the app**, so it cannot drift about *how the product works* — the docs it renders are
+`docs/`, the comparison is `lib/comparison.ts`. But three things on it are hand-written
+and go stale silently, because nothing fails when they do:
+
+| After tagging a release | Update | Why it rots |
+|---|---|---|
+| Always | `frontend/lib/releases.ts` | The releases page and its "what improved" list. The download button reads `latestRelease()` for its version, so a missing entry also means the button offers the *previous* installer. |
+| Always | `README.md` download badge | It pointed at v1.0.1 while v1.0.2 was current. |
+| When behaviour changed | `README.md` pipeline diagram, `lib/comparison.ts` | The diagram claimed one human gate for weeks after the design gate shipped. |
+
+The predecessor of this site was one hand-maintained `site/index.html`. It described a
+product that no longer existed, and nobody noticed, because updating it was a separate
+act of memory from changing the code. That is the failure this section exists to prevent
+— **the generated pages are safe; the hand-written data next to them is not.**
+
+Check every page after a deploy, not just the one you changed: `/`, `/why`, `/docs`,
+`/releases`, `/download`. They share a layout and a nav, so a change to either breaks all
+five at once.
+
+**Pages-specific traps, all of which have bitten:**
+
+- The site is served from `/<repo>/`, not a domain root. `basePath` covers `<Link>` and
+  Next's own assets but **not** `metadata.icons` — the favicon shipped pointing at the
+  domain root and 404'd while the file itself served fine one level down.
+- `build` and `deploy` are separate jobs in `pages.yml`. In one job, re-running after a
+  failed deploy re-uploads the artifact and `deploy-pages` refuses with
+  `Artifact count is 2` — so the retry for a transient outage is itself guaranteed to
+  fail. Pages returned 503 for three deploys straight the day that was found.
+- `.nojekyll` is mandatory. Pages runs Jekyll by default and silently drops every path
+  beginning with an underscore, which is all of `_next/`.
+- `build:pages` must **not** run `prepare-session-routes`: it recreates
+  `app/(app)/session`, whose web variant has no `generateStaticParams` and fails the
+  export outright.
 
 ## Local development
 
