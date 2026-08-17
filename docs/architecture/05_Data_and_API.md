@@ -214,8 +214,8 @@ Web-scoped answers return the sources they found on the `connected` frame, numbe
 stated to the model as a gap — never swallowed into an empty grounding block the model
 would paper over.
 
-**Desktop:** the sidecar implements none of this, because it implements no chat at all
-(see AGENTS.md's two-hosts list). Follow-up chat is server-only today.
+**Desktop:** the sidecar implements report chat with the same scope contract. Project
+chat (`/threads`) stays absent — project memory is pgvector-only. Follow-up chat is server-only today.
 
 ### Projects & project chat (docs/14 §8)
 | Endpoint | Req | Resp |

@@ -260,3 +260,42 @@ class _FakeStore:
                 "content": "Corpus excerpt about recall.",
             }
         ]
+
+
+@pytest.mark.asyncio
+async def test_an_empty_corpus_is_a_note_but_a_remote_embedder_is_still_a_refusal():
+    """These two arrive as the *same* exception type and must not be handled the same.
+
+    `CorpusStore.search` raises `RuntimeError("The corpus is empty…")`, and
+    `EmbeddingsUnavailable` **subclasses RuntimeError**. A lone `except RuntimeError`
+    therefore turns "your question would have left this machine" into a shrug — which is
+    what the first version of this handler did, caught by
+    `test_corpus_scope_refuses_a_remote_embedder…` going red. Pinned here so the two
+    clauses cannot be reordered back.
+    """
+
+    class _Empty:
+        async def search(self, query: str, max_results: int) -> list[dict]:
+            raise RuntimeError("The corpus is empty. Ingest documents before running.")
+
+    grounding = await chat_scope.gather(
+        "corpus",
+        query="q",
+        report=None,
+        report_sources=[],
+        memory_excerpts=None,
+        store_factory=lambda: _Empty(),
+    )
+    assert grounding.sources == []
+    assert any("empty" in n.lower() for n in grounding.notes), "an empty corpus is answerable"
+
+    # The airgap refusal still escapes as itself, for the caller to turn into a 400.
+    with pytest.raises(EmbeddingsUnavailable):
+        await chat_scope.gather(
+            "corpus",
+            query="q",
+            report=None,
+            report_sources=[],
+            memory_excerpts=None,
+            store_factory=lambda: _FakeStore(_Embedder(is_local=False)),
+        )

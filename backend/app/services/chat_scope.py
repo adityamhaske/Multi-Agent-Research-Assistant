@@ -27,6 +27,7 @@ from typing import Literal
 
 import structlog
 
+from research_engine.embeddings import EmbeddingsUnavailable
 from research_engine.runconfig import get_run_config, reset_run_config, set_run_config
 
 logger = structlog.get_logger()
@@ -124,8 +125,25 @@ async def corpus_excerpts(*, store_factory, query: str, k: int = _K) -> list[dic
     token = set_run_config(replace_corpus_mode(get_run_config(), True))
     try:
         return await store.search(query, k)
+    except EmbeddingsUnavailable:
+        # Re-raised untouched, and this clause must stay ABOVE the RuntimeError one:
+        # `EmbeddingsUnavailable` subclasses RuntimeError, so a lone `except RuntimeError`
+        # silently turns "your question would have left this machine" into a shrug. The
+        # airgap refusal is the user's decision to make, never a degradation to absorb.
+        raise
+    except RuntimeError as e:
+        # `CorpusStore.search` raises for "the corpus is empty" and for "indexed with a
+        # different embedding model". Both are correct for a *research run*, which must
+        # fail visibly rather than silently research nothing — but a chat turn is a
+        # question, and the honest answer is "there is nothing here to read", which the
+        # caller turns into a note the model is told about.
+        raise CorpusUnreadable(str(e)) from e
     finally:
         reset_run_config(token)
+
+
+class CorpusUnreadable(Exception):
+    """The corpus exists but cannot answer: empty, or indexed by another model."""
 
 
 def replace_corpus_mode(cfg, value: bool):
@@ -184,12 +202,18 @@ async def gather(
             notes.append("No finished research is available to read for this question.")
 
     if _wants(scope, "corpus"):
-        results = await corpus_excerpts(store_factory=store_factory, query=query)
+        try:
+            results = await corpus_excerpts(store_factory=store_factory, query=query)
+        except CorpusUnreadable as e:
+            results = []
+            # The reason verbatim — "empty" and "indexed by a different model" have
+            # different fixes, and only one of them is "upload something".
+            notes.append(str(e))
         if results:
             rendered, added = _format_sources(results, len(sources) + 1)
             blocks.append(f"--- CORPUS EXCERPTS (your uploaded documents) ---\n{rendered}")
             sources.extend(added)
-        else:
+        elif not notes:
             # Distinguished from "found nothing relevant" on purpose: an empty project
             # and an unhelpful search have different fixes, and only one of them is the
             # user's to make.

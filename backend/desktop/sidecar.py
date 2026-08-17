@@ -63,6 +63,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.models import Base
 from app.models.agent_log import AgentLog
+from app.models.chat_message import ChatMessage
 from app.models.memory_chunk import MemoryChunk
 from app.models.project import Project
 from app.models.session import Session, SessionStatus
@@ -70,6 +71,8 @@ from app.models.user import User
 from app.schemas.project import ProjectCreateRequest, ProjectListResponse, ProjectResponse
 from app.schemas.research import (
     ApprovalRequest,
+    ChatMessageSchema,
+    ChatRequest,
     OutlineSectionSchema,
     OutlineTemplateSchema,
     PlanDecisionRequest,
@@ -82,14 +85,24 @@ from app.schemas.research import (
     SessionSummary,
 )
 from app.services import local_llm, provider_health
+from app.services import chat_scope
 from app.services.sse import SSE_HEADERS
-from research_engine import bundle, catalog, outlines
+from research_engine import bundle, catalog, outlines, prompts
 from research_engine.corpus import CorpusStore
 from research_engine.documents import MAX_DOCUMENT_BYTES
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
 from research_engine.embeddings import EmbeddingsUnavailable, LocalEmbeddings
+from research_engine.llm_factory import get_llm, text_of
 from research_engine.events import make_event
 from research_engine.local import SqliteCache, load_env_file
-from research_engine.runconfig import DEFAULT_MODELS, ROLES, RunConfig
+from research_engine.runconfig import (
+    DEFAULT_MODELS,
+    ROLES,
+    RunConfig,
+    reset_run_config,
+    set_run_config,
+)
 from research_engine.runner import RunOutcome, resume, run
 
 logger = structlog.get_logger()
@@ -1281,6 +1294,135 @@ def create_sidecar_app(
             _drive_session(session_id, approved=payload.approved, feedback=payload.feedback)
         )
         return {"message": "Approved. Finalizing." if payload.approved else "Rework requested."}
+
+    # ── Follow-up chat (docs/07 §2, Phase 5) ───────────────────────────────────
+    # Second home of `app/api/v1/chat.py`. The sidecar had none of this, while the
+    # desktop build rendered `ChatPanel.tsx` and POSTed to it — a shipped control that
+    # 404'd. Three things differ from the server and nothing else should:
+    #   * keys come from the OS keychain, not a `crypto.decrypt` of a DB column;
+    #   * no rate-limit dependency — `enforce_chat_rate_limit` needs `get_current_user`
+    #     and Redis, and this host is one local user with neither;
+    #   * the corpus is a single `corpus.sqlite` for the whole app, already built at
+    #     boot, rather than one file per project. Reuse it; do not rebuild a path.
+
+    @api.get("/research/{session_id}/chat", response_model=list[ChatMessageSchema])
+    async def chat_history(
+        session_id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        await _authorized_session(db, session_id, user.id)
+        rows = (
+            (
+                await db.execute(
+                    select(ChatMessage)
+                    .where(ChatMessage.session_id == session_id)
+                    .order_by(ChatMessage.created_at.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return rows
+
+    @api.post("/research/{session_id}/chat")
+    async def send_chat_message(
+        session_id: uuid.UUID,
+        payload: ChatRequest,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        session = await _authorized_session(db, session_id, user.id)
+        if session.status != SessionStatus.COMPLETED:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail="Chat is available only for completed sessions.",
+            )
+
+        db.add(ChatMessage(session_id=session_id, role="user", content=payload.message))
+        await db.commit()
+
+        history = (
+            (
+                await db.execute(
+                    select(ChatMessage)
+                    .where(ChatMessage.session_id == session_id)
+                    .order_by(ChatMessage.created_at.asc())
+                    .limit(20)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        try:
+            grounding = await chat_scope.gather(
+                payload.scope,
+                query=payload.message,
+                report=session.final_report,
+                report_sources=session.sources or [],
+                memory_excerpts=None,
+                # One store for the whole app (`make_corpus_store`), unlike the server's
+                # per-project file — the reason this is a lambda over existing state
+                # rather than a path built from `session.project_id`.
+                store_factory=lambda: app.state.sidecar["corpus"],
+            )
+        except EmbeddingsUnavailable as e:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+        system = (
+            f"{prompts.CHAT_PROMPT_V2}\n\n"
+            f"{chat_scope.system_suffix(grounding)}\n\n"
+            f"<untrusted_web_content>\n{grounding.text}\n</untrusted_web_content>"
+        )
+        messages: list = [SystemMessage(content=system)]
+        for m in history:
+            messages.append(
+                HumanMessage(content=m.content)
+                if m.role == "user"
+                else AIMessage(content=m.content)
+            )
+
+        config = sidecar_run_config(
+            fake=app.state.fake, data_dir=app.state.data_dir, session_routing=session.model_routing
+        )
+
+        async def gen() -> AsyncGenerator[str, None]:
+            cfg_token = set_run_config(config)
+            acc = ""
+            try:
+                llm = get_llm("chat")  # raises with an actionable message if no key
+                yield (
+                    "data: "
+                    + json.dumps(
+                        {
+                            "type": "connected",
+                            "scope": grounding.scope,
+                            "sources": grounding.sources,
+                            "notes": grounding.notes,
+                        }
+                    )
+                    + "\n\n"
+                )
+                async for chunk in llm.astream(messages):
+                    text = text_of(chunk)
+                    if text:
+                        acc += text
+                        yield f"data: {json.dumps({'type': 'chunk', 'text': text})}\n\n"
+                async with session_factory() as wdb:
+                    msg = ChatMessage(session_id=session_id, role="assistant", content=acc)
+                    wdb.add(msg)
+                    await wdb.commit()
+                    await wdb.refresh(msg)
+                    message_id = str(msg.id)
+                yield f"data: {json.dumps({'type': 'done', 'message_id': message_id})}\n\n"
+            except Exception as e:  # noqa: BLE001 — surfaced to the client, never swallowed
+                logger.warning("sidecar_chat_failed", session_id=str(session_id), error=str(e))
+                yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
+            finally:
+                reset_run_config(cfg_token)
+
+        return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
 
     @api.get("/research/{session_id}/export.md")
     async def export_markdown(
