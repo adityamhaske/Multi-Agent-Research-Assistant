@@ -30,6 +30,40 @@ the combination of three things none of them package together:
    model API keys. Their queries and reports never transit a third-party SaaS. This also
    makes the unit economics honest: the operator pays for exactly what they use.
 
+## Why a researcher would leave Scholar or NotebookLM
+
+The positioning above answers "why not ChatGPT deep research". This one answers the
+question an academic actually asks, and it is the ordering principle behind the
+2026 workspace overhaul rather than a phase of it.
+
+| | What it does | Where it stops |
+|---|---|---|
+| **Google / Scholar** | Finds candidate sources | Hands you ten blue links. Synthesis, cross-checking and citation discipline are entirely yours, and it remembers nothing you have already read. |
+| **NotebookLM** | Grounded Q&A over documents **you already have** | Cannot go find the literature. Closed corpus, Google's models only, no local models, no exportable provenance, nothing self-hostable. |
+| **Perplexity / GPT deep research** | Searches and writes | A citation is a link, not a verified quote. No human gate. No corpus of your own. The model choice is theirs. |
+
+Three things this does that none of them do:
+
+1. **Every `[n]` is falsifiable.** A citation resolves to a source *and* a verbatim
+   snippet, and one that cannot be verified renders a ⚠ chip rather than rendering
+   clean. `citation_resolution_rate` puts that on every row of History — including a
+   `Not measured` band, because "made no citable claims" and "every marker is broken"
+   are opposite findings. The `.bundle.json` export is a standalone, hash-verifiable
+   record of a report. That is the difference between something citable in a lit review
+   and something you have to re-check by hand.
+2. **You approve the shape *and* the draft.** Two durable checkpoints: a design gate
+   after the planner, where subtopics and the report outline are still free to change
+   and nothing has been spent, and the draft gate before anything is final. The first is
+   the difference between "the agent picked six queries" and "these are my six
+   subtopics, in my review's structure".
+3. **Your corpus and the open literature in one place, on your own keys or your own
+   GPU.** Airgapped corpus mode makes zero network calls; local models mean an
+   unpublished manuscript never leaves the machine. Follow-up questions carry an
+   explicit scope, so "answer from my uploads only" is a guarantee rather than a hope.
+   NotebookLM cannot do the first half; Scholar cannot do the second.
+
+Nothing here asks the product to be a better search box.
+
 ## Target users
 
 | Persona | Need | What they value |
