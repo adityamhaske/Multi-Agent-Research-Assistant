@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 
-import { ThemeToggle } from "@/components/ThemeToggle";
-
 /**
  * Download and install (docs/17 §7).
  *
@@ -102,7 +100,13 @@ function SeverityChip({ severity }: { severity: Platform["severity"] }) {
   );
 }
 
-function PlatformCard({ platform, primary }: { platform: Platform; primary: boolean }) {
+function PlatformCard({
+  platform,
+  primary,
+}: {
+  platform: Platform;
+  primary: boolean;
+}) {
   return (
     <section
       className="border p-5"
@@ -117,10 +121,15 @@ function PlatformCard({ platform, primary }: { platform: Platform; primary: bool
       aria-labelledby={`plat-${platform.key}`}
     >
       <div className="flex flex-wrap items-center gap-2.5">
-        <h2 id={`plat-${platform.key}`} className="font-serif text-lg font-bold text-text-primary">
+        <h2
+          id={`plat-${platform.key}`}
+          className="font-serif text-lg font-bold text-text-primary"
+        >
           {platform.label}
         </h2>
-        <code className="font-mono text-xs text-text-muted">{platform.artifact}</code>
+        <code className="font-mono text-xs text-text-muted">
+          {platform.artifact}
+        </code>
         <SeverityChip severity={platform.severity} />
       </div>
 
@@ -163,105 +172,103 @@ export default function DownloadPage() {
   const others = PLATFORMS.filter((p) => p.key !== os);
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg-base">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 sm:px-6">
-        <Link href="/" className="font-serif text-[0.9375rem] font-bold text-text-primary">
-          Research Assistant
-        </Link>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/docs"
-            className="flex h-8 items-center border border-border bg-bg-surface px-2.5 font-mono text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
-          >
-            Docs
-          </Link>
-          <ThemeToggle />
-        </div>
-      </header>
+    // Header, footer and theme toggle come from `app/(site)/layout.tsx`. This page used to
+    // render its own, which would now stack two headers.
+    <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
+      <h1 className="font-serif text-3xl font-bold tracking-tight text-text-primary">
+        Download
+      </h1>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted">
+        The desktop app runs the whole pipeline on your machine — no server, no
+        login, no Docker. It opens on a demo you can read straight away;
+        connecting a model comes after.
+      </p>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
-        <h1 className="font-serif text-3xl font-bold tracking-tight text-text-primary">Download</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted">
-          The desktop app runs the whole pipeline on your machine — no server, no login, no
-          Docker. It opens on a demo you can read straight away; connecting a model comes
-          after.
-        </p>
-
-        {/* Said before the download, not left for the OS to say after. */}
-        <div
-          role="note"
-          className="mt-6 border px-4 py-3"
-          style={{
-            borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
-            backgroundColor: "color-mix(in srgb, var(--warning) 8%, var(--bg-surface))",
-          }}
+      {/* Said before the download, not left for the OS to say after. */}
+      <div
+        role="note"
+        className="mt-6 border px-4 py-3"
+        style={{
+          borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
+          backgroundColor:
+            "color-mix(in srgb, var(--warning) 8%, var(--bg-surface))",
+        }}
+      >
+        <p
+          className="font-mono text-xs font-semibold uppercase tracking-wider"
+          style={{ color: "var(--warning)" }}
         >
-          <p
-            className="font-mono text-xs font-semibold uppercase tracking-wider"
-            style={{ color: "var(--warning)" }}
-          >
-            These builds are not code-signed
-          </p>
-          <p className="mt-1 text-sm leading-relaxed text-text-secondary">
-            Your operating system will warn you the first time you open it. That is what
-            unsigned software looks like — not a sign anything is wrong with the download.
-            The steps below clear it, and you can verify the file against{" "}
-            <code className="font-mono text-xs">SHA256SUMS</code> before running anything.
-          </p>
-        </div>
+          These builds are not code-signed
+        </p>
+        <p className="mt-1 text-sm leading-relaxed text-text-secondary">
+          Your operating system will warn you the first time you open it. That
+          is what unsigned software looks like — not a sign anything is wrong
+          with the download. The steps below clear it, and you can verify the
+          file against <code className="font-mono text-xs">SHA256SUMS</code>{" "}
+          before running anything.
+        </p>
+      </div>
 
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <a href={RELEASES} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
-            Get the latest release →
-          </a>
-          {/* Measured on the arm64 build: an 81 MB .dmg that installs to 182 MB. Only
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <a
+          href={RELEASES}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-primary"
+        >
+          Get the latest release →
+        </a>
+        {/* Measured on the arm64 build: an 81 MB .dmg that installs to 182 MB. Only
               macOS has actually been built and launched, so only macOS gets a number. */}
-          <span className="font-mono text-xs text-text-muted">
-            ~80 MB download, ~180 MB installed (macOS) · runs on any laptop from the last
-            decade
-          </span>
-        </div>
+        <span className="font-mono text-xs text-text-muted">
+          ~80 MB download, ~180 MB installed (macOS) · runs on any laptop from
+          the last decade
+        </span>
+      </div>
 
-        <h2 className="mt-10 font-mono text-xs font-semibold uppercase tracking-wider text-text-secondary">
-          {mine ? "Your platform" : "Choose your platform"}
-        </h2>
-        <div className="mt-3 flex flex-col gap-4">
-          {mine && <PlatformCard platform={mine} primary />}
-          {others.map((p) => (
-            <PlatformCard key={p.key} platform={p} primary={false} />
-          ))}
-        </div>
+      <h2 className="mt-10 font-mono text-xs font-semibold uppercase tracking-wider text-text-secondary">
+        {mine ? "Your platform" : "Choose your platform"}
+      </h2>
+      <div className="mt-3 flex flex-col gap-4">
+        {mine && <PlatformCard platform={mine} primary />}
+        {others.map((p) => (
+          <PlatformCard key={p.key} platform={p} primary={false} />
+        ))}
+      </div>
 
-        <h2 className="mt-10 font-mono text-xs font-semibold uppercase tracking-wider text-text-secondary">
-          Verify your download
-        </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted">
-          Every release ships a <code className="font-mono text-xs">SHA256SUMS</code> file.
-          Unsigned software that also cannot be checked is worse than unsigned software that
-          can — this is how you confirm the file is the one CI built.
-        </p>
-        <pre className="mt-3 overflow-x-auto border border-border bg-bg-elevated p-3 font-mono text-xs text-text-primary">
-          sha256sum -c SHA256SUMS --ignore-missing
-        </pre>
+      <h2 className="mt-10 font-mono text-xs font-semibold uppercase tracking-wider text-text-secondary">
+        Verify your download
+      </h2>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted">
+        Every release ships a{" "}
+        <code className="font-mono text-xs">SHA256SUMS</code> file. Unsigned
+        software that also cannot be checked is worse than unsigned software
+        that can — this is how you confirm the file is the one CI built.
+      </p>
+      <pre className="mt-3 overflow-x-auto border border-border bg-bg-elevated p-3 font-mono text-xs text-text-primary">
+        sha256sum -c SHA256SUMS --ignore-missing
+      </pre>
 
-        <h2 className="mt-10 font-mono text-xs font-semibold uppercase tracking-wider text-text-secondary">
-          Would rather not install anything?
-        </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted">
-          The whole stack runs in Docker with one command — see{" "}
-          <Link
-            href="/docs/engineering/09_Deployment_and_Operations"
-            className="text-accent hover:underline"
-          >
-            Deployment
-          </Link>
-          . Or read{" "}
-          <Link href="/docs/product/01_Product_Vision" className="text-accent hover:underline">
-            what this is for
-          </Link>{" "}
-          first.
-        </p>
-      </main>
-    </div>
+      <h2 className="mt-10 font-mono text-xs font-semibold uppercase tracking-wider text-text-secondary">
+        Would rather not install anything?
+      </h2>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted">
+        The whole stack runs in Docker with one command — see{" "}
+        <Link
+          href="/docs/engineering/09_Deployment_and_Operations"
+          className="text-accent hover:underline"
+        >
+          Deployment
+        </Link>
+        . Or read{" "}
+        <Link
+          href="/docs/product/01_Product_Vision"
+          className="text-accent hover:underline"
+        >
+          what this is for
+        </Link>{" "}
+        first.
+      </p>
+    </main>
   );
 }
