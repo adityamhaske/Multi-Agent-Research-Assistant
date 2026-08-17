@@ -39,3 +39,8 @@ docs/deep-dive/04_Interview_Defense.md
 # ignored — a plan is a design artifact worth reviewing alongside the diff.
 .claude/settings.local.json
 
+
+# Scratch space for positioning notes, drafts, and ideas that are not yet decisions.
+# Deliberately ignored, unlike `.claude/plans/` — a plan is a design artifact reviewed
+# alongside its diff, whereas these are thinking-in-progress with no build contract.
+future-plans/
