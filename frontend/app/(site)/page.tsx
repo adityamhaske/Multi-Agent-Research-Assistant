@@ -27,6 +27,26 @@ export const metadata = {
     "and a verbatim snippet, and the export can be verified offline with no AI and no network.",
 };
 
+const REPO = "https://github.com/adityamhaske/Multi-Agent-Research-Assistant";
+
+const OPEN_SOURCE = [
+  {
+    term: "Licence",
+    detail:
+      "MIT. Use it, fork it, run it commercially — no per-seat cost and no lock-in.",
+  },
+  {
+    term: "Your keys, your data",
+    detail:
+      "Bring your own API key, or run entirely on local models. Nothing is proxied through a service we operate, because there isn't one.",
+  },
+  {
+    term: "Auditable claims",
+    detail:
+      "The measurements this project publishes are backed by committed evaluation results, and the harness refuses to print a number it did not measure.",
+  },
+] as const;
+
 const CLAIMS = [
   {
     title: "Every citation is falsifiable",
@@ -73,9 +93,14 @@ export default async function Home() {
         <p className="font-mono text-[0.6875rem] uppercase tracking-widest text-text-muted">
           Self-hostable · bring your own key · runs on local models
         </p>
+        {/* The project's actual name, said once and plainly. The tagline below is the
+            pitch; a visitor arriving from a link still needs to know what this is called. */}
         <h1 className="mt-4 font-serif text-4xl font-bold leading-tight tracking-tight text-text-primary sm:text-5xl">
-          Cited research you can actually verify.
+          Multi-Agent Research Assistant
         </h1>
+        <p className="mt-3 font-serif text-2xl leading-snug text-text-secondary sm:text-3xl">
+          Cited research you can actually verify.
+        </p>
         <p className="mt-5 text-base leading-relaxed text-text-secondary">
           A multi-agent pipeline that searches, gathers evidence, and writes a
           cited report — then pauses for you twice, and exports something a
@@ -199,6 +224,56 @@ export default async function Home() {
         >
           See how it compares →
         </Link>
+      </section>
+
+      <section aria-labelledby="oss-heading" className="mt-16">
+        <h2
+          id="oss-heading"
+          className="font-serif text-2xl font-bold tracking-tight text-text-primary"
+        >
+          Open source, and inspectable
+        </h2>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">
+          MIT licensed. The verification claims on this site are the kind that
+          are worth nothing unless you can check them, so the source, the tests
+          that hold them up, and the documentation are all public and all built
+          from the same repository as this page.
+        </p>
+        <dl className="mt-6 grid gap-4 sm:grid-cols-3">
+          {OPEN_SOURCE.map((item) => (
+            <div
+              key={item.term}
+              className="border border-border bg-bg-surface p-4"
+            >
+              <dt className="font-mono text-[0.6875rem] uppercase tracking-widest text-text-muted">
+                {item.term}
+              </dt>
+              <dd className="mt-1.5 text-sm leading-relaxed text-text-secondary">
+                {item.detail}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <a
+            href={REPO}
+            className="flex h-9 items-center border border-border bg-bg-surface px-3 font-mono text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          >
+            Source on GitHub ↗
+          </a>
+          <a
+            href={`${REPO}/blob/main/LICENSE`}
+            className="flex h-9 items-center border border-border bg-bg-surface px-3 font-mono text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          >
+            MIT licence ↗
+          </a>
+          <Link
+            href="/releases"
+            className="flex h-9 items-center border border-border bg-bg-surface px-3 font-mono text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          >
+            Release history →
+          </Link>
+        </div>
       </section>
     </main>
   );

@@ -44,9 +44,13 @@ function Mark() {
   );
 }
 
+// Reading order, not alphabetical: why you would use it, how it works, what changed, how
+// to get it. The nav is the site's table of contents and this is the order someone
+// evaluating the project actually needs those answers in.
 const NAV = [
   { href: "/why", label: "Why this" },
   { href: "/docs", label: "Docs" },
+  { href: "/releases", label: "Releases" },
   { href: "/download", label: "Download" },
 ] as const;
 

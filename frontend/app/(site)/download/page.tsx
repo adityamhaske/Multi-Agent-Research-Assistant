@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 
+import { latestRelease } from "@/lib/releases";
+
 /**
  * Download and install (docs/17 §7).
  *
@@ -18,6 +20,30 @@ import { useSyncExternalStore } from "react";
 
 const REPO = "https://github.com/adityamhaske/Multi-Agent-Research-Assistant";
 const RELEASES = `${REPO}/releases`;
+
+/**
+ * Direct installer URLs for the newest tagged release.
+ *
+ * Verified against the assets actually attached to the release rather than guessed from a
+ * naming convention — a download button that 404s is worse than one that sends you to a
+ * list, because it looks like the product is broken rather than like a link is stale.
+ *
+ * The bundler names files after productName ("Research Assistant_1.0.2_…") and GitHub
+ * rewrites the space to a dot when serving them; these are the served names.
+ */
+// Derived from `lib/releases.ts` so the version lives in exactly one place: the
+// releases page and this button cannot disagree about what "latest" means.
+const LATEST_VERSION = (latestRelease()?.version ?? "v1.0.2").replace(/^v/, "");
+const ASSET: Record<Exclude<OS, "unknown">, string> = {
+  macos: `Research.Assistant_${LATEST_VERSION}_aarch64.dmg`,
+  windows: `Research.Assistant_${LATEST_VERSION}_x64_en-US.msi`,
+  linux: `Research.Assistant_${LATEST_VERSION}_amd64.AppImage`,
+};
+
+function assetUrl(os: OS): string | null {
+  if (os === "unknown") return null;
+  return `${REPO}/releases/download/v${LATEST_VERSION}/${ASSET[os]}`;
+}
 
 type OS = "macos" | "windows" | "linux" | "unknown";
 
@@ -210,13 +236,31 @@ export default function DownloadPage() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
+        {assetUrl(os) ? (
+          // Straight at the installer for the OS you are on. The old button sent everyone
+          // to a GitHub releases list to find their own file, which is a page of assets
+          // named after build triples.
+          <a href={assetUrl(os)!} className="btn btn-primary">
+            Download for {PLATFORMS.find((p) => p.key === os)?.label} · v
+            {LATEST_VERSION}
+          </a>
+        ) : (
+          <a
+            href={RELEASES}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-primary"
+          >
+            Get the latest release →
+          </a>
+        )}
         <a
           href={RELEASES}
           target="_blank"
           rel="noopener noreferrer"
-          className="btn btn-primary"
+          className="font-mono text-xs text-text-muted transition-colors hover:text-text-primary"
         >
-          Get the latest release →
+          All downloads &amp; checksums ↗
         </a>
         {/* Measured on the arm64 build: an 81 MB .dmg that installs to 182 MB. Only
               macOS has actually been built and launched, so only macOS gets a number. */}

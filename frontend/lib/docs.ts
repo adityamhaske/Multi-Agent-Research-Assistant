@@ -89,11 +89,32 @@ function docsRoot(): string | null {
  *  renaming the file to keep navigation truthful. */
 function titleOf(body: string, filename: string): string {
   const h1 = body.match(/^#\s+(.+?)\s*$/m);
-  if (h1) return h1[1].replace(/[`*_]/g, "").trim();
-  return filename
-    .replace(/\.md$/, "")
-    .replace(/^\d+[_-]/, "")
-    .replace(/[_-]/g, " ");
+  if (h1) return stripLeadingNumber(h1[1].replace(/[`*_]/g, "").trim());
+  return stripLeadingNumber(
+    filename
+      .replace(/\.md$/, "")
+      .replace(/^\d+[_-]/, "")
+      .replace(/[_-]/g, " "),
+  );
+}
+
+/**
+ * Drop the leading document number from a display title.
+ *
+ * The headings are numbered — "01. Product Vision & Scope", "M12: Research Bundle Format"
+ * — because the numbers order the *files*. In a rendered nav they are noise: the list is
+ * already in order, so the number restates the position while pushing the words that
+ * distinguish one entry from another to the right, where they are harder to scan.
+ *
+ * Ordering is unaffected. `orderOf` reads the number off the filename, never off the
+ * title, so stripping it here changes what a reader sees and nothing about the sequence.
+ *
+ * Deliberately narrow: only a number that is clearly an index prefix. "v2 Launch Plan"
+ * and "Research Bundle Format (v1)" keep their versions, because those numbers mean
+ * something.
+ */
+function stripLeadingNumber(title: string): string {
+  return title.replace(/^(?:\d+\.|M\d+:)\s+/, "");
 }
 
 function orderOf(filename: string): number {

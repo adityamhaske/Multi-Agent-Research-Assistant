@@ -28,23 +28,44 @@ export const metadata = {
 
 const SUPPORT_MARK: Record<
   Support,
-  { glyph: string; label: string; className: string }
+  { glyph: string; label: string; token: string }
 > = {
-  // Shape and text carry the meaning; colour only reinforces it. A reader who cannot
-  // distinguish the hues still gets the glyph and the accessible label.
-  yes: { glyph: "●", label: "yes", className: "text-agent-critic" },
-  partial: { glyph: "◐", label: "partial", className: "text-agent-planner" },
-  no: { glyph: "○", label: "no", className: "text-text-muted" },
-  na: { glyph: "–", label: "not applicable", className: "text-text-muted" },
+  // Red/green, at a size you can read across a wide row — but the glyph differs too, and
+  // an accessible label is always present. Roughly one reader in twelve cannot separate
+  // these two hues, and this table's whole job is being scannable, so colour reinforces
+  // the shape rather than carrying the meaning alone.
+  yes: { glyph: "●", label: "yes", token: "var(--success)" },
+  partial: { glyph: "◐", label: "partial", token: "var(--warning)" },
+  no: { glyph: "○", label: "no", token: "var(--danger)" },
+  na: { glyph: "–", label: "not applicable", token: "var(--text-muted)" },
 };
 
 function Mark({ value }: { value: Support }) {
   const mark = SUPPORT_MARK[value];
   return (
-    <span className={`font-mono text-sm ${mark.className}`}>
+    <span
+      className="font-mono text-xl leading-none"
+      style={{ color: mark.token }}
+    >
       <span aria-hidden>{mark.glyph}</span>
       <span className="sr-only">{mark.label}</span>
     </span>
+  );
+}
+
+/** Spelled out once above the table, so the glyphs do not have to be guessed at. */
+function MarkLegend() {
+  return (
+    <ul className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+      {(["yes", "partial", "no", "na"] as Support[]).map((value) => (
+        <li key={value} className="flex items-center gap-1.5">
+          <Mark value={value} />
+          <span className="font-mono text-[0.6875rem] uppercase tracking-widest text-text-muted">
+            {SUPPORT_MARK[value].label}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -89,6 +110,7 @@ export default function WhyPage() {
         >
           Feature by feature
         </h2>
+        <MarkLegend />
 
         <div className="mt-6 hidden overflow-x-auto lg:block">
           <table className="w-full border-collapse text-left">
