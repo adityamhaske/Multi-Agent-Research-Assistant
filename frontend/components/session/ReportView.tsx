@@ -7,6 +7,9 @@ import { Report, SourcesPanel } from "@/lib/citations";
 import { formatCost, formatDuration, formatNumber } from "@/lib/format";
 import type { SessionDetail } from "@/lib/types";
 
+import { PreviewDrawer } from "@/components/preview/PreviewDrawer";
+import { documentUrl } from "@/components/preview/DocumentPreview";
+
 import { ChatPanel } from "./ChatPanel";
 import { ModelAttribution } from "./ModelAttribution";
 
@@ -24,6 +27,12 @@ export function ReportView({ session }: { session: SessionDetail }) {
   const sources = session.sources ?? [];
   const tokens = session.total_tokens_input + session.total_tokens_output;
   const [exporting, setExporting] = useState<null | "md" | "pdf">(null);
+  // A corpus citation resolves to a document in this session's project, so clicking [3]
+  // can show the page rather than downloading it (docs/07 §2, Phase 6). Web citations
+  // keep their ordinary link — there is no local file to preview.
+  const [preview, setPreview] = useState<{ id: string; filename: string; page: number | null } | null>(
+    null,
+  );
 
   const copy = async () => {
     try {
@@ -69,6 +78,17 @@ export function ReportView({ session }: { session: SessionDetail }) {
 
   return (
     <div className="space-y-6">
+      {preview && (
+        <PreviewDrawer
+          open
+          onClose={() => setPreview(null)}
+          url={documentUrl(session.project_id, preview.id)}
+          filename={preview.filename}
+          downloadable
+          subtitle={preview.page ? `Cited from page ${preview.page}` : "Cited from your corpus"}
+        />
+      )}
+
       <section aria-labelledby="report-heading" className="card p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h1 id="report-heading" className="font-serif text-xl font-bold tracking-tight text-text-primary">
@@ -116,7 +136,20 @@ export function ReportView({ session }: { session: SessionDetail }) {
         </div>
 
         {report ? (
-          <Report markdown={report} sources={sources} />
+          <Report
+            markdown={report}
+            sources={sources}
+            onPreview={(locator, source) =>
+              setPreview({
+                id: locator.documentId,
+                // The engine puts the filename in the source title for corpus evidence;
+                // it is what picks the renderer, so fall back to the id rather than
+                // guessing a type.
+                filename: source.title || locator.documentId,
+                page: locator.page,
+              })
+            }
+          />
         ) : (
           <p className="text-sm text-text-muted">This report has no body.</p>
         )}

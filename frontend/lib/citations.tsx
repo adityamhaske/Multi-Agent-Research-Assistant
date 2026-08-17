@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { parseCorpusLocator, type CorpusLocator } from "./corpusLocator";
 import type { Source } from "./types";
 
 /**
@@ -142,8 +143,19 @@ export function snippetsOf(source: Source): string[] {
   return source.snippet ? [source.snippet] : [];
 }
 
-function CitationChip({ source }: { source: Source }) {
+function CitationChip({
+  source,
+  onPreview,
+}: {
+  source: Source;
+  onPreview?: (locator: CorpusLocator, source: Source) => void;
+}) {
   const snippets = snippetsOf(source);
+  // A corpus citation's URL uses a scheme the browser cannot follow, so it gets a
+  // preview action instead of a link. Without `onPreview` wired by the surface, it
+  // renders neither — a dead "Open source ↗" is worse than no affordance, because it
+  // claims the source is checkable and then refuses to show it.
+  const locator = parseCorpusLocator(source.url);
   return (
     <span className="group relative inline-block align-baseline">
       <button
@@ -160,7 +172,9 @@ function CitationChip({ source }: { source: Source }) {
         <span className="block font-serif text-xs font-semibold text-text-primary">
           {source.title || domainOf(source.url)}
         </span>
-        <span className="mt-0.5 block font-mono text-[0.6875rem] text-text-muted">{domainOf(source.url)}</span>
+        <span className="mt-0.5 block font-mono text-[0.6875rem] text-text-muted">
+          {locator ? "your corpus" : domainOf(source.url)}
+        </span>
         {snippets.map((text, i) => (
           <span
             key={i}
@@ -169,14 +183,26 @@ function CitationChip({ source }: { source: Source }) {
             &ldquo;{text}&rdquo;
           </span>
         ))}
-        <a
-          href={source.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="pointer-events-auto mt-2 inline-block font-mono text-[0.6875rem] font-medium text-accent hover:underline"
-        >
-          Open source ↗
-        </a>
+        {locator ? (
+          onPreview && (
+            <button
+              type="button"
+              onClick={() => onPreview(locator, source)}
+              className="pointer-events-auto mt-2 inline-block font-mono text-[0.6875rem] font-medium text-accent hover:underline"
+            >
+              Preview document{locator.page ? ` (p. ${locator.page})` : ""}
+            </button>
+          )
+        ) : (
+          <a
+            href={source.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pointer-events-auto mt-2 inline-block font-mono text-[0.6875rem] font-medium text-accent hover:underline"
+          >
+            Open source ↗
+          </a>
+        )}
       </span>
     </span>
   );
@@ -195,7 +221,17 @@ export function UnverifiedChip({ n, prefix = "" }: { n: number; prefix?: string 
   );
 }
 
-export function Report({ markdown, sources }: { markdown: string; sources: Source[] }) {
+export function Report({
+  markdown,
+  sources,
+  onPreview,
+}: {
+  markdown: string;
+  sources: Source[];
+  /** Supplied by a surface that can open the preview drawer. Absent on surfaces that
+   *  cannot, so a corpus citation shows its snippets and no unusable action. */
+  onPreview?: (locator: CorpusLocator, source: Source) => void;
+}) {
   const sourceByIndex = useMemo(() => {
     const map = new Map<number, Source>();
     for (const s of sources) map.set(s.index, s);
@@ -212,7 +248,7 @@ export function Report({ markdown, sources }: { markdown: string; sources: Sourc
         const n = Number(props.dataIndex);
         const source = sourceByIndex.get(n);
         if (props.dataResolved !== "1" || !source) return <UnverifiedChip n={n} />;
-        return <CitationChip source={source} />;
+        return <CitationChip source={source} onPreview={onPreview} />;
       },
       // External links always open safely.
       a({ href, children }) {
@@ -223,7 +259,7 @@ export function Report({ markdown, sources }: { markdown: string; sources: Sourc
         );
       },
     }),
-    [sourceByIndex],
+    [sourceByIndex, onPreview],
   );
 
   return (
