@@ -588,6 +588,20 @@ export async function pullLocalModel(
   }
 }
 
+/**
+ * The saved per-role routing, and the routing that would actually be dialled.
+ * `routing` is null when the user has never chosen one — the deployment default applies,
+ * and `effective_routing` is what that resolves to. Read-only counterpart to the two
+ * mutations below.
+ */
+export function useModelRouting() {
+  return useQuery({
+    queryKey: [...queryKeys.models, "routing"] as const,
+    queryFn: () => apiFetch<RoutingResponse>("/models/routing"),
+    staleTime: 60_000,
+  });
+}
+
 export function useSetModelRouting() {
   const qc = useQueryClient();
   return useMutation({

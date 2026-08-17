@@ -4,9 +4,10 @@ import { useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import { useActiveProject } from "@/components/ActiveProject";
+import { documentUrl } from "@/components/preview/DocumentPreview";
+import { PreviewDrawer } from "@/components/preview/PreviewDrawer";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
-  corpusDownloadUrl,
   useCorpusDocuments,
   useCorpusStatus,
   useDeleteDocument,
@@ -103,6 +104,9 @@ function QueueRow({ item }: { item: QueueItem }) {
 }
 
 export default function CorpusPage() {
+  // Which document the drawer is showing, or null. Identified by id + filename because
+  // the preview needs both: the id builds the URL, the filename picks the renderer.
+  const [preview, setPreview] = useState<{ id: string; filename: string } | null>(null);
   const { activeId, active } = useActiveProject();
   const { data: status, refetch: refetchStatus } = useCorpusStatus(activeId);
   const { data: docs, isLoading: docsLoading } = useCorpusDocuments(activeId);
@@ -298,6 +302,16 @@ export default function CorpusPage() {
           </div>
         )}
 
+        {preview && activeId && (
+          <PreviewDrawer
+            open
+            onClose={() => setPreview(null)}
+            url={documentUrl(activeId, preview.id)}
+            filename={preview.filename}
+            downloadable
+          />
+        )}
+
         <div className="grid gap-6 md:grid-cols-3">
           <div className="space-y-4 md:col-span-2">
             <h2 className="font-serif text-lg font-bold text-text-primary">
@@ -326,14 +340,17 @@ export default function CorpusPage() {
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         {doc.downloadable ? (
-                          <a
-                            href={corpusDownloadUrl(activeId, doc.id)}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          // Preview in place; the drawer offers Download for anyone who
+                          // wants the file itself. "Open" used to mean "download and
+                          // switch application", which is the moment a reader stops
+                          // checking sources (docs/07 §2, Phase 6).
+                          <button
+                            type="button"
+                            onClick={() => setPreview({ id: doc.id, filename: doc.filename })}
                             className="border border-transparent px-2 py-0.5 font-mono text-xs font-medium text-accent hover:border-accent/30"
                           >
-                            Open
-                          </a>
+                            Preview
+                          </button>
                         ) : (
                           <span
                             className="px-2 py-0.5 font-mono text-xs text-text-muted"

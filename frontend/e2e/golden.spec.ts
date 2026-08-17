@@ -116,6 +116,36 @@ async function startResearchToGate(page: Page): Promise<void> {
   });
 }
 
+test.describe("Golden journey 6 — corpus documents preview in place", () => {
+  test("uploads a document and reads it without leaving the page", async ({ page }) => {
+    await registerAndLogin(page);
+    await page.goto("/corpus");
+
+    await page.setInputFiles('input[type="file"]', {
+      name: "grounding.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from(
+        "# Grounding metrics\n\nRecall improved by 12 points on the held-out split.\n",
+      ),
+    });
+
+    // The row appears once ingestion finishes, and offers a preview rather than a
+    // download — the behaviour change this journey exists to pin.
+    const preview = page.getByRole("button", { name: "Preview" }).first();
+    await expect(preview).toBeVisible({ timeout: 120_000 });
+    await preview.click();
+
+    const drawer = page.getByRole("dialog", { name: /Preview of grounding\.md/ });
+    await expect(drawer).toBeVisible();
+    await expect(drawer.getByText("Recall improved by 12 points")).toBeVisible();
+
+    // Escape closes it and the corpus list is still there — "in place" is the claim.
+    await page.keyboard.press("Escape");
+    await expect(drawer).toBeHidden();
+    await expect(page.getByRole("button", { name: "Preview" }).first()).toBeVisible();
+  });
+});
+
 test.describe("Golden journey 0 — the research design gate", () => {
   test("edits the plan before any search runs, then reaches the draft", async ({ page }) => {
     await registerAndLogin(page);

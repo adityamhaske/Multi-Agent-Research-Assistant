@@ -14,6 +14,7 @@ import {
   IconClose,
   IconCollapse,
   IconCorpus,
+  IconOverview,
   IconHistory,
   IconMenu,
   IconPlus,
@@ -140,6 +141,16 @@ export function SideNav({ user }: { user?: User }) {
             was the sidebar's duplicate entry point (docs/07 §2). No section
             label either: three icons need no header to explain them. */}
         <nav className="space-y-1 pt-2">
+          {/* Project-first (docs/07 §2, Phase 6): Overview is the active project itself,
+              and everything under it is scoped to that project. A project used to be a
+              filter applied to four unrelated pages with nowhere to see the project. */}
+          <NavItem
+            href="/project"
+            label="Overview"
+            icon={<IconOverview />}
+            collapsed={collapsed && !isMobile}
+            onClick={() => isMobile && setMobileOpen(false)}
+          />
           <NavItem
             href="/corpus"
             label="Corpus"

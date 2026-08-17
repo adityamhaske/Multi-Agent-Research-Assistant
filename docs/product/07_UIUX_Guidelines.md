@@ -133,6 +133,31 @@ Six steps, no more — an arbitrary size that doesn't match one of the above (`t
 
 ---
 
+## 2b. Project Workspace (docs/07 §2, Phase 6; req 9)
+
+`/project` is the active project as a *place*, not a filter: recent runs, what the corpus
+holds, what memory knows, and which models this project's research dials — one view,
+reachable from the sidebar's **Overview**. Nav is project-first: Overview · Corpus ·
+History · Chat, all scoped to the switcher's selection.
+
+Every panel states its own emptiness instead of rendering a zero. "0 documents" and "we
+could not read the corpus" are the same number and different problems, and only one of
+them is the user's to fix. The spend figure is labelled "these runs", never "project
+total", because it sums the five rows shown.
+
+**In-place document preview.** Corpus rows open a right-hand drawer rather than
+downloading: "Open" used to mean "download and switch application", which is the moment a
+reader stops checking sources. PDF renders through `<object>` off the download route (the
+one kind served `inline`); Markdown through the same `react-markdown` + `remark-gfm`
+pipeline reports use; text in a `<pre>`; **HTML in `<iframe sandbox="" srcdoc={…}>`**.
+
+The sandbox is the boundary, not a sanitizer. `sandbox=""` withholds every capability —
+no `allow-scripts`, no `allow-same-origin`, and never both, since together they let a
+frame remove its own sandbox. Raw-HTML rendering stays banned in React and CI greps for
+it; `components/preview/DocumentPreview.test.tsx` asserts the sandbox attribute and the
+inertness of HTML embedded in an uploaded `.md`, because neither regression is visible in
+a screenshot.
+
 ## 3. Session Page — Core Lifecycle
 
 One page, six states driven by the LangGraph session status:

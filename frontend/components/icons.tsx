@@ -71,6 +71,26 @@ export function IconCorpus({ className }: IconProps) {
   );
 }
 
+/** The project workspace: four panes of one thing (docs/07 §2, Phase 6). */
+export function IconOverview({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="square"
+      strokeLinejoin="miter"
+      className={className || "h-5 w-5"}
+    >
+      <path d="M3 3h8v6H3z" />
+      <path d="M13 3h8v10h-8z" />
+      <path d="M3 11h8v10H3z" />
+      <path d="M13 15h8v6h-8z" />
+    </svg>
+  );
+}
+
 export function IconHistory({ className }: IconProps) {
   return (
     <svg
