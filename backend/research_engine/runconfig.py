@@ -4,7 +4,7 @@ Run-scoped engine configuration (docs/13 §4, docs/12 M6 step 1).
 The agent package must not read `app.config` or the process environment. It is being
 extracted into a standalone `research_engine` package that has to run inside a desktop
 app with no Postgres, no Redis, and no `.env` file — see
-docs/architecture/13_Local_First_Architecture.md §2 for the measured coupling this removes.
+docs/architecture/13-local-and-self-hosted.md §2 for the measured coupling this removes.
 
 Everything the graph, the model factory, the retrievers, and the tools used to read
 from `settings` now arrives as a `RunConfig`.

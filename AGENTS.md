@@ -63,6 +63,20 @@ is built, or is explicitly marked `[PLANNED]`.
 Cite the doc section in code comments when encoding a decision from it (`docs/13 §6`), the
 way the existing code does. That is how a reader knows a line is deliberate.
 
+**Documents are cited by number, and the number is stable.** A file under `docs/` keeps its
+numeric prefix as its identity — hundreds of source comments say `docs/04 §6` — while the
+directory, the filename, and the published URL are free to change. Reading order comes from
+`NAV_ORDER` in `frontend/lib/docs.ts`, keyed by the published slug, which is the filename
+with the prefix stripped. Renumbering a document silently invalidates every comment that
+cites it; renaming or moving one does not.
+
+**`docs/` is the published tree.** The site walks all of it at build time, so anything filed
+there gets a URL. Engineering notes, milestone plans and release checklists therefore live in
+[`internal/`](internal/README.md) instead, and repository governance under
+`docs/governance/` and `docs/plans/` is excluded by name in `frontend/lib/docs.ts`. A
+directory absent from `CATEGORY_ORDER` is hidden from the sidebar but **still generates
+routes** — only the denylist actually stops a page being published.
+
 ## Configuration has two paths, and they drift
 
 The same `RunConfig` is built by two independent code paths. **Change one, change both**,
@@ -245,7 +259,7 @@ and go stale silently, because nothing fails when they do:
 | After tagging a release | Update | Why it rots |
 |---|---|---|
 | Always | `frontend/lib/releases.ts` | The releases page and its "what improved" list. The download button reads `latestRelease()` for its version, so a missing entry also means the button offers the *previous* installer. |
-| Always | `README.md` download badge | It pointed at v1.0.1 while v1.0.2 was current. |
+| Always | `README.md` download badge | Bump the version in **both** the badge label and the href; it once pointed at v1.0.1 while v1.0.2 was current. |
 | When behaviour changed | `README.md` pipeline diagram, `lib/comparison.ts` | The diagram claimed one human gate for weeks after the design gate shipped. |
 
 The predecessor of this site was one hand-maintained `site/index.html`. It described a
@@ -316,3 +330,15 @@ Runtime artifacts must not be committed. `data/corpus/*.sqlite`, `__pycache__`, 
 untrack a file that is already tracked. `corpus_dir` defaults to the **relative** path
 `data/corpus`, so running from the repo root and from `backend/` creates two different
 corpus roots.
+
+
+## Project Governance
+
+Before making substantial changes, read:
+
+- `docs/plans/Multi-Agent-Research-Assistant-V2-Master-Plan.md`
+- `docs/governance/Multi-Agent-Research-Assistant-Open-Source-Constitution.md`
+
+These define the V2 product direction and open-source engineering/maintainer rules.
+
+The current codebase is V1 heritage. V2 should evolve it rather than blindly preserve or blindly rewrite it.

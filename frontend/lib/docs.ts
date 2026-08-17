@@ -25,20 +25,45 @@ const CANDIDATE_ROOTS = [
 /**
  * Never published, regardless of what is on disk.
  *
- * `docs/deep-dive/04_Interview_Defense.md` is gitignored under "Personal / not for
- * publication". It is absent from a clone but present on the author's machine, so a
- * filesystem walk would happily publish it from a local build. An explicit denylist is
- * the only thing standing between "works on my machine" and shipping a private file.
+ * `00_INDEX` is the repository's own map of `docs/` — the thing a person reads when they
+ * are browsing the tree on GitHub. On the site it would be a second table of contents
+ * sitting next to the generated `/docs` index, which is the duplicate-navigation problem
+ * rather than a solution to it.
+ *
+ * A filesystem walk publishes whatever it finds, including files a clone does not have,
+ * so an explicit denylist is also what stands between "works on my machine" and shipping
+ * something private. Internal engineering notes live outside `docs/` entirely (see
+ * `internal/`), which is a stronger guarantee than a list — this list is the backstop.
  */
-const NEVER_PUBLISH = new Set(["deep-dive/04_Interview_Defense"]);
+/**
+ * Matched against the **source path** under `docs/` (minus `.md`), not the published slug.
+ *
+ * The slug has its numeric prefixes stripped, so `00_INDEX.md` publishes at `INDEX` — a
+ * denylist keyed on the slug would have to spell that, and would silently stop matching the
+ * moment a file were renumbered. The path is the stable thing to name.
+ */
+const NEVER_PUBLISH = new Set([
+  "00_INDEX",
+  // Repository governance, not product documentation. `AGENTS.md` points contributors and
+  // coding agents at both, so they stay where they are — but they describe how the project
+  // is *run*, not how the product works, and the V2 plan in particular is planning material
+  // of the kind that belongs beside the notes in `internal/`.
+  //
+  // Listing them is not optional tidiness. Their directories are absent from
+  // `CATEGORY_ORDER`, which hides them from the sidebar and the index but does **not** stop
+  // `generateStaticParams` from generating their routes — so without this they would be
+  // published at a URL nothing links to, which is the worst of both outcomes.
+  "governance/Multi-Agent-Research-Assistant-Open-Source-Constitution",
+  "plans/Multi-Agent-Research-Assistant-V2-Master-Plan",
+]);
 
 export interface DocMeta {
-  /** URL path under /docs, e.g. "architecture/04_Agent_Design". */
+  /** URL path under /docs, e.g. "architecture/agent-architecture". */
   slug: string;
   title: string;
   /** Directory name, or "" for top-level files. */
   category: string;
-  /** Leading number in the filename, used for ordering. Infinity when absent. */
+  /** Position within the category. See `NAV_ORDER`. */
   order: number;
 }
 
@@ -55,22 +80,87 @@ export interface DocCategory {
 /** Display names for the directories under `docs/`. */
 const CATEGORY_LABELS: Record<string, string> = {
   "": "Overview",
-  product: "Product",
+  "getting-started": "Getting started",
+  "user-guide": "User guide",
   architecture: "Architecture",
-  engineering: "Engineering",
-  guides: "Guides",
-  "deep-dive": "Deep Dive",
+  deployment: "Deployment",
+  developers: "Developers",
+  reference: "Reference",
+  research: "Research",
+  project: "Project",
 };
 
-/** Reading order: what the project is, then what it is made of, then how it is run. */
+/** Reading order: understand it, use it, understand how it works, run it, change it. */
 const CATEGORY_ORDER = [
   "",
-  "product",
+  "getting-started",
+  "user-guide",
   "architecture",
-  "engineering",
-  "guides",
-  "deep-dive",
+  "deployment",
+  "developers",
+  "reference",
+  "research",
+  "project",
 ];
+
+/**
+ * Reading order **within** a category, by slug.
+ *
+ * Explicit rather than derived from the filename, because the two things a filename
+ * number would have to encode pull in opposite directions. Files keep a numeric prefix as
+ * a stable document identity — hundreds of code comments cite documents by that number
+ * (`docs/04 §6`) and renumbering them would silently invalidate every one — while the
+ * order a reader wants is a separate, editable decision. Security is document 06 and
+ * belongs last in Architecture; a sort on the prefix cannot express that.
+ *
+ * A document missing from this list still renders; it sorts to the end of its category by
+ * filename number, then title. Adding a page therefore never breaks the build — it just
+ * lands last until it is listed here.
+ */
+const NAV_ORDER: Record<string, string[]> = {
+  "getting-started": [
+    "getting-started/overview",
+    "getting-started/quick-start",
+    "getting-started/configuration",
+    "getting-started/local-llm",
+    "getting-started/desktop-app",
+    "getting-started/troubleshooting",
+  ],
+  "user-guide": [
+    "user-guide/running-research",
+    "user-guide/review-and-approval",
+    "user-guide/citations",
+    "user-guide/projects-and-memory",
+    "user-guide/exports",
+  ],
+  architecture: [
+    "architecture/system-architecture",
+    "architecture/agent-architecture",
+    "architecture/data-model",
+    "architecture/local-and-self-hosted",
+    "architecture/security",
+  ],
+  deployment: [
+    "deployment/docker",
+    "deployment/production",
+    "deployment/operations",
+  ],
+  developers: [
+    "developers/development",
+    "developers/testing-and-evaluation",
+    "developers/engineering-guidelines",
+    "developers/frontend-guidelines",
+    "developers/contributing",
+  ],
+  reference: [
+    "reference/api",
+    "reference/sse",
+    "reference/bundle-format",
+    "reference/configuration",
+  ],
+  research: ["research/citation-fidelity-benchmark"],
+  project: ["project/roadmap", "project/changelog"],
+};
 
 function docsRoot(): string | null {
   for (const root of CANDIDATE_ROOTS) {
@@ -101,25 +191,50 @@ function titleOf(body: string, filename: string): string {
 /**
  * Drop the leading document number from a display title.
  *
- * The headings are numbered — "01. Product Vision & Scope", "M12: Research Bundle Format"
- * — because the numbers order the *files*. In a rendered nav they are noise: the list is
- * already in order, so the number restates the position while pushing the words that
- * distinguish one entry from another to the right, where they are harder to scan.
+ * Some headings still carry one — "01. Product Vision", "M12: Research Bundle Format" —
+ * and in a rendered nav they are noise: the list is already ordered, so the number
+ * restates the position while pushing the words that distinguish one entry from another
+ * to the right, where they are harder to scan.
  *
- * Ordering is unaffected. `orderOf` reads the number off the filename, never off the
- * title, so stripping it here changes what a reader sees and nothing about the sequence.
- *
- * Deliberately narrow: only a number that is clearly an index prefix. "v2 Launch Plan"
- * and "Research Bundle Format (v1)" keep their versions, because those numbers mean
- * something.
+ * Deliberately narrow: only a number that is clearly an index prefix. "Research Bundle
+ * Format (v1)" keeps its version, because that number means something.
  */
 function stripLeadingNumber(title: string): string {
   return title.replace(/^(?:\d+\.|M\d+:)\s+/, "");
 }
 
-function orderOf(filename: string): number {
+/**
+ * The published URL path for a file path under `docs/`.
+ *
+ * Strips the `.md` and the numeric prefix from each segment, so
+ * `architecture/04-agent-architecture.md` is served at `architecture/agent-architecture`.
+ * The prefix orders and identifies the file on disk; it is not something a reader should
+ * have to type or read in a URL, and a number in a URL is the part that goes stale first
+ * if a document is ever resequenced.
+ *
+ * Used for both directions — deriving a document's own slug, and resolving the relative
+ * `.md` links the source files use — so the two can never disagree about what a path
+ * means.
+ */
+function slugFor(relPath: string): string {
+  return relPath
+    .replace(/\.md$/, "")
+    .split("/")
+    .map((segment) => segment.replace(/^\d+[-_]/, ""))
+    .join("/");
+}
+
+/** Fallback position for a document that `NAV_ORDER` does not list: its filename number,
+ *  else last. Keeps an unlisted new page rendering rather than failing the build. */
+function fallbackOrder(filename: string): number {
   const m = filename.match(/^(\d+)/);
-  return m ? Number(m[1]) : Number.POSITIVE_INFINITY;
+  return m ? 1000 + Number(m[1]) : Number.POSITIVE_INFINITY;
+}
+
+/** Position within the category — the explicit nav list first, filename number after. */
+function orderOf(slug: string, category: string, filename: string): number {
+  const listed = NAV_ORDER[category]?.indexOf(slug) ?? -1;
+  return listed >= 0 ? listed : fallbackOrder(filename);
 }
 
 function walk(root: string, dir = ""): Doc[] {
@@ -134,14 +249,14 @@ function walk(root: string, dir = ""): Doc[] {
       continue;
     }
     if (!entry.name.endsWith(".md")) continue;
-    const slug = rel.replace(/\.md$/, "");
-    if (NEVER_PUBLISH.has(slug)) continue;
+    if (NEVER_PUBLISH.has(rel.replace(/\.md$/, ""))) continue;
+    const slug = slugFor(rel);
     const body = fs.readFileSync(path.join(root, rel), "utf8");
     out.push({
       slug,
       title: titleOf(body, entry.name),
       category: dir,
-      order: orderOf(entry.name),
+      order: orderOf(slug, dir, entry.name),
       body,
     });
   }
@@ -192,14 +307,19 @@ export function docOrder(): DocMeta[] {
  * Rewrite in-repo Markdown links so they stay inside the docs site.
  *
  * The source files link each other with relative paths like
- * `../architecture/04_Agent_Design.md`, which are correct on GitHub and 404 here.
- * Anything resolving to a published document becomes a `/docs/...` route.
+ * `../architecture/04-agent-architecture.md`, which are correct on GitHub and 404 here.
+ * Anything resolving to a published document becomes a `/docs/...` route, with the
+ * filename's numeric prefix stripped by the same `slugFor` the document's own slug comes
+ * from — so a link and its target cannot disagree about the URL.
  *
- * A `.md` target that is *not* published is de-linked — the text survives, the link does
- * not. Three published documents link to `04_Interview_Defense.md`, which is gitignored
- * as private and deliberately never generated; leaving those as relative links would both
- * dead-end the reader and advertise a document that is not supposed to be here. Non-`.md`
- * targets (source files, screenshots) are left exactly as written rather than guessed at.
+ * A `.md` target that is *not* published is de-linked: the text survives, the link does
+ * not. That covers `00_INDEX.md` (the repo-facing map) and anything under `internal/`,
+ * where leaving a relative link would both dead-end the reader and advertise a file that
+ * is not part of the site. Non-`.md` targets (source files, screenshots) are left exactly
+ * as written rather than guessed at.
+ *
+ * `fromSlug` is the *published* slug, whose directories have no numeric prefixes, so
+ * resolution happens in slug space on both sides.
  */
 export function rewriteDocLinks(body: string, fromSlug: string): string {
   const fromDir = path.posix.dirname(fromSlug);
@@ -209,9 +329,9 @@ export function rewriteDocLinks(body: string, fromSlug: string): string {
     (whole, text: string, href: string) => {
       const [pathPart, hash = ""] = href.split("#");
       if (!pathPart.endsWith(".md")) return whole;
-      const resolved = path.posix
-        .normalize(path.posix.join(fromDir === "." ? "" : fromDir, pathPart))
-        .replace(/\.md$/, "");
+      const resolved = path.posix.normalize(
+        path.posix.join(fromDir === "." ? "" : fromDir, slugFor(pathPart)),
+      );
       if (known.has(resolved))
         return `[${text}](/docs/${resolved}${hash ? `#${hash}` : ""})`;
       return text;

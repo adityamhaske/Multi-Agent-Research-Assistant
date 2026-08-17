@@ -1,9 +1,9 @@
 """
-Versioned prompts (docs/architecture/04_Agent_Design.md §5). Never inline in node code.
+Versioned prompts (docs/architecture/04-agent-architecture.md §5). Never inline in node code.
 
 Untrusted web content is always wrapped in <untrusted_web_content> tags with a
 standing instruction that content inside is data, never instructions
-(docs/engineering/06_Security.md §4).
+(docs/architecture/06-security.md §4).
 """
 
 UNTRUSTED_CONTENT_NOTE = (

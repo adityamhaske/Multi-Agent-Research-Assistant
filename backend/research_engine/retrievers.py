@@ -1,5 +1,5 @@
 """
-Search retriever chain (docs/architecture/03_Tech_Stack.md, docs/04 §4).
+Search retriever chain (docs/architecture/02-system-architecture.md, docs/04 §4).
 
 Ordered fallback: Tavily → Brave → DuckDuckGo. First success wins. DuckDuckGo is
 the keyless last resort (endemic rate-limiting — never the sole retriever).

@@ -1,5 +1,5 @@
 """
-Structured I/O contracts for the agent pipeline (docs/architecture/04_Agent_Design.md §2).
+Structured I/O contracts for the agent pipeline (docs/architecture/04-agent-architecture.md §2).
 
 Every LLM boundary is validated against one of these models. Parse/validation
 failure is a node failure — never a silent fallback (docs/11 §1 rule 2).

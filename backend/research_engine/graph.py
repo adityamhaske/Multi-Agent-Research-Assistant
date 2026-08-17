@@ -1,6 +1,6 @@
 """
 The research agent pipeline as a real compiled LangGraph StateGraph
-(docs/architecture/04_Agent_Design.md). No hand-rolled loop, no fail-open behavior.
+(docs/architecture/04-agent-architecture.md). No hand-rolled loop, no fail-open behavior.
 
     planner → executor(all pending tasks, in parallel) → critic(all, in parallel) ─┐
                      ▲                       (any task failed, retries remain)     │

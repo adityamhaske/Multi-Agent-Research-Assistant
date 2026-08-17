@@ -33,7 +33,7 @@ data/
 *.sqlite-*
 
 # Personal / not for publication
-docs/deep-dive/04_Interview_Defense.md
+internal/04_Interview_Defense.md
 
 # Per-developer Claude Code overrides. `.claude/plans/` is deliberately NOT
 # ignored — a plan is a design artifact worth reviewing alongside the diff.

@@ -1,6 +1,6 @@
 """
 Token service: short-lived access JWTs + opaque rotating refresh tokens
-(docs/engineering/06_Security.md §1, docs/05 §1 refresh_tokens).
+(docs/architecture/06-security.md §1, docs/05 §1 refresh_tokens).
 
 Access tokens are stateless HS256 JWTs (15 min). Refresh tokens are 256-bit opaque
 strings stored server-side as sha256 with a jti; every use rotates them and reuse of

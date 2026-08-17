@@ -1,93 +1,112 @@
-# Documentation Index
+# Documentation map
 
-> These documents are the **build contract** for the Multi-Agent Research Assistant.
-> Code that contradicts these docs is wrong; docs that contradict shipped code must be
-> updated in the same PR that changes the behavior. No aspirational claims: every
-> statement in these docs describes either (a) what is built, or (b) an item explicitly
-> marked **[PLANNED]**.
+> This file is the repository-facing map of `docs/`. It is **not published to the
+> documentation site** — the site generates its own index at `/docs`, and a second table of
+> contents beside it would be duplicate navigation rather than help. It exists for people
+> browsing the tree on GitHub.
+
+`docs/` is the build contract. Code that contradicts it is wrong; documentation that
+contradicts shipped code must be fixed **in the same pull request** that changed the
+behaviour. Nothing here is aspirational: every statement describes what is built, or is
+explicitly marked as planned.
+
+Engineering notes, milestone plans, and release checklists are **not** documentation and live
+in [`../internal/`](../internal/README.md). Nothing under `docs/` should link to them.
+
+`docs/governance/` and `docs/plans/` are repository governance rather than product
+documentation — they describe how the project is run, not how the product works. Contributors
+and coding agents are pointed at them by `AGENTS.md`; they are excluded from the site by name
+in `frontend/lib/docs.ts`.
 
 ## Layout
 
 ```
 docs/
-├── product/       vision, UX guidelines, roadmap, launch plan
-├── architecture/  system design, tech stack, agent design, data & API
-├── engineering/   security, testing, deployment, engineering standards
-├── deep-dive/     narrative explainers — see deep-dive/00_INDEX.md
-└── screenshots/   UI reference images used by the top-level README
+├── getting-started/   what it is, how to run it, how to configure it
+├── user-guide/        using the product
+├── architecture/      how it is built, and why the boundaries fall where they do
+├── deployment/        Docker, production, operations
+├── developers/        working on the code
+├── reference/         exact contracts: API, SSE, bundle format, configuration
+├── research/          measurement methodology
+├── project/           roadmap and changelog
+└── screenshots/       UI reference images used by the README
 ```
 
-## Documents
-
-### Product (`product/`)
-
-| # | Document | Purpose |
-|---|----------|---------|
-| 01 | [Product Vision](product/01_Product_Vision.md) | What we are building, for whom, positioning, and what we are explicitly NOT building |
-| 07 | [UI/UX Guidelines](product/07_UIUX_Guidelines.md) | Academic design system, typography architecture, color matrix, citations UX, accessibility |
-| 10 | [Roadmap](product/10_Roadmap.md) | Vertical-slice milestones with verifiable Definitions of Done |
-| 12 | [v2 Launch Plan](product/12_Launch_Plan.md) | Local-first strategy, milestones M5–M17, budget, binding out-of-scope list |
-| — | [Launch Go/No-Go](product/Launch_Go_No_Go.md) | Verification outcome and checklist for release readiness |
-| 17 | [Desktop Distribution and First Run](product/17_Desktop_Distribution.md) | **[PLANNED]** Release pipeline, demo-first onboarding, and install guidance for the desktop build |
-
-### Architecture (`architecture/`)
-
-| # | Document | Purpose |
-|---|----------|---------|
-| 02 | [System Architecture](architecture/02_System_Architecture.md) | Topology, data flow, state machine, real-time layer |
-| 03 | [Tech Stack](architecture/03_Tech_Stack.md) | Exact technologies, versions, and the justification for each |
-| 04 | [Agent Design](architecture/04_Agent_Design.md) | LangGraph graph, node contracts, prompts, tools, structured outputs, budgets |
-| 05 | [Data & API](architecture/05_Data_and_API.md) | Database schema, migration policy, REST + SSE contracts |
-| 13 | [Local-First Architecture](architecture/13_Local_First_Architecture.md) | Engine extraction, ports/adapters, desktop packaging, offline tiers |
-| 14 | [Projects & Project Memory](architecture/14_Projects_and_Memory.md) | Project containers, project-scoped chat, retrieval over approved research |
-
-### Engineering (`engineering/`)
-
-| # | Document | Purpose |
-|---|----------|---------|
-| 06 | [Security](engineering/06_Security.md) | Auth design, SSRF/prompt-injection defenses, rate limiting, headers, secrets |
-| 08 | [Testing & Quality](engineering/08_Testing_and_Quality.md) | Test pyramid, golden E2E tests, evals, CI gates |
-| 09 | [Deployment & Operations](engineering/09_Deployment_and_Operations.md) | Docker, environments, migrations, observability, runbook |
-| 11 | [Engineering Standards](engineering/11_Engineering_Standards.md) | DOs/DON'Ts, code style, git conventions, review checklist |
-| 15 | [Bundle Format](engineering/15_Bundle_Format.md) | Self-contained `.bundle.json` SBOM schema, hashing rules, and standalone verifier |
-
-### Guides (`guides/`)
+## Getting started
 
 | Document | Purpose |
-|----------|---------|
-| [Local LLM Setup](guides/Local_LLM_Setup.md) | Setup and configuration guide for running local models via Ollama and LM Studio |
+|---|---|
+| [Overview](getting-started/01-overview.md) | What this is, who it is for, what makes it different, and what is out of scope |
+| [Quick start](getting-started/20-quick-start.md) | Clone to first cited report |
+| [Configuration](getting-started/21-configuration.md) | The settings you actually reach for |
+| [Local LLM setup](getting-started/22-local-llm.md) | Running on Ollama, and which models work |
+| [Desktop app](getting-started/23-desktop-app.md) | Install, first run, and what differs from the server |
+| [Troubleshooting](getting-started/24-troubleshooting.md) | The failures people actually hit |
 
-### Deep Dive (`deep-dive/`)
+## User guide
 
-| # | Document | Purpose |
-|---|----------|---------|
-| 00 | [Deep Dive Index](deep-dive/00_INDEX.md) | Overview of narrative explainers across different architectural altitudes |
-| 01 | [End-to-End System](deep-dive/01_End_to_End_System.md) | Comprehensive narrative walkthrough with principal-engineer review |
-| 02 | [High-Level Design (HLD)](deep-dive/02_HLD.md) | System boundaries, 5 critical flows, failure modes, NFRs |
-| 03 | [Low-Level Design (LLD)](deep-dive/03_LLD.md) | Module-by-module internals: graph nodes, auth, BYOK crypto, SSE, frontend |
-| 04 | [Interview Defense](deep-dive/04_Interview_Defense.md) | Hard architectural questions and production bug post-mortems |
+| Document | Purpose |
+|---|---|
+| [Running research](user-guide/25-running-research.md) | Submitting, execution, live progress, limits, failure states |
+| [Review and approval](user-guide/26-review-and-approval.md) | Both human gates, and what becomes final |
+| [Citations and verification](user-guide/27-citations.md) | What is checked, by what, and what is not |
+| [Projects and memory](user-guide/28-projects-and-memory.md) | Projects, the corpus, approved-only memory, isolation |
+| [Exports](user-guide/29-exports.md) | Markdown, PDF, and the verifiable bundle |
 
-## How to use these docs
+## Architecture
 
-1. **Before implementing a feature**: read the relevant doc section. If the design is
-   missing or ambiguous, update the doc first, then implement.
-2. **Before merging a PR**: run the review checklist in
-   [11_Engineering_Standards.md](engineering/11_Engineering_Standards.md).
-3. **Milestone gates**: a milestone is complete only when its Definition of Done in
-   [10_Roadmap.md](product/10_Roadmap.md) passes verbatim.
+| Document | Purpose |
+|---|---|
+| [System architecture](architecture/02-system-architecture.md) | Topology, request lifecycle, technology choices, failure modes, scaling |
+| [Agent architecture](architecture/04-agent-architecture.md) | The graph, state, node contracts, tools, budgets, routing |
+| [Data model](architecture/05-data-model.md) | Every table, and the migration policy |
+| [Local and self-hosted](architecture/13-local-and-self-hosted.md) | The engine boundary, ports, desktop, and the three privacy tiers |
+| [Security](architecture/06-security.md) | Threat model through to a production hardening checklist |
 
-## Ground rules (learned the hard way)
+## Deployment
 
-The previous iteration of this project failed because docs and code diverged: the docs
-described LangGraph checkpointing, Tavily, Kubernetes, and tests, while the code had a
-hand-rolled loop, DuckDuckGo scraping, no Dockerfiles, and no tests — and the core
-pipeline shipped broken at four separate points. The rules above exist to prevent that
-class of failure. Specifically:
+| Document | Purpose |
+|---|---|
+| [Deploy with Docker](deployment/09-docker.md) | Images, Compose, startup ordering, migrations, health |
+| [Production deployment](deployment/30-production.md) | TLS, hardening, backups, upgrades, releases |
+| [Operations](deployment/31-operations.md) | Observability, runbook, cost control, housekeeping |
 
-- **No "temporarily simplified" implementations of core mechanisms.** If the design says
-  LangGraph checkpointing, we build LangGraph checkpointing in the first slice, not a
-  stand-in loop "for M1".
-- **Every vertical slice ends with an automated end-to-end test** proving the slice works
-  through the real stack (see [08_Testing_and_Quality.md](engineering/08_Testing_and_Quality.md)).
-- **Fail closed.** Parsing failures, missing data, and quality-gate errors stop the
-  pipeline with a clear error; they never silently pass.
+## Developers
+
+| Document | Purpose |
+|---|---|
+| [Development guide](developers/32-development.md) | Setup, layout, the checks CI runs, where things bite |
+| [Testing and evaluation](developers/08-testing-and-evaluation.md) | The pyramid, the golden journeys, the evaluation harness |
+| [Engineering guidelines](developers/11-engineering-guidelines.md) | The rules, and the review checklist |
+| [Frontend guidelines](developers/07-frontend-guidelines.md) | Theming, components, accessibility, build targets |
+| [Contributing](developers/33-contributing.md) | How to propose and land a change |
+
+## Reference
+
+| Document | Purpose |
+|---|---|
+| [API reference](reference/34-api.md) | Every endpoint, with request, response, and errors |
+| [SSE protocol](reference/35-sse.md) | Both streams: connection, replay, events, reconnection |
+| [Research bundle format](reference/15-bundle-format.md) | The `.bundle.json` schema, hashing rules, and verifier |
+| [Configuration reference](reference/36-configuration.md) | Every environment variable and its exact default |
+
+## Research
+
+| Document | Purpose |
+|---|---|
+| [Citation-fidelity benchmark](research/16-citation-fidelity-benchmark.md) | Methodology, and what has actually been measured |
+
+## Project
+
+| Document | Purpose |
+|---|---|
+| [Roadmap](project/10-roadmap.md) | Current, in progress, planned, and explicitly not planned |
+| [Changelog](project/37-changelog.md) | What changed in each release, including known gaps |
+
+## Adding a page
+
+The site walks this tree at build time. A file's numeric prefix is a stable document
+identity — source comments cite documents by number — while reading order comes from
+`NAV_ORDER` in `frontend/lib/docs.ts`, keyed by the published slug (the prefix is stripped
+from URLs). A page missing from that list still renders; it just sorts last in its section.

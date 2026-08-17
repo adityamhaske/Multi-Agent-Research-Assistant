@@ -9,7 +9,7 @@ verifier (verify_bundle.py) can check the whole thing offline with no AI and no 
 This module is the pure assembler: no DB, no ORM, no host. Both the API server and
 the desktop sidecar produce bundles through it.
 
-Design decisions (docs/engineering/15_Bundle_Format.md):
+Design decisions (docs/reference/15-bundle-format.md):
 
 - **Content hashes are SHA-256 of the snippet text, not the source page.** The live
   page is non-reproducible (it changes); the snippet is exactly what the executor

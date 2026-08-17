@@ -242,7 +242,7 @@ export function LocalLLMCard() {
           nothing leaves your computer.{" "}
           <a
             className="underline underline-offset-2 hover:text-text-secondary"
-            href="https://github.com/adityamhaske/multi-agent-research-assistant/blob/main/docs/guides/Local_LLM_Setup.md"
+            href="https://github.com/adityamhaske/multi-agent-research-assistant/blob/main/docs/getting-started/22-local-llm.md"
             target="_blank"
             rel="noopener noreferrer nofollow"
           >

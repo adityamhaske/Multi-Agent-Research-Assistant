@@ -3,7 +3,7 @@ research_engine — the research pipeline, independent of any host.
 
 A compiled LangGraph `StateGraph` (planner → executor ⇄ critic → synthesizer →
 `interrupt()` gate → finalizer), its tools, retriever chain, model factory, and
-citation-bearing schemas. See docs/architecture/04_Agent_Design.md for the graph contract.
+citation-bearing schemas. See docs/architecture/04-agent-architecture.md for the graph contract.
 
 **This package must not import the server host** (`app.*`) or read process
 environment. Everything it needs arrives through `runconfig.RunConfig`, installed

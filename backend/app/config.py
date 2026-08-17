@@ -142,7 +142,7 @@ class Settings(BaseSettings):
             raise ValueError(
                 "JWT_SECRET_KEY must be >= 32 chars of real randomness "
                 "(generate with: openssl rand -hex 32). "
-                "Placeholder values are refused — see docs/engineering/06_Security.md §1."
+                "Placeholder values are refused — see docs/architecture/06-security.md §1."
             )
         if self.llm_mode == "real" and self.environment == "production":
             routed_providers = {

@@ -1,5 +1,5 @@
 """
-Agent tools — each with one responsibility (docs/architecture/04_Agent_Design.md §4).
+Agent tools — each with one responsibility (docs/architecture/04-agent-architecture.md §4).
 
 web_search   → retriever chain (Tavily → Brave → DuckDuckGo), Redis-cached
 read_webpage → SSRF-guarded fetch + main-text extraction

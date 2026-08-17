@@ -6,7 +6,7 @@ but not exhaustive on these traps.
 
 ## Hard boundary: `research_engine` never imports `app`
 
-`research_engine/` is a local-first engine (docs/architecture/13_Local_First_Architecture.md)
+`research_engine/` is a local-first engine (docs/architecture/13-local-and-self-hosted.md)
 that knows nothing about Postgres, Redis, Celery, or ORM models. The host supplies
 everything through ports (`research_engine/ports.py`) and per-run `RunConfig`. If you find
 yourself importing `app.config` or an ORM model inside `research_engine`, stop — wire it
@@ -17,7 +17,7 @@ runner's ports instead (see `app/workers/pipeline_runner.py` for the canonical e
 
 Never call `create_all()` or mutate tables from application code. Schema changes go
 through `alembic revision --autogenerate` + a review of the generated migration
-(docs/architecture/05_Data_and_API.md §2).
+(docs/architecture/05-data-model.md).
 
 ## The pipeline is not idempotent
 

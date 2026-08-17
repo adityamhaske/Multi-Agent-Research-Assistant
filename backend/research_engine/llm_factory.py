@@ -1,5 +1,5 @@
 """
-Provider-pluggable LLM factory (docs/architecture/04_Agent_Design.md §7, docs/13 §6).
+Provider-pluggable LLM factory (docs/architecture/04-agent-architecture.md §7, docs/13 §6).
 
 Roles are resolved from "provider:model" config strings so BYOK users can point
 any role at any configured provider. Prices and per-model capabilities come from

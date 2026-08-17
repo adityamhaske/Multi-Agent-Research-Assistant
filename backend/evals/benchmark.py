@@ -1,5 +1,5 @@
 """
-M13 Benchmark Runner (docs/engineering/16_Benchmark_Methodology.md)
+M13 Benchmark Runner (docs/research/16-citation-fidelity-benchmark.md)
 """
 
 import argparse

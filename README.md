@@ -9,11 +9,13 @@
 
 <!-- Direct link to the release asset — this downloads the file, no landing page.
      Bump the version in BOTH the badge label and the href when cutting a release. -->
-[![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon%20·%20.dmg-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/download/v1.0.1/Research.Assistant_1.0.1_aarch64.dmg)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon%20·%20.dmg-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/download/v1.0.2/Research.Assistant_1.0.2_aarch64.dmg)
 
-Apple Silicon only (65 MB). The app is unsigned, so macOS blocks it on first launch —
-right-click the app → **Open** → **Open**. Windows `.msi`, Linux `.deb` and `.AppImage`
-are on the [releases page](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/latest).
+Apple Silicon only (81 MB, installs to ~182 MB). The app is unsigned, so macOS blocks it on
+first launch — right-click the app → **Open** → **Open**. Windows `.msi`, Linux `.deb` and
+`.AppImage` are on the
+[releases page](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/latest);
+[install notes](docs/getting-started/23-desktop-app.md) cover every platform.
 
 ---
 
@@ -137,7 +139,7 @@ ENCRYPTION_KEY=<openssl rand -hex 32>   # encrypts users' stored keys
   proxy so cookies stay first-party and SSE authenticates natively
 - **Security** — httpOnly cookie auth with rotating refresh tokens and reuse detection,
   per-operation atomic rate limits, encrypted BYOK keys, strict CSP
-  ([docs/06](docs/engineering/06_Security.md))
+  ([Security](docs/architecture/06-security.md))
 
 ## Configuration
 
@@ -151,12 +153,16 @@ the app refuses to boot with a placeholder or short `JWT_SECRET_KEY`.
 | `MODEL_PLANNER` … `MODEL_CHAT` | ⚪ | `provider:model` per agent role |
 | `ENCRYPTION_KEY` | ⚪ (prod) | Encrypts users' stored keys |
 | `DEFAULT_MONTHLY_TOKEN_LIMIT` | ⚪ | Token cap for new accounts; `0` = unlimited |
-| `MAX_COST_PER_SESSION_USD` | ⚪ | Per-session budget (default `0.50`) |
+| `MAX_COST_PER_SESSION_USD` | ⚪ | Per-session budget; **`0` = unlimited, and `0` is the default** |
 | `ENVIRONMENT` | ⚪ | `development` or `production` |
 
-> `MAX_COST_PER_SESSION_USD` is a **no-op on `openrouter` and `custom` routes** — those
-> providers are skipped by the price table, so estimated cost is `0.00` and the cap never
-> trips. Cap spend at the provider for those.
+> **Every run limit is `0 = unlimited`, and `0` is the default** — cost, wall-clock, and
+> input tokens alike. Nothing stops a long run out of the box; set them when you want a hard
+> stop. And `MAX_COST_PER_SESSION_USD` is a **no-op on `openrouter` and `custom` routes** —
+> those providers are skipped by the price catalog, so estimated cost is `0.00` and the cap
+> never trips. Cap spend at the provider for those.
+
+Full list with exact defaults: [Configuration reference](docs/reference/36-configuration.md).
 
 ## Measured quality
 
@@ -180,14 +186,13 @@ regression signal, not a benchmark.
 
 Every run records its own method block, and `metrics_version` is bumped whenever a
 definition changes, so two runs are never silently compared across incompatible metrics.
-Method, failure analysis, and the defect log are in
-[docs/12](docs/product/12_Launch_Plan.md) and
-[docs/16](docs/engineering/16_Benchmark_Methodology.md).
+Method, caveats, and what a *published* benchmark would require are in
+[Citation-fidelity benchmark](docs/research/16-citation-fidelity-benchmark.md).
 
 ## Deployment
 
 Single host plus a TLS reverse proxy in front of the frontend
-([docs/09](docs/engineering/09_Deployment_and_Operations.md)):
+([Deployment](docs/deployment/30-production.md)):
 
 - [`deploy/README.md`](deploy/README.md) — host the whole stack for **$0/month** on an
   Oracle Cloud Always Free VM, HTTPS included, no domain required
@@ -202,21 +207,22 @@ bundles.
 
 ## Documentation
 
-**Start here:** [`docs/deep-dive/`](docs/deep-dive/00_INDEX.md) — the
-[end-to-end system](docs/deep-dive/01_End_to_End_System.md),
-[HLD](docs/deep-dive/02_HLD.md), [LLD](docs/deep-dive/03_LLD.md), and an
-[interview defense](docs/deep-dive/04_Interview_Defense.md) with post-mortems of the
-production bugs found by actually running the system.
+Read it online at
+**[adityamhaske.github.io/Multi-Agent-Research-Assistant/docs](https://adityamhaske.github.io/Multi-Agent-Research-Assistant/docs/)**,
+or in this repository under [`docs/`](docs/00_INDEX.md).
 
-[Vision](docs/product/01_Product_Vision.md) ·
-[Architecture](docs/architecture/02_System_Architecture.md) ·
-[Tech Stack](docs/architecture/03_Tech_Stack.md) ·
-[Agent Design](docs/architecture/04_Agent_Design.md) ·
-[Data & API](docs/architecture/05_Data_and_API.md) ·
-[Security](docs/engineering/06_Security.md) ·
-[Testing](docs/engineering/08_Testing_and_Quality.md) ·
-[Deployment](docs/engineering/09_Deployment_and_Operations.md) ·
-[Roadmap](docs/product/10_Roadmap.md)
+**New here:** [Overview](docs/getting-started/01-overview.md) →
+[Quick start](docs/getting-started/20-quick-start.md) →
+[Configuration](docs/getting-started/21-configuration.md)
+
+| | |
+|---|---|
+| **Using it** | [Running research](docs/user-guide/25-running-research.md) · [Review & approval](docs/user-guide/26-review-and-approval.md) · [Citations](docs/user-guide/27-citations.md) · [Projects & memory](docs/user-guide/28-projects-and-memory.md) · [Exports](docs/user-guide/29-exports.md) |
+| **How it works** | [System architecture](docs/architecture/02-system-architecture.md) · [Agent architecture](docs/architecture/04-agent-architecture.md) · [Data model](docs/architecture/05-data-model.md) · [Local & self-hosted](docs/architecture/13-local-and-self-hosted.md) · [Security](docs/architecture/06-security.md) |
+| **Running it** | [Docker](docs/deployment/09-docker.md) · [Production](docs/deployment/30-production.md) · [Operations](docs/deployment/31-operations.md) |
+| **Changing it** | [Development](docs/developers/32-development.md) · [Testing & evaluation](docs/developers/08-testing-and-evaluation.md) · [Engineering guidelines](docs/developers/11-engineering-guidelines.md) · [Contributing](docs/developers/33-contributing.md) |
+| **Reference** | [API](docs/reference/34-api.md) · [SSE protocol](docs/reference/35-sse.md) · [Bundle format](docs/reference/15-bundle-format.md) · [Configuration](docs/reference/36-configuration.md) |
+| **Project** | [Roadmap](docs/project/10-roadmap.md) · [Changelog](docs/project/37-changelog.md) · [Benchmark methodology](docs/research/16-citation-fidelity-benchmark.md) |
 
 ## License
 

@@ -1,5 +1,5 @@
 """
-LangGraph pipeline state (docs/architecture/04_Agent_Design.md §2).
+LangGraph pipeline state (docs/architecture/04-agent-architecture.md §2).
 
 A plain TypedDict — LangGraph manages it and the Postgres checkpointer persists it
 at every step, so it must stay JSON-serializable (primitives/lists/dicts only).

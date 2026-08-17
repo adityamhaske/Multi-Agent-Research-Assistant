@@ -7,13 +7,16 @@ export const metadata = { title: "Documentation · Research Assistant" };
 /** One line per category explaining what a reader will find, so the index is a map rather
  *  than a second copy of the sidebar. */
 const BLURBS: Record<string, string> = {
-  "": "Start here — what the documentation set covers and how it is organised.",
-  product: "What is being built and for whom, the design system, and the release plan.",
-  architecture:
-    "Topology, the agent graph, the data and API contracts, and the local-first design.",
-  engineering: "Security, testing, deployment, and the standards this codebase holds itself to.",
-  guides: "Step-by-step setup for running the assistant on your own hardware.",
-  "deep-dive": "Long-form explainers: end-to-end walkthroughs, high- and low-level design.",
+  "": "Orientation pages that do not belong to one section.",
+  "getting-started":
+    "What this is, how to run it, and how to configure a model — including a local one.",
+  "user-guide": "Using the product: running research, approving it, and reading the citations.",
+  architecture: "How the system is put together, and why the boundaries fall where they do.",
+  deployment: "Running it for real: Docker, a public deployment, and day-to-day operations.",
+  developers: "Setting up to work on the code, testing it, and the conventions it holds to.",
+  reference: "Exact contracts — endpoints, the event stream, the export format, every setting.",
+  research: "Measurement methodology, kept separate from the product documentation.",
+  project: "Where this is going, and what changed in each release.",
 };
 
 export default function DocsIndexPage() {
@@ -39,9 +42,16 @@ export default function DocsIndexPage() {
         Documentation
       </h1>
       <p className="mt-2 text-sm leading-relaxed text-text-muted">
-        These documents are the build contract for the Multi-Agent Research Assistant. Code that
-        contradicts them is wrong, and nothing here is aspirational — every statement describes
-        what is built, or is marked explicitly as planned.
+        Documentation for the Multi-Agent Research Assistant. Nothing here is aspirational: every
+        statement describes what is built, or is marked explicitly as planned. New here? Start with{" "}
+        <Link href="/docs/getting-started/overview" className="text-accent hover:underline">
+          Overview
+        </Link>
+        , then{" "}
+        <Link href="/docs/getting-started/quick-start" className="text-accent hover:underline">
+          Quick start
+        </Link>
+        .
       </p>
       <p className="mt-1 font-mono text-xs text-text-muted">{total} documents</p>
 

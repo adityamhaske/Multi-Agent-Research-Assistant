@@ -1,5 +1,5 @@
 """
-Password policy + hashing (docs/engineering/06_Security.md §1).
+Password policy + hashing (docs/architecture/06-security.md §1).
 
 bcrypt directly (passlib is unmaintained). Reject >72 bytes explicitly rather than
 letting bcrypt silently truncate. A small embedded breached-password set blocks the

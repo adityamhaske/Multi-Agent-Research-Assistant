@@ -299,14 +299,14 @@ export default function DownloadPage() {
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted">
         The whole stack runs in Docker with one command — see{" "}
         <Link
-          href="/docs/engineering/09_Deployment_and_Operations"
+          href="/docs/deployment/docker"
           className="text-accent hover:underline"
         >
           Deployment
         </Link>
         . Or read{" "}
         <Link
-          href="/docs/product/01_Product_Vision"
+          href="/docs/getting-started/overview"
           className="text-accent hover:underline"
         >
           what this is for
