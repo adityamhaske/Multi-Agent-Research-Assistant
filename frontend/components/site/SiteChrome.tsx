@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { isPagesBuild } from "@/lib/pages-build";
 
 /**
  * Header and footer for the public site (`app/(site)/`).
@@ -78,12 +79,23 @@ export function SiteHeader({ eyebrow }: { eyebrow?: string }) {
             </Link>
           ))}
         </nav>
-        <Link
-          href="/dashboard"
-          className="ml-1 flex h-8 items-center border border-border bg-bg-surface px-2.5 font-mono text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
-        >
-          Open app →
-        </Link>
+        {isPagesBuild ? (
+          // The static site has no app to open. Sending someone to /dashboard here would
+          // 404 on a page that promises the opposite.
+          <a
+            href={REPO}
+            className="ml-1 flex h-8 items-center border border-border bg-bg-surface px-2.5 font-mono text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          >
+            GitHub ↗
+          </a>
+        ) : (
+          <Link
+            href="/dashboard"
+            className="ml-1 flex h-8 items-center border border-border bg-bg-surface px-2.5 font-mono text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          >
+            Open app →
+          </Link>
+        )}
         <ThemeToggle />
       </div>
     </header>

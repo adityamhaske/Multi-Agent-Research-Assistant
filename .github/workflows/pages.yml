@@ -1,20 +1,31 @@
 name: Pages
 
-# Publishes the project landing page in `site/` to GitHub Pages: what the project is,
-# how to use it, how to deploy it, and where the source and downloads live.
+# Publishes the public site to GitHub Pages: the landing page, the comparison against
+# NotebookLM and friends, the full documentation set, and the download instructions.
 #
-# Deliberately a plain static upload with no build step. The page is one self-contained
-# HTML file with inlined CSS and no scripts, so there is nothing to compile and no
-# dependency that can rot between releases. The in-app docs site (`/docs`, rendered from
-# `docs/**/*.md` by the frontend) remains the place for engineering documentation — this
-# is the front door, not a second copy of the manual.
+# **This used to be one hand-written `site/index.html` with no build step.** That was a
+# deliberate choice — nothing to compile, no dependency that can rot — and it failed the
+# way hand-maintained duplicates always do: it described a pipeline with one human gate
+# for weeks after the design gate shipped, because updating it was a separate act of
+# memory from changing the product.
+#
+# So the site is now generated from the app's own `(site)` route group. The docs are the
+# same `docs/` markdown the app renders, through the same renderer; the comparison is the
+# same `lib/comparison.ts` the app imports; the colours are `globals.css`, both themes,
+# rather than a second palette that drifts. Nothing here can describe a version of the
+# product that does not exist, because it is built from the product.
+#
+# The cost is a build step, and that is the trade being made knowingly.
 
 on:
   push:
     branches: [main]
-    # Only republish when the page itself changes; a backend commit should not redeploy it.
+    # Widened from `site/**`: the site is now generated, so anything it is generated
+    # *from* must republish it. A docs edit that never reached the published site was the
+    # exact failure this file is being changed to prevent.
     paths:
-      - "site/**"
+      - "frontend/**"
+      - "docs/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -37,19 +48,72 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
-      - name: Fail if the page is missing
-        # A green deploy that published nothing looks like success and serves a 404.
-        run: test -f site/index.html
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Stage a copy without the app routes
+        # Built from a *copy* so the checkout is never mutated. The `(app)` group and
+        # `/login` need a backend and a session; exporting them would publish a shell that
+        # looks like the product and cannot do anything. Deleting them from a scratch copy
+        # is safer than a stash-and-restore that can leave the tree mangled if the build
+        # dies midway.
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pages
+          cp -R frontend /tmp/pages/frontend
+          cp -R docs /tmp/pages/docs
+          rm -rf "/tmp/pages/frontend/app/(app)" /tmp/pages/frontend/app/login
+          rm -rf /tmp/pages/frontend/.next /tmp/pages/frontend/out
+
+      - name: Build the static site
+        working-directory: /tmp/pages/frontend
+        env:
+          # Pages serves a project site from /<repo>/, not the domain root. Without the
+          # prefix every internal link and asset resolves one level too high and 404s.
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+        run: npm run build:pages
+
+      - name: Fail if the export is empty or missing pages
+        # A green deploy that published nothing looks like success and serves a 404. Each
+        # of these is a page the site promises in its own nav, so a missing one is a
+        # broken link shipped to the front door.
+        run: |
+          set -euo pipefail
+          out=/tmp/pages/frontend/out
+          for page in index.html why/index.html docs/index.html download/index.html; do
+            test -s "$out/$page" || { echo "missing or empty: $page"; exit 1; }
+          done
+          # The docs index is generated from the markdown tree; if that tree was not
+          # visible at build time the page renders an honest "unavailable" notice rather
+          # than a convincing empty index — which would deploy green and say nothing.
+          if grep -q "Documentation is unavailable" "$out/docs/index.html"; then
+            echo "docs tree was not readable at build time"; exit 1
+          fi
+          count=$(find "$out/docs" -name index.html | wc -l)
+          echo "docs pages exported: $count"
+          test "$count" -gt 5
+
+      - name: Disable Jekyll
+        # Pages runs Jekyll by default, which silently drops every path starting with an
+        # underscore — including `_next/`, i.e. all the CSS and JS.
+        run: touch /tmp/pages/frontend/out/.nojekyll
+
       - uses: actions/configure-pages@v5
         with:
           # Provision the Pages site on first run. Without this the action fails with
           # "Get Pages site failed / Not Found" on a repository where Pages has never
           # been switched on, which is every repository until someone visits Settings.
-          # Enabling it here keeps the whole deployment described by this file.
           enablement: true
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: site
+          path: /tmp/pages/frontend/out
       - name: Deploy
         id: deploy
         uses: actions/deploy-pages@v4

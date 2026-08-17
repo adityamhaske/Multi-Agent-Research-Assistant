@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "node scripts/prepare-session-routes.mjs web && playwright test",
-    "screenshots": "node scripts/prepare-session-routes.mjs web && playwright test --config=playwright.screenshots.config.ts"
+    "screenshots": "node scripts/prepare-session-routes.mjs web && playwright test --config=playwright.screenshots.config.ts",
+    "build:pages": "cross-env NEXT_PUBLIC_PAGES=1 next build"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.0",

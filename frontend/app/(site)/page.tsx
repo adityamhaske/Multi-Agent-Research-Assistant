@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { isDesktop } from "@/lib/desktop";
+import { isPagesBuild } from "@/lib/pages-build";
 
 /**
  * Landing page and app entry point (docs/07 §2).
@@ -53,11 +54,17 @@ const PIPELINE: { name: string; note: string; gate?: boolean }[] = [
 ];
 
 export default async function Home() {
-  if (!isDesktop) {
-    const store = await cookies();
-    if (store.has("access_token")) redirect("/dashboard");
-  } else {
-    redirect("/dashboard");
+  // The Pages build has no server, no session and no app to redirect into — it is the
+  // public site and nothing else, so it renders the landing page unconditionally. Checked
+  // first because `cookies()` cannot be called from a statically exported route at all;
+  // this is not an optimisation, it is what makes the export possible.
+  if (!isPagesBuild) {
+    if (!isDesktop) {
+      const store = await cookies();
+      if (store.has("access_token")) redirect("/dashboard");
+    } else {
+      redirect("/dashboard");
+    }
   }
 
   return (
@@ -80,24 +87,37 @@ export default async function Home() {
         </p>
 
         <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Link
-            href="/login"
-            className="flex h-10 items-center border border-accent bg-accent px-4 font-mono text-xs font-medium text-accent-contrast transition-opacity hover:opacity-90"
-          >
-            Start researching →
-          </Link>
+          {isPagesBuild ? (
+            // No /login in the static export — the primary action on the public site is
+            // to get the app, not to sign in to a server that is not there.
+            <Link
+              href="/download"
+              className="flex h-10 items-center border border-accent bg-accent px-4 font-mono text-xs font-medium text-accent-contrast transition-opacity hover:opacity-90"
+            >
+              Get the desktop app →
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="flex h-10 items-center border border-accent bg-accent px-4 font-mono text-xs font-medium text-accent-contrast transition-opacity hover:opacity-90"
+            >
+              Start researching →
+            </Link>
+          )}
           <Link
             href="/why"
             className="flex h-10 items-center border border-border bg-bg-surface px-4 font-mono text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
           >
             Why not NotebookLM?
           </Link>
-          <Link
-            href="/download"
-            className="flex h-10 items-center px-2 font-mono text-xs text-text-muted transition-colors hover:text-text-primary"
-          >
-            Download the desktop app
-          </Link>
+          {!isPagesBuild && (
+            <Link
+              href="/download"
+              className="flex h-10 items-center px-2 font-mono text-xs text-text-muted transition-colors hover:text-text-primary"
+            >
+              Download the desktop app
+            </Link>
+          )}
         </div>
       </section>
 
