@@ -70,6 +70,11 @@ from app.models.user import User
 from app.schemas.project import ProjectCreateRequest, ProjectListResponse, ProjectResponse
 from app.schemas.research import (
     ApprovalRequest,
+    OutlineSectionSchema,
+    OutlineTemplateSchema,
+    PlanDecisionRequest,
+    PlanResponse,
+    PlanTaskSchema,
     ResearchStartRequest,
     ResearchStartResponse,
     SessionDetail,
@@ -78,7 +83,7 @@ from app.schemas.research import (
 )
 from app.services import local_llm, provider_health
 from app.services.sse import SSE_HEADERS
-from research_engine import bundle, catalog
+from research_engine import bundle, catalog, outlines
 from research_engine.corpus import CorpusStore
 from research_engine.documents import MAX_DOCUMENT_BYTES
 from research_engine.embeddings import EmbeddingsUnavailable, LocalEmbeddings
@@ -94,8 +99,11 @@ LOCAL_USER_EMAIL = "local@desktop.invalid"
 _KEYRING_SERVICE = "research-assistant-desktop"
 
 # Event types that end an SSE stream — identical to the server's contract
-# (app/api/v1/research.py), so the same frontend hook drives both hosts.
-_TERMINAL_EVENTS = ("COMPLETED", "FAILED", "HITL_READY")
+# (app/api/v1/research.py), so the same frontend hook drives both hosts. "Terminal" here
+# means "the run has stopped producing events until a human acts", which is why both
+# gates are in the list: PLAN_READY suspends the graph exactly as HITL_READY does, and a
+# stream left open on it would hold a connection nothing will ever write to again.
+_TERMINAL_EVENTS = ("COMPLETED", "FAILED", "HITL_READY", "PLAN_READY")
 
 
 # ── Event fan-out ────────────────────────────────────────────────────────────────
@@ -455,7 +463,9 @@ def sidecar_run_config(
     if session_routing:
         models = dict(session_routing)
     else:
-        models = {role: os.environ.get(f"MODEL_{role.upper()}", DEFAULT_MODELS[role]) for role in ROLES}
+        models = {
+            role: os.environ.get(f"MODEL_{role.upper()}", DEFAULT_MODELS[role]) for role in ROLES
+        }
         if data_dir is not None:
             saved = stored_routing(data_dir)
             if saved:
@@ -852,11 +862,21 @@ def create_sidecar_app(
         Order matches the server: commit the row BEFORE the terminal event leaves, so a
         client that receives COMPLETED and re-fetches never sees a stale status.
         """
+        # Second home of the server's `pipeline_runner._persist_outcome` mapping — both
+        # dict literals below have to grow every status the runner can return, or a new
+        # outcome raises KeyError inside a background task and the session sits on
+        # RUNNING forever with nothing in the log to say why.
         session.status = {
+            "awaiting_plan": SessionStatus.AWAITING_PLAN,
             "awaiting_approval": SessionStatus.AWAITING_APPROVAL,
             "completed": SessionStatus.COMPLETED,
             "failed": SessionStatus.FAILED,
         }[outcome.status]
+        if outcome.status == "awaiting_plan":
+            # The proposal the reviewer is about to edit. `plan_approved_at` stays null
+            # until they decide — see `submit_plan` below.
+            session.plan_json = {"tasks": outcome.plan_tasks}
+            session.outline_json = {"sections": outcome.plan_outline}
         if outcome.draft_report:
             session.draft_report = outcome.draft_report
         if outcome.final_report:
@@ -871,6 +891,7 @@ def create_sidecar_app(
         await db.commit()
 
         lifecycle = {
+            "awaiting_plan": "PLAN_READY",
             "awaiting_approval": "HITL_READY",
             "completed": "COMPLETED",
             "failed": "FAILED",
@@ -888,9 +909,17 @@ def create_sidecar_app(
             await log_db.commit()
 
     async def _drive_session(
-        session_id: uuid.UUID, *, approved: bool | None, feedback: str | None
+        session_id: uuid.UUID,
+        *,
+        approved: bool | None = None,
+        feedback: str | None = None,
+        plan: dict | None = None,
     ) -> None:
-        """Run or resume one session in-process — the desktop's Celery replacement."""
+        """Run or resume one session in-process — the desktop's Celery replacement.
+
+        Three dispatches, matching `research_engine.runner`: no decision at all is a
+        fresh run, `approved` resumes the draft gate, `plan` resumes the design gate.
+        """
         sidecar = app.state.sidecar
         sink = PersistingSink(sidecar["bus"], session_factory)
 
@@ -902,6 +931,15 @@ def create_sidecar_app(
             session = await _authorized_session(db, session_id, sidecar["user_id"])
             is_demo = bool(session.demo)
             session_routing = session.model_routing
+            # The research design gate (docs/07 §2, Phase 4). Read from the session row,
+            # not from the request, because this runs again on every resume and the
+            # request is long gone by then. Server counterpart:
+            # `pipeline_runner._run_config_for`.
+            plan_gate_overrides = {
+                "skip_plan_gate": bool(session.skip_plan_gate),
+                "topic_seeds": tuple(session.topic_seeds or ()),
+                "outline_template": session.outline_template,
+            }
             local_user = await db.get(User, sidecar["user_id"])
             # Same mapping as the server's `pipeline_runner._preference_overrides`
             # (docs/07 §2, Phase 3) — third home of this contract.
@@ -919,6 +957,10 @@ def create_sidecar_app(
                 data_dir=app.state.data_dir,
                 session_routing=session_routing,
             )
+            # Applied after construction rather than inside `sidecar_run_config`, which
+            # has two `RunConfig(...)` sites (fake and real) — adding a field to only one
+            # of them is precisely how the fake path and the real path drift.
+            config = replace(config, **plan_gate_overrides)
             if preference_overrides:
                 config = replace(config, **preference_overrides)
         except RuntimeError as e:
@@ -949,7 +991,7 @@ def create_sidecar_app(
             "corpus": sidecar["corpus"],
         }
         try:
-            if approved is None:
+            if approved is None and plan is None:
                 async with session_factory() as db:
                     session = await _authorized_session(db, session_id, sidecar["user_id"])
                     query, depth = session.prompt, session.research_depth
@@ -959,6 +1001,13 @@ def create_sidecar_app(
                     user_id="local",
                     query=query,
                     depth=depth,
+                    **ports,
+                )
+            elif plan is not None:
+                outcome = await resume(
+                    checkpointer=sidecar["saver"],
+                    session_id=str(session_id),
+                    plan=plan,
                     **ports,
                 )
             else:
@@ -1010,6 +1059,12 @@ def create_sidecar_app(
             # unstamped report indistinguishable from real research.
             corpus_mode=payload.corpus_mode,
             demo=payload.demo,
+            # Research design gate (docs/07 §2, Phase 4). Third home of the
+            # request→`Session(...)` contract, and the one AGENTS.md records as having
+            # been wrong all three times; server counterpart is `api/v1/research.py`.
+            skip_plan_gate=payload.skip_plan_gate,
+            topic_seeds=payload.topic_seeds or None,
+            outline_template=payload.outline_template,
         )
         db.add(session)
         await db.commit()
@@ -1119,6 +1174,87 @@ def create_sidecar_app(
                         return
 
         return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+    # ── Research design gate (docs/07 §2, Phase 4) ─────────────────────────────
+    # Second home of `app/api/v1/research.py`'s plan endpoints. The bodies differ only
+    # in how they dispatch — Celery there, an asyncio task here — because that is the
+    # only thing that actually differs between the hosts; every rule below (404 vs empty
+    # plan, the 409, "None means unedited", writing the decision before resuming) is the
+    # shared contract and has to move in both files at once.
+
+    def _plan_response(session: Session) -> PlanResponse:
+        plan = session.plan_json or {}
+        outline = session.outline_json or {}
+        return PlanResponse(
+            session_id=session.id,
+            status=session.status,
+            tasks=[PlanTaskSchema.model_validate(t) for t in (plan.get("tasks") or [])],
+            outline=[
+                OutlineSectionSchema.model_validate(s) for s in (outline.get("sections") or [])
+            ],
+            approved_at=session.plan_approved_at,
+        )
+
+    @api.get("/research/outline-templates", response_model=list[OutlineTemplateSchema])
+    async def list_outline_templates(user: User = Depends(get_local_user)):
+        # Declared before `/research/{session_id}`, whose path parameter is a UUID and
+        # would 422 this path rather than fall through to it.
+        return [OutlineTemplateSchema.model_validate(t) for t in outlines.catalog()]
+
+    @api.get("/research/{session_id}/plan", response_model=PlanResponse)
+    async def get_plan(
+        session_id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        session = await _authorized_session(db, session_id, user.id)
+        if session.plan_json is None:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                detail=(
+                    "This session has no research plan to review — it did not use the design gate."
+                ),
+            )
+        return _plan_response(session)
+
+    @api.post("/research/{session_id}/plan", response_model=PlanResponse)
+    async def submit_plan(
+        session_id: uuid.UUID,
+        payload: PlanDecisionRequest,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        session = await _authorized_session(db, session_id, user.id)
+        if session.status != SessionStatus.AWAITING_PLAN:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail=f"Session must be AWAITING_PLAN (currently {session.status}).",
+            )
+
+        proposed = (session.plan_json or {}).get("tasks") or []
+        tasks = [t.model_dump() for t in payload.tasks] if payload.tasks is not None else proposed
+        outline = (
+            [s.model_dump() for s in payload.outline]
+            if payload.outline is not None
+            else (session.outline_json or {}).get("sections") or []
+        )
+        kept = [t for t in tasks if t.get("include", True)]
+        if not kept:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Keep at least one task — a plan with nothing in it researches nothing.",
+            )
+
+        session.plan_json = {"tasks": kept}
+        session.outline_json = {"sections": outline}
+        session.plan_approved_at = datetime.now(UTC)
+        session.status = SessionStatus.RUNNING
+        await db.commit()
+        await db.refresh(session)
+
+        asyncio.create_task(_drive_session(session_id, plan={"tasks": kept, "outline": outline}))
+        logger.info("sidecar_plan_approved", session_id=str(session_id), task_count=len(kept))
+        return _plan_response(session)
 
     @api.post("/research/{session_id}/approve")
     async def approve_or_rework(
@@ -1364,7 +1500,10 @@ def create_sidecar_app(
             )
         try:
             process = await asyncio.create_subprocess_exec(
-                binary, "serve", stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL
+                binary,
+                "serve",
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
             )
         except OSError as e:
             raise HTTPException(

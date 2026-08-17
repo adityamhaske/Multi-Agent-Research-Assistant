@@ -31,7 +31,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 from pydantic import BaseModel, Field
 
-from research_engine import contradictions, prompts
+from research_engine import contradictions, outlines, prompts
 from research_engine.events import emit
 from research_engine.llm_factory import (
     estimate_cost,
@@ -158,7 +158,11 @@ async def planner_node(state: AgentState) -> dict:
     messages = [
         SystemMessage(content=prompts.PLANNER_PROMPT_V2),
         HumanMessage(
-            content=f"Research query: {state['original_query']}\nDepth: {state.get('research_depth', 'balanced')}"
+            content=prompts.planner_human(
+                state["original_query"],
+                state.get("research_depth", "balanced"),
+                cfg.topic_seeds,
+            )
         ),
     ]
 
@@ -196,7 +200,13 @@ async def planner_node(state: AgentState) -> dict:
         return {"error": "planner: could not produce a valid task list", **_acc(state, cost, i, o)}
 
     tasks = [t.model_dump() for t in parsed.tasks]
-    outline = [s.model_dump() for s in parsed.proposed_outline]
+    # An explicitly chosen template outranks whatever the model proposed: the researcher
+    # picked a structure before the run started, and quietly replacing it with the
+    # planner's own idea would make the picker decorative. With no template chosen this
+    # is empty and the planner's proposal stands, which is today's behaviour.
+    outline = outlines.sections_for(cfg.outline_template) or [
+        s.model_dump() for s in parsed.proposed_outline
+    ]
     await emit(
         sid,
         "agent_log",
@@ -1017,12 +1027,18 @@ async def synthesizer_node(state: AgentState) -> dict:
         evidence_lines.append("")  # blank separator
     evidence_text = "Evidence for citation:\n" + "\n".join(evidence_lines)
 
-    fb = state.get("human_feedback")
-    human = f"\n\nHuman feedback to incorporate: {fb}" if fb else ""
     messages = [
         SystemMessage(content=prompts.SYNTHESIZER_PROMPT_V2),
         HumanMessage(
-            content=f"Original query: {state['original_query']}\n\n{evidence_text}{human}"
+            content=prompts.synthesizer_human(
+                state["original_query"],
+                evidence_text,
+                state.get("human_feedback"),
+                # The reviewer's edited outline, not the planner's proposal — the gate
+                # writes its decision back over this key (`plan_gate_node`). Empty when
+                # the gate was skipped, which is the ungated report structure.
+                state.get("proposed_outline"),
+            )
         ),
     ]
     model = get_llm("synthesizer")

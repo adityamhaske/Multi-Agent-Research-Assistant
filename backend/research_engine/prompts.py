@@ -186,3 +186,65 @@ Rules, in order of importance:
 4. Be concise and use Markdown.
 {UNTRUSTED_CONTENT_NOTE}
 """
+
+
+# ── Per-run message composition (docs/07 §2, Phase 4) ──────────────────────────────
+#
+# The system prompts above are constants; what a *particular* run adds to them — the
+# seed topics a researcher named up front, the outline they approved at the design gate
+# — is composed here rather than inline in `graph.py`. One reason only: the composition
+# is the thing worth testing. `RunConfig.topic_seeds` and `outline_template` sat declared
+# and unread for a whole phase, and a field with no consumer is indistinguishable from a
+# field that is silently dropped. Keeping the join here makes "does the seed reach a
+# prompt" a question a test can answer directly.
+#
+# Both functions must return byte-for-byte today's string when given empty inputs, so a
+# run that uses neither feature produces exactly the report it produced before.
+
+
+def planner_human(query: str, depth: str, topic_seeds: tuple[str, ...] | list[str]) -> str:
+    """The planner's human turn: the query, the depth, and any seeded subtopics.
+
+    Seeds are a *constraint*, not a suggestion — the researcher has said these are the
+    angles their review needs. They are still only the floor: the planner adds coverage
+    around them, and the reviewer edits the whole list at the gate.
+    """
+    base = f"Research query: {query}\nDepth: {depth}"
+    seeds = [s.strip() for s in (topic_seeds or []) if s and s.strip()]
+    if not seeds:
+        return base
+    listed = "\n".join(f"- {s}" for s in seeds)
+    return (
+        f"{base}\n\nThe researcher has specified subtopics this plan must cover. Produce "
+        f"at least one task for each, keeping their wording where it is already a good "
+        f"search query, then add further tasks only where coverage is still thin:\n{listed}"
+    )
+
+
+def synthesizer_human(
+    query: str, evidence_text: str, feedback: str | None, outline: list[dict] | None
+) -> str:
+    """The synthesizer's human turn: query, numbered evidence, feedback, and structure.
+
+    An approved outline *replaces* the fixed section list in `SYNTHESIZER_PROMPT_V2` —
+    it is the report structure a human explicitly chose, so it outranks the default. The
+    citation rules are untouched by it: an outline decides what the sections are, never
+    what may be said in them without a source.
+    """
+    content = f"Original query: {query}\n\n{evidence_text}"
+    if feedback:
+        content += f"\n\nHuman feedback to incorporate: {feedback}"
+    sections = [s for s in (outline or []) if (s.get("title") or "").strip()]
+    if sections:
+        lines = "\n".join(
+            f"## {s['title']}" + (f" — {s['description']}" if s.get("description") else "")
+            for s in sections
+        )
+        content += (
+            "\n\nThe researcher approved this report structure. Use these `##` sections, "
+            "in this order, in place of the default section list — the text after each "
+            "dash is what the section is for, not a heading to print:\n"
+            f"{lines}\n\nKeep the `# Title` line and the `## Sources` section. Every "
+            "citation rule above still applies inside every section."
+        )
+    return content

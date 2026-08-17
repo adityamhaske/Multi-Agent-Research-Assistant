@@ -13,6 +13,12 @@ from app.models.types import JsonType, UuidType
 class SessionStatus(enum.StrEnum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
+    # Paused at the research design gate (docs/07 §2, Phase 4) — the planner has proposed
+    # tasks and an outline and is waiting on the reviewer, before any search has spent
+    # anything. Distinct from AWAITING_APPROVAL rather than a shared "paused": the two
+    # gates resume with different payloads, so a client that could not tell them apart
+    # would offer "Approve draft" for a draft that does not exist yet.
+    AWAITING_PLAN = "AWAITING_PLAN"
     AWAITING_APPROVAL = "AWAITING_APPROVAL"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
@@ -85,15 +91,24 @@ class Session(Base):
     plan_approved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    # False is the product default — the confirmed decision is a second gate after
-    # the planner, opt-out not opt-in (docs/07 §2 header). The *engine*'s own bare
-    # default is the opposite (RunConfig.skip_plan_gate=True) so engine-level code
-    # with no opinion about this column — every existing test, the CLI, the eval
-    # harness — keeps today's behaviour. NOT YET wired to override the engine
-    # default for real runs (see pipeline_runner.py::_run_config_for) — nothing can
-    # resume a session past plan_gate_node's interrupt yet, so activating it would
-    # strand a real run with no way to continue.
+    # Whether this run skipped the design gate. Both hosts' start endpoints always set
+    # it explicitly from `ResearchStartRequest.skip_plan_gate`, so the `false` server
+    # default below is reached only by a row created outside those endpoints — it is
+    # kept as-is because migration 0012 shipped it and a column default that says
+    # "gated" is the safer thing for a row nobody claimed.
+    #
+    # The request's own default is the opposite (True — skip), and deliberately so: the
+    # gate is the product default *for the app*, where the run form sends `false`
+    # explicitly, but a script POSTing last week's JSON must not start pausing at a gate
+    # it cannot see or resume. `RunConfig.skip_plan_gate` defaults to True for the same
+    # reason one layer down, covering the CLI and the eval harness.
     skip_plan_gate: Mapped[bool] = mapped_column(nullable=False, server_default="false")
+    # What the researcher asked for at start time, as opposed to what they decided at the
+    # gate (`plan_json`/`outline_json` above). Persisted rather than passed through the
+    # queue because `RunConfig` is rebuilt from this row on every resume, and a field that
+    # only existed on the original request would silently become empty the second time.
+    topic_seeds: Mapped[list | None] = mapped_column(JsonType, nullable=True)
+    outline_template: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

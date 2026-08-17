@@ -103,6 +103,18 @@ async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
 
     base = run_config_from_settings()
     overrides = _preference_overrides(user)
+    # The research design gate (docs/07 §2, Phase 4), now that the whole resume path
+    # exists: SessionStatus.AWAITING_PLAN, `runner.resume(plan=…)`, the `resume_plan_gate`
+    # task, and `GET/POST /research/{id}/plan`. Sourced from the session row rather than
+    # the request because this is rebuilt on every resume, long after the request is gone.
+    # `RunConfig`'s own defaults stay the un-gated ones for callers with no opinion (the
+    # CLI, the eval harness); this is where a *hosted* run states its. Desktop
+    # counterpart: `sidecar._drive_session`.
+    overrides |= {
+        "skip_plan_gate": bool(session.skip_plan_gate),
+        "topic_seeds": tuple(session.topic_seeds or ()),
+        "outline_template": session.outline_template,
+    }
     if session.demo:
         # Scripted models and fixture retrievers for this run only (docs/17 §6.2). Per
         # session rather than per process: the old `LLM_MODE=fake` switch made the whole
@@ -114,19 +126,15 @@ async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
         # offline. Desktop counterpart: `sidecar.sidecar_run_config`.
         return replace(base, llm_mode="fake", demo=True, models=routing, **overrides)
 
-    # NOT YET: skip_plan_gate is intentionally never overridden from session.skip_plan_gate
-    # here. The plan-gate engine primitives (schemas.py, graph.py::plan_gate_node,
-    # runconfig.py) exist and are tested, but resuming *past* a plan-gate interrupt has
-    # no SessionStatus value, no runner.py dispatch, and no API endpoint yet — wiring
-    # this override would let a real run hit plan_gate_node's interrupt() with no way
-    # to ever resume it. RunConfig.skip_plan_gate's bare engine default (True) is what
-    # every real run gets until that follow-up work lands; see AGENTS.md "never fake,
-    # never swallow" — an unreachable gate would be worse than no gate.
     return replace(base, models=routing, **overrides)
 
 
 async def _execute(
-    session_id: str, user_id: str, *, resume: tuple[bool, str | None] | None
+    session_id: str,
+    user_id: str,
+    *,
+    resume: tuple[bool, str | None] | None,
+    plan: dict | None = None,
 ) -> None:
     lock_token = uuid.uuid4().hex
     await init_redis_pool()
@@ -202,7 +210,12 @@ async def _execute(
 
                 async with AsyncPostgresSaver.from_conn_string(_checkpointer_dsn()) as saver:
                     await saver.setup()
-                    if resume is None:
+                    if plan is not None:
+                        # Resuming the design gate (docs/07 §2, Phase 4).
+                        outcome = await runner.resume(
+                            checkpointer=saver, session_id=session_id, plan=plan, **ports
+                        )
+                    elif resume is None:
                         outcome = await runner.run(
                             checkpointer=saver,
                             session_id=session_id,
@@ -282,6 +295,33 @@ async def _persist_outcome(
     session.rework_count = outcome.rework_count
     session.sources = outcome.sources
 
+    if outcome.status == "awaiting_plan":
+        # The research design gate (docs/07 §2, Phase 4). Persisted before the event
+        # leaves, same ordering as every other branch here: a client that acts on
+        # PLAN_READY and immediately GETs /plan must not read a row that has not caught
+        # up yet. `plan_approved_at` stays null — this is the proposal, not a decision;
+        # `POST /{id}/plan` stamps it.
+        session.status = SessionStatus.AWAITING_PLAN
+        session.plan_json = {"tasks": outcome.plan_tasks}
+        session.outline_json = {"sections": outcome.plan_outline}
+        await db.commit()
+        await sink(
+            session_id,
+            events.make_event(
+                "PLAN_READY",
+                data={
+                    "task_count": len(outcome.plan_tasks),
+                    "outline_section_count": len(outcome.plan_outline),
+                    # Zero on every ordinary run: the gate sits before the executor, so
+                    # nothing has been spent. Reported anyway rather than assumed, since
+                    # a resumed or reworked run reaching here would have a real number
+                    # and silently printing 0.00 is the unmeasured-vs-zero bug.
+                    "cost_usd": round(outcome.cost_usd, 4),
+                },
+            ),
+        )
+        return
+
     if outcome.status == "awaiting_approval":
         session.status = SessionStatus.AWAITING_APPROVAL
         session.draft_report = outcome.draft_report
@@ -332,3 +372,8 @@ async def resume_pipeline(
     session_id: str, user_id: str, approved: bool, feedback: str | None
 ) -> None:
     await _execute(session_id, user_id, resume=(approved, feedback))
+
+
+async def resume_plan(session_id: str, user_id: str, plan: dict) -> None:
+    """Resume a session paused at the research design gate with the reviewer's edits."""
+    await _execute(session_id, user_id, resume=None, plan=plan)

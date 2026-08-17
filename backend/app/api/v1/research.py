@@ -32,6 +32,11 @@ from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.schemas.research import (
     ApprovalRequest,
+    OutlineSectionSchema,
+    OutlineTemplateSchema,
+    PlanDecisionRequest,
+    PlanResponse,
+    PlanTaskSchema,
     ResearchStartRequest,
     ResearchStartResponse,
     SessionDetail,
@@ -40,7 +45,7 @@ from app.schemas.research import (
 )
 from app.services import checkpoints, export, model_routing, usage
 from app.services.sse import SSE_HEADERS
-from app.workers.tasks import resume_agent_pipeline, run_agent_pipeline
+from app.workers.tasks import resume_agent_pipeline, resume_plan_gate, run_agent_pipeline
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/research", tags=["Research"])
@@ -93,6 +98,12 @@ async def start_research(
         # silently ran an ordinary web search. Persist what the caller actually asked for.
         corpus_mode=payload.corpus_mode,
         demo=payload.demo,
+        # Research design gate (docs/07 §2, Phase 4). Same rule as the two above and the
+        # same reason they are commented: a request field that never reaches the row is
+        # a promise the run does not keep. `_run_config_for` reads all three back.
+        skip_plan_gate=payload.skip_plan_gate,
+        topic_seeds=payload.topic_seeds or None,
+        outline_template=payload.outline_template,
     )
     db.add(session)
     await db.commit()
@@ -149,6 +160,20 @@ async def list_sessions(
         page=page,
         limit=limit,
     )
+
+
+@router.get("/outline-templates", response_model=list[OutlineTemplateSchema])
+async def list_outline_templates(_: User = Depends(get_current_user)):
+    """The report structures offered at the design gate (docs/07 §2, Phase 4).
+
+    Served from `research_engine.outlines` rather than hardcoded in the picker, so the
+    sections the UI previews are the sections the synthesizer is actually given. Declared
+    above `/{session_id}` because that route parses its segment as a UUID and would 422
+    this path rather than falling through to it.
+    """
+    from research_engine import outlines
+
+    return [OutlineTemplateSchema.model_validate(t) for t in outlines.catalog()]
 
 
 @router.get("/{session_id}", response_model=SessionDetail)
@@ -220,7 +245,11 @@ async def stream_events(
                     yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
                 else:
                     yield f"data: {json.dumps(payload)}\n\n"
-                if payload.get("type") in ("COMPLETED", "FAILED", "HITL_READY"):
+                # PLAN_READY joins this list for the same reason HITL_READY is on it:
+                # the graph is suspended at an interrupt and will publish nothing more
+                # until a human acts, so holding the connection open waits on no one.
+                # Desktop counterpart: `sidecar._TERMINAL_EVENTS`.
+                if payload.get("type") in ("COMPLETED", "FAILED", "HITL_READY", "PLAN_READY"):
                     break
         finally:
             await pubsub.unsubscribe(channel)
@@ -393,6 +422,113 @@ async def export_bundle_json(
         media_type="application/json",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def _plan_response(session: Session) -> PlanResponse:
+    plan = session.plan_json or {}
+    outline = session.outline_json or {}
+    return PlanResponse(
+        session_id=session.id,
+        status=session.status,
+        tasks=[PlanTaskSchema.model_validate(t) for t in (plan.get("tasks") or [])],
+        outline=[OutlineSectionSchema.model_validate(s) for s in (outline.get("sections") or [])],
+        approved_at=session.plan_approved_at,
+    )
+
+
+@router.get("/{session_id}/plan", response_model=PlanResponse)
+async def get_plan(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """The research design this run is working from (docs/07 §2, Phase 4).
+
+    404 rather than an empty plan when `plan_json` is null: a run that skipped the gate,
+    or has not reached it, has no design to show, and returning `{"tasks": []}` for that
+    would read as "the planner proposed nothing" — a measurement that was never taken
+    rendering as zero, which is the failure mode AGENTS.md opens with.
+    """
+    session = await _authorized_session(db, session_id, current_user.id)
+    if session.plan_json is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail="This session has no research plan to review — it did not use the design gate.",
+        )
+    return _plan_response(session)
+
+
+@router.post("/{session_id}/plan", response_model=PlanResponse)
+async def submit_plan(
+    session_id: uuid.UUID,
+    payload: PlanDecisionRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Approve the research design, with edits, and let the run continue.
+
+    Mirrors `approve_or_rework` deliberately, down to the 409: resuming a thread that is
+    not suspended at `plan_gate_node` would push a plan-shaped payload into whichever
+    interrupt is actually pending, and `hitl_gate_node` reads `decision["approved"]` —
+    absent here — as a rejection, silently counting a rework nobody asked for.
+
+    The decision is written to the row *before* the resume is queued, so the record of
+    what a human chose survives a worker that dies mid-run. That is the same ordering
+    the approval path uses for its `AuditLog`, and for the same reason: the human's
+    decision is evidence, and evidence is written when it is made.
+    """
+    session = await _authorized_session(db, session_id, current_user.id)
+    if session.status != SessionStatus.AWAITING_PLAN:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Session must be AWAITING_PLAN (currently {session.status}).",
+        )
+
+    proposed = (session.plan_json or {}).get("tasks") or []
+    # None means "unedited" — keep the proposal. Not the same as `[]`, which is a
+    # reviewer who excluded everything and gets the 422 below.
+    tasks = [t.model_dump() for t in payload.tasks] if payload.tasks is not None else proposed
+    outline = (
+        [s.model_dump() for s in payload.outline]
+        if payload.outline is not None
+        else (session.outline_json or {}).get("sections") or []
+    )
+
+    kept = [t for t in tasks if t.get("include", True)]
+    if not kept:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Keep at least one task — a plan with nothing in it researches nothing.",
+        )
+
+    # Store what was decided, not what was proposed: `kept` is the list the executor will
+    # actually run, so a later reader of this endpoint sees the design behind the report.
+    session.plan_json = {"tasks": kept}
+    session.outline_json = {"sections": outline}
+    session.plan_approved_at = datetime.now(UTC)
+    db.add(
+        AuditLog(
+            session_id=session.id,
+            user_id=current_user.id,
+            action="plan_approved",
+            feedback=None,
+            # The design a human signed off on, hashed the same way the draft is at the
+            # other gate, so the bundle's approval chain can carry both decisions.
+            draft_hash=hashlib.sha256(
+                json.dumps({"tasks": kept, "outline": outline}, sort_keys=True).encode("utf-8")
+            ).hexdigest(),
+        )
+    )
+    session.status = SessionStatus.RUNNING
+    await db.commit()
+    await db.refresh(session)
+
+    resume_plan_gate.delay(
+        str(session.id), str(current_user.id), {"tasks": kept, "outline": outline}
+    )
+    bind_run_context(str(session.id), user_id=str(current_user.id))
+    logger.info("research_plan_approved", session_id=str(session.id), task_count=len(kept))
+    return _plan_response(session)
 
 
 @router.post("/{session_id}/approve", status_code=200)

@@ -80,6 +80,16 @@ def _print_outcome(outcome: RunOutcome, session_id: str) -> None:
         print("Paused at the review gate. Nothing is final until you approve it:")
         print(f"  research-engine --approve {session_id}")
         print(f'  research-engine --reject {session_id} -f "what to fix"')
+    elif outcome.status == "awaiting_plan":
+        # Unreachable through this CLI — `run_config_from_env` never enables the design
+        # gate, for exactly this reason (see its docstring). Handled anyway so that a
+        # config which somehow does enable it says so, rather than printing a bare
+        # status line and leaving a checkpointed session with no visible way forward.
+        print()
+        print(
+            "Paused at the research design gate, which this CLI cannot review — "
+            "use the app, or leave RunConfig.skip_plan_gate at its default."
+        )
     elif outcome.status == "failed":
         print(f"\nFailed: {outcome.error}", file=sys.stderr)
 

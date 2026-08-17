@@ -78,6 +78,14 @@ def run_config_from_env(*, fake: bool) -> RunConfig:
 
     Used by `research_engine.cli` and by the eval harness, which is why it lives here
     rather than in either one.
+
+    **`skip_plan_gate` is deliberately not set here**, in either branch, so both callers
+    take `RunConfig`'s own default of True and never reach the research design gate
+    (docs/07 §2, Phase 4). That is not an oversight to tidy up: neither the CLI nor the
+    harness can render a plan for a human or resume past that interrupt, so switching it
+    on here would hang an unattended eval run at a gate nobody is watching. The two
+    *hosted* paths — `pipeline_runner._run_config_for` and `sidecar._drive_session` —
+    are where a run gets a real opinion about it, sourced from `Session.skip_plan_gate`.
     """
     if fake:
         return RunConfig(llm_mode="fake")

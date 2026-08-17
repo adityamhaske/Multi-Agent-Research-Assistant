@@ -53,6 +53,29 @@ def resume_agent_pipeline(
         asyncio.run(_mark_failed(session_id, str(exc)))
 
 
+@celery_app.task(name="resume_plan_gate")
+def resume_plan_gate(session_id: str, user_id: str, plan: dict) -> None:
+    """Resume a session suspended at the research design gate (docs/07 §2, Phase 4).
+
+    A separate task from `resume_agent_pipeline` rather than an extra argument on it:
+    the two carry different payloads to different interrupts, and a single task that
+    guessed which one it was holding is how a plan edit ends up resuming the draft gate.
+    Celery also makes the distinction load-bearing — a queued message outlives a deploy,
+    so widening the old task's signature would leave in-flight messages ambiguous.
+    """
+    from app.workers.pipeline_runner import resume_plan
+
+    clear_run_context()
+    bind_run_context(session_id, user_id=user_id)
+    logger.info("plan_resume_task_started", task_count=len((plan or {}).get("tasks") or []))
+    try:
+        asyncio.run(resume_plan(session_id, user_id, plan))
+        logger.info("plan_resume_task_finished")
+    except Exception as exc:  # noqa: BLE001
+        logger.error("plan_resume_task_failed", error=str(exc), exc_info=True)
+        asyncio.run(_mark_failed(session_id, str(exc)))
+
+
 async def _mark_failed(session_id: str, error: str) -> None:
     import uuid
 

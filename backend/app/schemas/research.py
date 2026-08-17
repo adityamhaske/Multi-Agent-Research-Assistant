@@ -30,14 +30,32 @@ class ResearchStartRequest(BaseModel):
     # (docs/17 §6.2), so the product can be demonstrated before any key exists. Persisted
     # on the session, which is what lets every export stamp itself as not-real research.
     demo: bool = False
-    # NOT YET (docs/07 §2, Phase 4): topic_seeds/outline_template/skip_plan_gate are
-    # deliberately not accepted here. The engine-level plan-gate primitives exist
-    # (research_engine/schemas.py, graph.py::plan_gate_node) but nothing can resume a
-    # session past that interrupt yet — accepting these fields now and silently
-    # dropping them would be exactly the "accepted by the schema, dropped on the
-    # floor" bug AGENTS.md documents for corpus_mode/demo. Add them back in the same
-    # change that adds SessionStatus.AWAITING_PLAN, the resume dispatch, and the
-    # /{id}/plan endpoint.
+
+    # ── Research design gate (docs/07 §2, Phase 4) ─────────────────────────────
+    # All three are persisted onto the session and read back into `RunConfig` on every
+    # resume. They are accepted here only now that the whole resume path exists — the
+    # groundwork commit deliberately left them out, because a field the schema accepts
+    # and the run never reads is the exact bug AGENTS.md records for corpus_mode/demo.
+
+    #: Subtopics the researcher requires the plan to cover. The planner treats them as a
+    #: floor, not a ceiling, and the reviewer edits the result at the gate.
+    topic_seeds: list[str] = Field(default_factory=list, max_length=20)
+    #: A template id from `research_engine.outlines.TEMPLATES` (served by
+    #: `GET /research/outline-templates`). None → no structure imposed, today's report.
+    outline_template: str | None = Field(default=None, max_length=64)
+    #: **True is deliberate, and is not the product default.** The app's run form sends
+    #: `false` explicitly, so a person using the product gets the gate. This default
+    #: governs the other population: a script or integration POSTing the same body it
+    #: posted before this field existed. For them the gate would be an invisible pause
+    #: they never poll past, so they keep today's journey untouched until they ask.
+    skip_plan_gate: bool = True
+
+    @field_validator("topic_seeds")
+    @classmethod
+    def drop_blank_seeds(cls, v: list[str]) -> list[str]:
+        # A UI with three empty seed rows must not constrain the planner with three
+        # empty strings — `prompts.planner_human` filters these too, belt and braces.
+        return [s.strip() for s in v if s and s.strip()]
 
 
 class ApprovalRequest(BaseModel):
@@ -50,6 +68,64 @@ class ApprovalRequest(BaseModel):
         if info.data.get("approved") is False and (not v or not v.strip()):
             raise ValueError("Feedback is required when rejecting a draft.")
         return v
+
+
+class PlanTaskSchema(BaseModel):
+    """One research task, as proposed by the planner and as edited by the reviewer.
+
+    Mirrors `research_engine.schemas.ResearchTask`'s reviewer-facing fields. It is a
+    separate model rather than a reuse because this one crosses the network in both
+    directions: the engine model carries run state (`status`) that a client has no
+    business setting, and a client sends an `include` flag the engine consumes and drops.
+    """
+
+    id: int = 0
+    query: str = Field(min_length=3, max_length=500)
+    rationale: str = Field(default="", max_length=1000)
+    subtopics: list[str] = Field(default_factory=list, max_length=20)
+    #: False drops this task from the run. The gate filters on it and the executor never
+    #: sees the task — a review that could not remove anything would be a rubber stamp.
+    include: bool = True
+    source_hint: str | None = Field(default=None, max_length=200)
+
+
+class OutlineSectionSchema(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=1000)
+
+
+class PlanDecisionRequest(BaseModel):
+    """The reviewer's decision at the design gate.
+
+    Both fields are optional and `None` means *unedited* — the planner's proposal stands.
+    That is a different thing from `[]`, which is a reviewer who removed everything, and
+    the two must not be collapsed: reading "unedited" as "empty" would run a report with
+    no research in it, and reading "empty" as "unedited" would ignore the decision.
+    """
+
+    #: 24 rather than the planner's own 6-task default: the cap exists because every task
+    #: is a paid round of search, but a review gate whose whole point is "add the
+    #: subtopics the planner missed" cannot cap the reviewer at the planner's number.
+    tasks: list[PlanTaskSchema] | None = Field(default=None, max_length=24)
+    outline: list[OutlineSectionSchema] | None = Field(default=None, max_length=24)
+
+
+class PlanResponse(BaseModel):
+    session_id: UUID
+    status: SessionStatus
+    tasks: list[PlanTaskSchema] = Field(default_factory=list)
+    outline: list[OutlineSectionSchema] = Field(default_factory=list)
+    #: Null while the session is still AWAITING_PLAN — the reviewer has not decided yet.
+    #: Set once, when the plan is submitted, so a later read of this endpoint returns the
+    #: decision that actually shaped the report rather than the proposal it started from.
+    approved_at: datetime | None = None
+
+
+class OutlineTemplateSchema(BaseModel):
+    id: str
+    label: str
+    summary: str
+    sections: list[OutlineSectionSchema]
 
 
 class ChatRequest(BaseModel):

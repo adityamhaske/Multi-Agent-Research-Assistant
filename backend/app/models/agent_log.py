@@ -28,7 +28,7 @@ class AgentLog(Base):
     )
     event_type: Mapped[str] = mapped_column(
         String(40), nullable=False
-    )  # agent_log|HITL_READY|COMPLETED|FAILED
+    )  # agent_log|PLAN_READY|HITL_READY|COMPLETED|FAILED
     agent_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
     payload: Mapped[dict] = mapped_column(JsonType, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

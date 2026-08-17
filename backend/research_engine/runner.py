@@ -40,7 +40,16 @@ from research_engine.graph import build_graph
 from research_engine.ports import Cache, Corpus, EventSink
 from research_engine.runconfig import RunConfig, reset_run_config, set_run_config
 
-RunStatus = Literal["awaiting_approval", "completed", "failed"]
+#: Two of these are pauses, not ends. `awaiting_plan` is the research design gate
+#: (docs/07 §2, Phase 4) and `awaiting_approval` is the draft review gate — they are
+#: distinct values rather than one "paused" because they resume with different payloads
+#: and a host that conflated them would answer a plan edit by approving a draft that
+#: does not exist yet.
+RunStatus = Literal["awaiting_plan", "awaiting_approval", "completed", "failed"]
+
+#: The `type` each gate's `interrupt(...)` payload carries. `graph.plan_gate_node` and
+#: `graph.hitl_gate_node` are the producers; keep the two in step.
+_PLAN_INTERRUPT = "PLAN_READY"
 
 # Matches the column width the server truncates error messages to.
 _MAX_ERROR_CHARS = 500
@@ -60,6 +69,12 @@ class RunOutcome:
     rework_count: int = 0
     elapsed_seconds: float | None = None
     error: str | None = None
+    # What the planner proposed, carried out of the interrupt so the host can persist it
+    # and serve it to the reviewer. Populated only on `awaiting_plan`; empty elsewhere,
+    # which is the honest reading — a run that has not reached the gate has no proposal,
+    # and one past it has a *decision* (`Session.plan_json`), not a proposal.
+    plan_tasks: list[dict] = field(default_factory=list)
+    plan_outline: list[dict] = field(default_factory=list)
 
     @property
     def report(self) -> str | None:
@@ -122,7 +137,12 @@ def _outcome(result: dict, state: dict) -> RunOutcome:
     """Map final graph state onto a RunOutcome.
 
     Ordering matters: an interrupt is checked before `error`, because a run that paused
-    at the gate is awaiting a human, not failed.
+    at a gate is awaiting a human, not failed.
+
+    The graph has two interrupts, so which one fired has to be read off the payload
+    rather than assumed. Assuming was safe while only `hitl_gate_node` existed; with the
+    plan gate added, an unconditional `awaiting_approval` would tell the host a draft was
+    ready when the run had not yet run a single search.
     """
     totals = {
         "sources": state.get("sources") or [],
@@ -133,6 +153,17 @@ def _outcome(result: dict, state: dict) -> RunOutcome:
     }
 
     if "__interrupt__" in result:
+        payload = result["__interrupt__"][0].value or {}
+        if payload.get("type") == _PLAN_INTERRUPT:
+            return RunOutcome(
+                status="awaiting_plan",
+                # Read from the interrupt payload, not from state: this is specifically
+                # the proposal the reviewer is being shown, and it is what a later
+                # comparison against their edits has to be made against.
+                plan_tasks=list(payload.get("tasks") or []),
+                plan_outline=list(payload.get("proposed_outline") or []),
+                **totals,
+            )
         return RunOutcome(
             status="awaiting_approval", draft_report=state.get("draft_report"), **totals
         )
@@ -200,19 +231,46 @@ async def resume(
     *,
     checkpointer,
     session_id: str,
-    approved: bool,
+    approved: bool | None = None,
     feedback: str | None = None,
+    plan: dict | None = None,
     run_config: RunConfig | None = None,
     provider_keys: dict[str, str] | None = None,
     event_sink: EventSink | None = None,
     cache: Cache | None = None,
     corpus: Corpus | None = None,
 ) -> RunOutcome:
-    """Resume a session paused at the gate. Enters at the checkpoint — never replans."""
+    """Resume a session paused at a gate. Enters at the checkpoint — never replans.
+
+    One entry point, two decision shapes, because the graph has two interrupts:
+
+    - `approved=` (with optional `feedback`) resumes `hitl_gate_node` — approve the
+      draft, or send it back for rework.
+    - `plan={"tasks": [...], "outline": [...]}` resumes `plan_gate_node` with the
+      reviewer's edited research design. Both keys are optional and an absent key means
+      "unedited", so `plan={}` is a valid "approve as proposed" — distinct from
+      `{"tasks": []}`, which is a reviewer who excluded everything.
+
+    Exactly one must be given. There is no default: `approved` defaulting to True would
+    turn a malformed plan resume into an approval of a draft that does not exist, and
+    defaulting to False would count a phantom rework. Fail loudly instead — the caller
+    knows which gate its session is sitting at, because the status says so.
+    """
+    if (approved is None) == (plan is None):
+        raise ValueError(
+            "resume() needs exactly one of `approved=` (draft review gate) or "
+            "`plan=` (research design gate); got "
+            f"approved={approved!r}, plan={plan!r}."
+        )
+    decision = (
+        {"approved": approved, "feedback": feedback}
+        if plan is None
+        else {"tasks": plan.get("tasks"), "outline": plan.get("outline")}
+    )
     return await _drive(
         checkpointer=checkpointer,
         session_id=session_id,
-        payload=Command(resume={"approved": approved, "feedback": feedback}),
+        payload=Command(resume=decision),
         run_config=run_config,
         provider_keys=provider_keys,
         event_sink=event_sink,
