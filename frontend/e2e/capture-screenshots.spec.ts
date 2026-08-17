@@ -66,11 +66,27 @@ test("capture product screenshots", async ({ page }) => {
   await page.getByLabel(/research question/i).fill(QUERY);
   await shot(page, "02-dashboard");
 
-  // ── 3. Live monitor while the pipeline runs ───────────────────────────────
+  // ── 3. Research design gate ───────────────────────────────────────────────
+  // The run form ships with plan review on (docs/07 §2, Phase 4), so every run now
+  // pauses here first. This step is not optional bookkeeping: without it the capture
+  // sat at the design gate waiting for a review gate that could not arrive, and burned
+  // the full 600s timeout to report "element(s) not found".
   await page.getByRole("button", { name: /start research/i }).click();
   await page.waitForURL(/\/session\/[0-9a-f-]{36}/);
   const sessionUrl = page.url();
-  await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible();
+
+  await expect(page.getByRole("heading", { name: /design gate/i })).toBeVisible({
+    timeout: 120_000,
+  });
+  await page.waitForTimeout(1500);
+  await shot(page, "03-plan-gate");
+
+  await page.getByRole("button", { name: /approve & start research/i }).click();
+
+  // ── 3b. Live monitor while the pipeline runs ──────────────────────────────
+  await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({
+    timeout: 60_000,
+  });
   // Let a few agent events land so the feed and rail are populated.
   await expect(page.getByLabel("Agent activity log")).toContainText(/planner|executor/i, {
     timeout: 120_000,

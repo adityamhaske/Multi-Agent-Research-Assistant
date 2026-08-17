@@ -33,20 +33,24 @@ The pipeline is a compiled [LangGraph](https://langchain-ai.github.io/langgraph/
 and retries.
 
 ```
-                    ┌──────────────────── rework (bounded) ─────────────────┐
-                    ▼                                                       │
-  Query → Planner → Executor ⇄ Critic → Synthesizer → ⏸ HUMAN GATE → Finalizer → Report
-                    (tools)   (fail-   (cited draft)   (approve /            (+ chat,
-                              closed)                   send back)            export)
+                              ┌────────────── rework (bounded) ──────────────┐
+                              ▼                                              │
+  Query → Planner → ⏸ DESIGN GATE → Executor ⇄ Critic → Synthesizer → ⏸ REVIEW GATE → Finalizer → Report
+                     (edit topics,    (tools)   (fail-   (cited draft)  (approve /              (+ chat,
+                      pick outline)             closed)                  send back)              export)
 ```
 
 - **Planner** decomposes the question into research tasks. Depth (`fast` / `balanced` /
   `comprehensive`) sets how many, and is therefore the main cost dial.
+- **Design gate** pauses *before* anything is searched, so you edit the subtopics and pick
+  the report outline while the run is still free. Drop a task and it is never researched;
+  reword one and that is what gets searched. This is the difference between "the agent
+  picked six queries" and "these are my six subtopics, in my review's structure".
 - **Executor** runs real tool calls (`web_search`, `read_webpage`) and returns structured
   evidence.
 - **Critic** grades that evidence and **fails closed** — invalid or missing critic output
   counts as a failure, never a pass — sending weak tasks back within a bounded retry limit.
-- **Human gate** is a real `interrupt()` checkpoint, not a polling loop. State is durably
+- **Review gate** is a real `interrupt()` checkpoint, not a polling loop. State is durably
   checkpointed and the worker exits; approval **resumes** rather than re-running research
   you already paid for.
 - **Finalizer** produces the report. Every `[n]` is a chip you can hover for the source
