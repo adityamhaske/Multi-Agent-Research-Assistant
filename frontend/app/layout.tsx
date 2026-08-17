@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+
+import { basePath } from "@/lib/pages-build";
 import { Inter, JetBrains_Mono } from "next/font/google";
 
 import { Providers } from "@/components/Providers";
@@ -21,14 +23,23 @@ export const metadata: Metadata = {
   title: "Research Assistant",
   description:
     "A multi-agent research pipeline: plan, gather cited evidence, critique, and synthesize a reviewable report.",
+  // Prefixed with `basePath`, which is empty in the server and desktop builds and
+  // `/<repo>` on GitHub Pages. Next does not apply basePath to these metadata paths, so
+  // the published site emitted `href="/icon.svg"` and the browser resolved it against the
+  // domain root — one level above where Pages actually serves the file. The icon was
+  // there and returning 200 at its real URL the whole time; nothing was linking to it.
   icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
+    icon: `${basePath}/icon.svg`,
+    shortcut: `${basePath}/icon.svg`,
+    apple: `${basePath}/icon.svg`,
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html
       lang="en"
