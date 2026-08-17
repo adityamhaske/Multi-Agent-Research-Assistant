@@ -177,6 +177,22 @@ All endpoints cookie-authed unless noted. Errors follow RFC-7807-style
 | Endpoint | Req | Resp |
 |---|---|---|
 | `GET /research/{id}/chat` | — | message list |
+
+### Corpus documents
+`GET /projects/{id}/documents/{doc_id}/download` serves the original uploaded bytes.
+**PDF is served `inline`; every other kind is `attachment`** (`app/api/v1/corpus.py::
+download_headers`). That narrowing is deliberate and is the only exception to "an
+uploaded document never renders in this origin": `application/pdf` + `nosniff` goes to
+the browser's own sandboxed viewer, and in-place PDF preview cannot work any other way.
+Markdown, text and HTML are previewed without this route — the client `fetch`es the bytes
+and renders them itself, and `fetch` ignores `Content-Disposition`, so `attachment` costs
+the preview nothing.
+
+CSP differs with it: PDF gets `frame-ancestors 'self'` plus an explicit
+`X-Frame-Options: SAMEORIGIN` (the security middleware `setdefault`s `DENY`, so the route
+must state its own); everything else keeps `'none'` and adds `sandbox`. Accepted kinds
+are `pdf`, `html`, `md`, `txt` — `research_engine/documents.py::kind_for` is the one
+allowlist, and its rejection message must be edited in the same change as the set.
 | `POST /research/{id}/chat` | `{message (1..4000 chars), scope="report"}` | SSE stream: `connected{scope, sources, notes}` → `chunk`* → `done{message_id}`; chat-specific rate limit. 400 when `scope=corpus` and the embedder is remote |
 
 **Retrieval scope** (docs/07 §2, Phase 5; req 8). `scope` is `report` \| `corpus` \| `web`

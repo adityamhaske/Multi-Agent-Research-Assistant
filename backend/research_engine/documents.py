@@ -40,12 +40,17 @@ def kind_for(filename: str) -> str:
     ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if ext == ".pdf":
         return "pdf"
+    if ext in (".html", ".htm"):
+        return "html"
     kind = _TEXT_EXTENSIONS.get(ext)
     if kind is None:
+        # The accepted set and this message are one contract — edit them together, since
+        # this string is the only thing a user who guessed wrong actually reads.
         raise ValueError(
             f"Unsupported document type {ext or '(no extension)'!r}. The corpus accepts "
-            "PDF, Markdown (.md/.markdown), and plain text (.txt) only — a format we "
-            "cannot locate a quote inside cannot enter a citation-grade corpus."
+            "PDF, HTML (.html/.htm), Markdown (.md/.markdown), and plain text (.txt) "
+            "only — a format we cannot locate a quote inside cannot enter a "
+            "citation-grade corpus."
         )
     return kind
 
@@ -66,6 +71,8 @@ def extract_document(filename: str, data: bytes) -> tuple[str, list[int], str]:
     kind = kind_for(filename)
     if kind == "pdf":
         return _extract_pdf(data)
+    if kind == "html":
+        return _extract_html(data)
 
     text = data.decode("utf-8", errors="replace").replace("\r\n", "\n")
     if not text.strip():
@@ -107,3 +114,33 @@ def _extract_pdf(data: bytes) -> tuple[str, list[int], str]:
     if not text.strip():
         raise ValueError("The PDF contains no extractable text (scanned images need OCR first).")
     return text, page_starts, "pdf"
+
+
+def _extract_html(data: bytes) -> tuple[str, list[int], str]:
+    """Readable text from an HTML document, for indexing only.
+
+    The *original* bytes are stored alongside this and are what the preview renders —
+    in a sandboxed iframe, never in this origin. What goes into the index is the prose,
+    because a citation's whole promise is that a verbatim snippet can be located inside
+    the document, and a chunk of `<div class="col-md-6">` is text that means nothing.
+
+    `script` and `style` are dropped rather than merely untagged: their bodies are not
+    content, and indexing them would let an uploaded page inject arbitrary strings into a
+    corpus a model later quotes as evidence.
+
+    Same parser as `tools.read_webpage` (bs4 + lxml) so a page ingested as a file and the
+    same page fetched by the executor produce comparable text.
+    """
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(data, "lxml")
+    for tag in soup(["script", "style", "noscript", "template"]):
+        tag.decompose()
+    text = soup.get_text("\n")
+    # Collapse the blank-line storm tag removal leaves behind; offsets stay the locator,
+    # so the only requirement is that this is deterministic.
+    lines = [line.strip() for line in text.replace("\r\n", "\n").split("\n")]
+    text = "\n".join(line for line in lines if line)
+    if not text.strip():
+        raise ValueError("Document contains no text.")
+    return text, [0], "html"

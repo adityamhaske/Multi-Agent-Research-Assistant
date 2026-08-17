@@ -25,7 +25,10 @@ import { ApiError } from "@/lib/api";
  */
 
 /** What the backend will accept (`research_engine/documents.py`). */
-const ACCEPTED = [".pdf", ".md", ".markdown", ".txt"];
+// The file picker's convenience list, narrower than what `documents.kind_for` accepts
+// (.rst/.csv/.json also ingest as text). Adding a kind here without adding it there
+// produces a file the picker offers and the upload rejects — the two are one contract.
+const ACCEPTED = [".pdf", ".html", ".htm", ".md", ".markdown", ".txt"];
 const MAX_BYTES = 25 * 1024 * 1024;
 
 type Outcome = "queued" | "uploading" | "done" | "failed" | "skipped";
