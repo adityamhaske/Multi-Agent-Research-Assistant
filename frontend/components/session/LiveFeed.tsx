@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Children, useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { StreamState } from "@/hooks/useSessionStream";
 import { AGENT_TOKEN } from "@/lib/pipeline";
@@ -61,6 +61,32 @@ function ConnectionPill({ state }: { state: StreamState }) {
  * own emoji and its own margin. Square, not rounded — the app's identity
  * (`--radius: 0`) rather than the `rounded` utility this block used to carry.
  */
+/**
+ * One of four semantic groups the nine detail blocks fall into (docs/07 §2, Phase 7):
+ * **Reasoning · Evidence · Verdict · Draft**.
+ *
+ * Grouped, not merged. "Evaluation Reasons" and "Critic Feedback For Rework" are
+ * different things and collapsing them into one block would destroy that — the noise
+ * this fixes was nine sibling boxes with no hierarchy, not nine distinct labels. The
+ * group renders nothing when it holds nothing, so an executor event does not sprout an
+ * empty "Verdict" heading.
+ */
+function DetailGroup({ title, children }: { title: string; children: ReactNode }) {
+  const has = Children.toArray(children).some(Boolean);
+  if (!has) return null;
+  return (
+    <section className="space-y-1.5" aria-label={title}>
+      <h4
+        className="font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-widest"
+        style={{ color: "var(--text-muted)" }}
+      >
+        {title}
+      </h4>
+      <div style={{ display: "grid", gap: "var(--density-row-gap)" }}>{children}</div>
+    </section>
+  );
+}
+
 function DetailBlock({
   icon,
   label,
@@ -92,6 +118,7 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
   const scrollRef = useRef<HTMLDivElement>(null);
   const [atBottom, setAtBottom] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<string | number>>(new Set());
+  const [compact, setCompact] = useState(false);
 
   const toggleExpand = (id: string | number) => {
     setExpandedIds((prev) => {
@@ -158,12 +185,33 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
             )}
           </>
         }
-        actions={<ConnectionPill state={state} />}
+        actions={
+          <div className="flex items-center gap-2">
+            {/* Feed-local density. The account preference sets the app's default
+                (`AppShell`); this overrides it for the one surface where a long run
+                makes the difference between skimming and scrolling — and it does not
+                write to the profile, because it is a reading posture for this run, not
+                a setting. */}
+            <button
+              type="button"
+              onClick={() => setCompact((v) => !v)}
+              aria-pressed={compact}
+              className="border border-border px-1.5 py-0.5 font-mono text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted hover:border-accent hover:text-accent"
+              title={compact ? "Switch to comfortable spacing" : "Switch to compact spacing"}
+            >
+              {compact ? "Compact" : "Comfortable"}
+            </button>
+            <ConnectionPill state={state} />
+          </div>
+        }
       />
 
       <div
         ref={scrollRef}
         onScroll={onScroll}
+        // Inherited by every `--density-*` consumer inside, including DetailGroup's
+        // row gap — one attribute rather than a prop threaded to each block.
+        data-density={compact ? "compact" : "comfortable"}
         className="min-h-0 flex-1 overflow-y-auto px-4 py-3 font-mono text-xs leading-relaxed"
         aria-live="polite"
         aria-label="Agent activity log"
@@ -219,6 +267,7 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
 
                   {hasDetail && isExpanded && detail && (
                     <div className="mt-2.5 pt-2 border-t border-border/70 space-y-2.5 text-[length:var(--text-micro)]">
+                      <DetailGroup title="Reasoning">
                       {/* Thought Process */}
                       {Boolean(detail.thought && typeof detail.thought === "string") && (
                         <DetailBlock icon={<IconThought />} label="Thought Process">
@@ -273,6 +322,9 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
                         </DetailBlock>
                       )}
 
+                      </DetailGroup>
+
+                      <DetailGroup title="Evidence">
                       {/* Observations / Output / Webpage Content */}
                       {Boolean(detail.observation) && (
                         <DetailBlock
@@ -347,6 +399,9 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
                         </DetailBlock>
                       )}
 
+                      </DetailGroup>
+
+                      <DetailGroup title="Verdict">
                       {/* Critic Evaluation Reasons & Feedback */}
                       {Boolean(Array.isArray(detail.reasons) && (detail.reasons as unknown[]).length > 0) && (
                         <DetailBlock icon={<IconScale />} label="Evaluation Reasons">
@@ -367,6 +422,9 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
                         </DetailBlock>
                       )}
 
+                      </DetailGroup>
+
+                      <DetailGroup title="Draft">
                       {/* Report Synthesis Preview */}
                       {Boolean(detail.preview) && (
                         <DetailBlock
@@ -380,6 +438,7 @@ export function LiveFeed({ events, state }: { events: AgentEvent[]; state: Strea
                           </pre>
                         </DetailBlock>
                       )}
+                      </DetailGroup>
                     </div>
                   )}
                 </li>

@@ -170,7 +170,7 @@ One page, six states driven by the LangGraph session status:
 
 ### 1. PENDING / RUNNING — "Brain Monitor"
 - **Pipeline Rail**: Planner → **Plan review** → Executor → Critic → Synthesizer → Review, square 7×7 numbered nodes and hairline connectors. Both review nodes are presentational and derived from `status` — the gates are `interrupt()` checkpoints, not agents, so nothing emits them into the stream. They share `--agent-hitl`: it is the human's hue and both nodes are the same kind of step, with position, number and label carrying the distinction (colour is never the sole carrier).
-- **Live Feed**: Monospace log stream with fixed timestamp/agent columns, auto-scroll with pause-on-scroll.
+- **Live Feed**: Monospace log stream with fixed timestamp/agent columns, auto-scroll with pause-on-scroll. An expanded row groups its detail into four sections — **Reasoning · Evidence · Verdict · Draft** — rather than the nine sibling boxes it was. Grouped, not merged: "Evaluation Reasons" and "Critic Feedback For Rework" are different things, and the noise being fixed was the missing hierarchy, not the distinct labels. A group holding nothing renders nothing. The feed carries its own density toggle, which overrides the account preference for this surface only and persists nothing — it is a reading posture for one run, not a setting.
 - **Status Bar**: Monospace tabular elapsed time, running cost, and task progress count.
 - **SSE Stream**: Connect on mount, replay history first, auto-reconnect with `Last-Event-ID`, and fallback polling.
 
