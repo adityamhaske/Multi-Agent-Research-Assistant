@@ -6,9 +6,10 @@ import toast from "react-hot-toast";
 
 import { queryKeys, useChatHistory } from "@/hooks/queries";
 import { Report } from "@/lib/citations";
+import { ScopeSelector } from "@/components/chat/ScopeSelector";
 import { apiBase, authHeaders, isDesktop } from "@/lib/desktop";
 import { streamSSE } from "@/lib/sse";
-import type { Source } from "@/lib/types";
+import type { ChatScope, Source } from "@/lib/types";
 
 interface Streaming {
   user: string;
@@ -52,6 +53,10 @@ export function ChatPanel({ sessionId, sources }: { sessionId: string; sources: 
   const { data: history } = useChatHistory(sessionId);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState<Streaming | null>(null);
+  // Defaults to "report" — today's behaviour, so opening the panel and typing changes
+  // nothing until the user chooses otherwise. Held per panel rather than persisted: the
+  // scope belongs to the question being asked, not to the account.
+  const [scope, setScope] = useState<ChatScope>("report");
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -75,7 +80,7 @@ export function ChatPanel({ sessionId, sources }: { sessionId: string; sources: 
         method: "POST",
         credentials: isDesktop ? "omit" : "include",
         headers: { ...authHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, scope }),
         signal: controller.signal,
       });
     } catch {
@@ -175,31 +180,34 @@ export function ChatPanel({ sessionId, sources }: { sessionId: string; sources: 
         )}
       </div>
 
-      <div className="flex items-end gap-2 border-t border-border p-3">
-        <textarea
-          rows={1}
-          value={input}
-          onChange={(e) => setInput(e.target.value.slice(0, 4000))}
-          onKeyDown={onKeyDown}
-          disabled={Boolean(streaming)}
-          placeholder={streaming ? "Waiting for the response…" : "Ask a follow-up…"}
-          className="textarea-base max-h-32 min-h-[2.5rem] flex-1 text-sm"
-          aria-label="Chat message"
-        />
-        {streaming ? (
-          <button type="button" onClick={stop} className="btn btn-secondary">
-            Stop
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => void send()}
-            disabled={!input.trim()}
-            className="btn btn-primary"
-          >
-            Send
-          </button>
-        )}
+      <div className="space-y-2 border-t border-border p-3">
+        <ScopeSelector value={scope} onChange={setScope} disabled={Boolean(streaming)} />
+        <div className="flex items-end gap-2">
+          <textarea
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value.slice(0, 4000))}
+            onKeyDown={onKeyDown}
+            disabled={Boolean(streaming)}
+            placeholder={streaming ? "Waiting for the response…" : "Ask a follow-up…"}
+            className="textarea-base max-h-32 min-h-[2.5rem] flex-1 text-sm"
+            aria-label="Chat message"
+          />
+          {streaming ? (
+            <button type="button" onClick={stop} className="btn btn-secondary">
+              Stop
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void send()}
+              disabled={!input.trim()}
+              className="btn btn-primary"
+            >
+              Send
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

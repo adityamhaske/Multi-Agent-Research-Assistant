@@ -177,7 +177,29 @@ All endpoints cookie-authed unless noted. Errors follow RFC-7807-style
 | Endpoint | Req | Resp |
 |---|---|---|
 | `GET /research/{id}/chat` | — | message list |
-| `POST /research/{id}/chat` | `{message (1..4000 chars)}` | SSE stream: `chunk`* → `done{message_id}`; chat-specific rate limit |
+| `POST /research/{id}/chat` | `{message (1..4000 chars), scope="report"}` | SSE stream: `connected{scope, sources, notes}` → `chunk`* → `done{message_id}`; chat-specific rate limit. 400 when `scope=corpus` and the embedder is remote |
+
+**Retrieval scope** (docs/07 §2, Phase 5; req 8). `scope` is `report` \| `corpus` \| `web`
+\| `everything`, resolved by `app/services/chat_scope.py` — one module so the report chat
+and the project chat cannot mean different things by the same word. `report` is the
+default and is today's behaviour on both surfaces, so an un-updated client is unaffected.
+
+`corpus` promises **no retrieval egress**, which is narrower than "no network calls" and
+deliberately so: no web retriever runs, and `CorpusStore.search` refuses to embed the
+question at all when the configured embedder is remote (the existing
+`_require_local_embedder_in_corpus_mode` guard, armed here by installing
+`corpus_mode=True` rather than reimplemented). The *answer* is still written by a model,
+which is off-machine unless chat is routed to a local one — the UI copy says exactly
+this, and `tests/test_chat_scope.py` asserts exactly this. Claiming the broader thing is
+how `test_corpus_egress.py` stayed green while every corpus query egressed.
+
+Web-scoped answers return the sources they found on the `connected` frame, numbered from
+1, so their `[n]` markers resolve. A retriever failure arrives as a `notes` entry and is
+stated to the model as a gap — never swallowed into an empty grounding block the model
+would paper over.
+
+**Desktop:** the sidecar implements none of this, because it implements no chat at all
+(see AGENTS.md's two-hosts list). Follow-up chat is server-only today.
 
 ### Projects & project chat (docs/14 §8)
 | Endpoint | Req | Resp |

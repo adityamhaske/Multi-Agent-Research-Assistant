@@ -19,6 +19,17 @@ export type SessionStatus =
 
 export type ResearchDepth = "fast" | "balanced" | "comprehensive";
 
+/**
+ * What a follow-up question may read (docs/07 §2, Phase 5; req 8). Mirrors
+ * `backend/app/services/chat_scope.py::ChatScope` — one word must mean one thing on both
+ * chat surfaces, which is why the wire value is shared and only the *label* of `report`
+ * differs between them ("This report" vs "My research").
+ *
+ * `report` is the default on both, and is exactly today's behaviour, so a client that
+ * omits the field gets the answer it got before this existed.
+ */
+export type ChatScope = "report" | "corpus" | "web" | "everything";
+
 export type AgentName = "planner" | "executor" | "critic" | "synthesizer";
 
 export type ApiKeyProvider = "google" | "anthropic" | "openai" | "openrouter" | "custom";

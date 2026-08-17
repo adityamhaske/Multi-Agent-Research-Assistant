@@ -33,6 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import adapters
 from app.api.v1.projects import resolve_project
+from app.config import settings
 from app.db.base import get_db
 from app.dependencies import enforce_chat_rate_limit, get_current_user
 from app.models.chat_message import ChatMessage
@@ -47,7 +48,7 @@ from app.schemas.chat import (
     ThreadMessageSchema,
     ThreadResponse,
 )
-from app.services import crypto, memory
+from app.services import chat_scope, crypto, memory
 from app.services.sse import SSE_HEADERS
 from research_engine import prompts
 from research_engine.embeddings import EmbeddingsUnavailable
@@ -239,24 +240,57 @@ async def send_thread_message(
     thread = await _owned_thread(db, thread_id, current_user.id)
 
     keys = _user_keys(current_user)
-    embedder = await adapters.embeddings_for(keys)
+    scope = payload.scope
+    # Which scopes actually need a vector. A web-only follow-up needs none, which is why
+    # this is checked rather than assumed: embedding unconditionally made a project with
+    # no embeddings provider unable to ask *any* question, including ones that never
+    # touch memory.
+    needs_embedder = scope in ("report", "corpus", "everything")
+    embedder = await adapters.embeddings_for(keys) if needs_embedder else None
 
-    # Embed the question and retrieve *before* writing anything. An unavailable provider
-    # must not leave a user message stranded in a thread that never got an answer.
+    citations: list = []
+    excerpts = ""
+    if scope in ("report", "everything"):
+        # Embed the question and retrieve *before* writing anything. An unavailable
+        # provider must not leave a user message stranded in a thread that never got an
+        # answer.
+        try:
+            query_vector = (await embedder.embed([payload.message]))[0]
+        except EmbeddingsUnavailable as e:
+            # 503, not a cheerful ungrounded answer: for these scopes this endpoint's
+            # whole contract is that answers come from approved research, and it cannot
+            # honour that right now.
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
+
+        retrieved = await memory.retrieve(
+            db,
+            project_id=thread.project_id,
+            query_vector=query_vector,
+            embedding_model=embedder.model_id,
+        )
+        excerpts, citations = _grounding(retrieved)
+
+    def _corpus_store():
+        """This project's uploaded corpus, or None. Built lazily so a scope that never
+        reads it does not touch the filesystem."""
+        db_path = settings.corpus_path / f"corpus_{thread.project_id}.sqlite"
+        if not db_path.exists():
+            return None
+        from research_engine.corpus import CorpusStore
+
+        return CorpusStore(db_path, embedder)
+
     try:
-        query_vector = (await embedder.embed([payload.message]))[0]
+        grounding = await chat_scope.gather(
+            scope,
+            query=payload.message,
+            report=None,
+            report_sources=[],
+            memory_excerpts=excerpts,
+            store_factory=_corpus_store,
+        )
     except EmbeddingsUnavailable as e:
-        # 503, not a cheerful ungrounded answer: this endpoint's whole contract is that
-        # answers come from approved research, and it cannot honour that right now.
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
-
-    retrieved = await memory.retrieve(
-        db,
-        project_id=thread.project_id,
-        query_vector=query_vector,
-        embedding_model=embedder.model_id,
-    )
-    excerpts, citations = _grounding(retrieved)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     now = datetime.now(UTC)
     db.add(ChatMessage(thread_id=thread_id, role="user", content=payload.message))
@@ -278,10 +312,14 @@ async def send_thread_message(
         .all()
     )
 
+    # PROJECT_CHAT_PROMPT's refusal line stays first and unchanged — its Definition of
+    # Done tests for it (docs/14 §9), and widening the scope is exactly when a model is
+    # most tempted to answer from its own knowledge instead of saying "not in here".
     system = (
         f"{prompts.PROJECT_CHAT_PROMPT}\n\n"
-        f"--- APPROVED RESEARCH IN THIS PROJECT ---\n"
-        f"<untrusted_web_content>\n{excerpts or '(nothing has been approved yet)'}\n"
+        f"{chat_scope.system_suffix(grounding)}\n\n"
+        f"<untrusted_web_content>\n"
+        f"{grounding.text or '(nothing has been approved yet)'}\n"
         f"</untrusted_web_content>"
     )
     messages: list = [SystemMessage(content=system)]
@@ -296,7 +334,19 @@ async def send_thread_message(
         try:
             llm = get_llm("chat")  # raises with an actionable message if no key
             # Citations go first so the client can render the chips as text streams in.
-            yield f"data: {json.dumps({'type': 'connected', 'citations': citations})}\n\n"
+            yield (
+                "data: "
+                + json.dumps(
+                    {
+                        "type": "connected",
+                        "citations": citations,
+                        "scope": grounding.scope,
+                        "sources": grounding.sources,
+                        "notes": grounding.notes,
+                    }
+                )
+                + "\n\n"
+            )
             async for chunk in llm.astream(messages):
                 text = text_of(chunk)
                 if text:

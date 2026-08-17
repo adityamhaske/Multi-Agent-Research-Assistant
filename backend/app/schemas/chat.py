@@ -10,6 +10,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.services.chat_scope import ChatScope
+
 
 class ThreadCreateRequest(BaseModel):
     model_config = {"str_strip_whitespace": True}
@@ -65,6 +67,11 @@ class ThreadMessageRequest(BaseModel):
     model_config = {"str_strip_whitespace": True}
 
     message: str = Field(..., min_length=1, max_length=4000)
+    #: What this question may read (docs/07 §2, Phase 5). Same vocabulary as
+    #: `research.ChatRequest.scope` — one word must mean one thing on both chat
+    #: surfaces, which is why both defer to `app/services/chat_scope.py`. "report"
+    #: here means this project's approved research, which is today's behaviour.
+    scope: ChatScope = "report"
 
 
 class MemoryModelBreakdown(BaseModel):

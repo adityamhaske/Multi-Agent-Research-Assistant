@@ -124,6 +124,13 @@ spend), check what the fixtures replaced: if the mechanism under test is the thi
 mocked, the test is decorative.
 - Schema → an Alembic migration for Postgres *and* the ORM model, which is what the
   desktop's `create_all` plus startup column sync reads
+- **Known divergence, not yet closed:** the sidecar has **no chat routes at all** — no
+  `/research/{id}/chat`, no `/threads`. `frontend/components/session/ChatPanel.tsx`
+  renders on desktop and POSTs to a 404. Follow-up chat is therefore server-only,
+  including its retrieval scope (docs/07 §2, Phase 5). Project chat is desktop-absent by
+  design (project memory is pgvector-only, see the sidecar module docstring); *report*
+  chat is absent by omission and is a real bug. Verify before assuming otherwise:
+  `python -c "from desktop.sidecar import create_sidecar_app; ..."` and list the routes
 - Sidecar location → `desktop/tauri.conf.json` (`bundle.resources`), `desktop/src/lib.rs`
   (`sidecar_command`), *and* `.github/workflows/desktop.yml` (the `shell` job must
   `needs: sidecar` and download the artifact)

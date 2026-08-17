@@ -24,12 +24,26 @@ from app.models.chat_message import ChatMessage
 from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.schemas.research import ChatMessageSchema, ChatRequest
-from app.services import crypto
+from app.services import chat_scope, crypto
 from app.services.sse import SSE_HEADERS
 from research_engine import prompts
+from research_engine.embeddings import EmbeddingsUnavailable
 from research_engine.llm_factory import get_llm, reset_user_keys, set_user_keys, text_of
 
 router = APIRouter(prefix="/research/{session_id}/chat", tags=["Chat"])
+
+
+def _user_provider_keys(user: User) -> dict[str, str]:
+    """This user's BYOK key, so follow-up chat runs on the same key their research did."""
+    if not (user.api_key_encrypted and user.api_key_provider):
+        return {}
+    plaintext = crypto.decrypt(user.api_key_encrypted)
+    if not plaintext:
+        return {}
+    keys = {user.api_key_provider: plaintext}
+    if user.api_key_base_url:
+        keys[f"{user.api_key_provider}_base_url"] = user.api_key_base_url
+    return keys
 
 
 async def _authorized_completed_session(db, session_id, user_id) -> Session:
@@ -94,11 +108,47 @@ async def send_message(
         .all()
     )
 
-    sources = json.dumps(session.sources or [], indent=2)
+    # BYOK first: the corpus store embeds on this user's key exactly as their research
+    # did, so it has to be resolved before the grounding is gathered.
+    user_keys = _user_provider_keys(current_user)
+
+    def _corpus_store():
+        """The project's corpus, or None when it has none. Built lazily — `report` scope
+        must not touch the filesystem to answer a question about a report."""
+        from app.config import settings
+
+        db_path = settings.corpus_path / f"corpus_{session.project_id}.sqlite"
+        if not db_path.exists():
+            return None
+        from research_engine.corpus import CorpusStore
+
+        return CorpusStore(db_path, _embedder_cache["value"])
+
+    _embedder_cache: dict = {"value": None}
+    if payload.scope in ("corpus", "everything"):
+        from app import adapters
+
+        _embedder_cache["value"] = await adapters.embeddings_for(user_keys)
+
+    try:
+        grounding = await chat_scope.gather(
+            payload.scope,
+            query=payload.message,
+            report=session.final_report,
+            report_sources=session.sources or [],
+            memory_excerpts=None,
+            store_factory=_corpus_store,
+        )
+    except EmbeddingsUnavailable as e:
+        # 400, not a cheerful ungrounded answer: the user asked for corpus scope
+        # specifically, and the honest response to "that would have left your machine"
+        # is to say so rather than to answer from somewhere else.
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
     system = (
         f"{prompts.CHAT_PROMPT_V2}\n\n"
-        f"--- REPORT ---\n{session.final_report}\n\n"
-        f"--- SOURCES ---\n<untrusted_web_content>\n{sources}\n</untrusted_web_content>"
+        f"{chat_scope.system_suffix(grounding)}\n\n"
+        f"<untrusted_web_content>\n{grounding.text}\n</untrusted_web_content>"
     )
     messages: list = [SystemMessage(content=system)]
     for m in history:
@@ -106,23 +156,26 @@ async def send_message(
             HumanMessage(content=m.content) if m.role == "user" else AIMessage(content=m.content)
         )
 
-    # BYOK: follow-up chat runs on the same user's key as their research did.
-    user_keys: dict[str, str] = {}
-    if current_user.api_key_encrypted and current_user.api_key_provider:
-        plaintext = crypto.decrypt(current_user.api_key_encrypted)
-        if plaintext:
-            user_keys = {current_user.api_key_provider: plaintext}
-            if current_user.api_key_base_url:
-                user_keys[f"{current_user.api_key_provider}_base_url"] = (
-                    current_user.api_key_base_url
-                )
-
     async def gen() -> AsyncGenerator[str, None]:
         keys_token = set_user_keys(user_keys)
         acc = ""
         try:
             llm = get_llm("chat")  # raises with an actionable message if no key
-            yield f"data: {json.dumps({'type': 'connected'})}\n\n"
+            # Sources first so the client can render citation chips as text streams in,
+            # and so a web-scoped answer's [n] markers resolve to something. `scope` is
+            # echoed back because the answer has to be able to say which one produced it.
+            yield (
+                "data: "
+                + json.dumps(
+                    {
+                        "type": "connected",
+                        "scope": grounding.scope,
+                        "sources": grounding.sources,
+                        "notes": grounding.notes,
+                    }
+                )
+                + "\n\n"
+            )
             async for chunk in llm.astream(messages):
                 text = text_of(chunk)
                 if text:

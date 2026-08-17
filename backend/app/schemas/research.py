@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from app.models.session import SessionStatus
+from app.services.chat_scope import ChatScope
 
 # ─── Requests ───────────────────────────────────────────────────────────────────
 
@@ -132,6 +133,12 @@ class ChatRequest(BaseModel):
     model_config = {"str_strip_whitespace": True}
 
     message: str = Field(..., min_length=1, max_length=4000)
+    #: What this question may read (docs/07 §2, Phase 5). "report" is today's behaviour
+    #: on both chat surfaces — finished, approved research — so an un-updated client that
+    #: omits the field gets exactly the answer it got before. See
+    #: `app/services/chat_scope.py` for what each value promises, and for why "corpus"
+    #: promises no *retrieval* egress rather than zero network calls.
+    scope: ChatScope = "report"
 
 
 # ─── Responses ──────────────────────────────────────────────────────────────────
