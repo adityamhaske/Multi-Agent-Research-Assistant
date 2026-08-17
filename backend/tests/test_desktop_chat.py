@@ -138,7 +138,15 @@ async def test_an_unauthenticated_follow_up_is_rejected(sidecar):
 async def test_the_scope_selector_is_not_a_control_that_does_nothing(sidecar):
     """`ScopeSelector` is already mounted on the desktop panel. The host has to honour
     the field, or it is a segmented control that changes what the user believes and not
-    what the run reads — the "accepted by the schema, dropped on the floor" bug."""
+    what the run reads — the "accepted by the schema, dropped on the floor" bug.
+
+    Proven through `corpus`, which needs a local embedder this test environment has not
+    got. The 400 *is* the evidence: a host that dropped the field would have grounded in
+    the report and returned 200 like the default does, so an error naming the embedding
+    server is the only outcome that can only happen if the scope reached retrieval.
+    Asserted this way rather than through `web`, which reaches a real search API even in
+    fake mode and would make the test depend on the network.
+    """
     sid = await _completed_session(sidecar)
 
     resp = await sidecar.post(
@@ -146,11 +154,29 @@ async def test_the_scope_selector_is_not_a_control_that_does_nothing(sidecar):
         headers=_auth(),
         json={"message": "anything new since?", "scope": "corpus"},
     )
+    assert resp.status_code == 400, "corpus scope must reach the corpus, not fall back"
+    detail = resp.json()["detail"]
+    # Actionable, and specifically about the thing that is missing — the honest-status
+    # rule from `local_llm.probe`: never a bare failure, always the fix.
+    assert "embedding" in detail.lower()
+    assert "11434" in detail, "the user is told which endpoint did not answer"
+
+
+@pytest.mark.asyncio
+async def test_report_scope_streams_and_echoes_the_scope_that_produced_it(sidecar):
+    """The counterpart to the 400 above: the scope the desktop *can* serve comes back on
+    the connected frame, same shape as the server's (`app/api/v1/chat.py`), so the panel
+    can say which grounding produced the answer."""
+    sid = await _completed_session(sidecar)
+
+    resp = await sidecar.post(
+        f"/api/v1/research/{sid}/chat",
+        headers=_auth(),
+        json={"message": "what were the limitations?", "scope": "report"},
+    )
     assert resp.status_code == 200
     connected = _sse_events(resp.text)[0]
-    # Echoed back so the answer can state which scope produced it — same frame shape as
-    # the server (`app/api/v1/chat.py`).
-    assert connected["scope"] == "corpus"
+    assert connected["scope"] == "report"
     assert "sources" in connected and "notes" in connected
 
 
