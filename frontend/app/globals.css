@@ -158,6 +158,9 @@
   --density-pad-y: 0.625rem;
   --density-pad-x: 0.875rem;
   --density-row-gap: var(--space-xs);
+  /* Card padding, so the one surface every page is built out of responds too. The
+   * comfortable value is exactly what `.card` hardcoded before this. */
+  --card-pad: 1.5rem;
 }
 
 /* Opt-in compact density: set on a container, inherited by everything inside. */
@@ -165,6 +168,7 @@
   --density-pad-y: 0.3125rem;
   --density-pad-x: 0.5rem;
   --density-row-gap: var(--space-2xs);
+  --card-pad: 0.875rem;
 }
 
 .dark {
@@ -482,7 +486,11 @@
     background-color: var(--surface);
     border: 1px solid var(--line);
     border-radius: 0;
-    padding: 1.5rem;
+    /* Density-aware. The tokens above were declared with a comment saying components
+     * read them, and nothing did — the Settings toggle wrote a preference that changed
+     * nothing anywhere. `--card-pad` keeps the comfortable value identical to the
+     * 1.5rem this was, so a user who never touches the setting sees no change. */
+    padding: var(--card-pad);
     box-shadow: none;
   }
 

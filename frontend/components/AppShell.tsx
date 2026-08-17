@@ -44,7 +44,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen flex-col md:flex-row overflow-hidden bg-bg-base">
+    <div
+      // The density preference had a Settings control that saved it and CSS tokens that
+      // responded to it, and nothing in between: `[data-density="compact"]` was never
+      // put on the DOM, so choosing "compact" persisted a value the app never read.
+      // Applied on the shell rather than <html> because the tokens are inherited and
+      // this is the outermost element the client actually owns (docs/07 §2, Phase 7).
+      data-density={user?.preferences?.density ?? "comfortable"}
+      className="flex h-screen flex-col md:flex-row overflow-hidden bg-bg-base"
+    >
       <SideNav user={user} />
       <main className="flex-1 overflow-y-auto w-full">
         <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8">
