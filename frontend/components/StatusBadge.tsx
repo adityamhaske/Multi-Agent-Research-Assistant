@@ -1,21 +1,11 @@
+import { statusMeta } from "@/lib/status";
 import type { SessionStatus } from "@/lib/types";
 
-/** Status → token name + human label. Colors flow from tokens only (docs/07 §1). */
-const CONFIG: Record<SessionStatus, { token: string; label: string; pulse?: boolean }> = {
-  PENDING: { token: "text-muted", label: "Queued" },
-  RUNNING: { token: "info", label: "Running", pulse: true },
-  // Both gates are amber on purpose: to someone scanning a list they are one urgency
-  // class — "this is waiting on you" — and the label is what says which decision is
-  // owed. Giving the design gate its own hue would imply a difference in urgency that
-  // does not exist, and would spend a sixth audited color to say it.
-  AWAITING_PLAN: { token: "warning", label: "Plan review" },
-  AWAITING_APPROVAL: { token: "warning", label: "Needs review" },
-  COMPLETED: { token: "success", label: "Completed" },
-  FAILED: { token: "danger", label: "Failed" },
-};
+/** Colours flow from tokens only (docs/07 §1); the label vocabulary lives in
+ *  `lib/status.ts` so the badge and the history filters cannot disagree. */
 
 export function StatusBadge({ status }: { status: SessionStatus }) {
-  const { token, label, pulse } = CONFIG[status] ?? CONFIG.PENDING;
+  const { token, label, pulse } = statusMeta(status);
   const c = `var(--${token})`;
   return (
     <span

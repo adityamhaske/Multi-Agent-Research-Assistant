@@ -6,21 +6,29 @@ import { useState } from "react";
 import { useActiveProject } from "@/components/ActiveProject";
 import { SessionCard } from "@/components/SessionCard";
 import { useSessions } from "@/hooks/queries";
+import { STATUS_ORDER, statusMeta } from "@/lib/status";
 import type { SessionStatus } from "@/lib/types";
 
 const LIMIT = 20;
 
+/**
+ * Derived from the shared vocabulary, never restated (docs/07 §2, Phase 7). This list
+ * was hand-written and had already fallen behind: `AWAITING_PLAN` was missing, so a run
+ * parked at the design gate — the one a user is most likely scanning for — could be seen
+ * and not filtered for.
+ */
 const FILTERS: { value: SessionStatus | "ALL"; label: string }[] = [
   { value: "ALL", label: "All" },
-  { value: "RUNNING", label: "Running" },
-  { value: "AWAITING_APPROVAL", label: "Needs review" },
-  { value: "COMPLETED", label: "Completed" },
-  { value: "FAILED", label: "Failed" },
+  ...STATUS_ORDER.map((value) => ({ value, label: statusMeta(value).label })),
 ];
+
+/** Depth is on every session row, so it filters client-side like status does. */
+const DEPTHS = ["fast", "balanced", "comprehensive"] as const;
 
 export default function HistoryPage() {
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<SessionStatus | "ALL">("ALL");
+  const [depth, setDepth] = useState<(typeof DEPTHS)[number] | "ALL">("ALL");
   // Archived is a separate destination, not another status filter — a session is
   // archived *or* active, and mixing them would defeat the point of getting one
   // out of the way. Switching views resets paging.
@@ -34,7 +42,11 @@ export default function HistoryPage() {
   );
 
   const rows = data?.sessions ?? [];
-  const visible = filter === "ALL" ? rows : rows.filter((s) => s.status === filter);
+  const visible = rows.filter(
+    (s) =>
+      (filter === "ALL" || s.status === filter) &&
+      (depth === "ALL" || s.research_depth === depth),
+  );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / LIMIT)) : 1;
 
   return (
@@ -50,38 +62,58 @@ export default function HistoryPage() {
             </p>
           )}
         </div>
-        <div className="flex flex-wrap gap-1" role="tablist" aria-label="Filter by status">
-          {FILTERS.map((f) => (
+        {/* Two independent axes, laid out as two controls: a single row of tabs would
+            imply that picking a depth clears the status, which it does not. */}
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-1.5 font-mono text-xs text-text-muted">
+            <span>Depth</span>
+            <select
+              value={depth}
+              onChange={(e) => setDepth(e.target.value as typeof depth)}
+              className="border border-border bg-bg-surface px-2 py-1 font-mono text-xs text-text-primary"
+            >
+              <option value="ALL">Any</option>
+              {DEPTHS.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="flex flex-wrap gap-1" role="tablist" aria-label="Filter by status">
+            {FILTERS.map((f) => (
+              <button
+                key={f.value}
+                type="button"
+                role="tab"
+                aria-selected={filter === f.value}
+                onClick={() => setFilter(f.value)}
+                className={`px-3 py-1 font-mono text-xs font-medium border transition-colors ${
+                  filter === f.value
+                    ? "bg-accent text-white border-accent"
+                    : "bg-bg-surface text-text-muted border-border hover:text-text-primary"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
             <button
-              key={f.value}
               type="button"
-              role="tab"
-              aria-selected={filter === f.value}
-              onClick={() => setFilter(f.value)}
-              className={`px-3 py-1 font-mono text-xs font-medium border transition-colors ${
-                filter === f.value
+              onClick={() => {
+                setShowArchived((v) => !v);
+                setPage(1);
+              }}
+              aria-pressed={showArchived}
+              className={`ml-1 px-3 py-1 font-mono text-xs font-medium border transition-colors ${
+                showArchived
                   ? "bg-accent text-white border-accent"
                   : "bg-bg-surface text-text-muted border-border hover:text-text-primary"
               }`}
             >
-              {f.label}
+              {showArchived ? "← Active History" : "Archived"}
             </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => {
-              setShowArchived((v) => !v);
-              setPage(1);
-            }}
-            aria-pressed={showArchived}
-            className={`ml-1 px-3 py-1 font-mono text-xs font-medium border transition-colors ${
-              showArchived
-                ? "bg-accent text-white border-accent"
-                : "bg-bg-surface text-text-muted border-border hover:text-text-primary"
-            }`}
-          >
-            {showArchived ? "← Active History" : "Archived"}
-          </button>
+          </div>
         </div>
       </div>
 
