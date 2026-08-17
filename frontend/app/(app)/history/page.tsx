@@ -25,10 +25,28 @@ const FILTERS: { value: SessionStatus | "ALL"; label: string }[] = [
 /** Depth is on every session row, so it filters client-side like status does. */
 const DEPTHS = ["fast", "balanced", "comprehensive"] as const;
 
+/**
+ * Verified-citation rate bands. The product's central claim, made scannable.
+ *
+ * "Unmeasured" is its own band rather than being swept into the lowest one: a report
+ * with no citable claims and a report whose every marker is broken are opposite
+ * findings, and `citation_resolution_rate` is `null` for the first and `0` for the
+ * second. A band of "under 80%" that quietly included nulls would be the
+ * unmeasured-as-zero bug wearing a filter.
+ */
+const CITATION_BANDS = {
+  ALL: { label: "Any", match: () => true },
+  PERFECT: { label: "100% verified", match: (r: number | null) => r === 1 },
+  PARTIAL: { label: "Under 100%", match: (r: number | null) => r !== null && r < 1 },
+  UNMEASURED: { label: "Not measured", match: (r: number | null) => r === null },
+} as const;
+
 export default function HistoryPage() {
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<SessionStatus | "ALL">("ALL");
   const [depth, setDepth] = useState<(typeof DEPTHS)[number] | "ALL">("ALL");
+  const [band, setBand] = useState<keyof typeof CITATION_BANDS>("ALL");
+  const [model, setModel] = useState<string>("ALL");
   // Archived is a separate destination, not another status filter — a session is
   // archived *or* active, and mixing them would defeat the point of getting one
   // out of the way. Switching views resets paging.
@@ -42,10 +60,18 @@ export default function HistoryPage() {
   );
 
   const rows = data?.sessions ?? [];
+  // Every distinct route any listed run dialled, so the picker only offers models that
+  // actually appear on this page rather than the whole catalog.
+  const models = Array.from(
+    new Set(rows.flatMap((s) => Object.values(s.model_routing ?? {}))),
+  ).sort();
+
   const visible = rows.filter(
     (s) =>
       (filter === "ALL" || s.status === filter) &&
-      (depth === "ALL" || s.research_depth === depth),
+      (depth === "ALL" || s.research_depth === depth) &&
+      CITATION_BANDS[band].match(s.citation_resolution_rate) &&
+      (model === "ALL" || Object.values(s.model_routing ?? {}).includes(model)),
   );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / LIMIT)) : 1;
 
@@ -80,6 +106,39 @@ export default function HistoryPage() {
               ))}
             </select>
           </label>
+
+          <label className="flex items-center gap-1.5 font-mono text-xs text-text-muted">
+            <span>Citations</span>
+            <select
+              value={band}
+              onChange={(e) => setBand(e.target.value as keyof typeof CITATION_BANDS)}
+              className="border border-border bg-bg-surface px-2 py-1 font-mono text-xs text-text-primary"
+            >
+              {Object.entries(CITATION_BANDS).map(([key, b]) => (
+                <option key={key} value={key}>
+                  {b.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {models.length > 1 && (
+            <label className="flex items-center gap-1.5 font-mono text-xs text-text-muted">
+              <span>Model</span>
+              <select
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="max-w-[12rem] border border-border bg-bg-surface px-2 py-1 font-mono text-xs text-text-primary"
+              >
+                <option value="ALL">Any</option>
+                {models.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           <div className="flex flex-wrap gap-1" role="tablist" aria-label="Filter by status">
             {FILTERS.map((f) => (

@@ -72,16 +72,23 @@ def source_indices(sources: list[dict]) -> set[int]:
 
 
 def citation_stats(text: str, sources: list[dict]) -> dict:
-    """Totals + resolution: how many in-text [n] markers point at a real source."""
+    """Totals + resolution: how many in-text [n] markers point at a real source.
+
+    `resolution_rate` is delegated to `research_engine.citation_rate`, which is also what
+    the app writes onto a session. Two implementations of one measurement is how the
+    number a benchmark publishes and the number the UI shows drift apart — and the app
+    cannot import this module (see `graph.py`'s inlined uncited-count), so the shared
+    copy has to live in the engine rather than here.
+    """
+    from research_engine.citation_rate import resolution_rate
+
     cites = extract_citations(body_before_sources(text))
     valid = source_indices(sources)
-    total = len(cites)
-    unresolved = sum(1 for n in cites if n not in valid)
     return {
-        "total_citations": total,
-        "unresolved_citations": unresolved,
+        "total_citations": len(cites),
+        "unresolved_citations": sum(1 for n in cites if n not in valid),
         # None (not 1.0) when there are no citations — an uncited report isn't "perfect".
-        "resolution_rate": None if total == 0 else round((total - unresolved) / total, 4),
+        "resolution_rate": resolution_rate(text, sources),
     }
 
 

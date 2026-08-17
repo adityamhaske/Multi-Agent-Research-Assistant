@@ -80,6 +80,27 @@ export function SessionCard({ session }: { session: SessionSummary }) {
         <span className="capitalize">{session.research_depth}</span>
         <span aria-hidden>·</span>
         <span className="tabular-nums">{formatCost(session.total_cost_usd)}</span>
+        {/* The product's central claim, per row. Rendered only when it was actually
+            measured — `null` means the report made no citable claims, and printing
+            "0% verified" for that would be the opposite finding. */}
+        {session.citation_resolution_rate !== null &&
+          session.citation_resolution_rate !== undefined && (
+            <>
+              <span aria-hidden>·</span>
+              <span
+                className="tabular-nums"
+                title="Share of this report's [n] markers that resolve to a real source"
+                style={{
+                  color:
+                    session.citation_resolution_rate === 1
+                      ? "var(--success)"
+                      : "var(--warning)",
+                }}
+              >
+                {Math.round(session.citation_resolution_rate * 100)}% verified
+              </span>
+            </>
+          )}
         {session.rework_count > 0 && (
           <>
             <span aria-hidden>·</span>

@@ -208,10 +208,18 @@ class — "waiting on you" — and the *label* says which decision is owed. A hu
 would encode a difference in urgency that does not exist, and would spend a sixth
 contrast-audited colour saying it.
 
-History filters on status and depth as two independent controls, not one row of tabs:
-tabs would imply that choosing a depth clears the status. Filtering by verified-citation
-rate and by model is **[PLANNED]** — `SessionSummary` carries neither, and both need the
-list response to grow before a client-side filter can exist.
+History filters on status, depth, verified-citation rate and model — separate controls
+rather than one row of tabs, since tabs would imply that choosing one clears the others.
+
+The citation bands are `100% verified`, `Under 100%` and **`Not measured`**. The third is
+its own band, never folded into the lowest: a report with no citable claims
+(`citation_resolution_rate = null`) and one whose every marker is broken (`0`) are
+opposite findings, and a band of "under 100%" that quietly swept up nulls would be the
+unmeasured-as-zero bug wearing a filter. `SessionCard` shows the percentage only when it
+was actually measured, for the same reason.
+
+The model picker offers only routes that appear on the current page, not the whole
+catalog — a filter for something that cannot match is a dead control.
 
 ## 4. Accessibility & Quality Bar
 

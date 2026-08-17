@@ -72,6 +72,13 @@ class Session(Base):
     # reason the approval decision is recorded in the audit log.
     model_routing: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
 
+    # How much of this report's citation apparatus resolves (docs/07 §2, Phase 7).
+    # **Nullable, and NULL means "not measured"** — a report that made no citable claims,
+    # or a session predating this column. A `0.0` here would mean "every marker points at
+    # nothing", which is the opposite finding; storing the two as one value is the
+    # unmeasured-vs-zero bug this codebase exists to refuse.
+    citation_resolution_rate: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
+
     # Airgapped corpus mode (docs/12 M10).
     corpus_mode: Mapped[bool] = mapped_column(nullable=False, server_default="false")
 

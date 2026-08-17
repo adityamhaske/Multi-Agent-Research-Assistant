@@ -87,7 +87,7 @@ from app.schemas.research import (
 from app.services import local_llm, provider_health
 from app.services import chat_scope
 from app.services.sse import SSE_HEADERS
-from research_engine import bundle, catalog, outlines, prompts
+from research_engine import bundle, catalog, citation_rate, outlines, prompts
 from research_engine.corpus import CorpusStore
 from research_engine.documents import MAX_DOCUMENT_BYTES
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -901,6 +901,12 @@ def create_sidecar_app(
         session.rework_count = outcome.rework_count
         session.elapsed_seconds = outcome.elapsed_seconds
         session.error_message = outcome.error
+        if outcome.status == "completed":
+            # Second home of `pipeline_runner._persist_outcome`'s line. Computed at the
+            # moment the report becomes final, never per list request.
+            session.citation_resolution_rate = citation_rate.resolution_rate(
+                outcome.final_report or "", outcome.sources
+            )
         await db.commit()
 
         lifecycle = {

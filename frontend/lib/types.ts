@@ -169,6 +169,17 @@ export interface SessionSummary {
    * confusion the flag exists to prevent.
    */
   demo: boolean;
+  /**
+   * Fraction of this report's in-text `[n]` markers that resolve to a real source.
+   *
+   * **`null` means not measured** — the report made no citable claims, or it finished
+   * before this was recorded. Never render it as 0, which means the opposite: every
+   * marker it did make points at nothing.
+   */
+  citation_resolution_rate: number | null;
+  /** Which models produced this report. `null` when a run failed before routing
+   *  resolved — on the summary so History can filter by model. */
+  model_routing: Record<string, string> | null;
 }
 
 export interface SessionDetail extends SessionSummary {
@@ -177,12 +188,6 @@ export interface SessionDetail extends SessionSummary {
   sources: Source[] | null;
   error_message: string | null;
   updated_at: string;
-  /**
-   * Resolved per-role routing (docs/07 §2, "truthful per-agent model attribution").
-   * `null` means "not resolved" — a run that failed before the planner, or a session
-   * that predates this field — never a guessed default (the unmeasured-vs-zero rule).
-   */
-  model_routing: Record<string, string> | null;
 }
 
 export interface SessionListResponse {

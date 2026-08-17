@@ -35,7 +35,7 @@ from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.runtime import run_config_from_settings
 from app.services import crypto, model_routing
-from research_engine import events, runner
+from research_engine import citation_rate, events, runner
 from research_engine.runconfig import RunConfig
 from research_engine.runner import RunOutcome
 
@@ -349,6 +349,12 @@ async def _persist_outcome(
     session.status = SessionStatus.COMPLETED
     session.final_report = outcome.final_report
     session.elapsed_seconds = outcome.elapsed_seconds
+    # Computed once, at the moment the report becomes final, rather than per list request
+    # — the same reason `model_routing` is snapshotted. Desktop counterpart:
+    # `sidecar._apply_outcome`.
+    session.citation_resolution_rate = citation_rate.resolution_rate(
+        outcome.final_report or "", outcome.sources
+    )
     await db.commit()
     await sink(
         session_id,

@@ -30,6 +30,7 @@
 | total_tokens_input / total_tokens_output | bigint NOT NULL default 0 | |
 | elapsed_seconds | numeric(10,2) NULL | |
 | rework_count | int NOT NULL default 0 | |
+| citation_resolution_rate | numeric(5,4) NULL | Share of the report's in-text `[n]` markers that resolve to a real source, computed once at finalize by `research_engine/citation_rate.py`. **NULL means *not measured*** — no citable claims, or a run older than the column — and must never render as `0.0`, which means every marker failed. `evals/metrics.py::citation_stats` delegates to the same function so a published number and a displayed number cannot disagree |
 | plan_json / outline_json | JSONB NULL | The design the reviewer **approved** (`{tasks: [...]}` / `{sections: [...]}`), not the planner's raw proposal — written over at the gate, same reasoning as `model_routing` snapshotting what actually ran |
 | plan_approved_at | timestamptz NULL | Null while `AWAITING_PLAN`; stamped by `POST /{id}/plan` |
 | skip_plan_gate | bool NOT NULL default false | Both start endpoints always set this explicitly from the request, whose own default is the opposite (`true`, skip) so an un-updated caller is unaffected |

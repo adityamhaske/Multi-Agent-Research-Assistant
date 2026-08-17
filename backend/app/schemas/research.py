@@ -183,6 +183,14 @@ class SessionSummary(BaseModel):
     # demo run sitting unmarked next to real ones is the thing this flag exists to prevent.
     demo: bool = False
     corpus_mode: bool = False
+    #: Fraction of this report's in-text `[n]` markers that resolve to a real source.
+    #: **`None` means not measured** — no citable claims were made, or the session
+    #: predates the column. Never conflate with `0.0`, which means every marker failed.
+    #: History filters on it, which is why it is on the summary and not just the detail.
+    citation_resolution_rate: float | None = None
+    #: Which models produced this report. On the summary so History can filter by model;
+    #: `None` when a run failed before routing resolved.
+    model_routing: dict[str, str] | None = None
 
     model_config = {"from_attributes": True, "populate_by_name": True}
 
@@ -193,6 +201,9 @@ class SessionDetail(SessionSummary):
     sources: list[SourceSchema] | None = None
     error_message: str | None = None
     updated_at: datetime
+    # NOTE: `model_routing` moved up to `SessionSummary` in Phase 7 so History can filter
+    # on it; it is inherited here rather than re-declared. The comment below is kept
+    # because it records why the field exists at all.
     # Resolved per-role routing (docs/07 §2, "truthful per-agent model attribution").
     # `session.model_routing` has been resolved and snapshotted since before this field
     # existed (`app/workers/pipeline_runner.py::_run_config_for`) — this class just
