@@ -329,12 +329,54 @@ Plus, before any phase is called done:
 
 ## 6. Acceptance
 
-- [ ] Every phase ships with backend + frontend + **desktop** + docs updated together
-- [ ] `provider:model` shown per agent at plan time, in the report, and in all three exports — aliases labelled as aliases, unresolved shown as unresolved
-- [ ] Saving a key returns green/amber/red with a reason; amber distinguishes "key refused" from "no response"
-- [ ] Desktop starts a local model server from one button; web guides and auto-detects
-- [ ] A user can edit subtopics and pick the report outline before any search spends money
-- [ ] Follow-up questions can be pinned to report, corpus, or web, and say which was used
-- [ ] PDF, MD, TXT and HTML preview in place, reachable from both the corpus list and a citation
-- [ ] All four CI greps pass; both CI command blocks green; desktop bundle launched and ~180 MB
-- [ ] Every deleted element is deleted because it carried no meaning — listed, not silently dropped
+Status as of 2026-08-16. Phases 0–6 are landed; Phase 7 is partial.
+
+- [x] Every phase ships with backend + frontend + **desktop** + docs updated together
+      — with one recorded exception: Phase 5 is server-only, because the sidecar has no
+      chat routes at all (see the divergence entry in AGENTS.md).
+- [x] `provider:model` shown per agent at plan time, in the report, and in all three
+      exports — aliases labelled as aliases, unresolved shown as unresolved (Phase 1)
+- [x] Saving a key returns green/amber/red with a reason; amber distinguishes "key
+      refused" from "no response" (Phase 2a)
+- [x] Desktop starts a local model server from one button; web guides and auto-detects
+      (Phase 2b)
+- [x] A user can edit subtopics and pick the report outline before any search spends
+      money (Phase 4)
+- [x] Follow-up questions can be pinned to report, corpus, or web, and say which was
+      used (Phase 5) — **narrowed claim**: corpus scope guarantees no *retrieval*
+      egress, not zero network calls, because the answer is written by a model that is
+      remote unless chat is routed locally. The UI and the tests say the true thing.
+- [x] PDF, MD, TXT and HTML preview in place, reachable from both the corpus list and a
+      citation (Phase 6)
+- [x] All four CI greps pass; both CI command blocks green
+- [ ] **Desktop bundle launched and ~180 MB** — not verified this session; needs a real
+      `npm run tauri build` on a machine with the toolchain.
+- [x] Every deleted element is deleted because it carried no meaning — listed, not
+      silently dropped
+
+### Phase 7 — what is done, and what is left
+
+Done: one status vocabulary (`lib/status.ts`, and `AWAITING_PLAN` is filterable — it was
+not); History filters by status and depth; the preview drawer is a real modal with a
+focus trap; the density preference is applied and consumed rather than merely stored.
+
+Left, and why each is its own unit:
+
+- **`LiveFeed`: 9 detail blocks → 4 semantic groups (Reasoning · Evidence · Verdict ·
+  Draft).** A 403-line rewrite of the app's most-watched surface. It deserves a focused
+  pass rather than the tail end of a long one.
+- **History filters by verified-citation rate and by model.** `SessionSummary` carries
+  neither: the citation rate is computed from evidence the summary does not include, and
+  `model_routing` is on the detail only. Needs the list response to grow first.
+- **`docs/product/01_Product_Vision.md`** — §0 of this plan (why replace Scholar /
+  NotebookLM) still lives only here.
+- **`README.md` + `docs/screenshots/`** — `npm run screenshots` needs the full running
+  stack; cannot be regenerated from a checkout alone.
+- **`npm run e2e`** — the specs for the design gate (journey 0) and preview (journey 6)
+  are written but **unexecuted**; they need Docker.
+
+### Still open outside Phase 7
+
+- **Report chat 404s on the desktop build.** The sidecar implements no chat endpoints,
+  while `ChatPanel.tsx` renders on desktop and POSTs to one. Pre-existing, verified by
+  enumerating the sidecar's routes, and recorded in AGENTS.md's two-hosts list.
