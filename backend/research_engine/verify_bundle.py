@@ -42,6 +42,11 @@ from research_engine.bundle import (
 _CITE_RE = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
 _SOURCES_HEADING_RE = re.compile(r"^#{1,6}\s*(sources|references|citations|bibliography)\b", re.I)
 
+#: The one approval action that authorizes a report — and therefore an artifact.
+REPORT_APPROVAL_ACTION = "approved"
+#: Actions taken at the plan gate. They are recorded in the chain and authorize nothing.
+PLAN_GATE_ACTIONS = frozenset({"plan_approved", "plan_rework_requested", "plan_rejected"})
+
 
 # ── Result types ──────────────────────────────────────────────────────────────────
 
@@ -171,7 +176,19 @@ def _check_approval_chain(bundle: BundleManifest) -> CheckResult:
             "No approval records — this report was never human-reviewed",
         )
 
-    approved_entries = [a for a in bundle.approval_chain if a.action == "approved"]
+    # Only a REPORT approval authorizes anything. `plan_approved` is a decision about a
+    # research plan, taken before any draft existed, and its `draft_hash` has never been
+    # verified by anything — so it must not be counted here, and its presence must not be
+    # able to satisfy the report check below.
+    #
+    # This was already true by string inequality; naming the exclusion makes it a decision
+    # rather than a coincidence, and gives a V2 assembler that renames a plan approval
+    # something to fail against (M2F Amendment §5.3).
+    approved_entries = [
+        a
+        for a in bundle.approval_chain
+        if a.action == REPORT_APPROVAL_ACTION and a.action not in PLAN_GATE_ACTIONS
+    ]
     if not approved_entries:
         return CheckResult(
             "approval_chain",
