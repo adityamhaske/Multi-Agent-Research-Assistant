@@ -19,6 +19,7 @@ If you want to know how the system actually works, read [`../docs/`](../docs/00_
 | `V2_Audit_and_Migration_Map.md` | Phase 0 of the V2 plan: what V1 actually contains, what survives, and the milestone sequence |
 | `V2_Migration_Validation_M2E3.md` | M2E-3: the V1→V2 migration dry-run results, limitations and readiness verdict |
 | `V2_Migration_Fidelity_M2F.md` | M2F: the seven fidelity gaps M2E found, and what each would take to close. A proposal — nothing in it is implemented |
+| `V2_Migration_Fidelity_M2F_Amendment.md` | M2F amendment: the approved findings as numbered V2 domain invariants, and the three migration-validation gates. Also a proposal |
 | `m2e_dryrun/*.json` | The dry-run measurements that report is computed from |
 | `04_Interview_Defense.md` | Personal notes — gitignored, absent from a clone |
 
