@@ -16,7 +16,18 @@ If you want to know how the system actually works, read [`../docs/`](../docs/00_
 |---|---|
 | `12_Launch_Plan.md` | Milestone plan M5–M19, defect log, budget and scale assumptions |
 | `Launch_Go_No_Go.md` | A point-in-time release-readiness checklist |
+| `V2_Audit_and_Migration_Map.md` | Phase 0 of the V2 plan: what V1 actually contains, what survives, and the milestone sequence |
 | `04_Interview_Defense.md` | Personal notes — gitignored, absent from a clone |
+
+`V2_Audit_and_Migration_Map.md` was filed here rather than beside the V2 Master Plan in
+`docs/plans/` because, at the time, `NEVER_PUBLISH` in `frontend/lib/docs.ts` was a
+**per-file** denylist naming two exact paths — so a third file under `docs/plans/` would
+have been published at a URL nothing linked to.
+
+M0B fixed that: publication is now decided per directory, and an unclassified directory
+fails the build. `docs/plans/` would be a safe home today. It stays here anyway, because
+this directory is a notebook and that is what the document is — but the choice is now
+editorial rather than forced.
 
 **Do not link to these from `docs/` or from the README.** The docs site renders every
 Markdown file under `docs/`, so a note that belongs here and is filed there gets published.
