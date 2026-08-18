@@ -12,150 +12,33 @@ becomes ATTESTED, and that a state V2 cannot represent is classified rather than
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import event, func, insert, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy import func, select
 
-from app.models import POSTGRES_ONLY_TABLES, Base
 from app.models.audit_log import AuditLog
-from app.models.project import Project
-from app.models.research import Evidence, ResearchRun, Source
+from app.models.research import Contradiction, Evidence, ResearchPlan, ResearchRun, Source
 from app.models.review import Review
-from app.models.revision import Claim, Revision
-from app.models.session import Session, SessionStatus
-from app.models.user import User
+from app.models.revision import Claim, ClaimEvidenceLink, Revision
+from app.models.session import SessionStatus
 from migration.checkpoint import CheckpointOutcome, read_checkpoint
 from migration.ledger import MigrationLedger, MigrationStatus
 from migration.runner import migrate_all
-
-REPORT = (
-    "# Findings\n\nRecall improved by twelve points on the benchmark [1]. "
-    "A second sentence that also carries a marker [2].\n\n## Sources\n\n1. https://e.org/a\n"
+from tests.migration_support import (
+    CONTRADICTIONS,
+    EVIDENCE,
+    PLAN,
+    FakeSaver,
+    open_db,
+    seed,
 )
-SOURCES = [
-    {"index": 1, "url": "https://e.org/a", "title": "A", "snippet": "s", "snippets": ["s"]},
-    {"index": 2, "url": "https://e.org/b", "title": "B", "snippet": "t", "snippets": ["t"]},
-]
-EVIDENCE = [
-    {
-        "task_id": 1,
-        "source_url": "https://e.org/a",
-        "source_title": "A",
-        "snippet": "Recall improved by twelve points.",
-        "key_fact": "recall up",
-    },
-    {
-        "task_id": 2,
-        "source_url": "https://e.org/b",
-        "source_title": "B",
-        "snippet": "",
-        "key_fact": "blanked by V1 verification",
-    },
-]
-
-
-class FakeSaver:
-    """A checkpoint saver whose three outcomes are explicit.
-
-    `None` → the thread has no snapshot. `BOOM` → decoding raises. Anything else is a
-    decodable snapshot, whose evidence may still be empty.
-    """
-
-    BOOM = object()
-
-    def __init__(self, threads: dict[str, object]) -> None:
-        self._threads = threads
-
-    async def aget_tuple(self, config):
-        tid = config["configurable"]["thread_id"]
-        if tid not in self._threads:
-            return None
-        payload = self._threads[tid]
-        if payload is self.BOOM:
-            raise RuntimeError("checkpoint blob is corrupt")
-
-        class _T:
-            checkpoint = {"channel_values": payload}
-
-        return _T()
 
 
 @pytest.fixture
 async def db(tmp_path):
     """A disposable SQLite database. Explicitly not the production DSN."""
-    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'm2e.sqlite'}")
-
-    @event.listens_for(engine.sync_engine, "connect")
-    def _fk(dbapi_conn, _):
-        dbapi_conn.execute("PRAGMA foreign_keys=ON")
-
-    tables = [t for t in Base.metadata.sorted_tables if t.name not in POSTGRES_ONLY_TABLES]
-    async with engine.begin() as conn:
-        await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=tables))
-    maker = async_sessionmaker(engine, expire_on_commit=False)
-    async with maker() as s:
-        yield s
-    await engine.dispose()
-
-
-async def seed(
-    db,
-    *,
-    status=SessionStatus.COMPLETED,
-    report=REPORT,
-    sources=SOURCES,
-    rework=0,
-    audits=(),
-    error=None,
-):
-    now = datetime.now(UTC)
-    uid, pid, sid = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
-    await db.execute(
-        insert(User).values(
-            id=uid, email=f"{uid}@x.invalid", hashed_pw="x", is_active=True, created_at=now
-        )
-    )
-    await db.execute(
-        insert(Project).values(id=pid, user_id=uid, name="P", created_at=now, updated_at=now)
-    )
-    await db.execute(
-        insert(Session).values(
-            id=sid,
-            user_id=uid,
-            project_id=pid,
-            prompt="q",
-            status=status,
-            research_depth="fast",
-            draft_report=report,
-            final_report=report if report else None,
-            sources=sources,
-            rework_count=rework,
-            total_cost_usd=1,
-            total_tokens_input=10,
-            total_tokens_output=5,
-            corpus_mode=False,
-            demo=False,
-            skip_plan_gate=False,
-            error_message=error,
-            created_at=now,
-            updated_at=now,
-        )
-    )
-    for action, h in audits:
-        await db.execute(
-            insert(AuditLog).values(
-                session_id=sid,
-                user_id=uid,
-                action=action,
-                feedback=None,
-                draft_hash=h,
-                created_at=now,
-            )
-        )
-    await db.commit()
-    return sid
+    async with open_db(tmp_path / "m2e.sqlite") as maker, maker() as session:
+        yield session
 
 
 async def _count(db, model) -> int:
@@ -358,3 +241,139 @@ async def test_absence_from_the_ledger_means_not_processed(db):
     saver = FakeSaver({})
     await migrate_all(db, saver, limit=1)
     assert await _count(db, MigrationLedger) == 1, "the unprocessed session must have NO row"
+
+
+# ── P3: deterministic CHILD identity, independent of the run's primary key ───────
+#
+# The accurate statement of the idempotency design, which the M2E-1 plant got wrong:
+#
+#   `research_runs.id = session.id` is the current TOP-LEVEL idempotency boundary.
+#   uuid5 child ids are deterministic DEFENCE IN DEPTH.
+#
+# A plant that swapped uuid5 for uuid4 therefore did not break end-to-end migration —
+# the run row collided first and the whole transaction rolled back, hiding the change.
+# The test below removes that shield: two disjoint target databases share no primary key
+# at all, so the only thing that can make the child ids agree is the derivation being a
+# pure function of (V1 source, mapping).
+
+CHILD_ID_COLUMNS = {
+    "research_plans": ResearchPlan.id,
+    "sources": Source.id,
+    "evidence": Evidence.id,
+    "contradictions": Contradiction.id,
+    "revisions": Revision.id,
+    "claims": Claim.id,
+    "claim_evidence_links": ClaimEvidenceLink.id,
+    "reviews": Review.id,
+}
+
+
+async def _child_ids(db) -> dict[str, list[str]]:
+    return {
+        name: sorted(str(v) for v in (await db.execute(select(col))).scalars())
+        for name, col in CHILD_ID_COLUMNS.items()
+    }
+
+
+async def test_child_identity_is_deterministic_across_independent_databases(tmp_path):
+    """Same V1 source + same mapping → same child identity, with no PK to collide on.
+
+    Two disposable databases are migrated from a byte-identical V1 fixture. Neither can
+    see the other, so `research_runs.id = session.id` cannot mask a random id: if any
+    child id were freshly generated, the two sets would differ.
+    """
+    ids = (uuid.uuid4(), uuid.uuid4(), uuid.uuid4())
+    sid = ids[2]
+    saver = FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": CONTRADICTIONS}})
+
+    async def migrate_into(path):
+        async with open_db(path) as maker, maker() as target:
+            await seed(target, ids=ids, audits=[("approved", "b" * 64)], plan=PLAN)
+            report = await migrate_all(target, saver)
+            assert report.by_status == {str(MigrationStatus.MIGRATED): 1}, report.by_status
+            return await _child_ids(target)
+
+    first = await migrate_into(tmp_path / "target_a.sqlite")
+    second = await migrate_into(tmp_path / "target_b.sqlite")
+
+    # Vacuity guard: every child table must actually have rows, or "the ids match" is
+    # a statement about two empty sets.
+    for table, rows in first.items():
+        assert rows, f"{table} produced no rows — the comparison below would be vacuous"
+
+    assert first == second, "child ids are not a function of the V1 source"
+
+
+async def test_child_identity_survives_a_rebuilt_target(db, tmp_path):
+    """The same property stated the other way: rebuild the target, get the same children.
+
+    Deletes every V2 row *and* the ledger — so nothing is left to collide with — and
+    migrates again. Random ids would produce a disjoint set; deterministic ids reproduce
+    the first result exactly.
+    """
+    sid = await seed(db, audits=[("approved", "c" * 64)], plan=PLAN)
+    saver = FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": CONTRADICTIONS}})
+    await migrate_all(db, saver)
+    before = await _child_ids(db)
+    assert all(before.values())
+
+    # Children first, then the run: nothing remains for the second pass to collide on.
+    for model in (
+        ClaimEvidenceLink,
+        Claim,
+        Review,
+        Revision,
+        Contradiction,
+        Evidence,
+        Source,
+        ResearchPlan,
+        ResearchRun,
+        MigrationLedger,
+    ):
+        await db.execute(model.__table__.delete())
+    await db.commit()
+    assert await _count(db, ResearchRun) == 0
+
+    await migrate_all(db, saver)
+    assert await _child_ids(db) == before
+
+
+# ── The remaining refusals: audit rows V2 cannot represent ───────────────────────
+#
+# Added in M2E-2 after a planted "accept a duplicate approval" violation survived the
+# suite. The partial unique index `uq_review_approval` would have caught it at the
+# database, but as an IntegrityError — classifying an inconsistent V1 row as a *retryable*
+# FAILED, which a retry would then hit forever. The engine's own refusal is what makes it
+# INCONSISTENT_V1, and that is what these pin.
+
+
+async def test_two_approvals_for_one_revision_are_refused_not_retried(db):
+    """`uq_review_approval` allows one approving REPORT review per revision (M2E §6)."""
+    sid = await seed(db, audits=[("approved", "a" * 64), ("approved", "b" * 64)])
+    await migrate_all(db, FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": []}}))
+
+    led = (await db.execute(select(MigrationLedger))).scalar_one()
+    assert led.status == MigrationStatus.INCONSISTENT_V1, "a retry would fail identically forever"
+    assert led.failure_category == "DUPLICATE_APPROVAL"
+    assert await _count(db, Review) == 0
+    assert await _count(db, ResearchRun) == 0
+
+
+async def test_a_malformed_draft_hash_is_refused_not_padded(db):
+    sid = await seed(db, audits=[("approved", "tooshort")])
+    await migrate_all(db, FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": []}}))
+
+    led = (await db.execute(select(MigrationLedger))).scalar_one()
+    assert led.status == MigrationStatus.INCONSISTENT_V1
+    assert led.failure_category == "MALFORMED_DRAFT_HASH"
+    assert await _count(db, Review) == 0
+
+
+async def test_an_unknown_audit_action_stops_the_run_rather_than_being_skipped(db):
+    """A fourth V1 action would otherwise migrate as an approval-shaped hole."""
+    sid = await seed(db, audits=[("archived", "a" * 64)])
+    await migrate_all(db, FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": []}}))
+
+    led = (await db.execute(select(MigrationLedger))).scalar_one()
+    assert led.status == MigrationStatus.INCONSISTENT_V1
+    assert led.failure_category == "UNKNOWN_AUDIT_ACTION"

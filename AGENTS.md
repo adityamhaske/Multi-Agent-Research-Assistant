@@ -156,6 +156,16 @@ query embedding was the only call that egressed, so the suite was green precisel
 it had replaced the defect. When writing a test for an *absence* (no egress, no writes, no
 spend), check what the fixtures replaced: if the mechanism under test is the thing you
 mocked, the test is decorative.
+
+The second instance was worse, because the fake behaved *better* than the real thing.
+`migration/checkpoint.py` exists to keep a missing checkpoint distinct from an empty one,
+and its tests used a `FakeSaver` that raises on corruption. A real LangGraph saver does
+not: a damaged blob still deserialises — to the integer `0` — so the reader returned
+"read it, no evidence" for a checkpoint it had not read at all. The tri-state was
+reintroduced one level below where it was fixed, and only running the migration against a
+real `AsyncSqliteSaver` (M2E-2's dry run) found it. **A decode that does not raise is not
+a decode that succeeded**: check the shape you got back, not just the absence of an
+exception.
 - Schema → an Alembic migration for Postgres *and* the ORM model, which is what the
   desktop's `create_all` plus startup column sync reads
 - Report chat → `app/api/v1/chat.py` *and* `desktop/sidecar.py`. The sidecar had **no
@@ -269,6 +279,29 @@ The suite also pins the two traps this table already warned about in prose: ever
 - Router aliases (`auto/*`) are **not** pinned models: they resolve differently per call
   and the alias can disagree with what served the request. Never treat one as a disclosed
   model — record what actually answered.
+
+## The V1 → V2 migration
+
+`backend/migration/` is a tool, not a service. Three rules it has already cost something to
+learn (`internal/V2_Migration_Validation_M2E3.md`):
+
+- **Never read checkpoints through `app.services.checkpoints.get_thread_state`.** It returns
+  `snapshot.values if snapshot else {}`, so "no checkpoint" and "empty checkpoint" are the
+  same value. The migration has its own tri-state reader; the production helper stays as it
+  is, because changing it would alter V1 semantics.
+- **`EMPTY`, `CHECKPOINT_MISSING` and `READ_FAILURE` all produce a V2 run with zero
+  evidence.** Nothing in the V2 domain tables distinguishes them — only `migration_ledger`
+  does. That is why the ledger outlives the migration, and why "0 evidence" read from V2
+  alone is not a measured fact.
+- **The CLI never reads `DATABASE_URL`.** `--database-url` is required, writing additionally
+  needs `--confirm-database NAME` matching the DSN, and the dry-run tool refuses any target
+  whose `sessions` table is not empty. A tool that defaults to the operator's environment is
+  one sourced shell away from migrating production.
+
+Do not load a list of ORM rows and then roll back inside the loop: the rollback expires
+*every* object in the identity map, including the ones not processed yet, so the next
+iteration dies on attribute access outside the greenlet. Read ids, then re-read each row
+inside its own attempt.
 
 ## Never fake, never swallow
 

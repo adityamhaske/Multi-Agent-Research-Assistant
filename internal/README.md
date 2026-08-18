@@ -17,6 +17,8 @@ If you want to know how the system actually works, read [`../docs/`](../docs/00_
 | `12_Launch_Plan.md` | Milestone plan M5–M19, defect log, budget and scale assumptions |
 | `Launch_Go_No_Go.md` | A point-in-time release-readiness checklist |
 | `V2_Audit_and_Migration_Map.md` | Phase 0 of the V2 plan: what V1 actually contains, what survives, and the milestone sequence |
+| `V2_Migration_Validation_M2E3.md` | M2E-3: the V1→V2 migration dry-run results, limitations and readiness verdict |
+| `m2e_dryrun/*.json` | The dry-run measurements that report is computed from |
 | `04_Interview_Defense.md` | Personal notes — gitignored, absent from a clone |
 
 `V2_Audit_and_Migration_Map.md` was filed here rather than beside the V2 Master Plan in

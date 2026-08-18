@@ -68,18 +68,27 @@ async def migrate_all(
     report = MigrationReport()
     t0 = time.perf_counter()
 
-    sessions = (
-        (await db.execute(select(Session).order_by(Session.created_at.asc()))).scalars().all()
+    # Ids first, rows one at a time — NOT a list of ORM objects.
+    #
+    # Loading every `Session` up front looks cheaper and is wrong: the first run that
+    # rolls back expires **every** object in the identity map, including the ones not
+    # processed yet. The next iteration then touches an expired attribute outside the
+    # greenlet context and dies with `MissingGreenlet` — so one refused run would abort
+    # the whole migration. Found by the M2E-2 dry run, whose corpus has a refusal in the
+    # middle rather than at the end (the M2E-1 test happened to put it last).
+    #
+    # `(created_at, id)` rather than `created_at` alone: `--limit` and resume must cut the
+    # corpus at the same place every time, and timestamps tie.
+    session_ids = (
+        (await db.execute(select(Session.id).order_by(Session.created_at.asc(), Session.id.asc())))
+        .scalars()
+        .all()
     )
 
     processed = 0
-    for session in sessions:
+    for session_id in session_ids:
         if limit is not None and processed >= limit:
             break
-        # Captured BEFORE any transaction work: after a rollback the ORM object is
-        # expired, and touching an attribute would attempt lazy IO outside the greenlet
-        # context. The ledger write must not depend on the object that failed.
-        session_id = session.id
         existing = await _ledger_for(db, session_id)
         if existing is not None and existing.status in TERMINAL:
             if not (retry_failed and existing.status == MigrationStatus.FAILED):
@@ -89,11 +98,22 @@ async def migrate_all(
         run_t0 = time.perf_counter()
         attempt = (existing.attempt + 1) if existing else 1
         try:
+            # Re-read inside the attempt: a previous rollback may have expired this row.
+            session = (
+                await db.execute(select(Session).where(Session.id == session_id))
+            ).scalar_one()
             result = await migrate_session(db, saver, session)
             status, category, detail = result.status, None, None
             ev, rev, art = result.evidence_outcome, result.revision_outcome, result.artifact_outcome
             counts, rows, ms = result.counts, result.rows_written, result.duration_ms
             # A checkpoint the migration could not read is not a migrated run.
+            #
+            # `status` is one slot and a run can carry two findings at once (no evidence
+            # AND no report). The precedence is deliberate and fixed: **checkpoint outcome
+            # outranks revision outcome**, because an unread checkpoint says the migration
+            # could not see the run, while a missing report is something the migration
+            # could see. Neither fact is lost — `evidence_outcome` and `revision_outcome`
+            # are separate columns and both are always written.
             if ev == "CHECKPOINT_MISSING":
                 status = MigrationStatus.CHECKPOINT_MISSING
             elif ev == "CHECKPOINT_UNREADABLE":
