@@ -2253,6 +2253,17 @@ def create_sidecar_app(
 
         return await create_run(body, db, user)
 
+    @api.get("/v2/runs")
+    async def v2_list_runs(
+        project_id: uuid.UUID | None = None,
+        limit: int = 50,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.v2_runs import list_runs
+
+        return await list_runs(project_id, limit, db, user)
+
     @api.get("/v2/runs/{run_id}")
     async def v2_get_run(
         run_id: uuid.UUID,

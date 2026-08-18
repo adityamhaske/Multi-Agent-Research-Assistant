@@ -290,6 +290,20 @@ to record something a migrated one is refused.
   no auth and no Redis, because the server router *and* the desktop sidecar both call it. The
   V2 routes were added to both hosts in the same commit, and `test_host_parity` caught them
   before they landed — which is the third time that harness has paid for itself.
+- **`app/v2_execution.py` is the only bridge from the engine to V2.** It calls
+  `research_engine.runner.run`/`.resume` with the same ports and the same `RunConfig` the V1
+  worker uses — nothing in `research_engine/` knows V2 exists, and it must stay that way.
+  `persist_outcome` is the seam: pure over (db, run, outcome, state), so the integration test
+  drives the real graph and then calls it directly.
+- **Evidence comes from the checkpoint, not from `RunOutcome`.** The outcome carries the
+  report, the numbered sources and the metrics; evidence and contradictions have always lived
+  in the LangGraph state, which is why the V1 bundle route reads them there too. The adapter
+  reads the final state once, through the tri-state reader, and after that the `evidence`
+  table is authoritative.
+- **`agent_logs.session_id` has no foreign key.** It is polymorphic across `sessions.id` and
+  `research_runs.id`, because an FK can only point at one of them — and before `0018` a
+  V2-native run could not write the trace its bundle's `trace_available` claims. Deletion is
+  cascaded by the ORM relationship on `Session`, not by the database.
 - **`app/v2_bundle.py` is the one bundle assembler.** `migration/bundle_equivalence` delegates
   to it. If they ever diverge, "the migration produces the same bundle the product does" stops
   being a measurement and becomes a coincidence.

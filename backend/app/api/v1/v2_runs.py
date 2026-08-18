@@ -59,19 +59,26 @@ class CreateRunRequest(BaseModel):
     skip_plan_gate: bool = True
     topic_seeds: list | None = None
     outline_template: str | None = None
+    #: Dispatch the run to the worker. False creates the domain row only — used by tests
+    #: that drive the engine in-process, and by any caller that wants to stage a run.
+    dispatch: bool = True
 
 
 class PlanReviewRequest(BaseModel):
     decision: str = Field("APPROVED", description="APPROVED | REWORK_REQUESTED | REJECTED")
     feedback: str | None = None
+    dispatch: bool = True
 
 
 class ReportReviewRequest(BaseModel):
+    """A decision about a revision. `dispatch` drives the rework resume."""
+
     revision_version: int | None = Field(
         None, description="Which revision was reviewed. Defaults to the latest."
     )
     decision: str = Field(..., description="APPROVED | REWORK_REQUESTED | REJECTED")
     feedback: str | None = None
+    dispatch: bool = True
 
 
 async def _run_or_404(db: AsyncSession, run_id: uuid.UUID, owner_id: uuid.UUID) -> ResearchRun:
@@ -355,8 +362,68 @@ async def create_run(
         topic_seeds=body.topic_seeds,
         outline_template=body.outline_template,
     )
+    # Committed BEFORE dispatch: a worker that picks the message up first and cannot find
+    # the row would fail a run that was about to exist.
     await db.commit()
-    return {"run_id": str(run.id), "status": run.status}
+
+    if body.dispatch:
+        from app.workers.tasks import run_v2_pipeline
+
+        run_v2_pipeline.delay(str(run.id), str(current_user.id))
+    return {"run_id": str(run.id), "status": run.status, "dispatched": body.dispatch}
+
+
+@router.get("")
+async def list_runs(
+    project_id: uuid.UUID | None = None,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """This owner's runs, newest first, optionally scoped to one project.
+
+    A summary rather than the graph: History renders a list, and shipping the full
+    projection per row would carry every report's markdown to draw a table.
+    """
+    query = select(ResearchRun).where(ResearchRun.owner_id == current_user.id)
+    if project_id is not None:
+        query = query.where(ResearchRun.project_id == project_id)
+    runs = (
+        (await db.execute(query.order_by(ResearchRun.created_at.desc()).limit(min(limit, 200))))
+        .scalars()
+        .all()
+    )
+    artifacts = {
+        a.run_id
+        for a in (
+            await db.execute(
+                select(ResearchArtifact).where(ResearchArtifact.owner_id == current_user.id)
+            )
+        )
+        .scalars()
+        .all()
+    }
+    return {
+        "runs": [
+            {
+                "id": str(r.id),
+                "project_id": str(r.project_id),
+                "question": r.question,
+                "status": r.status,
+                "depth": r.depth,
+                "demo": r.demo,
+                "cost_usd": float(r.cost_usd),
+                "citation_resolution_rate": (
+                    float(r.citation_resolution_rate)
+                    if r.citation_resolution_rate is not None
+                    else None
+                ),
+                "has_artifact": r.id in artifacts,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in runs
+        ]
+    }
 
 
 @router.get("/{run_id}")
@@ -395,6 +462,18 @@ async def submit_plan_review(
         db, run, plan, reviewer_id=current_user.id, decision=body.decision, feedback=body.feedback
     )
     await db.commit()
+
+    # An approved plan resumes the suspended graph from the design gate — the same
+    # `runner.resume(plan=…)` the V1 path uses, so research the user already paid for is
+    # not re-run.
+    if body.decision == "APPROVED" and body.dispatch:
+        from app.workers.tasks import resume_v2_plan_gate
+
+        resume_v2_plan_gate.delay(
+            str(run.id),
+            str(current_user.id),
+            {"tasks": plan.tasks, "sections": plan.outline_sections},
+        )
     return {"review_id": str(review.id), "gate": "PLAN", "decision": review.decision}
 
 
@@ -433,6 +512,13 @@ async def submit_report_review(
         elif body.decision == "REWORK_REQUESTED":
             run.status = "RUNNING"
         await db.commit()
+        if body.decision == "REWORK_REQUESTED" and body.dispatch:
+            from app.workers.tasks import resume_v2_pipeline
+
+            # `route_after_gate` sends a rejected draft back to the SYNTHESIZER, not the
+            # executor — the same evidence, resynthesized — so the next revision costs one
+            # synthesis rather than a whole run.
+            resume_v2_pipeline.delay(str(run.id), str(current_user.id), False, body.feedback)
     except v2_runtime.LifecycleError as exc:
         await db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
