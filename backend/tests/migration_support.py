@@ -44,12 +44,21 @@ EVIDENCE = [
         "key_fact": "blanked by V1 verification",
     },
 ]
+#: Evidence the executor recorded with no URL at all. `_number_sources` skips it,
+#: `group_snippets_by_source` skips it, and no other V1 location records an identity for
+#: it — so it is the one source case that stays non-migratable (M2F Amendment §6.3).
+EVIDENCE_NO_URL = [
+    {"task_id": 1, "source_url": "", "source_title": "", "snippet": "orphaned", "key_fact": "x"}
+]
 CONTRADICTIONS = [
     {
         "source_a": "https://e.org/a",
         "source_b": "https://e.org/b",
         "claim_a": "recall rose",
+        "snippet_a": "Recall improved by twelve points.",
         "claim_b": "recall fell",
+        "snippet_b": "",
+        "nature": "the two measurements cannot both describe the same benchmark",
     }
 ]
 PLAN = [{"id": 1, "query": "q", "rationale": "r"}]
@@ -126,6 +135,7 @@ async def seed(
     trace=(),
     demo=False,
     routing=None,
+    descending_audit_times=False,
 ):
     """Insert one representative V1 session (plus its user, project, audit and trace rows).
 
@@ -179,7 +189,14 @@ async def seed(
                 # only be ordered by (created_at, id). Two reviews sharing a timestamp are
                 # a genuine ordering ambiguity, recorded as a limitation rather than
                 # papered over here.
-                created_at=now + timedelta(seconds=i),
+                # Descending on request: a later `audit_log.id` with an EARLIER timestamp,
+                # so ordering by `created_at` gives a different answer from ordering by
+                # decision order. V1 guarantees no distinctness or monotonicity here.
+                created_at=(
+                    now - timedelta(seconds=i)
+                    if descending_audit_times
+                    else now + timedelta(seconds=i)
+                ),
             )
         )
     for payload in trace:

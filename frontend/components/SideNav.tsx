@@ -8,7 +8,7 @@ import { isDesktop } from "@/lib/desktop";
 import type { User } from "@/lib/types";
 
 import { AccountMenu } from "./AccountMenu";
-import {
+import { IconResearch,
   BrandLogo,
   IconChat,
   IconClose,
@@ -148,6 +148,16 @@ export function SideNav({ user }: { user?: User }) {
             href="/project"
             label="Overview"
             icon={<IconOverview />}
+            collapsed={collapsed && !isMobile}
+            onClick={() => isMobile && setMobileOpen(false)}
+          />
+          {/* Research sits directly under Overview because it is the product's verb, and
+              Chat sits last because it is a secondary capability over an approved report —
+              not the way research is done here. */}
+          <NavItem
+            href="/research"
+            label="Research"
+            icon={<IconResearch />}
             collapsed={collapsed && !isMobile}
             onClick={() => isMobile && setMobileOpen(false)}
           />

@@ -62,8 +62,21 @@ class Review(Base):
     __tablename__ = "reviews"
 
     id: Mapped[uuid.UUID] = mapped_column(UuidType, primary_key=True, default=uuid.uuid4)
-    revision_id: Mapped[uuid.UUID] = mapped_column(
-        UuidType, ForeignKey("revisions.id", ondelete="RESTRICT"), nullable=False
+    # A review belongs to the RUN, not only to whichever versioned object it judged
+    # (M2F Amendment §8.2). Without this, a run's approval chain cannot be collected at
+    # all: PLAN reviews hang off `research_plans` and REPORT reviews off `revisions`, so a
+    # single-parent read would silently omit every plan approval.
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        UuidType, ForeignKey("research_runs.id", ondelete="RESTRICT"), nullable=False
+    )
+    # The total order of decisions within a run. Not `created_at` (V1 guarantees no
+    # distinctness and two gates can share a timestamp) and not insertion order (ids are
+    # uuid5, so id order is arbitrary). Migrated from the rank of `audit_log.id`.
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    # NULL for a PLAN review: `submit_plan` runs at AWAITING_PLAN, before any draft exists,
+    # so a plan approval with no revision is normal V1 behaviour (M2F Amendment §4).
+    revision_id: Mapped[uuid.UUID | None] = mapped_column(
+        UuidType, ForeignKey("revisions.id", ondelete="RESTRICT"), nullable=True
     )
     reviewer_id: Mapped[uuid.UUID] = mapped_column(
         UuidType, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
@@ -83,14 +96,21 @@ class Review(Base):
     )
 
     __table_args__ = (
-        # Composite-FK target for `research_artifacts`. Not redundant with the primary key:
-        # it is what lets an artifact prove its review is an approval.
-        UniqueConstraint("id", "decision", name="uq_review_decision"),
+        # Composite-FK target for `research_artifacts`. Carries `gate` as well as
+        # `decision`: once a PLAN review can exist without a revision, constraining only
+        # the decision would let a plan approval authorize an artifact (M2F Amendment §5).
+        UniqueConstraint("id", "decision", "gate", name="uq_review_decision"),
+        UniqueConstraint("run_id", "sequence", name="uq_review_sequence"),
         CheckConstraint(_in("gate", REVIEW_GATES), name="ck_review_gate"),
         CheckConstraint(_in("decision", REVIEW_DECISIONS), name="ck_review_decision"),
         CheckConstraint("length(reviewed_hash) = 64", name="ck_review_hash"),
         CheckConstraint("(gate = 'PLAN') = (plan_version_id IS NOT NULL)", name="ck_review_plan"),
+        # The mirror of ck_review_plan, and the whole of S1: a REPORT review must have a
+        # revision, a PLAN review must not.
+        CheckConstraint("(gate = 'REPORT') = (revision_id IS NOT NULL)", name="ck_review_report"),
+        CheckConstraint("sequence >= 1", name="ck_review_sequence"),
         Index("ix_review_revision", "revision_id", "created_at"),
+        Index("ix_review_run", "run_id", "sequence"),
     )
 
 
@@ -165,6 +185,10 @@ class ResearchArtifact(Base):
     )
     review_id: Mapped[uuid.UUID | None] = mapped_column(UuidType, nullable=True)
     review_decision: Mapped[str] = mapped_column(String(20), nullable=False)
+    # Denormalised beside `review_decision` for the same reason and by the same technique:
+    # it makes "this artifact was authorized by a plan approval" unrepresentable rather
+    # than merely discouraged.
+    review_gate: Mapped[str] = mapped_column(String(8), nullable=False, default="REPORT")
 
     # The V1 bundle format, unchanged. M2D does not touch it.
     format_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -178,12 +202,15 @@ class ResearchArtifact(Base):
     __table_args__ = (
         # The load-bearing constraint of the whole schema: approval as a database fact.
         ForeignKeyConstraint(
-            ["review_id", "review_decision"],
-            ["reviews.id", "reviews.decision"],
+            ["review_id", "review_decision", "review_gate"],
+            ["reviews.id", "reviews.decision", "reviews.gate"],
             ondelete="SET NULL",
             name="fk_artifact_review",
         ),
         CheckConstraint("review_decision = 'APPROVED'", name="ck_artifact_approved"),
+        # A PLAN approval can never reach here: the FK forces (decision, gate) to match a
+        # real review's pair, and this pins the gate to REPORT.
+        CheckConstraint("review_gate = 'REPORT'", name="ck_artifact_gate"),
         UniqueConstraint("artifact_hash", name="uq_artifact_hash"),
         CheckConstraint("format_version >= 1", name="ck_artifact_format"),
         CheckConstraint("length(artifact_hash) = 64", name="ck_artifact_hashlen"),
