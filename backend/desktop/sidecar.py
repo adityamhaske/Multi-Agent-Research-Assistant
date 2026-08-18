@@ -54,7 +54,16 @@ if str(_BACKEND_ROOT) not in sys.path:
 
 import structlog
 import uvicorn
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    FastAPI,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
@@ -70,6 +79,11 @@ from app.models.memory_chunk import MemoryChunk
 from app.models.project import Project
 from app.models.session import Session, SessionStatus
 from app.models.user import User
+# `download_headers` is the server's response-header policy for uploaded documents (the
+# no-render rule plus the narrow PDF exception). Imported, never restated: a second copy
+# of a security header policy is the worst kind of duplication this repo has.
+from app.api.v1.corpus import download_headers
+from app.schemas.auth import UsageResponse
 from app.schemas.project import ProjectCreateRequest, ProjectListResponse, ProjectResponse
 from app.schemas.research import (
     ApprovalRequest,
@@ -86,7 +100,7 @@ from app.schemas.research import (
     SessionListResponse,
     SessionSummary,
 )
-from app.services import local_llm, provider_health
+from app.services import local_llm, provider_health, usage
 from app.services import chat_scope
 from app.services.sse import SSE_HEADERS
 from research_engine import bundle, catalog, citation_rate, outlines, prompts
@@ -743,6 +757,29 @@ def create_sidecar_app(
             "monthly_token_limit": 0,
             "preferences": user.preferences or {},
         }
+
+    @api.get("/auth/me/usage", response_model=UsageResponse)
+    async def get_usage(
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        """Token and cost usage. Second home of the server's `GET /auth/me/usage` (M1.5).
+
+        Settings renders a usage panel unconditionally, so this 404'd on desktop (M1).
+
+        Served rather than hidden, and that is the interesting call. The *limit* half of
+        this endpoint is a multi-tenant abuse guard with no meaning for one local user
+        paying their own provider bill — `monthly_token_limit` is 0 here and always will
+        be, so `limit_remaining` is null and `limit_reached` is false. But the *usage*
+        half is exactly as meaningful locally as it is on a server: this is the only place
+        the product says what a month of research actually cost, and a BYOK user is the
+        person most likely to want it.
+
+        Hiding the panel behind `isDesktop` would have removed real information to close a
+        contract gap, and added a branch to do it. `app.services.usage.summary` reads
+        `sessions`, which this host has, so the same computation serves both.
+        """
+        return await usage.summary(db, user.id, user.monthly_token_limit)
 
     @api.patch("/auth/me")
     async def update_me(
@@ -1605,6 +1642,54 @@ def create_sidecar_app(
             "not part of the desktop bundle.",
         )
 
+    @api.post("/research/{session_id}/cancel", response_model=SessionSummary)
+    async def cancel_session(
+        session_id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        """Stop an in-progress research run. Second home of the server's `cancel_session`.
+
+        The Stop button in `SessionView` renders for PENDING/RUNNING on both builds and had
+        no route here, so on desktop it 404'd (M1).
+
+        **Parity note, deliberately not improved here.** On the server this marks the row
+        FAILED and publishes FAILED; the Redis `session:{id}:cancelled` key it also writes
+        is read by nothing, and neither host's outcome writer checks the current status
+        before persisting. So on both hosts a run that finishes after being cancelled will
+        overwrite the row — cancel is advisory, not preemptive. The sidecar could do better
+        (it owns the `asyncio.Task`) but doing so here would create a *new* undeclared
+        divergence in a milestone whose entire purpose is removing them. Matching the
+        contract is the fix; strengthening it on both hosts is separate work.
+        """
+        session = await _authorized_session(db, session_id, user.id)
+        if session.status not in (SessionStatus.RUNNING, SessionStatus.PENDING):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot stop a session with status {session.status}.",
+            )
+
+        session.status = SessionStatus.FAILED
+        session.error_message = "Research stopped by user."
+        await db.commit()
+        await db.refresh(session)
+
+        # Same ordering as `_apply_outcome`: the row is committed before the terminal
+        # event leaves, so a client acting on FAILED never re-reads a stale status.
+        bus = app.state.sidecar["bus"]
+        payload = make_event("FAILED", message="Research stopped by user.")
+        eid = bus.append(str(session_id), payload)
+        payload["id"] = eid
+        db.add(
+            AgentLog(
+                session_id=session_id, event_type="FAILED", agent_name=None, payload=payload
+            )
+        )
+        await db.commit()
+
+        logger.info("sidecar_research_stopped_by_user", session_id=str(session_id))
+        return SessionSummary.model_validate(session)
+
     @api.post("/research/{session_id}/archive", response_model=SessionSummary)
     async def archive_session(
         session_id: uuid.UUID,
@@ -2009,6 +2094,128 @@ def create_sidecar_app(
         save_corpus_config(app.state.data_dir, corpus_only=corpus_only)
         logger.info("sidecar_corpus_mode", corpus_only=corpus_only)
         return {"corpus_only": corpus_only}
+
+    # -- canonical per-project corpus contract (M1.5) ---------------------------
+    #
+    # The flat `/corpus/*` routes above are the desktop's *internal* shape: this host
+    # keeps one `corpus.sqlite` for the whole app rather than one file per project. That
+    # is a real infrastructure difference and it stays.
+    #
+    # What was wrong is that the difference leaked into the client. The Corpus page and
+    # the report preview call `/projects/{id}/corpus/...` — the server's shape — with no
+    # `isDesktop` branch, so on desktop the document list, status panel, upload, delete
+    # and preview all 404'd. Both hosts had a complete corpus implementation and they
+    # never met (M1, `KNOWN_DESKTOP_GAPS`).
+    #
+    # So the per-project path is the **canonical product contract** and both hosts serve
+    # it. Here it resolves to the one flat store, which is exactly the "same contract,
+    # different internals" split the parity harness is meant to protect. Adding a branch
+    # to the frontend instead would have taught it about a storage decision it has no
+    # business knowing.
+    #
+    # `_resolve_project` still runs and still 404s on an unknown project, matching the
+    # server's authorization boundary — the project id is not *used* to pick a store, but
+    # answering for a project that does not exist would be a different contract.
+
+    @api.get("/projects/{project_id}/corpus/documents")
+    async def list_project_corpus_documents(
+        project_id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        await _resolve_project(db, user.id, project_id)
+        return {"documents": await _corpus().documents()}
+
+    @api.get("/projects/{project_id}/corpus/status")
+    async def project_corpus_status(
+        project_id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        await _resolve_project(db, user.id, project_id)
+        info = await _corpus().status()
+        info["corpus_only"] = corpus_only_enabled(app.state.data_dir)
+        return info
+
+    @api.post("/projects/{project_id}/corpus/documents", status_code=201)
+    async def upload_project_corpus_document(
+        project_id: uuid.UUID,
+        file: UploadFile,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        """Multipart, matching the server — this is the canonical client contract.
+
+        The flat route above takes raw bytes with the name in the query string, chosen so
+        the frozen bundle would not need `python-multipart`. That saving is not available
+        here: the browser sends a `FormData`, and teaching the frontend to encode
+        differently for one host is precisely the leak this section removes.
+        `python-multipart` is already a hard backend dependency; the PyInstaller spec now
+        names it explicitly because nothing else in the sidecar's import graph pulls it in.
+        """
+        await _resolve_project(db, user.id, project_id)
+
+        clean_name = Path(file.filename or "").name  # metadata only; never a path
+        if not clean_name:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, detail="filename is required."
+            )
+        body = await file.read()
+        if not body:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The document body is empty."
+            )
+        if len(body) > MAX_DOCUMENT_BYTES:
+            raise HTTPException(
+                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"Document is {len(body)} bytes; the limit is {MAX_DOCUMENT_BYTES}.",
+            )
+        try:
+            result = await _corpus().ingest(clean_name, body)
+        except ValueError as e:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
+        except EmbeddingsUnavailable as e:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
+        return {
+            "doc_id": result.doc_id,
+            "filename": result.filename,
+            "chunks_written": result.chunks_written,
+            "skipped": result.skipped,
+            "reason": result.reason,
+        }
+
+    @api.delete("/projects/{project_id}/corpus/documents/{doc_id}", status_code=204)
+    async def delete_project_corpus_document(
+        project_id: uuid.UUID,
+        doc_id: str,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        await _resolve_project(db, user.id, project_id)
+        if not await _corpus().delete(doc_id):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Document not found.")
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @api.get("/projects/{project_id}/corpus/documents/{doc_id}/download")
+    async def download_project_corpus_document(
+        project_id: uuid.UUID,
+        doc_id: str,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        """Serve the original uploaded file, with the server's own response headers.
+
+        `download_headers` is imported from the server module rather than restated: it is
+        where the rule that an uploaded document must not render in this origin lives,
+        along with the single narrow exception (PDF) that in-place preview needs. A second
+        copy of a security header policy is the worst kind of duplication to have.
+        """
+        await _resolve_project(db, user.id, project_id)
+        found = await _corpus().blob(doc_id)
+        if found is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Document not found.")
+        data, filename, kind = found
+        return Response(content=data, headers=download_headers(kind, filename))
 
     app.include_router(api)
     return app

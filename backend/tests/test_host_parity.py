@@ -20,7 +20,8 @@ So these tests do not assert identical implementations. They assert:
    the lists shrink as things are fixed instead of accumulating.
 3. **The UI's contract is satisfied.** Every API path the desktop build actually calls must
    exist on the sidecar. This is the check that would have caught the chat 404 and the
-   bundle 404, and the six gaps recorded in `KNOWN_DESKTOP_GAPS` below.
+   bundle 404; it found six more in M1, which M1.5 then closed, along with a seventh that
+   M1 had misfiled as an intentional difference.
 4. **Shared routes agree in shape**, because the same TypeScript types read both.
 5. **Security boundaries hold on both**, swept generically rather than per route.
 
@@ -113,19 +114,7 @@ INTENTIONAL_SERVER_ONLY: dict[str, str] = {
         "desktop takes the provider as a path segment: /models/providers/health/{provider}; "
         "the frontend already branches on isDesktop for this one"
     ),
-    # Corpus is one `corpus.sqlite` for the whole desktop app rather than one file per
-    # project, so the desktop routes are flat (`/corpus/*`).
-    "GET /projects/{project_id}/corpus/documents": "desktop corpus is flat: GET /corpus/documents",
-    "POST /projects/{project_id}/corpus/documents": "desktop corpus is flat: POST /corpus/documents",
-    "DELETE /projects/{project_id}/corpus/documents/{doc_id}": (
-        "desktop corpus is flat: DELETE /corpus/documents/{doc_id}"
-    ),
-    "GET /projects/{project_id}/corpus/status": "desktop corpus is flat: GET /corpus/status",
-    "GET /projects/{project_id}/corpus/documents/{doc_id}/download": (
-        "desktop has no document download route; the preview drawer reads through /corpus"
-    ),
     # Multi-tenant concerns with no meaning for a single local user paying their own bill.
-    "GET /auth/me/usage": "monthly token ceilings are a multi-tenant abuse guard",
     "PATCH /projects/{project_id}": "desktop offers no project rename; the UI never calls it",
     "DELETE /projects/{project_id}": "desktop offers no project delete; the UI never calls it",
 }
@@ -211,7 +200,6 @@ def test_every_declared_divergence_states_a_reason():
 #: surface that calls it. Maintained by hand from `frontend/hooks/queries.ts` and the
 #: components; a path here is a promise the sidecar has to keep.
 #:
-#: Paths the sidecar does not serve are in `KNOWN_DESKTOP_GAPS` below, not here.
 #: Paths only reachable behind an `isDesktop` guard are deliberately absent: project chat
 #: (SideNav hides it) and project memory (`project/page.tsx` renders an explanation
 #: instead) are not called on desktop at all.
@@ -231,6 +219,15 @@ DESKTOP_UI_CALLS: dict[str, str] = {
     "GET /research/{session_id}/export.md": "ReportView",
     "GET /research/{session_id}/export.pdf": "ReportView (501 on desktop, handled)",
     "GET /research/{session_id}/export.bundle.json": "ReportView — M0C",
+    "POST /research/{session_id}/cancel": "SessionView — the Stop button (M1.5)",
+    "GET /projects/{project_id}/corpus/documents": "Corpus page, project overview (M1.5)",
+    "POST /projects/{project_id}/corpus/documents": "Corpus page — upload (M1.5)",
+    "DELETE /projects/{project_id}/corpus/documents/{doc_id}": "Corpus page — delete (M1.5)",
+    "GET /projects/{project_id}/corpus/status": "Corpus page, project overview (M1.5)",
+    "GET /projects/{project_id}/corpus/documents/{doc_id}/download": (
+        "DocumentPreview via documentUrl(), from the Corpus page and ReportView (M1.5)"
+    ),
+    "GET /auth/me/usage": "Settings — the usage panel (M1.5)",
     "POST /research/{session_id}/archive": "SessionCard",
     "POST /research/{session_id}/unarchive": "history archive view",
     "DELETE /research/{session_id}": "SessionCard — delete",
@@ -244,27 +241,19 @@ DESKTOP_UI_CALLS: dict[str, str] = {
     "POST /models/providers/test": "connection test",
 }
 
-#: Paths the desktop UI calls that the sidecar does **not** serve.
+#: Paths the desktop UI calls that the sidecar does **not** serve — controls that 404.
 #:
-#: Every one of these is a control the desktop build renders and a request that 404s — the
-#: exact defect class AGENTS.md records for report chat. Found by M1; **not fixed by M1**,
-#: which is a contract milestone, not a repair one.
-KNOWN_DESKTOP_GAPS: dict[str, str] = {
-    "POST /research/{session_id}/cancel": (
-        "SessionView renders 'Stop research' for PENDING/RUNNING with no isDesktop guard; "
-        "the sidecar has no cancel route, so the button 404s on desktop"
-    ),
-    "GET /projects/{project_id}/corpus/documents": (
-        "the Corpus page (nav item is not desktop-guarded) calls the per-project path; "
-        "the sidecar serves the flat /corpus/documents and never sees this request"
-    ),
-    "GET /projects/{project_id}/corpus/status": "the Corpus page's status panel 404s on desktop",
-    "POST /projects/{project_id}/corpus/documents": "document upload 404s on desktop",
-    "DELETE /projects/{project_id}/corpus/documents/{doc_id}": "document delete 404s on desktop",
-    "GET /auth/me/usage": (
-        "Settings' usage panel calls useUsage(); the sidecar has no usage route"
-    ),
-}
+#: **Empty since M1.5.** M1 found six and recorded them here rather than fixing them, because
+#: a contract milestone that also repairs things cannot show which of its tests were load-
+#: bearing. M1.5 then closed all of them, plus a seventh M1 had misfiled: the corpus document
+#: *download* path was listed only as an intentional server-only route, on the reading that
+#: the UI did not call it. It does — `documentUrl()` builds it for both the Corpus page and
+#: the report preview drawer — so it was a live 404 that this table failed to name. The
+#: `DESKTOP_UI_CALLS` entry above is what now prevents that particular mistake: a path is
+#: judged by whether the client calls it, not by anyone's recollection.
+#:
+#: Keep it empty. An entry here is a shipped control that does not work.
+KNOWN_DESKTOP_GAPS: dict[str, str] = {}
 
 
 def test_desktop_ui_calls_are_served_by_the_sidecar():
@@ -294,8 +283,10 @@ def test_known_desktop_gaps_are_not_silently_growing():
     Raising this number should take an argument, the same way adding to
     `test_engine_boundary.KNOWN_EXCEPTIONS` should.
     """
-    assert len(KNOWN_DESKTOP_GAPS) <= 6, (
-        f"{len(KNOWN_DESKTOP_GAPS)} desktop UI calls now 404. Fix one before adding another."
+    assert len(KNOWN_DESKTOP_GAPS) == 0, (
+        f"{len(KNOWN_DESKTOP_GAPS)} desktop UI call(s) now 404. M1.5 brought this to zero; "
+        "a new entry is a control that ships broken. Serve the path on both hosts, or stop "
+        "the desktop build from rendering the control."
     )
 
 

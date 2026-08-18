@@ -46,6 +46,11 @@ hiddenimports = [
     "langchain_openai",
     # pydantic[email] used by app.schemas.
     "email_validator",
+    # Multipart form parsing for the per-project corpus upload route (M1.5). FastAPI
+    # imports this lazily when a route declares UploadFile, so the static scan does not
+    # see it; without this the frozen sidecar 500s on the first document upload.
+    "python_multipart",
+    "multipart",
     # Airgapped corpus (docs/12 M10) — both imported lazily inside functions,
     # which PyInstaller's module-level scan does not see.
     "pypdf",
