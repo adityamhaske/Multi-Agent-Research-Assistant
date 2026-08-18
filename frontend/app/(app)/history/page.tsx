@@ -80,7 +80,7 @@ export default function HistoryPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-serif text-xl font-bold tracking-tight text-text-primary">
-            {showArchived ? "Archived Research" : "Research History"}
+            {showArchived ? "Archived legacy sessions" : "Legacy sessions"}
           </h1>
           {active && (
             <p className="mt-0.5 font-mono text-xs text-text-muted">

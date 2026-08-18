@@ -99,3 +99,87 @@ async def _mark_failed(session_id: str, error: str) -> None:
     finally:
         await close_redis_pool()
         await engine.dispose()
+
+
+# ── V2 native runs ────────────────────────────────────────────────────────────────
+#
+# Separate task names from the V1 pair, for the reason `resume_plan_gate` is separate: a
+# queued Celery message outlives a deploy, so widening an existing task's meaning would
+# leave in-flight messages ambiguous about which domain they belong to.
+
+
+@celery_app.task(name="run_v2_pipeline")
+def run_v2_pipeline(run_id: str, user_id: str) -> None:
+    from app.v2_execution import execute_run
+
+    clear_run_context()
+    bind_run_context(run_id, user_id=user_id)
+    logger.info("v2_pipeline_task_started")
+    try:
+        asyncio.run(execute_run(run_id))
+        logger.info("v2_pipeline_task_finished")
+    except Exception as exc:  # noqa: BLE001
+        logger.error("v2_pipeline_task_failed", error=str(exc), exc_info=True)
+        asyncio.run(_mark_v2_failed(run_id, str(exc)))
+
+
+@celery_app.task(name="resume_v2_pipeline")
+def resume_v2_pipeline(
+    run_id: str, user_id: str, approved: bool, feedback: str | None = None
+) -> None:
+    from app.v2_execution import execute_run
+
+    clear_run_context()
+    bind_run_context(run_id, user_id=user_id, approved=approved)
+    logger.info("v2_resume_task_started")
+    try:
+        asyncio.run(execute_run(run_id, resume=(approved, feedback)))
+        logger.info("v2_resume_task_finished")
+    except Exception as exc:  # noqa: BLE001
+        logger.error("v2_resume_task_failed", error=str(exc), exc_info=True)
+        asyncio.run(_mark_v2_failed(run_id, str(exc)))
+
+
+@celery_app.task(name="resume_v2_plan_gate")
+def resume_v2_plan_gate(run_id: str, user_id: str, plan: dict) -> None:
+    from app.v2_execution import execute_run
+
+    clear_run_context()
+    bind_run_context(run_id, user_id=user_id)
+    logger.info("v2_plan_resume_task_started")
+    try:
+        asyncio.run(execute_run(run_id, plan=plan))
+        logger.info("v2_plan_resume_task_finished")
+    except Exception as exc:  # noqa: BLE001
+        logger.error("v2_plan_resume_task_failed", error=str(exc), exc_info=True)
+        asyncio.run(_mark_v2_failed(run_id, str(exc)))
+
+
+async def _mark_v2_failed(run_id: str, error: str) -> None:
+    """A crash outside the adapter still has to leave the run FAILED, not RUNNING forever.
+
+    The V2 counterpart of `_mark_failed`, and the same shape: its own session, its own Redis
+    lifecycle, and it never raises — a failure here would lose the only record of the first
+    failure.
+    """
+    import uuid
+
+    from sqlalchemy import select
+
+    from app.db.base import AsyncSessionLocal
+    from app.db.redis import close_redis_pool, init_redis_pool, publish_event
+    from app.models.research import ResearchRun
+
+    await init_redis_pool()
+    try:
+        async with AsyncSessionLocal() as db:
+            run = (
+                await db.execute(select(ResearchRun).where(ResearchRun.id == uuid.UUID(run_id)))
+            ).scalar_one_or_none()
+            if run:
+                run.status = "FAILED"
+                run.error_message = error[:500]
+                await db.commit()
+        await publish_event(run_id, {"type": "FAILED", "data": {"reason": error[:500]}})
+    finally:
+        await close_redis_pool()

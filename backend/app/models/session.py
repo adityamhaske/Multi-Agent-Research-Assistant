@@ -126,11 +126,14 @@ class Session(Base):
     # instead of the ORM loading every child row (docs/05 §5).
     user: Mapped["User"] = relationship("User", back_populates="sessions")  # noqa: F821
     project: Mapped["Project"] = relationship("Project", back_populates="sessions")  # noqa: F821
+    # `agent_logs.session_id` is polymorphic across V1 sessions and V2 runs and carries no
+    # foreign key, so the relationship states the join condition explicitly and cascades in
+    # the ORM rather than relying on the database. `viewonly=False` with `delete-orphan` is
+    # what keeps "delete this session removes its trace" true without an FK.
     agent_logs: Mapped[list["AgentLog"]] = relationship(  # noqa: F821
         "AgentLog",
-        back_populates="session",
+        primaryjoin="Session.id == foreign(AgentLog.session_id)",
         cascade="all, delete-orphan",
-        passive_deletes=True,
         lazy="select",
     )
     chat_messages: Mapped[list["ChatMessage"]] = relationship(  # noqa: F821

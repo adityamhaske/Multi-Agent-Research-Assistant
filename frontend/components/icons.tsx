@@ -401,3 +401,23 @@ export function IconEdit({ className }: IconProps) {
     </svg>
   );
 }
+
+/** Research: a magnifier over a document — retrieval and a written record, not a chat bubble. */
+export function IconResearch({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="square"
+      strokeLinejoin="miter"
+      className={className || "h-5 w-5"}
+    >
+      <path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h8" />
+      <path d="M8 7h6M8 11h4" />
+      <circle cx="16.5" cy="15.5" r="3.5" />
+      <path d="M19 18l2.5 2.5" />
+    </svg>
+  );
+}
