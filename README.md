@@ -21,9 +21,31 @@ first launch — right-click the app → **Open** → **Open**. Windows `.msi`, 
 
 Ask a research question. A pipeline of specialized agents searches the web, gathers
 evidence with sources, drafts a cited report, and **pauses for your approval** before
-finalizing. Approve it, or send it back with feedback. Completed reports support grounded
-follow-up chat and export as `.md`, `.pdf`, or a hash-verifiable `.bundle.json` that a
-third party can check offline — no AI, no network, no account.
+finalizing.
+
+> **V2 — research that can show its work.** A run is no longer a report with citations
+> attached to it. The evidence, the sources, the claims, the links between them, the
+> conflicting sources and your review decision are all structured records you can inspect,
+> and the report is a rendering of *them*. Three distinctions are enforced everywhere and
+> never blurred: **retrieved is not verified**, **retrieved is not cited**, and **a citation
+> marker is not evidence**. Approving a report freezes an artifact that a stranger can check
+> offline with the verifier in this repository — no network, no model, no account.
+> See [the V2 research model](docs/getting-started/24-v2-research-model.md).
+
+Approve it, or send it back with feedback. Completed reports support grounded follow-up
+chat and export as `.md`, `.pdf`, or a hash-verifiable `.bundle.json` that a third party
+can check offline — no AI, no network, no account.
+
+Verify an artifact yourself, without this application running:
+
+```bash
+python -m research_engine.verify_bundle research-abc12345.bundle.json
+```
+
+Six checks — bundle integrity, report integrity, evidence integrity, citation resolution,
+claim/evidence linkage and the approval chain. Exit `0` when they all pass. A pass means the
+artifact is internally consistent and unaltered since approval; it does not mean the research
+is correct, which is a judgement no checker can make.
 
 Every claim carries an inline `[n]` citation that resolves to a real source with the
 verbatim supporting snippet. A citation that *doesn't* resolve renders as a visible ⚠
