@@ -200,23 +200,57 @@ async def migrate_session(db: AsyncSession, saver, session: Session) -> RunResul
         evidence_outcome = "COPIED" if read.evidence else "NONE_PRESENT"
 
     ev_ids: dict[int, uuid.UUID] = {}  # citation_index → evidence id (first per source)
+    # (source_id, quoted text) → every evidence row carrying it. A list, not a single id:
+    # the refinement is only allowed when the match is UNIQUE, and that cannot be known
+    # until every row is in (M2F Amendment §7.4).
+    by_quote: dict[tuple[uuid.UUID, str], list[uuid.UUID]] = {}
     max_seq = 0
     if read.outcome is CheckpointOutcome.READ:
         for i, item in enumerate(read.evidence, start=1):
             if not isinstance(item, dict):
                 continue
-            norm = _norm_url(item.get("source_url") or "")
+            raw_url = item.get("source_url") or ""
+            norm = _norm_url(raw_url)
             src_id = by_url.get(norm)
             if src_id is None:
-                # `graph._number_sources` skips evidence with an empty URL, and `sources`
-                # is only written by the synthesizer — so a run that failed earlier has
-                # evidence with no source row. `evidence.source_id` is NOT NULL and V2
-                # offers no honest placeholder. Refuse rather than invent one.
-                raise Unmigratable(
-                    "EVIDENCE_SOURCE_UNRESOLVED",
-                    f"evidence[{i}] url={item.get('source_url')!r} has no source row; "
-                    "sources are derived by the synthesizer and this run has none",
+                if not raw_url:
+                    # No identity exists anywhere in V1: `_number_sources` skips it,
+                    # `group_snippets_by_source` skips it, and `agent_logs` carries counts
+                    # rather than evidence. A `Source` here would be an invention, so the
+                    # run is refused (M2F Amendment §6.3).
+                    raise Unmigratable(
+                        "EVIDENCE_SOURCE_UNRESOLVED",
+                        f"evidence[{i}] has an empty source_url; no V1 location records "
+                        "an identity for it",
+                    )
+                # Recovery, not synthesis. `EvidenceChunk.source_url` is a REQUIRED field
+                # written by the executor — a V1 fact in a different table from the one the
+                # synthesizer writes. `citation_index` stays NULL because the number is
+                # assigned by the synthesizer, which never ran for this run: recording that
+                # the source was retrieved but never cited is truthful, generating an index
+                # would not be (M2F Amendment §6.2).
+                #
+                # Keyed identically to a snapshot source, so a URL present in both collapses
+                # to one row by construction rather than duplicating.
+                src_id = _det("source", sid, norm)
+                by_url[norm] = src_id
+                await db.execute(
+                    insert(Source).values(
+                        id=src_id,
+                        run_id=sid,
+                        url=raw_url,
+                        normalized_url=norm,
+                        title=item.get("source_title") or None,
+                        kind="CORPUS" if raw_url.startswith("corpus://") else "WEB",
+                        retrieval_status="UNKNOWN",
+                        citation_index=None,
+                        corpus_document_id=(
+                            raw_url[len("corpus://") :] if raw_url.startswith("corpus://") else None
+                        ),
+                        retrieved_at=session.created_at,
+                    )
                 )
+                bump("sources")
             snippet = item.get("snippet") or ""
             eid = _det("evidence", sid, i)
             await db.execute(
@@ -237,6 +271,9 @@ async def migrate_session(db: AsyncSession, saver, session: Session) -> RunResul
                 )
             )
             bump("evidence")
+            # The detector saw `snippet.strip()[:MAX_SNIPPET_CHARS]`; matching on the same
+            # form is replaying V1's own derivation, not normalising the data.
+            by_quote.setdefault((src_id, snippet.strip()[:500]), []).append(eid)
             max_seq = i
             # Map every V1 citation index for this URL onto the first evidence row from
             # it, so `[n]` in the report resolves to real evidence. First-wins: V1 gave one
@@ -254,19 +291,54 @@ async def migrate_session(db: AsyncSession, saver, session: Session) -> RunResul
         for j, pair in enumerate(read.contradictions, start=1):
             if not isinstance(pair, dict):
                 continue
+            # A conflict between two ATTRIBUTED QUOTATIONS. The source anchors are what V1
+            # guarantees — `validate_pairs` drops any pair whose URL was not in the
+            # detector's input — and the evidence anchors are a refinement that may not
+            # resolve (M2F Amendment §7).
+            src_a = by_url.get(_norm_url(pair.get("source_a") or ""))
+            src_b = by_url.get(_norm_url(pair.get("source_b") or ""))
+            quote_a = pair.get("snippet_a") or None
+            quote_b = pair.get("snippet_b") or None
+
+            def _refine(source_id, quote):
+                """The evidence row carrying this quotation — only if there is exactly one.
+
+                No fallback to "the first evidence row from that source": V1 recorded a
+                quotation, not a reference, and picking a row would assert a link the
+                detector never made.
+                """
+                if source_id is None or not quote:
+                    return None
+                hits = by_quote.get((source_id, quote.strip()[:500]), [])
+                return hits[0] if len(hits) == 1 else None
+
+            ev_a = _refine(src_a, quote_a)
+            ev_b = _refine(src_b, quote_b)
+            # ck_contra_refine: half a resolved pair is not a pair.
+            if ev_a is None or ev_b is None:
+                ev_a = ev_b = None
+            # A pair naming the same source twice is dropped by `validate_pairs`, so this
+            # only fires on data that bypassed it.
+            detected = src_a is not None and src_b is not None and src_a != src_b
+
             await db.execute(
                 insert(Contradiction).values(
                     id=_det("contradiction", sid, j),
                     run_id=sid,
-                    evidence_a_id=None,
-                    evidence_b_id=None,
+                    source_a_id=src_a if detected else None,
+                    source_b_id=src_b if detected else None,
+                    evidence_a_id=ev_a if detected else None,
+                    evidence_b_id=ev_b if detected else None,
+                    quote_a=quote_a,
+                    quote_b=quote_b,
                     summary_a=(pair.get("claim_a") or pair.get("a") or None),
                     summary_b=(pair.get("claim_b") or pair.get("b") or None),
+                    nature=pair.get("nature") or None,
                     dimension="UNCLASSIFIED",
-                    # V1's pairs are keyed by source, not by evidence id, so the pair
-                    # cannot be reconstructed. Recording DETECTED without the pair would
-                    # violate ck_contra_pair; NOT_RUN would be a lie. Neither: no row.
-                    detection_state="NOT_RUN",
+                    # DETECTED at the granularity V1 worked in. Until M2F this had to be
+                    # NOT_RUN — a lie about a detector that had run — because the CHECK
+                    # demanded evidence references V1 never recorded.
+                    detection_state="DETECTED" if detected else "NOT_RUN",
                     review_state="UNREVIEWED",
                     created_at=session.created_at,
                 )
@@ -341,21 +413,34 @@ async def migrate_session(db: AsyncSession, saver, session: Session) -> RunResul
     )
 
     seen_report_approval = False
-    for row in rows:
+    # `audit_log.id` is BIGSERIAL and monotonic, and the rows above are ordered by it, so
+    # the enumeration IS V1's decision order — a transformation of a V1 fact, not a
+    # generated ordering. It is also the only place that order still exists (M2F
+    # Amendment §8.3).
+    for position, row in enumerate(rows, start=1):
         mapped = AUDIT_MAP.get(row.action)
         if mapped is None:
             raise Unmigratable("UNKNOWN_AUDIT_ACTION", f"audit_log.action={row.action!r}")
         gate, decision, event_action = mapped
 
-        if rev_id is None:
-            # `submit_plan` requires AWAITING_PLAN, which precedes any draft — so a
-            # plan_approved row with no report is a legitimate V1 state. V2's
-            # reviews.revision_id is NOT NULL, so it cannot be represented. Refuse: the
-            # review must not be dropped, and no revision may be fabricated to hold it.
+        if gate == "PLAN":
+            # A plan review targets the PLAN version, and no revision. `submit_plan` runs
+            # at AWAITING_PLAN, before any draft exists, so this is normal V1 behaviour and
+            # is now representable — but only against a plan that actually exists.
+            if plan_id is None:
+                raise Unmigratable(
+                    "PLAN_REVIEW_WITHOUT_PLAN",
+                    f"audit_log {row.id} approves a plan, but the run has neither "
+                    "plan_json nor outline_json to point plan_version_id at",
+                )
+        elif rev_id is None:
+            # A REPORT review with no report is not merely unrepresentable, it is
+            # incoherent: the V1 gate that writes these rows requires a draft to exist.
+            # Relaxing a constraint would not make it truthful.
             raise Unmigratable(
                 "REVIEW_WITHOUT_REVISION",
-                f"audit_log {row.id} ({row.action}) exists but the run has no report; "
-                "reviews.revision_id is NOT NULL",
+                f"audit_log {row.id} ({row.action}) is a report decision, but the run has "
+                "no report",
             )
         if len(row.draft_hash or "") != 64:
             raise Unmigratable("MALFORMED_DRAFT_HASH", f"audit_log {row.id}")
@@ -370,7 +455,9 @@ async def migrate_session(db: AsyncSession, saver, session: Session) -> RunResul
         await db.execute(
             insert(Review).values(
                 id=_det("review", sid, row.id),
-                revision_id=rev_id,
+                run_id=sid,
+                sequence=position,
+                revision_id=rev_id if gate == "REPORT" else None,
                 reviewer_id=row.user_id,
                 plan_version_id=plan_id if gate == "PLAN" else None,
                 gate=gate,
@@ -398,7 +485,11 @@ async def migrate_session(db: AsyncSession, saver, session: Session) -> RunResul
         status=MigrationStatus.MIGRATED,
         evidence_outcome=evidence_outcome,
         revision_outcome=revision_outcome,
-        artifact_outcome="NOT_APPROVED" if not seen_report_approval else "PENDING_M2F",
+        # The migration does not create artifacts — nothing in the approved model asks it
+        # to, and an artifact is a frozen snapshot rather than a migrated fact. What it
+        # records is whether one *could* be authorized, using the single accessor that
+        # encodes the rule (`authorization.approving_report_review`).
+        artifact_outcome="AUTHORIZED" if seen_report_approval else "NOT_APPROVED",
         rows_written=sum(counts.values()),
         duration_ms=int((time.perf_counter() - t0) * 1000),
         counts=counts,

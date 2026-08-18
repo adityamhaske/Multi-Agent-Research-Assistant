@@ -217,7 +217,12 @@ class Source(Base):
     # New in V2: V1 could not distinguish a fetched page from a search-result mention, and
     # the attestation grade in `evidence` needs that difference (M2A §2.4).
     retrieval_status: Mapped[str] = mapped_column(String(20), nullable=False)
-    citation_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    # NULL means "retrieved but never assigned a citation number" — a real state, reached
+    # by a run that gathered evidence and failed before the synthesizer numbered anything,
+    # and by a V2-native run that fetches a page it does not cite. Never generated: an
+    # index the synthesizer did not assign would be a fabricated historical fact
+    # (M2F Amendment §6).
+    citation_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Deliberately NOT a foreign key: deleting an uploaded file must not invalidate a
     # historical source record (M2A §10).
     corpus_document_id: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -225,17 +230,31 @@ class Source(Base):
 
     __table_args__ = (
         UniqueConstraint("run_id", "normalized_url", name="uq_source_url"),
-        UniqueConstraint("run_id", "citation_index", name="uq_source_index"),
         # Composite-FK target for evidence. Not redundant with the primary key: it is what
         # lets a child prove same-run membership.
         UniqueConstraint("id", "run_id", name="uq_source_run"),
         CheckConstraint(_in("kind", SOURCE_KINDS), name="ck_source_kind"),
         CheckConstraint(_in("retrieval_status", RETRIEVAL_STATUSES), name="ck_source_ret"),
-        CheckConstraint("citation_index >= 1", name="ck_source_cidx"),
+        CheckConstraint("citation_index IS NULL OR citation_index >= 1", name="ck_source_cidx"),
         CheckConstraint(
             "(kind = 'CORPUS') = (corpus_document_id IS NOT NULL)", name="ck_source_corpus"
         ),
     )
+
+
+# One source per citation number per run — but only among the sources that HAVE one.
+# A total unique constraint would allow at most one uncited source per run, which is the
+# opposite of what S3 exists to permit. Both dialect predicates given: SQLAlchemy emits
+# `postgresql_where` only for Postgres and `sqlite_where` only for SQLite, and omitting
+# either silently makes the index total on that host.
+Index(
+    "uq_source_index",
+    Source.__table__.c.run_id,
+    Source.__table__.c.citation_index,
+    unique=True,
+    postgresql_where=Source.__table__.c.citation_index.isnot(None),
+    sqlite_where=Source.__table__.c.citation_index.isnot(None),
+)
 
 
 class Evidence(Base):
@@ -300,7 +319,18 @@ class Evidence(Base):
 
 
 class Contradiction(Base):
-    """A detected conflict between two evidence items. Preserved, never resolved."""
+    """A detected conflict between two **attributed quotations**. Preserved, never resolved.
+
+    Not "between two pieces of evidence", which is what this said until M2F. V1's detector
+    is shown `group_snippets_by_source(evidence)` — a `{source_url: [snippets]}` map — and
+    returns a pair naming two source URLs and quoting text from each. It never sees an
+    evidence row. Modelling the pair at evidence level therefore asserted a precision V1
+    never observed, and `ck_contra_pair` made that assertion mandatory, which is why the
+    migration had to write `NOT_RUN` for pairs the detector genuinely found.
+
+    The source anchor is what V1 guarantees; the evidence anchor is a *refinement*, set only
+    when a quotation matches exactly one evidence row (M2F Amendment §7).
+    """
 
     __tablename__ = "contradictions"
 
@@ -308,10 +338,23 @@ class Contradiction(Base):
     run_id: Mapped[uuid.UUID] = mapped_column(
         UuidType, ForeignKey("research_runs.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # The authoritative anchors. `validate_pairs` drops any pair whose URL was not in the
+    # detector's input, so for a surviving V1 pair both of these resolve.
+    source_a_id: Mapped[uuid.UUID | None] = mapped_column(UuidType, nullable=True)
+    source_b_id: Mapped[uuid.UUID | None] = mapped_column(UuidType, nullable=True)
+    # The refinement. NULL when the quotation matched no evidence row, or more than one.
     evidence_a_id: Mapped[uuid.UUID | None] = mapped_column(UuidType, nullable=True)
     evidence_b_id: Mapped[uuid.UUID | None] = mapped_column(UuidType, nullable=True)
+    # The verbatim text the detector quoted, and its own restatement of each side. Both are
+    # authoritative as *what the detector said*, which is not the same as a fact about the
+    # world — hence `summary`, not `claim`: a V2 `Claim` is a report sentence.
+    quote_a: Mapped[str | None] = mapped_column(Text, nullable=True)
+    quote_b: Mapped[str | None] = mapped_column(Text, nullable=True)
     summary_a: Mapped[str | None] = mapped_column(Text, nullable=True)
     summary_b: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Why the two cannot both be true. V1 records it and renders it into the report's
+    # conflict block; until M2F it had no column here and survived only as prose.
+    nature: Mapped[str | None] = mapped_column(Text, nullable=True)
     dimension: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # A detector that did not run and a detector that found nothing are different findings.
     detection_state: Mapped[str] = mapped_column(String(24), nullable=False)
@@ -321,6 +364,18 @@ class Contradiction(Base):
     )
 
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["source_a_id", "run_id"],
+            ["sources.id", "sources.run_id"],
+            ondelete="CASCADE",
+            name="fk_contra_src_a",
+        ),
+        ForeignKeyConstraint(
+            ["source_b_id", "run_id"],
+            ["sources.id", "sources.run_id"],
+            ondelete="CASCADE",
+            name="fk_contra_src_b",
+        ),
         ForeignKeyConstraint(
             ["evidence_a_id", "run_id"],
             ["evidence.id", "evidence.run_id"],
@@ -339,10 +394,18 @@ class Contradiction(Base):
             name="ck_contra_dim",
         ),
         CheckConstraint(_in("review_state", CONTRADICTION_REVIEW_STATES), name="ck_contra_review"),
+        # DETECTED means the detector found a pair, at the granularity it works in.
         CheckConstraint(
             "(detection_state = 'DETECTED') = "
-            "(evidence_a_id IS NOT NULL AND evidence_b_id IS NOT NULL)",
+            "(source_a_id IS NOT NULL AND source_b_id IS NOT NULL)",
             name="ck_contra_pair",
+        ),
+        # The refinement is all-or-nothing: half a resolved pair is not a pair.
+        CheckConstraint(
+            "(evidence_a_id IS NULL) = (evidence_b_id IS NULL)", name="ck_contra_refine"
+        ),
+        CheckConstraint(
+            "source_a_id IS NULL OR source_a_id <> source_b_id", name="ck_contra_src_distinct"
         ),
         CheckConstraint(
             "evidence_a_id IS NULL OR evidence_a_id <> evidence_b_id", name="ck_contra_distinct"
