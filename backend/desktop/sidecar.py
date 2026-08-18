@@ -71,11 +71,10 @@ from sqlalchemy import event, func, select
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.models import Base
+from app.models import POSTGRES_ONLY_TABLES, Base
 from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
 from app.models.chat_message import ChatMessage
-from app.models.memory_chunk import MemoryChunk
 from app.models.project import Project
 from app.models.session import Session, SessionStatus
 from app.models.user import User
@@ -616,10 +615,16 @@ def create_sidecar_app(
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
-        # The pgvector-backed table cannot exist on SQLite; the corpus keeps its own
-        # store (docs/12 M10). Everything else in the schema is dialect-portable
-        # (app/models/types.py).
-        tables = [t for t in Base.metadata.sorted_tables if t.name != MemoryChunk.__tablename__]
+        # pgvector-backed tables cannot exist on SQLite; the corpus keeps its own store
+        # (docs/12 M10). Everything else in the schema is dialect-portable
+        # (app/models/types.py). The exclusion set lives in `app.models` rather than being
+        # filtered by name here — this was a single inline name comparison, which is the
+        # "two homes, one contract" shape that keeps biting: M2D added two more
+        # pgvector-dependent tables and an inline filter would have silently tried to
+        # create them.
+        tables = [
+            t for t in Base.metadata.sorted_tables if t.name not in POSTGRES_ONLY_TABLES
+        ]
         async with engine.begin() as conn:
             await conn.run_sync(
                 lambda sync_conn: Base.metadata.create_all(sync_conn, tables=tables)
