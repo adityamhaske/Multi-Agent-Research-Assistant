@@ -1,3 +1,8 @@
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
 import { expect, test, type Page } from "@playwright/test";
 
 /**
@@ -296,5 +301,69 @@ test.describe("Golden journey 3 — rework loops and chat works", () => {
     // History persists across a reload.
     await page.reload();
     await expect(page.getByLabel("Chat transcript")).toContainText(question, { timeout: 30_000 });
+  });
+});
+
+test.describe("Golden journey 7 — the research bundle downloads and verifies", () => {
+  /**
+   * The product's central claim, exercised the way a reviewer would.
+   *
+   * The `.bundle.json` endpoint shipped in v1.0.0 with no control anywhere in the app,
+   * so this journey covers the part that was missing: a button a user can reach, a file
+   * that lands on disk, and a verdict from the standalone verifier — run here as a real
+   * subprocess, with no network and no model, exactly as a third party would run it.
+   *
+   * If the verifier is unavailable (no Python on the runner) the download is still
+   * asserted and the verification is skipped with a stated reason, rather than silently
+   * passing on half the journey.
+   */
+  test("approves, downloads the bundle, and verifies it offline", async ({ page }) => {
+    await registerAndLogin(page);
+    await startResearchToGate(page);
+
+    await page.getByRole("button", { name: /approve & finalize/i }).click();
+    await expect(reportView(page)).toBeVisible({ timeout: 150_000 });
+
+    // The control exists next to .md and PDF.
+    const bundleButton = page.getByRole("button", { name: ".bundle.json", exact: true });
+    await expect(bundleButton).toBeVisible();
+
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      bundleButton.click(),
+    ]);
+    expect(download.suggestedFilename()).toMatch(/\.bundle\.json$/);
+
+    const saved = path.join(os.tmpdir(), `e2e-${Date.now()}-${download.suggestedFilename()}`);
+    await download.saveAs(saved);
+
+    // It is a well-formed manifest before anything else is claimed about it.
+    const manifest = JSON.parse(fs.readFileSync(saved, "utf8"));
+    expect(manifest.bundle_version).toBe(1);
+    expect(manifest.report).toBeTruthy();
+    expect(manifest.report_hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(Array.isArray(manifest.claims)).toBe(true);
+    expect(manifest.approval_chain.length).toBeGreaterThan(0);
+    expect(manifest.approval_chain.some((a: { action: string }) => a.action === "approved")).toBe(
+      true,
+    );
+
+    // The verifier's own verdict, from the repository's engine.
+    const backend = path.resolve(process.cwd(), "..", "backend");
+    const result = spawnSync(
+      process.env.E2E_PYTHON ?? "python3",
+      ["-m", "research_engine.verify_bundle", saved],
+      { cwd: backend, encoding: "utf8" },
+    );
+
+    if (result.error) {
+      test.skip(true, `verifier not runnable on this host: ${result.error.message}`);
+    }
+    expect(result.stdout, result.stdout + result.stderr).toContain("PASS");
+    expect(result.status, `verifier exited ${result.status}\n${result.stdout}${result.stderr}`).toBe(
+      0,
+    );
+
+    fs.rmSync(saved, { force: true });
   });
 });

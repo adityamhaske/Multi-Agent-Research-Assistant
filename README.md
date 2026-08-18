@@ -22,7 +22,8 @@ first launch — right-click the app → **Open** → **Open**. Windows `.msi`, 
 Ask a research question. A pipeline of specialized agents searches the web, gathers
 evidence with sources, drafts a cited report, and **pauses for your approval** before
 finalizing. Approve it, or send it back with feedback. Completed reports support grounded
-follow-up chat and `.md` / `.pdf` export.
+follow-up chat and export as `.md`, `.pdf`, or a hash-verifiable `.bundle.json` that a
+third party can check offline — no AI, no network, no account.
 
 Every claim carries an inline `[n]` citation that resolves to a real source with the
 verbatim supporting snippet. A citation that *doesn't* resolve renders as a visible ⚠

@@ -32,6 +32,7 @@ What differs from the server host, and nothing else:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import hmac
 import json
 import os
@@ -63,6 +64,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.models import Base
 from app.models.agent_log import AgentLog
+from app.models.audit_log import AuditLog
 from app.models.chat_message import ChatMessage
 from app.models.memory_chunk import MemoryChunk
 from app.models.project import Project
@@ -93,6 +95,7 @@ from research_engine.documents import MAX_DOCUMENT_BYTES
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from research_engine.embeddings import EmbeddingsUnavailable, LocalEmbeddings
+from research_engine.graph import build_graph
 from research_engine.llm_factory import get_llm, text_of
 from research_engine.events import make_event
 from research_engine.local import SqliteCache, load_env_file
@@ -1267,6 +1270,21 @@ def create_sidecar_app(
         session.plan_json = {"tasks": kept}
         session.outline_json = {"sections": outline}
         session.plan_approved_at = datetime.now(UTC)
+        # Second home of `app/api/v1/research.py::submit_plan`'s audit row, and hashed the
+        # same way, so the bundle's approval chain carries the design decision on this host
+        # too. The sidecar recorded neither gate's decision until M0C — the table existed
+        # (create_all builds it from `app.models`) and stayed empty.
+        db.add(
+            AuditLog(
+                session_id=session.id,
+                user_id=user.id,
+                action="plan_approved",
+                feedback=None,
+                draft_hash=hashlib.sha256(
+                    json.dumps({"tasks": kept, "outline": outline}, sort_keys=True).encode("utf-8")
+                ).hexdigest(),
+            )
+        )
         session.status = SessionStatus.RUNNING
         await db.commit()
         await db.refresh(session)
@@ -1293,6 +1311,29 @@ def create_sidecar_app(
                 status.HTTP_409_CONFLICT,
                 detail="Rework limit reached. Approve or abandon this session.",
             )
+        # The load-bearing half of the bundle's approval chain, and the reason a desktop
+        # bundle can be verified at all: `verify_bundle._check_approval_chain` fails a
+        # bundle whose chain is empty ("this report was never human-reviewed"), and fails
+        # again unless an `approved` entry's `draft_hash` equals the report hash.
+        #
+        # Hashed over `draft_report` exactly as the server does, which links because
+        # `finalizer_node` sets `final_report = draft_report` — so the text a human
+        # approved and the text the bundle carries are the same bytes.
+        #
+        # Written before the run is resumed, matching the server: a human's decision is
+        # evidence, and evidence is recorded when it is made, not after the work it
+        # authorises has succeeded.
+        db.add(
+            AuditLog(
+                session_id=session.id,
+                user_id=user.id,
+                action="approved" if payload.approved else "rework_requested",
+                feedback=None if payload.approved else payload.feedback,
+                draft_hash=hashlib.sha256(
+                    (session.draft_report or "").encode("utf-8")
+                ).hexdigest(),
+            )
+        )
         session.status = SessionStatus.RUNNING
         session.rework_count = session.rework_count + (0 if payload.approved else 1)
         await db.commit()
@@ -1445,6 +1486,112 @@ def create_sidecar_app(
         return Response(
             content=report,
             media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    @api.get("/research/{session_id}/export.bundle.json")
+    async def export_bundle_json(
+        session_id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        """Second home of `app/api/v1/research.py::export_bundle_json` (M0C).
+
+        The desktop build rendered no way to reach this and the sidecar served no route,
+        so the product's central differentiator — an artifact a third party can check
+        offline — was unreachable from the app it ships in. Same failure shape as the
+        chat panel that 404'd for a whole release.
+
+        Four things differ from the server, and nothing else should:
+
+        * evidence and contradictions come from the SQLite checkpointer rather than the
+          Postgres one — same `aget_state`, different saver;
+        * there is no `crypto.decrypt` step, because this host has no BYOK column;
+        * the report is read directly rather than through `_report_or_404`, which is a
+          server module; the demo rule it encodes is reproduced here (see below);
+        * `trace_available` is **True**. `bundle.py`'s docstring cites the desktop as the
+          example of a host without durable logging, but `PersistingSink` writes an
+          `agent_logs` row for every event exactly as the worker's sink does, so the
+          trace is real and saying otherwise would understate the artifact.
+
+        The report is deliberately NOT demo-stamped, matching the server: `report_hash` is
+        checked against the `draft_hash` recorded at approval, so prose injected into the
+        body would break the approval chain for a reason that has nothing to do with the
+        bundle's integrity. The `demo` field carries that provenance instead and is covered
+        by `bundle_hash`.
+        """
+        session = await _authorized_session(db, session_id, user.id)
+        if session.status != SessionStatus.COMPLETED:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail="Bundle export is only available for COMPLETED sessions.",
+            )
+        report = session.final_report or session.draft_report
+        if not report:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No report available to export.")
+
+        agent_logs = (
+            (
+                await db.execute(
+                    select(AgentLog)
+                    .where(AgentLog.session_id == session.id)
+                    .order_by(AgentLog.id.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+        audit_logs = (
+            (
+                await db.execute(
+                    select(AuditLog)
+                    .where(AuditLog.session_id == session.id)
+                    .order_by(AuditLog.id.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        # `app.state.sidecar`, not the `sidecar` local that `_drive_session` closes over —
+        # that name does not exist in a route's scope. Same accessor the delete route uses
+        # for `adelete_thread`.
+        state = (
+            await build_graph(app.state.sidecar["saver"]).aget_state(
+                {"configurable": {"thread_id": str(session.id)}}
+            )
+        ).values or {}
+
+        manifest = bundle.assemble(
+            session_id=str(session.id),
+            query=session.prompt,
+            report=report,
+            evidence=state.get("evidence", []),
+            sources=session.sources or [],
+            contradictions=state.get("contradictions", []),
+            models=session.model_routing or {},
+            cost_usd=float(session.total_cost_usd),
+            tokens_input=session.total_tokens_input,
+            tokens_output=session.total_tokens_output,
+            elapsed_seconds=float(session.elapsed_seconds) if session.elapsed_seconds else None,
+            research_depth=session.research_depth,
+            approval_chain=[
+                {
+                    "action": al.action,
+                    "feedback": al.feedback,
+                    "draft_hash": al.draft_hash,
+                    "timestamp": al.created_at.isoformat() if al.created_at else "",
+                }
+                for al in audit_logs
+            ],
+            trace=[log.payload for log in agent_logs],
+            trace_available=True,
+            demo=session.demo,
+        )
+        filename = f"research-{str(session.id)[:8]}.bundle.json"
+        return Response(
+            content=bundle.serialize(manifest),
+            media_type="application/json",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 

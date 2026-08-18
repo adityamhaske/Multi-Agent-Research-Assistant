@@ -1,13 +1,24 @@
 # Exports
 
-Three formats. All three are available on a completed session; the bundle additionally
-requires the session to be `COMPLETED` and refuses otherwise.
+Three formats. The bundle requires the session to be `COMPLETED` and refuses otherwise.
 
 | Format | Endpoint | Contains |
 |---|---|---|
 | **Markdown** | `GET /research/{id}/export.md` | The report as written, plus a model-attribution block |
 | **PDF** | `GET /research/{id}/export.pdf` | The report typeset, with citations as superscripts, a numbered sources list, and model attribution |
 | **Bundle** | `GET /research/{id}/export.bundle.json` | Everything needed to verify the report offline |
+
+## Getting one
+
+Open a completed report. The three buttons sit beside its heading — **.md**, **PDF**, and
+**.bundle.json** — and each downloads the file directly. There is no separate export screen.
+
+Below the metrics row, **Verify this report independently** expands to the exact command for
+checking a bundle, so the instruction is where the file is.
+
+All three work on the self-hosted server. On the desktop app, `.md` and `.bundle.json` work
+the same way; **PDF** is the app's own Print → Save as PDF rather than a server render (see
+below).
 
 ## Markdown
 
@@ -43,7 +54,8 @@ a bill of materials for a research report:
 - the full **approval chain** — every approve or rework, its feedback, the hash of the draft
   it applied to, and when;
 - the **agent trace**, and a `trace_available` flag distinguishing "the host has no durable
-  event log" from "nothing happened";
+  event log" from "nothing happened" — both the server and the desktop app write one, so it
+  is `true` on each;
 - a `bundle_hash` covering all of the above.
 
 Verify one with no AI, no network, and no database:

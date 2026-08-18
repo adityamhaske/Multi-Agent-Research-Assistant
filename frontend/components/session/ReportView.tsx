@@ -9,9 +9,34 @@ import type { SessionDetail } from "@/lib/types";
 
 import { PreviewDrawer } from "@/components/preview/PreviewDrawer";
 import { documentUrl } from "@/components/preview/DocumentPreview";
+import { Disclosure } from "@/components/ui/Disclosure";
 
 import { ChatPanel } from "./ChatPanel";
 import { ModelAttribution } from "./ModelAttribution";
+
+/**
+ * The three export routes, as their URL suffixes.
+ *
+ * `bundle.json` is the hash-verifiable artifact (docs/reference/15-bundle-format.md) —
+ * report, evidence with per-snippet hashes, sources, contradictions, model routing and the
+ * approval chain, checkable offline by `research_engine.verify_bundle` with no AI, no
+ * network and no account.
+ *
+ * It has existed as an endpoint since v1.0.0 and had no control anywhere in the app: the
+ * landing page, the login page, the settings copy and the comparison table all sold it
+ * while the only way to obtain one was to construct the URL by hand.
+ */
+type ExportFormat = "md" | "pdf" | "bundle.json";
+
+/**
+ * The verifier invocation, as a reader would actually run it.
+ *
+ * Kept verbatim rather than assembled from parts: this is a command someone copies into a
+ * shell, and `docs/user-guide/29-exports.md` prints the same one. If the module path moves,
+ * both change — `python -m research_engine.verify_bundle` is the module's own documented
+ * entry point (see its `__main__` block), not a wrapper we invented here.
+ */
+const VERIFY_COMMAND = "python -m research_engine.verify_bundle research-xxxxxxxx.bundle.json";
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
@@ -26,7 +51,7 @@ export function ReportView({ session }: { session: SessionDetail }) {
   const report = session.final_report ?? session.draft_report ?? "";
   const sources = session.sources ?? [];
   const tokens = session.total_tokens_input + session.total_tokens_output;
-  const [exporting, setExporting] = useState<null | "md" | "pdf">(null);
+  const [exporting, setExporting] = useState<null | ExportFormat>(null);
   // A corpus citation resolves to a document in this session's project, so clicking [3]
   // can show the page rather than downloading it (docs/07 §2, Phase 6). Web citations
   // keep their ordinary link — there is no local file to preview.
@@ -44,9 +69,14 @@ export function ReportView({ session }: { session: SessionDetail }) {
   };
 
   // Server-rendered export (docs/05 §3, docs/07 §3): .md is the raw report; .pdf is
-  // WeasyPrint. Fetched same-origin so the httpOnly cookie authenticates; a 501 (PDF
-  // libs missing) surfaces as a toast rather than a broken download.
-  const download = async (format: "md" | "pdf") => {
+  // WeasyPrint; .bundle.json is the hash-verifiable artifact. Fetched same-origin so the
+  // httpOnly cookie authenticates; a 501 (PDF libs missing) or 400 (bundle requires a
+  // COMPLETED session) surfaces as a toast rather than a broken download.
+  //
+  // The URL suffix and the saved filename share one string, which is why `bundle.json`
+  // works unmodified: the route is `export.bundle.json` and the file lands as
+  // `research-<id>.bundle.json`.
+  const download = async (format: ExportFormat) => {
     setExporting(format);
     try {
       const res = await fetch(`/api/v1/research/${session.session_id}/export.${format}`, {
@@ -121,6 +151,19 @@ export function ReportView({ session }: { session: SessionDetail }) {
               {exporting === "pdf" && <span className="spinner" />}
               PDF
             </button>
+            {/* The verifiable artifact. Titled rather than labelled at length because the
+                filename says what it is on download, and the Verify panel below explains
+                what to do with it — a button is the wrong place for a paragraph. */}
+            <button
+              type="button"
+              onClick={() => download("bundle.json")}
+              disabled={exporting !== null}
+              title="Verifiable research bundle — report, evidence, sources and approval chain, hash-checkable offline"
+              className="btn btn-secondary px-3 py-1 text-xs font-mono"
+            >
+              {exporting === "bundle.json" && <span className="spinner" />}
+              .bundle.json
+            </button>
           </div>
         </div>
 
@@ -131,8 +174,33 @@ export function ReportView({ session }: { session: SessionDetail }) {
           <Metric label="Sources" value={String(sources.length)} />
         </div>
 
-        <div className="mb-6">
+        <div className="mb-6 space-y-4">
           <ModelAttribution modelRouting={session.model_routing} />
+          {/* Collapsed by default: the instruction only matters once someone has the file,
+              and an always-open command block would put shell syntax above the report on
+              every read. The claim on the landing page is that a reviewer does not have to
+              trust this tool — this is where that becomes actionable. */}
+          <Disclosure
+            label="Verify this report independently"
+            summary="offline, no AI, no account"
+          >
+            <div className="space-y-3 text-sm leading-relaxed text-text-secondary">
+              <p>
+                Download <code className="font-mono text-xs">.bundle.json</code> above, then
+                check it with the standalone verifier. It re-computes every hash, confirms
+                each citation resolves to a source, and confirms an approval record matches
+                this exact report text — with no network access and no model call.
+              </p>
+              <pre className="overflow-x-auto border border-border bg-bg-elevated p-3 font-mono text-xs text-text-primary">
+                <code>{VERIFY_COMMAND}</code>
+              </pre>
+              <p className="text-text-muted">
+                Exit status is 0 on pass and 1 on fail. Add{" "}
+                <code className="font-mono text-xs">--format json</code> for a machine-readable
+                report. A bundle produced in demo mode says so above its verdict.
+              </p>
+            </div>
+          </Disclosure>
         </div>
 
         {report ? (

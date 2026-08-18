@@ -29,7 +29,11 @@ Design decisions (docs/reference/15-bundle-format.md):
 
 - **trace_available distinguishes three states** that would otherwise all be `trace: []`:
   host had logs and they're present, host had logs but nothing fired (edge), host does
-  not support durable logging (desktop sidecar today).
+  not support durable logging. Both shipped hosts are in the first state: the desktop
+  sidecar's `PersistingSink` writes an `agent_logs` row per event exactly as the server
+  worker's sink does, so it reports `trace_available=True` and a populated trace. This
+  line named the sidecar as the no-durable-logging example until M0C, when adding its
+  bundle route made the claim testable and it turned out to be false.
 """
 
 from __future__ import annotations
