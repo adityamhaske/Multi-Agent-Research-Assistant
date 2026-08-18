@@ -20,6 +20,11 @@ import type { AgentEvent, V2RunGraph, V2RunSummary, V2Verification } from "@/lib
  * would make every tab switch re-verify a bundle.
  */
 
+/** Statuses where the server still has something to say. */
+export function isLive(status?: string | null): boolean {
+  return status === "PENDING" || status === "RUNNING";
+}
+
 export const v2Keys = {
   runs: (projectId?: string | null) => ["v2-runs", projectId ?? null] as const,
   run: (id: string) => ["v2-run", id] as const,
@@ -42,6 +47,15 @@ export function useV2Run(runId: string | null) {
     queryKey: v2Keys.run(runId ?? ""),
     queryFn: () => apiFetch<V2RunGraph>(`/v2/runs/${runId}`),
     enabled: Boolean(runId),
+    // Fallback polling while the run is live. The event stream is the primary channel and
+    // stays so — this only covers the window where it is not delivering: a connection that
+    // never opened, one dropped before the browser's own reconnect, or a run that finished
+    // between the refetch and the subscribe. Without it the workspace could sit on RUNNING
+    // for a run the server had already parked at the review gate, which the plan-gate
+    // journey caught. Off entirely once the run stops being live, so a finished run costs
+    // no requests.
+    refetchInterval: (query) =>
+      isLive((query.state.data as V2RunGraph | undefined)?.run.status) ? 3_000 : false,
   });
 }
 
@@ -105,11 +119,6 @@ export function useV2Cancel(runId: string) {
       ),
     onSuccess: () => qc.invalidateQueries({ queryKey: v2Keys.run(runId) }),
   });
-}
-
-/** Statuses where the server still has something to say. */
-export function isLive(status?: string | null): boolean {
-  return status === "PENDING" || status === "RUNNING";
 }
 
 /**

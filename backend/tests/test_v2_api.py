@@ -298,3 +298,56 @@ async def test_verification_fails_loudly_when_the_report_is_tampered_with(api):
     failed = {c["name"] for c in body["checks"] if not c["passed"]}
     assert "approval_chain" in failed or "report_integrity" in failed
     assert body["passed"] is False
+
+
+async def test_approving_a_plan_moves_the_run_to_running_in_the_same_commit(api):
+    """A workspace must not go stale the moment a plan is approved.
+
+    The client refetches when the mutation succeeds. If the run were still AWAITING_PLAN at
+    that point it would conclude nothing is live, keep its event stream closed, and never
+    learn the run had resumed — which is exactly what the plan-gate journey found.
+    """
+    owner = {"user_id": api["user_id"], "project_id": api["project_id"]}
+    run = await v2_runtime.create_run(
+        api["db"],
+        owner_id=owner["user_id"],
+        project_id=owner["project_id"],
+        question="q",
+        skip_plan_gate=False,
+    )
+    await v2_runtime.record_plan(
+        api["db"], run, tasks=[{"id": 1}], outline_sections=[], origin="MODEL_PROPOSED"
+    )
+    await v2_runtime.set_status(api["db"], run, "AWAITING_PLAN")
+    await api["db"].commit()
+
+    resp = await api["client"].post(
+        f"/api/v1/v2/runs/{run.id}/plan-review", json={"decision": "APPROVED", "dispatch": True}
+    )
+    assert resp.status_code == 201
+
+    payload = (await api["client"].get(f"/api/v1/v2/runs/{run.id}")).json()
+    assert payload["run"]["status"] == "RUNNING", "the client would see a stalled run"
+    assert payload["artifact"] is None, "a plan approval still authorizes no artifact"
+
+
+async def test_requesting_plan_changes_does_not_start_research(api):
+    owner = {"user_id": api["user_id"], "project_id": api["project_id"]}
+    run = await v2_runtime.create_run(
+        api["db"],
+        owner_id=owner["user_id"],
+        project_id=owner["project_id"],
+        question="q",
+        skip_plan_gate=False,
+    )
+    await v2_runtime.record_plan(
+        api["db"], run, tasks=[{"id": 1}], outline_sections=[], origin="MODEL_PROPOSED"
+    )
+    await v2_runtime.set_status(api["db"], run, "AWAITING_PLAN")
+    await api["db"].commit()
+
+    await api["client"].post(
+        f"/api/v1/v2/runs/{run.id}/plan-review", json={"decision": "REWORK_REQUESTED"}
+    )
+    payload = (await api["client"].get(f"/api/v1/v2/runs/{run.id}")).json()
+    assert payload["run"]["status"] == "AWAITING_PLAN"

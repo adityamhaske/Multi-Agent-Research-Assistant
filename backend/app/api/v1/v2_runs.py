@@ -474,6 +474,13 @@ async def submit_plan_review(
     review = await v2_runtime.record_plan_review(
         db, run, plan, reviewer_id=current_user.id, decision=body.decision, feedback=body.feedback
     )
+    if body.decision == "APPROVED" and body.dispatch:
+        # Move to RUNNING in the SAME transaction as the decision, before the task is
+        # queued. The worker sets it too, but a client that refetches on the mutation's
+        # success would otherwise read AWAITING_PLAN, conclude nothing is live, keep its
+        # event stream closed and never learn the run had resumed — a workspace that goes
+        # stale the moment you approve a plan. Found by the plan-gate journey.
+        await v2_runtime.set_status(db, run, "RUNNING")
     await db.commit()
 
     # An approved plan resumes the suspended graph from the design gate — the same
