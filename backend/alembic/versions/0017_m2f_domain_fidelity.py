@@ -24,16 +24,16 @@ Revises: 0016_migration_ledger
 Create Date: 2026-08-18
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 
 from alembic import op
 
 revision: str = "0017_m2f_domain_fidelity"
-down_revision: Union[str, None] = "0016_migration_ledger"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "0016_migration_ledger"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 UUID = sa.Uuid().with_variant(sa.UUID(), "postgresql")
 

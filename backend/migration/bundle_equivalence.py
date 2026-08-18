@@ -49,10 +49,10 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.authorization import approval_chain
+from app import v2_bundle
 from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
-from app.models.research import Contradiction, Evidence, ResearchRun, Source
+from app.models.research import ResearchRun
 from app.models.revision import Revision
 from app.models.session import Session, SessionStatus
 from migration.checkpoint import CheckpointOutcome, read_checkpoint
@@ -62,14 +62,6 @@ from research_engine import verify_bundle
 
 #: The only fields normalised before comparison. See the module docstring.
 NORMALISED_FIELDS = ("created_at", "bundle_hash")
-
-#: Reverse of `engine.AUDIT_MAP`. V1's `action` is recoverable from V2's (gate, decision)
-#: because the forward map is injective — verified by `test_audit_map_is_invertible`.
-REVIEW_TO_V1_ACTION = {
-    ("REPORT", "APPROVED"): "approved",
-    ("REPORT", "REWORK_REQUESTED"): "rework_requested",
-    ("PLAN", "APPROVED"): "plan_approved",
-}
 
 
 #: Field sets that differ for a **known, named** reason — a V2 column that does not exist,
@@ -88,6 +80,13 @@ KNOWN_LOSSY: dict[frozenset[str], str] = {
     # (M2F §9.1). Named for what it detects, not for what M2E-3 first assumed.
     frozenset({"sources"}): "V1_SOURCE_SNAPSHOT_DIVERGED_FROM_EVIDENCE",
 }
+
+
+#: Re-exported from the shared assembler, which is now its one definition. An assignment
+#: rather than an import so it survives an unused-import sweep: the comparison's
+#: invertibility test reads it from here, and the value must be the same object the bundle
+#: is actually built with.
+REVIEW_TO_V1_ACTION = v2_bundle.REVIEW_TO_V1_ACTION
 
 
 class BundleVerdict(enum.StrEnum):
@@ -268,175 +267,13 @@ async def _trace(db: AsyncSession, run_id) -> list[dict]:
 async def assemble_v2(
     db: AsyncSession, run_id
 ) -> tuple[bundle_mod.BundleManifest | None, str | None]:
-    """Rebuild the same bundle from the migrated V2 domain tables."""
-    run = (
-        await db.execute(select(ResearchRun).where(ResearchRun.id == run_id))
-    ).scalar_one_or_none()
-    if run is None:
-        return None, "V2_RUN_ABSENT"
+    """The V2 side of the comparison — the same assembler the native runtime freezes.
 
-    # The ledger read contract (M2F Amendment §9.2, invariant I10). A bundle is a read path
-    # that presents an evidence list, so it must not present one for a run whose checkpoint
-    # the migration could not read: `evidence` would be empty, every `[n]` would resolve to
-    # nothing, and the bundle would assert a measured zero it never measured.
-    #
-    # Found by measurement, not by review: before this, V1 refused to assemble such a run
-    # while V2 emitted a bundle that failed its own `claim_evidence_linkage` check. Absence
-    # of a ledger row means the run is V2-native, and its evidence rows ARE the record.
-    ledger = (
-        await db.execute(select(MigrationLedger).where(MigrationLedger.session_id == run_id))
-    ).scalar_one_or_none()
-    if ledger is not None and ledger.evidence_outcome in {
-        "CHECKPOINT_MISSING",
-        "CHECKPOINT_UNREADABLE",
-    }:
-        return None, "V2_EVIDENCE_UNAVAILABLE"
-
-    revision = (
-        (
-            await db.execute(
-                select(Revision).where(Revision.run_id == run_id).order_by(Revision.version.desc())
-            )
-        )
-        .scalars()
-        .first()
-    )
-    if revision is None:
-        return None, "V2_NO_REVISION"
-
-    sources = (
-        (
-            await db.execute(
-                select(Source).where(Source.run_id == run_id).order_by(Source.citation_index)
-            )
-        )
-        .scalars()
-        .all()
-    )
-    evidence = (
-        (
-            await db.execute(
-                select(Evidence)
-                .where(Evidence.run_id == run_id)
-                .order_by(Evidence.sequence.asc(), Evidence.id.asc())
-            )
-        )
-        .scalars()
-        .all()
-    )
-    by_source = {src.id: src for src in sources}
-
-    evidence_dicts = [
-        {
-            "source_url": by_source[e.source_id].url if e.source_id in by_source else "",
-            "source_title": (by_source[e.source_id].title or "")
-            if e.source_id in by_source
-            else "",
-            "snippet": e.snippet,
-            "key_fact": e.key_fact or "",
-        }
-        for e in evidence
-    ]
-
-    # V1's `sessions.sources` is derived by `graph._number_sources` from the evidence list,
-    # and V2's `sources` table does not carry the snippet columns — so the V1 shape is
-    # rebuilt here by replaying that same derivation over the migrated evidence. This is
-    # reconstruction of a documented derivation, not a normalisation: if the migrated
-    # evidence disagrees with what V1 recorded, the rebuilt list differs and the comparison
-    # says so.
-    source_dicts = []
-    for src in sources:
-        snippets: list[str] = []
-        for e in evidence:
-            if e.source_id != src.id:
-                continue
-            text = (e.snippet or "").strip()
-            if text and text not in snippets:
-                snippets.append(text)
-        source_dicts.append(
-            {
-                "index": src.citation_index,
-                "url": src.url,
-                "title": src.title or "",
-                "snippet": snippets[0] if snippets else "",
-                "snippets": snippets,
-            }
-        )
-
-    contradictions = (
-        (
-            await db.execute(
-                select(Contradiction)
-                .where(Contradiction.run_id == run_id)
-                .order_by(Contradiction.id.asc())
-            )
-        )
-        .scalars()
-        .all()
-    )
-    # All seven V1 fields, from the columns S4 added. V1's pair is
-    # `(claim_a, snippet_a, source_a, claim_b, snippet_b, source_b, nature)` and V2 now
-    # holds every one of them, at the source granularity the detector actually worked in.
-    contradiction_dicts = [
-        {
-            "claim_a": c.summary_a,
-            "snippet_a": c.quote_a or "",
-            "source_a": by_source[c.source_a_id].url if c.source_a_id in by_source else "",
-            "claim_b": c.summary_b,
-            "snippet_b": c.quote_b or "",
-            "source_b": by_source[c.source_b_id].url if c.source_b_id in by_source else "",
-            "nature": c.nature or "",
-        }
-        for c in contradictions
-    ]
-
-    # Run-scoped and ordered by `sequence`, not by revision: a PLAN review has no
-    # `revision_id` at all, so the old single-parent read would silently omit every plan
-    # approval from the chain (M2F Amendment §8.2).
-    reviews = await approval_chain(db, run_id)
-    approval_chain_dicts = []
-    for r in reviews:
-        action = REVIEW_TO_V1_ACTION.get((r.gate, r.decision))
-        if action is None:  # pragma: no cover — AUDIT_MAP invertibility is pinned by a test
-            raise ValueError(f"review {r.id} has no V1 action for {r.gate}/{r.decision}")
-        # The serialization layer of the artifact-authorization rule (M2F Amendment §5.3).
-        # `verify_bundle` treats `action == "approved"` as report authorization; emitting
-        # that string for a plan approval would satisfy the verifier's load-bearing check
-        # in a file no database constraint reaches.
-        if r.gate == "PLAN" and action == verify_bundle.REPORT_APPROVAL_ACTION:
-            raise ValueError(
-                f"review {r.id} is a PLAN approval and would serialize as a report approval"
-            )
-        approval_chain_dicts.append(
-            {
-                "action": action,
-                "feedback": r.feedback,
-                "draft_hash": r.reviewed_hash,
-                "timestamp": r.created_at.isoformat(),
-            }
-        )
-
-    return (
-        bundle_mod.assemble(
-            session_id=str(run.id),
-            query=run.question,
-            report=revision.report_markdown,
-            evidence=evidence_dicts,
-            sources=source_dicts,
-            contradictions=contradiction_dicts,
-            models=run.model_routing or {},
-            cost_usd=float(run.cost_usd),
-            tokens_input=run.tokens_input,
-            tokens_output=run.tokens_output,
-            elapsed_seconds=float(run.elapsed_seconds) if run.elapsed_seconds else None,
-            research_depth=run.depth,
-            approval_chain=approval_chain_dicts,
-            trace=await _trace(db, run.id),
-            trace_available=True,
-            demo=run.demo,
-        ),
-        None,
-    )
+    Delegates to `app.v2_bundle` rather than holding a second copy: if the two ever
+    disagreed, "the migration produces the same bundle the product does" would stop being a
+    measurement and become a coincidence.
+    """
+    return await v2_bundle.assemble_with_reason(db, run_id)
 
 
 # ── Comparison ────────────────────────────────────────────────────────────────────

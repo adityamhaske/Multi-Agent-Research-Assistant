@@ -280,6 +280,32 @@ The suite also pins the two traps this table already warned about in prose: ever
   and the alias can disagree with what served the request. Never treat one as a disclosed
   model — record what actually answered.
 
+## The V2 native runtime
+
+New runs persist through `app/v2_runtime.py`; migrated runs go through `migration/engine.py`.
+Both write the same tables, and the rules below hold for both — a native run must not be able
+to record something a migrated one is refused.
+
+- **The lifecycle is host-agnostic and lives in one file.** `app/v2_runtime.py` has no FastAPI,
+  no auth and no Redis, because the server router *and* the desktop sidecar both call it. The
+  V2 routes were added to both hosts in the same commit, and `test_host_parity` caught them
+  before they landed — which is the third time that harness has paid for itself.
+- **`app/v2_bundle.py` is the one bundle assembler.** `migration/bundle_equivalence` delegates
+  to it. If they ever diverge, "the migration produces the same bundle the product does" stops
+  being a measurement and becomes a coincidence.
+- **Artifact authorization goes through `app/authorization.py`.** Never re-derive
+  `gate == 'REPORT' and decision == 'APPROVED'` at a call site.
+- **`migration_ledger` is a model, not a tool artifact.** It lives in `app/models/` because the
+  product reads it: `v2_bundle` consults `evidence_outcome` before claiming a run gathered no
+  evidence. `migration/ledger.py` re-exports the names.
+
+**Never run a planted-failure sweep and a validation run at the same time.** The sweeps mutate
+source files in place and restore them afterwards; a dry run executed in that window measures
+planted code. Worse, a sweep killed by a timeout leaves the plant *active* — an F4 plant
+(`sequence=1`) survived a killed background sweep and produced two convincing-looking
+"dialect divergences" that were entirely fictional. Run sweeps in the foreground, one at a
+time, and `grep -rn PLANT` before trusting any number.
+
 ## The V1 → V2 migration
 
 `backend/migration/` is a tool, not a service. Three rules it has already cost something to

@@ -263,8 +263,14 @@ async def test_the_audit_action_map_is_invertible(db):
     emitting an empty `action` into a bundle that then verifies against nothing.
     """
     forward = {(gate, dec): action for action, (gate, dec, _) in engine_mod.AUDIT_MAP.items()}
-    assert forward == REVIEW_TO_V1_ACTION
     assert len(forward) == len(engine_mod.AUDIT_MAP), "AUDIT_MAP is not injective"
+    # A subset, not equality: the shared map also covers decisions only a V2-NATIVE run can
+    # reach (REJECTED, plan rework), which V1 had no action for. What must hold is that
+    # every V1 action round-trips and that no two V2 pairs share a serialized action.
+    assert forward.items() <= REVIEW_TO_V1_ACTION.items()
+    assert len(set(REVIEW_TO_V1_ACTION.values())) == len(REVIEW_TO_V1_ACTION), (
+        "two V2 decisions serialize to one action — the chain is no longer comparable"
+    )
 
 
 # ── B: resume after interruption ──────────────────────────────────────────────────

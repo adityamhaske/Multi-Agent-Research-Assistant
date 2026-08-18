@@ -45,7 +45,7 @@ _SOURCES_HEADING_RE = re.compile(r"^#{1,6}\s*(sources|references|citations|bibli
 #: The one approval action that authorizes a report — and therefore an artifact.
 REPORT_APPROVAL_ACTION = "approved"
 #: Actions taken at the plan gate. They are recorded in the chain and authorize nothing.
-PLAN_GATE_ACTIONS = frozenset({"plan_approved"})
+PLAN_GATE_ACTIONS = frozenset({"plan_approved", "plan_rework_requested", "plan_rejected"})
 
 
 # ── Result types ──────────────────────────────────────────────────────────────────
