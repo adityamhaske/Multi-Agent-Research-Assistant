@@ -4,7 +4,7 @@ This is the hottest path in the repo (`app/` + `research_engine/`). Read this be
 touching either package; the architecture docs in `docs/architecture/` are authoritative
 but not exhaustive on these traps.
 
-## Hard boundary: `research_engine` never imports `app`
+## Hard boundary: `research_engine` never imports `app` **or `evals`**
 
 `research_engine/` is a local-first engine (docs/architecture/13-local-and-self-hosted.md)
 that knows nothing about Postgres, Redis, Celery, or ORM models. The host supplies
@@ -12,6 +12,30 @@ everything through ports (`research_engine/ports.py`) and per-run `RunConfig`. I
 yourself importing `app.config` or an ORM model inside `research_engine`, stop — wire it
 through `app/runtime.py` (`install_process_default`, `run_config_from_settings`) or the
 runner's ports instead (see `app/workers/pipeline_runner.py` for the canonical example).
+
+`evals` is on the same list, and was added to it late. `bundle.py` imported
+`evals.metrics` for claim extraction while `graph.py`'s own docstring asserted the engine
+imported nothing from evals — so the "standalone" package could not be bundled into the
+desktop app without also shipping the eval harness, and nothing failed until someone
+tried. `tests/test_engine_boundary.py` now forbids both roots.
+
+**Claim extraction and the citation regex have exactly one home: `research_engine/claims.py`.**
+`evals.metrics` re-exports from it — the dependency runs evals → engine, never back. Three
+things must agree about what a claim is, because they act on the same sentences: the
+graph's citation-fidelity pass strips markers from claims their evidence does not back,
+the eval judge measures how well that worked, and the bundle records them for a third
+party to verify. Two definitions is how the published number stops describing the guard.
+`tests/test_claim_extraction_parity.py` pins the agreement *by object identity*, so a
+copy-paste back into `evals/metrics.py` fails the suite rather than drifting quietly.
+
+Two scanning differences between `graph._cited_claims` and `claims.claim_lines` remain on
+purpose and are pinned by that same test — a bare `Sources` line, and the conflict block
+(which the fidelity pass never sees, because `synthesizer_node` appends it afterwards).
+Unifying either changes what the judge counts as a claim, which is a metrics-definition
+change and needs a `METRICS_VERSION` bump to be disclosed honestly.
+
+`verify_bundle.py` keeps its own copies of two patterns so it runs on stdlib plus pydantic
+alone. That duplication is deliberate and is asserted equal to the canonical ones.
 
 ## Schema belongs to Alembic
 

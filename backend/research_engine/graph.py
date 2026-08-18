@@ -31,7 +31,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 from pydantic import BaseModel, Field
 
-from research_engine import contradictions, outlines, prompts
+from research_engine import claims, contradictions, outlines, prompts
 from research_engine.events import emit
 from research_engine.llm_factory import (
     estimate_cost,
@@ -693,16 +693,21 @@ async def critic_node(state: AgentState) -> dict:
 # whitespace, and a note without one gets merged into the FOLLOWING sentence — measured
 # as a supported claim ruled NO because it carried the previous claim's note (run #3).
 _VERIFIED_NOTE = " *(citation could not be verified)*."
-# The claim split MUST mirror `evals.metrics.split_sentences`/`claim_lines` exactly
-# (lookahead on the next sentence's opener + abbreviation rejoin): this pass is measured
-# by that judge, so it must rule on the same claims, not fragments of them.
-_VSPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z(\[])")
-_VABBREV_TAIL_RE = re.compile(r"\b(?:e\.g|i\.e|vs|etc|Dr|Mr|Ms|Inc|Ltd|Fig|No|approx|cf)\.$", re.I)
-_VLIST_MARKER_RE = re.compile(r"^(?:[-*+]\s+|\d+[.)]\s+)")
+# The claim split MUST mirror the eval judge's `claims.split_sentences`/`claim_lines`
+# exactly (lookahead on the next sentence's opener + abbreviation rejoin): this pass is
+# measured by that judge, so it must rule on the same claims, not fragments of them.
+#
+# It now does so by *importing the same objects* rather than restating the patterns —
+# four regexes were duplicated here and in `evals.metrics`, with a comment asserting they
+# matched and nothing checking it. `tests/test_claim_extraction_parity.py` pins both the
+# identity of these primitives and the sentence-for-sentence agreement of the two scans.
+_VSPLIT_RE = claims.SENTENCE_SPLIT_RE
+_VABBREV_TAIL_RE = claims.ABBREV_TAIL_RE
+_VLIST_MARKER_RE = claims.LIST_MARKER_RE
 # Limitations is where the synthesizer writes what the evidence does NOT cover; its
 # sentences are hedging, not factual claims — the eval judge excludes them (metrics v3),
 # so this pass must too.
-_VLIMITATIONS_HEADING_RE = re.compile(r"^#{1,6}\s*limitations?\b", re.I)
+_VLIMITATIONS_HEADING_RE = claims.LIMITATIONS_HEADING_RE
 # A cited sentence opening with a deictic ("This is detailed in Article 55 [4].") is
 # judged by the eval harness as a STANDALONE claim — and an anaphor with its referent
 # in the previous sentence reads as unsupported. Measured as 4 of 11 NO rulings in the
@@ -734,10 +739,29 @@ def _numbers_grounded(claim: str, snippets: str) -> bool:
     )
 
 
+#: This pass's own sources-section boundary, and the one place it deliberately differs
+#: from `claims.SOURCES_HEADING_RE` (`#{1,6}`): a **bare** `Sources` line with no Markdown
+#: heading marker also ends the body here. Kept local rather than pushed into `claims`
+#: because widening the shared pattern would change what the eval judge counts as a claim,
+#: which is a metrics-definition change and needs a `METRICS_VERSION` bump to be honest.
+#: `tests/test_claim_extraction_parity.py` pins the divergence so it stays deliberate.
+_VSOURCES_RE = re.compile(r"(?i)#{0,6}\s*(sources|references|citations|bibliography)\b")
+
+
 def _cited_claims(draft: str) -> list[str]:
     """Cited factual sentences in the draft body, sources section excluded.
 
-    Self-contained sentence split (the engine imports nothing from evals, docs/12 M6).
+    Sentence splitting, list-marker stripping, the length floor and the citation pattern
+    all come from `research_engine.claims` — the same definitions the eval judge uses, so
+    this pass rules on the same claims it is measured against rather than on fragments.
+
+    Two scanning differences from `claims.claim_lines` remain, both deliberate:
+
+    1. A **bare** `Sources` line ends the body here (`_VSOURCES_RE`), where the judge
+       requires a `#` heading.
+    2. The judge also skips the engine-rendered *Conflicting evidence* block. This pass
+       does not need to: the block is appended by `synthesizer_node` *after* the fidelity
+       check has already run, so it is never present in the draft this function sees.
     """
     out: list[str] = []
     skipping = False
@@ -749,7 +773,7 @@ def _cited_claims(draft: str) -> list[str]:
         # claims, and each line failed `_numbers_grounded` on the digits in its own URL
         # (arXiv ids, years). Every report shipped with the unverified note appended to
         # every line of its own bibliography.
-        if re.match(r"(?i)#{0,6}\s*(sources|references|citations|bibliography)\b", line):
+        if _VSOURCES_RE.match(line):
             break
         if not line or line.startswith("#"):
             if line:
@@ -758,20 +782,11 @@ def _cited_claims(draft: str) -> list[str]:
         if skipping:
             continue
         content = _VLIST_MARKER_RE.sub("", line)
-        parts = _VSPLIT_RE.split(content)
-        sentences: list[str] = []
-        for part in parts:
-            # "…supported by Dr. Smith" must not become two sentences (same rule as the
-            # judge's `split_sentences`).
-            if sentences and _VABBREV_TAIL_RE.search(sentences[-1]):
-                sentences[-1] = f"{sentences[-1]} {part}"
-            else:
-                sentences.append(part)
-        for sentence in sentences:
+        for sentence in claims.split_sentences(content):
             s = sentence.strip()
-            if len(s) < 15 or not re.search(r"[A-Za-z]", s):
+            if not claims.is_claim_sentence(s):
                 continue
-            if re.search(r"\[\d+(?:\s*,\s*\d+)*\]", s):
+            if claims.CITE_RE.search(s):
                 out.append(s)
     return out
 

@@ -5,61 +5,51 @@ numbers in a committed eval run are trustworthy and diffable over time.
 The LLM-judged *citation support rate* (does a cited snippet actually support the
 claim) lives in the harness because it needs a model; everything here is structural
 and deterministic.
+
+**Claim and citation extraction is not defined here.** It lives in
+`research_engine.claims`, and this module re-exports it. The engine's citation-fidelity
+pass acts on the same sentences this module judges, so a second definition here would let
+the pipeline and its own measurement rule on different claims. The re-exports below are
+the *same objects*, not copies — `tests/test_claim_extraction_parity.py` asserts that by
+identity, so a future copy-paste back into this file fails the suite.
 """
 
 from __future__ import annotations
 
 import re
 
-# Matches a citation marker and captures its numbers, including *grouped* markers.
-#
-# The synthesizer routinely writes `[1, 3]` or `[1, 2, 3, 4, 6]` when a sentence draws on
-# several sources. A single-number-only pattern silently treated those as prose: they
-# counted as neither cited nor unresolved, so a report could be 42% invisible to this
-# module while still reporting a perfect resolution rate (measured on a real run —
-# docs/12 M5). `extract_citations` flattens a group into its individual indices, so
-# `[1, 3]` counts as two citations, exactly as `[1][3]` would.
-CITE_RE = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
-HEADING_RE = re.compile(r"^#{1,6}\s")
-SOURCES_HEADING_RE = re.compile(r"^#{1,6}\s*(sources|references|citations|bibliography)\b", re.I)
-# The Limitations section is where the model is INSTRUCTED to write what the evidence
-# does not cover — meta-prose about the evidence, sourced or not. Its sentences are not
-# factual claims, so they are excluded from claim extraction exactly like Sources.
-LIMITATIONS_HEADING_RE = re.compile(r"^#{1,6}\s*limitations?\b", re.I)
-# The Conflicting evidence block (docs/12 M11) is rendered deterministically by the
-# engine, not authored by the synthesizer: it QUOTES the incompatible claims from both
-# sides. Its sentences are meta-prose about the evidence — judging them as factual
-# claims would measure the block's existence, not research quality — so they are
-# excluded from claim extraction exactly like Limitations.
-CONFLICTS_HEADING_RE = re.compile(r"^#{1,6}\s*conflicting evidence\b", re.I)
-_LIST_MARKER_RE = re.compile(r"^(?:[-*+]\s+|\d+[.)]\s+)")
-# Sentence boundary: terminator + whitespace, not preceded by a common abbreviation or a
-# bare initial. Deliberately conservative — over-splitting a claim is worse than
-# under-splitting it, because each fragment then gets judged against too little evidence.
-_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z(\[])")
-_ABBREV_TAIL_RE = re.compile(r"\b(?:e\.g|i\.e|vs|etc|Dr|Mr|Ms|Inc|Ltd|Fig|No|approx|cf)\.$", re.I)
+from research_engine.claims import (
+    CITE_RE,
+    CONFLICTS_HEADING_RE,
+    HEADING_RE,
+    LIMITATIONS_HEADING_RE,
+    SOURCES_HEADING_RE,
+    body_before_sources,
+    claim_lines,
+    extract_citations,
+    split_sentences,
+)
 
-
-def body_before_sources(text: str) -> str:
-    """The report body up to (excluding) the sources/references section. Metrics count
-    in-text citations, not the numbered entries in the reference list."""
-    lines = (text or "").splitlines()
-    for i, raw in enumerate(lines):
-        if SOURCES_HEADING_RE.match(raw.strip()):
-            return "\n".join(lines[:i])
-    return text or ""
-
-
-def extract_citations(text: str) -> list[int]:
-    """Every cited source index, in order, duplicates kept.
-
-    A grouped marker contributes each of its numbers: `[1, 3]` yields `[1, 3]`, so it is
-    counted and resolution-checked identically to `[1][3]`.
-    """
-    out: list[int] = []
-    for m in CITE_RE.finditer(text or ""):
-        out.extend(int(part) for part in m.group(1).split(","))
-    return out
+# Re-exported for callers that import them from here (the harness, the benchmark, and
+# any contributor following the docs). Named explicitly so a linter cannot decide they
+# are unused imports and delete the module's public surface.
+__all__ = [
+    "CITE_RE",
+    "CONFLICTS_HEADING_RE",
+    "HEADING_RE",
+    "LIMITATIONS_HEADING_RE",
+    "METRICS_VERSION",
+    "SOURCES_HEADING_RE",
+    "body_before_sources",
+    "citation_stats",
+    "claim_lines",
+    "contradictions_surfaced",
+    "extract_citations",
+    "report_metrics",
+    "source_indices",
+    "split_sentences",
+    "uncited_claim_count",
+]
 
 
 def source_indices(sources: list[dict]) -> set[int]:
@@ -90,60 +80,6 @@ def citation_stats(text: str, sources: list[dict]) -> dict:
         # None (not 1.0) when there are no citations — an uncited report isn't "perfect".
         "resolution_rate": resolution_rate(text, sources),
     }
-
-
-def split_sentences(text: str) -> list[str]:
-    """Split a block of prose into sentences, rejoining common abbreviation false splits."""
-    parts = _SENTENCE_SPLIT_RE.split(text)
-    if len(parts) < 2:
-        return [text]
-    merged: list[str] = [parts[0]]
-    for part in parts[1:]:
-        # "…supported by Dr. Smith" must not become two sentences.
-        if _ABBREV_TAIL_RE.search(merged[-1]):
-            merged[-1] = f"{merged[-1]} {part}"
-        else:
-            merged.append(part)
-    return merged
-
-
-def claim_lines(text: str) -> list[str]:
-    """Individually assertable claims from the report body, one per sentence.
-
-    Sentences, not raw lines. The synthesizer emits each paragraph as a single unwrapped
-    line, so a line-per-claim split made a four-sentence paragraph one "claim" carrying
-    the union of its citations — and the citation-support judge then had to rule on all
-    four assertions against all four sources at once, scoring a NO if any part was
-    unsupported by any snippet. That conflation was measured depressing the support rate
-    independently of the actual research quality (docs/12 M5).
-
-    Headings, list markers, and trivially short fragments are still excluded. So is the
-    Limitations section: it is where the synthesizer is told to write what the evidence
-    does NOT cover, and those hedging sentences are not factual claims the snippets must
-    support — judging them measured report honesty as citation failure (docs/12 M5).
-    """
-    out: list[str] = []
-    skipping = False
-    for raw in (text or "").splitlines():
-        line = raw.strip()
-        if not line:
-            continue
-        if SOURCES_HEADING_RE.match(line):
-            break  # sources/references section is references, not claims
-        if HEADING_RE.match(line):
-            skipping = bool(LIMITATIONS_HEADING_RE.match(line)) or bool(
-                CONFLICTS_HEADING_RE.match(line)
-            )
-            continue
-        if skipping:
-            continue
-        content = _LIST_MARKER_RE.sub("", line)
-        for sentence in split_sentences(content):
-            sentence = sentence.strip()
-            if len(sentence) < 15 or not re.search(r"[A-Za-z]", sentence):
-                continue
-            out.append(sentence)
-    return out
 
 
 def uncited_claim_count(text: str) -> int:

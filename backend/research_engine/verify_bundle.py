@@ -35,8 +35,10 @@ from research_engine.bundle import (
     content_hash,
 )
 
-# Minimal citation regex — duplicated from evals.metrics to keep this module
-# dependency-free from the eval harness. Same pattern, same semantics.
+# Minimal citation regex — deliberately a local copy of `research_engine.claims`'s
+# patterns rather than an import, so this module keeps its promise above: stdlib plus the
+# bundle schema, nothing else. `tests/test_claim_extraction_parity.py` asserts the copies
+# stay pattern-identical to the canonical ones, so the duplication cannot drift silently.
 _CITE_RE = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
 _SOURCES_HEADING_RE = re.compile(r"^#{1,6}\s*(sources|references|citations|bibliography)\b", re.I)
 

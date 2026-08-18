@@ -30,7 +30,14 @@ ENGINE_DIR = Path(__file__).resolve().parents[1] / "research_engine"
 
 # The engine may not import the server host at all — not just `app.config`. Now that the
 # package is physically separate (M6 step 2) the contract is the whole `app` namespace.
-FORBIDDEN_ROOTS = ("app",)
+#
+# `evals` joined the list in M0A. It was never in it, and `bundle.py` consequently imported
+# `evals.metrics` for claim extraction while `graph.py`'s own docstring asserted the engine
+# imported nothing from evals. The practical cost was that the "standalone" engine could
+# not be shipped to a desktop build without also shipping the eval harness. The dependency
+# now runs the other way: `research_engine.claims` is canonical and `evals.metrics`
+# re-exports from it.
+FORBIDDEN_ROOTS = ("app", "evals")
 
 # Remaining known couplings, each with the milestone that removes it. A violation NOT in
 # this set fails the test; an entry here that no longer occurs also fails it, so the list

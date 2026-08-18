@@ -7,7 +7,10 @@ model routing, costs, the full approval chain, and the agent trace. A standalone
 verifier (verify_bundle.py) can check the whole thing offline with no AI and no network.
 
 This module is the pure assembler: no DB, no ORM, no host. Both the API server and
-the desktop sidecar produce bundles through it.
+the desktop sidecar produce bundles through it. Claim extraction comes from
+`research_engine.claims` — the same definition the graph's citation-fidelity pass and the
+eval judge use. It used to come from `evals.metrics`, which meant a desktop build could
+not ship the engine without also shipping the eval harness.
 
 Design decisions (docs/reference/15-bundle-format.md):
 
@@ -37,7 +40,7 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
-from evals.metrics import CITE_RE, claim_lines
+from research_engine.claims import CITE_RE, claim_lines
 
 # ── Schema ────────────────────────────────────────────────────────────────────────
 

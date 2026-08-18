@@ -13,40 +13,28 @@ Lives here rather than in `evals/` because `app/` must not import the eval harne
 `graph.py`'s inlined uncited-count and the note explaining why). `evals.metrics.
 citation_stats` now delegates here, so the number a benchmark publishes and the number
 the UI displays cannot drift apart.
+
+The citation pattern and the sources-heading boundary are **not defined here** — they come
+from `research_engine.claims`, which is also what the graph's fidelity pass and the eval
+judge use. Two copies of "where does the body end" is how the published number and the
+displayed number come to disagree about the same report.
 """
 
 from __future__ import annotations
 
-import re
+from research_engine.claims import body_before_sources, extract_citations
 
-#: `[1]`, `[1, 3]`, `[1][3]`. A grouped marker contributes each of its numbers, so it is
-#: counted and resolution-checked identically to separate markers.
-_CITE_RE = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
-# Must stay identical to `evals.metrics.SOURCES_HEADING_RE`, which this replaces as the
-# shared implementation — a heading that ends the body here and not there would make the
-# published number and the displayed number disagree on the same report.
-_SOURCES_HEADING_RE = re.compile(r"^#{1,6}\s*(sources|references|citations|bibliography)\b", re.I)
-
-
-def body_before_sources(text: str) -> str:
-    """The report body up to (excluding) its sources section.
-
-    The numbered entries in a reference list are not claims. Counting them would push
-    every report's rate toward 1.0 regardless of what the prose actually cited.
-    """
-    lines = (text or "").splitlines()
-    for i, raw in enumerate(lines):
-        if _SOURCES_HEADING_RE.match(raw.strip()):
-            return "\n".join(lines[:i])
-    return text or ""
+__all__ = ["body_before_sources", "cited_indices", "resolution_rate"]
 
 
 def cited_indices(text: str) -> list[int]:
-    """Every cited index in the body, in order, duplicates kept."""
-    out: list[int] = []
-    for m in _CITE_RE.finditer(text or ""):
-        out.extend(int(part) for part in m.group(1).split(","))
-    return out
+    """Every cited index in the body, in order, duplicates kept.
+
+    A thin alias for `claims.extract_citations`, kept because callers and docs refer to
+    this name and because "which indices does this report cite" reads better here than in
+    a module about claims.
+    """
+    return extract_citations(text)
 
 
 def resolution_rate(report: str, sources: list[dict] | None) -> float | None:
