@@ -72,10 +72,21 @@ cites it; renaming or moving one does not.
 
 **`docs/` is the published tree.** The site walks all of it at build time, so anything filed
 there gets a URL. Engineering notes, milestone plans and release checklists therefore live in
-[`internal/`](internal/README.md) instead, and repository governance under
-`docs/governance/` and `docs/plans/` is excluded by name in `frontend/lib/docs.ts`. A
-directory absent from `CATEGORY_ORDER` is hidden from the sidebar but **still generates
-routes** — only the denylist actually stops a page being published.
+[`internal/`](internal/README.md) instead, which the site never walks at all — still the
+strongest guarantee, because it does not depend on anyone maintaining a list.
+
+Inside `docs/`, publication is decided **per directory** by `classifyDir` in
+`frontend/lib/docs.ts`: `CATEGORY_ORDER` publishes, `UNPUBLISHED_DIRS` withholds
+(`governance/`, `plans/`, `screenshots/`), and a directory in neither **fails the build**
+with a message naming both remedies. Absence from `CATEGORY_ORDER` alone is *not* a
+guarantee — it hides a directory from the sidebar while `generateStaticParams` still
+generates its routes.
+
+This was a per-*file* denylist naming two exact paths until M0B, so a second document
+filed under `docs/plans/` was published at a URL nothing linked to. Verified, not assumed:
+a planted note under `docs/plans/` exports at `/docs/plans/<name>/index.html` on the old
+code and is absent on the new. `frontend/lib/docs.test.ts` is the regression guard, and
+CI now runs `build:pages` and greps the export for governance and planning routes.
 
 ## Configuration has two paths, and they drift
 
@@ -155,6 +166,18 @@ mocked, the test is decorative.
   Redis, and the desktop has neither), and the corpus is one `corpus.sqlite` for the
   whole app rather than one file per project. **Project chat (`/threads`) is desktop-
   absent by design** — project memory is pgvector-only
+- Bundle export → `app/api/v1/research.py::export_bundle_json` *and*
+  `desktop/sidecar.py::export_bundle_json`. Same failure shape as report chat, found by
+  the V1→V2 audit and fixed in M0C: the endpoint shipped in v1.0.0, the desktop host
+  served no route for it, and **no UI anywhere reached it on either host** while four
+  surfaces advertised it. Four things differ between the copies and nothing else should:
+  the checkpointer is SQLite rather than Postgres, there is no `crypto.decrypt` step, the
+  report is read directly rather than through the server-only `_report_or_404` (its
+  demo rule is reproduced inline), and `trace_available` is `True` on both.
+  **A bundle route is only correct if what it emits verifies** — the sidecar wrote no
+  `audit_log` row at either gate, so adding the route alone would have produced bundles
+  that always fail `approval_chain`. `tests/test_bundle_export_routes.py` pins the whole
+  chain, including that planted failure
 - Sidecar location → `desktop/tauri.conf.json` (`bundle.resources`), `desktop/src/lib.rs`
   (`sidecar_command`), *and* `.github/workflows/desktop.yml` (the `shell` job must
   `needs: sidecar` and download the artifact)
@@ -171,6 +194,44 @@ The failure mode is always the same: the server path is exercised constantly, th
 path only at release time, so a divergence ships. Prefer extracting the shared logic into
 one function over keeping two copies in step by discipline — `map_local_host` is the
 worked example of doing that after the fact.
+
+**`tests/test_host_parity.py` is now the enforcement.** Added in M1, before any extraction,
+because a refactor without a contract test just moves the drift. It holds four tables and
+fails if any of them rots:
+
+| Table | Means |
+|---|---|
+| `INTENTIONAL_SERVER_ONLY` | The route legitimately has no desktop equivalent, with the reason |
+| `INTENTIONAL_DESKTOP_ONLY` | The reverse |
+| `DESKTOP_UI_CALLS` | Every path the desktop build actually calls — the sidecar must serve all of them |
+| `KNOWN_DESKTOP_GAPS` | Paths the UI calls and the sidecar does **not** serve, i.e. controls that 404 today |
+
+A route on one host and not the other must appear in one of them or the suite fails; an
+entry that no longer describes reality also fails, so the lists cannot become a description
+of the past.
+
+**`KNOWN_DESKTOP_GAPS` is empty and must stay empty.** M1 found six live 404s — the Stop
+button, four per-project `corpus` paths, and Settings' usage panel — and M1.5 closed all of
+them plus a seventh M1 had misfiled (the corpus document *download* path, listed as an
+intentional difference on the mistaken belief the UI did not call it; `documentUrl()` builds
+it for both the Corpus page and the report preview). An entry in that table is a control
+that ships broken.
+
+The corpus fix is the pattern to copy. The desktop keeps one `corpus.sqlite` for the whole
+app while the server scopes one per project — a real infrastructure difference that stays.
+What was wrong is that it had leaked into the client, so the sidecar now serves the
+**per-project path as the canonical contract** and resolves it to its own flat store. No
+`isDesktop` branch was added. Prefer that shape: one product contract, different internals,
+rather than teaching the frontend about a storage decision.
+
+Two things this deliberately did *not* fix, both shared by the two hosts: cancel is
+advisory (neither host's outcome writer checks status before persisting, and the server's
+Redis `cancelled` key is read by nothing), and the desktop `.md` export still does not
+demo-stamp while the server's does.
+
+The suite also pins the two traps this table already warned about in prose: every
+`RunOutcome.status` must appear in `sidecar::_apply_outcome`, and every event in
+`sidecar::_TERMINAL_EVENTS` must appear in the server's stream stop-list.
 
 ## Provider and cost rules
 

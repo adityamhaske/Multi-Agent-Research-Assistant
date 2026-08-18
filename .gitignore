@@ -44,3 +44,7 @@ internal/04_Interview_Defense.md
 # Deliberately ignored, unlike `.claude/plans/` — a plan is a design artifact reviewed
 # alongside its diff, whereas these are thinking-in-progress with no build contract.
 future-plans/
+
+# Editor/agent tool directories. Per-tool config, not project code.
+.qoder/
+.codex/
