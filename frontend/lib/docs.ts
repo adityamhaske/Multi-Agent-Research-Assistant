@@ -41,21 +41,59 @@ const CANDIDATE_ROOTS = [
  * The slug has its numeric prefixes stripped, so `00_INDEX.md` publishes at `INDEX` — a
  * denylist keyed on the slug would have to spell that, and would silently stop matching the
  * moment a file were renumbered. The path is the stable thing to name.
+ *
+ * This list is for individual **files** at the root of `docs/`. Whole directories are
+ * classified by `UNPUBLISHED_DIRS` below — naming files one at a time was the bug this
+ * replaces: adding a second document to `docs/plans/` published it.
  */
 const NEVER_PUBLISH = new Set([
+  // The repository's own map of `docs/` — the thing a person reads when browsing the tree
+  // on GitHub. On the site it would be a second table of contents beside the generated
+  // `/docs` index, which is the duplicate-navigation problem rather than a fix for it.
   "00_INDEX",
-  // Repository governance, not product documentation. `AGENTS.md` points contributors and
-  // coding agents at both, so they stay where they are — but they describe how the project
-  // is *run*, not how the product works, and the V2 plan in particular is planning material
-  // of the kind that belongs beside the notes in `internal/`.
-  //
-  // Listing them is not optional tidiness. Their directories are absent from
-  // `CATEGORY_ORDER`, which hides them from the sidebar and the index but does **not** stop
-  // `generateStaticParams` from generating their routes — so without this they would be
-  // published at a URL nothing links to, which is the worst of both outcomes.
-  "governance/Multi-Agent-Research-Assistant-Open-Source-Constitution",
-  "plans/Multi-Agent-Research-Assistant-V2-Master-Plan",
 ]);
+
+/**
+ * Directories under `docs/` that exist on disk and are deliberately **not** published.
+ *
+ * `governance/` and `plans/` are repository governance rather than product documentation:
+ * they describe how the project is *run*, not how the product works. `AGENTS.md` points
+ * contributors and coding agents at them, so they stay in the tree. `screenshots/` holds
+ * PNGs the README embeds.
+ *
+ * **This used to be a per-file denylist, and that was a latent leak.** A directory's
+ * absence from `CATEGORY_ORDER` hides it from the sidebar and the index but does *not*
+ * stop `generateStaticParams` generating its routes — so anything filed under
+ * `docs/plans/` beyond the two named files was published at a URL nothing linked to, which
+ * is the worst of both outcomes. The V1→V2 audit had to be filed in `internal/` for
+ * exactly this reason. Classification is now by directory, and unclassified directories
+ * fail the build (see `classifyDir`) rather than publishing by default.
+ */
+const UNPUBLISHED_DIRS = new Set(["governance", "plans", "screenshots"]);
+
+/**
+ * Whether a directory found under `docs/` is published, withheld, or unclassified.
+ *
+ * Fail-closed **and loud**: a directory nobody has classified throws at build time instead
+ * of being published (the old failure) or silently dropped (a new one — a contributor
+ * adding `docs/tutorials/` would find their pages missing with nothing to explain it).
+ * The author makes the call once, in code, where it is reviewable.
+ *
+ * Exported for `docs.test.ts`, which is the regression guard for the leak above.
+ */
+export function classifyDir(dir: string): "publish" | "withhold" {
+  if (UNPUBLISHED_DIRS.has(dir)) return "withhold";
+  if (CATEGORY_ORDER.includes(dir)) return "publish";
+  throw new Error(
+    `docs/: directory "${dir}" is not classified.\n` +
+      `Every directory under docs/ must be either published or explicitly withheld, ` +
+      `because the site generates a route for every Markdown file it walks.\n` +
+      `  • To publish it: add "${dir}" to CATEGORY_ORDER and CATEGORY_LABELS in ` +
+      `frontend/lib/docs.ts (and NAV_ORDER for reading order).\n` +
+      `  • To keep it private: add "${dir}" to UNPUBLISHED_DIRS in the same file — or, ` +
+      `better, move it to internal/, which the site never walks at all.`,
+  );
+}
 
 export interface DocMeta {
   /** URL path under /docs, e.g. "architecture/agent-architecture". */
@@ -243,8 +281,10 @@ function walk(root: string, dir = ""): Doc[] {
   for (const entry of fs.readdirSync(abs, { withFileTypes: true })) {
     const rel = dir ? `${dir}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
-      // Only documentation directories; `screenshots/` holds PNGs.
-      if (entry.name === "screenshots") continue;
+      // Classified by path, not by name, so a nested directory is judged on where it
+      // actually sits — `architecture/deep/` is not `deep/`, and would otherwise produce
+      // routed pages belonging to no category in the sidebar.
+      if (classifyDir(rel) === "withhold") continue;
       out.push(...walk(root, rel));
       continue;
     }

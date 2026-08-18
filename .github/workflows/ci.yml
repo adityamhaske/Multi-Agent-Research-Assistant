@@ -109,6 +109,44 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      - name: Build (desktop static export)
+        # The second of three targets. `next.config.ts` branches on NEXT_PUBLIC_PAGES then
+        # NEXT_PUBLIC_DESKTOP, so a flag read at build time compiles the other branches
+        # out — which means a branch is only ever exercised by the target that builds it.
+        run: npm run build:desktop
+      - name: Build (Pages static export)
+        # The third target, and until M0B the only one CI never ran: `pages.yml` builds it
+        # on push to main, i.e. *after* review. A change that broke the public site
+        # therefore went green on the pull request and red on the deploy.
+        #
+        # Built the same way pages.yml does — from a copy with the authenticated routes
+        # removed — because `app/(app)` and `/login` need a backend and a session, and
+        # `build:pages` must not run `prepare-session-routes` (it recreates
+        # `app/(app)/session`, whose web variant has no `generateStaticParams` and fails
+        # the export outright).
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/pages && mkdir -p /tmp/pages
+          cp -R "$GITHUB_WORKSPACE/frontend" /tmp/pages/frontend
+          cp -R "$GITHUB_WORKSPACE/docs" /tmp/pages/docs
+          rm -rf "/tmp/pages/frontend/app/(app)" /tmp/pages/frontend/app/login
+          rm -rf /tmp/pages/frontend/.next /tmp/pages/frontend/out
+          cd /tmp/pages/frontend
+          NEXT_PUBLIC_BASE_PATH="/${{ github.event.repository.name }}" npm run build:pages
+      - name: Docs publication boundary holds in the export
+        # The unit tests assert the walk withholds governance and planning directories.
+        # This asserts it about the bytes actually produced: a route generated for one of
+        # them is a private document on the public internet, which is the failure M0B
+        # exists to make impossible.
+        run: |
+          set -euo pipefail
+          out=/tmp/pages/frontend/out
+          leaked=$(find "$out/docs" -mindepth 1 -type d \( -name governance -o -name plans \) -print)
+          if [ -n "$leaked" ]; then
+            echo "::error::Governance/planning docs were published:"; echo "$leaked"; exit 1
+          fi
+          test -s "$out/docs/index.html"
+          echo "docs pages exported: $(find "$out/docs" -name index.html | wc -l)"
       - name: Dependency audit (non-blocking, docs/08 §4)
         continue-on-error: true
         run: npm audit --audit-level=critical

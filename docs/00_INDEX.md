@@ -15,8 +15,8 @@ in [`../internal/`](../internal/README.md). Nothing under `docs/` should link to
 
 `docs/governance/` and `docs/plans/` are repository governance rather than product
 documentation — they describe how the project is run, not how the product works. Contributors
-and coding agents are pointed at them by `AGENTS.md`; they are excluded from the site by name
-in `frontend/lib/docs.ts`.
+and coding agents are pointed at them by `AGENTS.md`; the whole of each directory is withheld
+from the site by `UNPUBLISHED_DIRS` in `frontend/lib/docs.ts`.
 
 ## Layout
 
@@ -110,3 +110,8 @@ The site walks this tree at build time. A file's numeric prefix is a stable docu
 identity — source comments cite documents by number — while reading order comes from
 `NAV_ORDER` in `frontend/lib/docs.ts`, keyed by the published slug (the prefix is stripped
 from URLs). A page missing from that list still renders; it just sorts last in its section.
+
+Adding a **directory** is a different matter: every one must be classified in
+`frontend/lib/docs.ts` as published (`CATEGORY_ORDER`) or withheld (`UNPUBLISHED_DIRS`).
+An unclassified directory fails the build rather than publishing by default, because the
+site generates a route for every Markdown file it walks.
