@@ -2296,6 +2296,98 @@ def create_sidecar_app(
 
         return await submit_report_review(run_id, body, db, user)
 
+    @api.get("/v2/runs/{run_id}/stream")
+    async def v2_stream_run(
+        run_id: uuid.UUID,
+        request: Request,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        """The V2 stream, over this host's in-process bus rather than Redis.
+
+        The only difference from the server, and the same one the V1 stream already has:
+        there is no Redis here, so the live tail comes from `SessionEventBus`. Backlog,
+        `Last-Event-ID` replay and the stop-list are identical, and the backlog query works
+        unchanged because `agent_logs.session_id` is polymorphic.
+        """
+        from app.api.v1.v2_runs import _TERMINAL_EVENTS as V2_TERMINAL
+        from app.api.v1.v2_runs import _run_or_404
+
+        run = await _run_or_404(db, run_id, user.id)
+        bus: SessionEventBus = app.state.sidecar["bus"]
+        last_event_id = request.headers.get("last-event-id")
+        after_id = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
+
+        async with session_factory() as sdb:
+            backlog = [
+                (row.id, row.payload)
+                for row in (
+                    await sdb.execute(
+                        select(AgentLog)
+                        .where(AgentLog.session_id == run_id, AgentLog.id > after_id)
+                        .order_by(AgentLog.id.asc())
+                    )
+                )
+                .scalars()
+                .all()
+            ]
+        already_done = run.status in ("COMPLETED", "FAILED", "CANCELLED")
+
+        async def gen() -> AsyncGenerator[str, None]:
+            yield f"data: {json.dumps({'type': 'connected', 'run_id': str(run_id)})}\n\n"
+            seen_max = after_id
+            for eid, payload in backlog:
+                seen_max = max(seen_max, eid or 0)
+                yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
+                if payload.get("type") in V2_TERMINAL:
+                    return
+            if already_done:
+                return
+            async with bus.subscribe(str(run_id)) as queue:
+                while True:
+                    eid, payload = await queue.get()
+                    if eid <= seen_max:
+                        continue
+                    yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
+                    seen_max = eid
+                    if payload.get("type") in V2_TERMINAL:
+                        return
+
+        return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+    @api.get("/v2/runs/{run_id}/export.md")
+    async def v2_export_markdown(
+        run_id: uuid.UUID,
+        revision_version: int | None = None,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.v2_runs import export_markdown
+
+        return await export_markdown(run_id, revision_version, db, user)
+
+    @api.get("/v2/runs/{run_id}/export.pdf", status_code=501)
+    async def v2_export_pdf(run_id: uuid.UUID):
+        # By design (docs/13 §7), same as the V1 route: desktop PDF is the WebView's
+        # print-to-PDF, and WeasyPrint stays out of the bundle. Declaring the route rather
+        # than omitting it is what makes the 501 a documented answer instead of a 404 the
+        # UI has to guess about.
+        raise HTTPException(
+            status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Desktop PDF uses the app's Print → Save as PDF. Server-side PDF is "
+            "not part of the desktop bundle.",
+        )
+
+    @api.post("/v2/runs/{run_id}/cancel")
+    async def v2_cancel_run(
+        run_id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.v2_runs import cancel_run
+
+        return await cancel_run(run_id, db, user)
+
     @api.get("/v2/runs/{run_id}/bundle.json")
     async def v2_get_bundle(
         run_id: uuid.UUID,

@@ -617,3 +617,17 @@ export interface V2Verification {
   frozen?: boolean;
   checks: { name: string; passed: boolean; detail: string | null }[];
 }
+
+/** One row of `GET /v2/runs` — the History list. */
+export interface V2RunSummary {
+  id: string;
+  project_id: string;
+  question: string;
+  status: RunStatusV2;
+  depth: string;
+  demo: boolean;
+  cost_usd: number;
+  citation_resolution_rate: number | null;
+  has_artifact: boolean;
+  created_at: string;
+}

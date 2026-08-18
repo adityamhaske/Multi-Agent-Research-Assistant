@@ -23,16 +23,21 @@ approved report review authorizes an artifact is not restated here.
 
 from __future__ import annotations
 
+import json
 import uuid
+from collections.abc import AsyncGenerator
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import v2_bundle, v2_runtime
-from app.db.base import get_db
+from app.db.base import AsyncSessionLocal, get_db
+from app.db.redis import get_redis
 from app.dependencies import get_current_user
+from app.models.agent_log import AgentLog
 from app.models.project import Project
 from app.models.research import (
     RESEARCH_DEPTHS,
@@ -45,8 +50,16 @@ from app.models.research import (
 from app.models.review import ResearchArtifact, Review
 from app.models.revision import Claim, ClaimEvidenceLink, Revision
 from app.models.user import User
+from app.services.sse import SSE_HEADERS
+from research_engine.bundle import render_model_attribution_md
 
 router = APIRouter(prefix="/v2/runs", tags=["v2"])
+
+#: Events after which the stream closes: two terminals plus the two gates. A graph
+#: suspended at an interrupt publishes nothing more until a human acts, so a connection
+#: held open there waits on no one. Mirrors the V1 stream's stop-list and
+#: `sidecar._TERMINAL_EVENTS`.
+_TERMINAL_EVENTS = ("COMPLETED", "FAILED", "HITL_READY", "PLAN_READY")
 
 
 class CreateRunRequest(BaseModel):
@@ -601,4 +614,205 @@ async def get_verification(
         "bundle_hash": manifest.bundle_hash,
         "frozen": artifact is not None,
         "checks": [{"name": c.name, "passed": c.passed, "detail": c.detail} for c in result.checks],
+    }
+
+
+# ── SSE ───────────────────────────────────────────────────────────────────────────
+
+
+@router.get("/{run_id}/stream")
+async def stream_run(
+    run_id: uuid.UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    redis=Depends(get_redis),
+):
+    """Live run events. **The same bus, the same channel shape, the same replay rule.**
+
+    Not a second event architecture: `agent_logs` rows are the durable backlog and the
+    Redis channel is the live tail, exactly as the V1 stream works — the V2 worker writes
+    through `adapters.agent_log_sink`, which is why `agent_logs.session_id` had to become
+    polymorphic. `Last-Event-ID` therefore replays a V2 run from a durable id the same way.
+
+    The stop-list is the V1 one plus nothing: a stream held open on a suspended graph waits
+    on no one, so it closes at `PLAN_READY` and `HITL_READY` as well as the two terminals.
+    """
+    await _run_or_404(db, run_id, current_user.id)
+    last_event_id = request.headers.get("last-event-id")
+    after_id = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
+
+    async def gen() -> AsyncGenerator[str, None]:
+        channel = f"session:{run_id}:events"
+        pubsub = redis.pubsub()
+        # Subscribe BEFORE snapshotting the backlog, so an event published in the gap is
+        # queued rather than lost from both — the trap the V1 stream already documents.
+        await pubsub.subscribe(channel)
+        seen_max = after_id
+        try:
+            yield f"data: {json.dumps({'type': 'connected', 'run_id': str(run_id)})}\n\n"
+
+            async with AsyncSessionLocal() as sdb:
+                backlog = (
+                    (
+                        await sdb.execute(
+                            select(AgentLog)
+                            .where(AgentLog.session_id == run_id, AgentLog.id > after_id)
+                            .order_by(AgentLog.id.asc())
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                replay = [(row.id, row.payload) for row in backlog]
+
+            for eid, payload in replay:
+                seen_max = max(seen_max, eid or 0)
+                yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
+                if payload.get("type") in _TERMINAL_EVENTS:
+                    return
+
+            async for message in pubsub.listen():
+                if message["type"] != "message":
+                    continue
+                try:
+                    payload = json.loads(message["data"])
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                eid = payload.get("id")
+                if eid is not None and eid <= seen_max:
+                    continue
+                yield (f"id: {eid}\n" if eid else "") + f"data: {json.dumps(payload)}\n\n"
+                if payload.get("type") in _TERMINAL_EVENTS:
+                    break
+        finally:
+            await pubsub.unsubscribe(channel)
+            await pubsub.aclose()
+
+    return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+
+# ── Exports ───────────────────────────────────────────────────────────────────────
+
+
+async def _latest_revision(db: AsyncSession, run: ResearchRun, version: int | None):
+    query = select(Revision).where(Revision.run_id == run.id)
+    if version is not None:
+        query = query.where(Revision.version == version)
+    revision = (await db.execute(query.order_by(Revision.version.desc()))).scalars().first()
+    if revision is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="This run has no report yet.")
+    return revision
+
+
+async def _source_dicts(db: AsyncSession, run_id) -> list[dict]:
+    """The numbered source list an export renders. Uncited sources are excluded — they
+    have no `[n]` to render against, and inventing one is the thing V2 exists to refuse."""
+    rows = (
+        (
+            await db.execute(
+                select(Source)
+                .where(Source.run_id == run_id, Source.citation_index.isnot(None))
+                .order_by(Source.citation_index)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [{"index": s.citation_index, "url": s.url, "title": s.title or ""} for s in rows]
+
+
+@router.get("/{run_id}/export.md")
+async def export_markdown(
+    run_id: uuid.UUID,
+    revision_version: int | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """The approved bytes, plus the model-attribution footer both hosts already share."""
+    run = await _run_or_404(db, run_id, current_user.id)
+    revision = await _latest_revision(db, run, revision_version)
+    body = _demo_stamped(run, revision.report_markdown) + render_model_attribution_md(
+        run.model_routing
+    )
+    return Response(
+        content=body,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="research-{str(run.id)[:8]}.md"'},
+    )
+
+
+@router.get("/{run_id}/export.pdf")
+async def export_pdf(
+    run_id: uuid.UUID,
+    revision_version: int | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Reuses `app.services.export.render_pdf` — one PDF pipeline, not two."""
+    run = await _run_or_404(db, run_id, current_user.id)
+    revision = await _latest_revision(db, run, revision_version)
+    from app.services import export
+
+    pdf = export.render_pdf(
+        _demo_stamped(run, revision.report_markdown),
+        await _source_dicts(db, run.id),
+        title=run.question[:120],
+        model_routing=run.model_routing,
+    )
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="research-{str(run.id)[:8]}.pdf"'},
+    )
+
+
+def _demo_stamped(run: ResearchRun, report: str) -> str:
+    """Prose exports of a demo run say so; the bundle does not.
+
+    Same split the V1 exports make: `report_hash` is checked against the hash a human
+    approved, so injecting a banner into the bundle's report body would break verification
+    for a reason that has nothing to do with the artifact's integrity. The bundle carries
+    `demo` as a hash-covered field instead.
+    """
+    if not run.demo:
+        return report
+    # Imported here, not at module scope: `app/api/v1/research.py` pulls in
+    # `app.services.export`, and the desktop sidecar's import tree must stay free of
+    # WeasyPrint (`test_sidecar_import_tree_excludes_weasyprint`, docs/13 §7).
+    from app.api.v1.research import _DEMO_STAMP
+
+    return f"{_DEMO_STAMP}{report}"
+
+
+# ── Cancel ────────────────────────────────────────────────────────────────────────
+
+
+@router.post("/{run_id}/cancel")
+async def cancel_run(
+    run_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Record that cancellation was requested. **Advisory, and the response says so.**
+
+    The engine does not check this between nodes, so an in-flight run continues to its next
+    stop. What this does guarantee is durable: the run is marked CANCELLED with a timestamp
+    and an actor, and the UI must not claim the work stopped immediately. Strengthening the
+    engine's cancellation is a separate change and is not made here.
+    """
+    run = await _run_or_404(db, run_id, current_user.id)
+    if run.status in ("COMPLETED", "FAILED", "CANCELLED"):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=f"This run is already {run.status}.")
+    await v2_runtime.request_cancel(db, run, by=current_user.id)
+    await db.commit()
+    return {
+        "status": run.status,
+        "cancelled_at": run.cancelled_at.isoformat(),
+        # Stated in the payload so a client cannot accidentally promise more than is true.
+        "advisory": True,
+        "detail": (
+            "Cancellation recorded. Work already in flight runs to its next checkpoint; "
+            "no new research will be started for this run."
+        ),
     }
