@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 
+import { ProjectResearch } from "@/components/v2/ProjectResearch";
+
 import { useActiveProject } from "@/components/ActiveProject";
 import { RelativeTime } from "@/components/RelativeTime";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -61,12 +63,17 @@ export default function ProjectPage() {
         )}
       </header>
 
+      {/* V2 research comes first: it is how research is done now, and the V1 list below is
+          labelled as the legacy record rather than left to look like a second, unexplained
+          history of the same project. */}
+      <ProjectResearch projectId={activeId} />
+
       <div className="grid gap-4 lg:grid-cols-3">
-        {/* Recent runs */}
+        {/* Legacy V1 sessions */}
         <section aria-labelledby="runs" className="card lg:col-span-2">
           <div className="mb-3 flex items-baseline justify-between">
             <h2 id="runs" className="font-serif text-base font-bold text-text-primary">
-              Recent research
+              Legacy sessions
             </h2>
             <Link href="/history" className="font-mono text-xs text-accent hover:underline">
               All runs →

@@ -13,28 +13,38 @@ Nothing here reads `DATABASE_URL`. The Postgres half of the dry run lives in
 
 from __future__ import annotations
 
+import pathlib
+
 import pytest
 from sqlalchemy import func, select, update
 
-from app.models.research import Evidence, ResearchRun, Source
+from app.models.research import Contradiction, Evidence, ResearchRun, Source
 from app.models.review import Review
 from app.models.revision import Claim, ClaimEvidenceLink, Revision
 from app.models.session import Session, SessionStatus
+from migration import dryrun, provenance
 from migration import engine as engine_mod
 from migration.bundle_equivalence import (
     KNOWN_LOSSY,
     REVIEW_TO_V1_ACTION,
     BundleVerdict,
+    assemble_v2,
+    check_validity,
     compare_run,
+    validate_run,
 )
 from migration.checkpoint import CheckpointOutcome, read_checkpoint
 from migration.dryrun import put_checkpoint
 from migration.ledger import TERMINAL, MigrationLedger, MigrationStatus
 from migration.runner import migrate_all
+from research_engine.bundle import content_hash
+from research_engine.graph import _number_sources
 from tests.migration_support import (
     CONTRADICTIONS,
     EVIDENCE,
+    EVIDENCE_NO_URL,
     PLAN,
+    REPORT,
     FakeSaver,
     open_db,
     seed,
@@ -126,38 +136,85 @@ async def test_a_v2_difference_is_reported_not_ignored(db):
     assert result.limitation == "UNCLASSIFIED"
 
 
-async def test_contradictions_do_not_round_trip_and_say_so(db):
-    """A documented V2 mapping limitation, surfaced rather than normalised away.
+async def test_contradictions_round_trip_at_the_granularity_v1_observed(db):
+    """All seven V1 fields survive, and the pair is anchored where V1 anchored it.
 
-    V1 keys a contradiction by source URL. V2 keys it by evidence id, and the migration
-    leaves both NULL because V1 never recorded which evidence row a side came from. The
-    bundle therefore cannot be rebuilt, and the comparison reports exactly that field.
+    V1's detector is shown `{source_url: [snippets]}` and never sees an evidence row, so
+    the pair is source-level. Until M2F the schema demanded evidence references V1 never
+    recorded, which forced the migration to write `NOT_RUN` about a detector that had run.
     """
     sid = await _seed_complete(db)
     saver = FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": CONTRADICTIONS}})
     await migrate_all(db, saver)
 
+    row = (await db.execute(select(Contradiction))).scalar_one()
+    assert row.detection_state == "DETECTED"
+    assert row.source_a_id is not None and row.source_b_id is not None
+    assert row.nature and row.quote_a and row.summary_a
+
     session = (await db.execute(select(Session).where(Session.id == sid))).scalar_one()
     result = await compare_run(db, saver, session)
-    assert result.verdict is BundleVerdict.BUNDLE_MISMATCH
-    assert result.differing_fields == ["contradictions", "bundle_hash"]
-    assert result.limitation == "CONTRADICTION_PAIR_NOT_STORED"
+    assert result.verdict is BundleVerdict.BUNDLE_EQUIVALENT, (
+        result.differing_fields,
+        result.detail,
+    )
+
+
+async def test_an_ambiguous_quotation_does_not_become_an_evidence_reference(db):
+    """Two evidence rows from one source carrying the same text: the refinement must not pick.
+
+    Choosing "the first" would assert a link the detector never made. The pair stays
+    DETECTED — V1 did detect it — with the evidence anchors NULL.
+    """
+    duplicated = [
+        {**EVIDENCE[0], "task_id": 1},
+        {**EVIDENCE[0], "task_id": 2},
+        EVIDENCE[1],
+    ]
+    sid = await _seed_complete(db, sources=_number_sources(duplicated)[0])
+    saver = FakeSaver({str(sid): {"evidence": duplicated, "contradictions": CONTRADICTIONS}})
+    await migrate_all(db, saver)
+
+    row = (await db.execute(select(Contradiction))).scalar_one()
+    assert row.detection_state == "DETECTED", "the detector did run and did find a pair"
+    assert row.source_a_id is not None, "the source anchor is what V1 guarantees"
+    assert row.evidence_a_id is None, "an ambiguous quotation must not resolve"
+    assert row.evidence_b_id is None, "ck_contra_refine: half a pair is not a pair"
+
+
+async def test_a_unique_quotation_does_refine_to_its_evidence_row(db):
+    """The refinement is allowed — it is only the guessing that is not."""
+    sid = await _seed_complete(db)
+    saver = FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": CONTRADICTIONS}})
+    await migrate_all(db, saver)
+
+    row = (await db.execute(select(Contradiction))).scalar_one()
+    # `snippet_a` is the exact text of evidence[0]; `snippet_b` is empty, so side B cannot
+    # resolve — and ck_contra_refine therefore clears side A too.
+    assert row.quote_a == EVIDENCE[0]["snippet"]
+    assert (row.evidence_a_id is None) == (row.evidence_b_id is None)
 
 
 @pytest.mark.parametrize(
-    ("kwargs", "reason"),
+    ("kwargs", "expected"),
     [
-        ({"status": SessionStatus.FAILED}, "V1_STATUS_"),
-        ({"report": None}, "V1_NO_REPORT"),
+        ({"status": SessionStatus.FAILED}, {"V1_STATUS_NOT_COMPLETED"}),
+        ({"report": None}, {"V1_NO_REPORT"}),
+        (
+            # Both are true at once, and the point of a reason *set* is that both are said.
+            {"status": SessionStatus.FAILED, "report": None},
+            {"V1_STATUS_NOT_COMPLETED", "V1_NO_REPORT"},
+        ),
     ],
 )
-async def test_uncomparable_runs_are_labelled_not_scored(db, kwargs, reason):
+async def test_uncomparable_runs_report_every_applicable_v1_reason(db, kwargs, expected):
     sid = await seed(db, **kwargs)
     saver = FakeSaver({str(sid): {"evidence": [], "contradictions": []}})
     session = (await db.execute(select(Session).where(Session.id == sid))).scalar_one()
     result = await compare_run(db, saver, session)
     assert result.verdict is BundleVerdict.NOT_COMPARABLE
-    assert result.reason.startswith(reason)
+    assert set(result.v1_reasons) == expected
+    assert result.v2_reasons, "the V2 axis must always be stated too, never left blank"
 
 
 async def test_a_missing_checkpoint_is_not_comparable_rather_than_empty(db):
@@ -166,7 +223,37 @@ async def test_a_missing_checkpoint_is_not_comparable_rather_than_empty(db):
     session = (await db.execute(select(Session).where(Session.id == sid))).scalar_one()
     result = await compare_run(db, FakeSaver({}), session)
     assert result.verdict is BundleVerdict.NOT_COMPARABLE
-    assert result.reason == "V1_CHECKPOINT_MISSING"
+    assert result.v1_reasons == ["V1_CHECKPOINT_MISSING"]
+
+
+async def test_a_refused_run_reports_V2_RUN_ABSENT_and_not_only_a_v1_property(db):
+    """The masking defect, pinned.
+
+    Before the two-axis form, this run reported `V1_STATUS_FAILED` — a property of V1 —
+    while the material fact was that the migration had refused it. 12 of the 48
+    not-comparable runs in the M2E-2 corpus were in exactly this position (M2F §9.2).
+    """
+    sid = await seed(db, status=SessionStatus.FAILED, report=None, sources=[])
+    saver = FakeSaver({str(sid): {"evidence": EVIDENCE_NO_URL, "contradictions": []}})
+    await migrate_all(db, saver)
+    assert (
+        await db.execute(select(MigrationLedger))
+    ).scalar_one().status == MigrationStatus.INCONSISTENT_V1
+
+    session = (await db.execute(select(Session).where(Session.id == sid))).scalar_one()
+    result = await compare_run(db, saver, session)
+    assert result.verdict is BundleVerdict.NOT_COMPARABLE
+    assert result.v2_reasons == ["V2_RUN_ABSENT"], "the migration outcome must not be masked"
+    assert set(result.v1_reasons) == {"V1_STATUS_NOT_COMPLETED", "V1_NO_REPORT"}
+
+
+async def test_no_not_comparable_run_lands_in_an_empty_bucket(db):
+    """Every axis always names at least one reason — there is no 'other'."""
+    for kwargs in ({"status": SessionStatus.FAILED}, {"report": None}, {"sources": []}):
+        sid = await seed(db, **kwargs)
+        session = (await db.execute(select(Session).where(Session.id == sid))).scalar_one()
+        result = await compare_run(db, FakeSaver({}), session)
+        assert result.v1_reasons and result.v2_reasons, (kwargs, result)
 
 
 async def test_the_audit_action_map_is_invertible(db):
@@ -176,8 +263,14 @@ async def test_the_audit_action_map_is_invertible(db):
     emitting an empty `action` into a bundle that then verifies against nothing.
     """
     forward = {(gate, dec): action for action, (gate, dec, _) in engine_mod.AUDIT_MAP.items()}
-    assert forward == REVIEW_TO_V1_ACTION
     assert len(forward) == len(engine_mod.AUDIT_MAP), "AUDIT_MAP is not injective"
+    # A subset, not equality: the shared map also covers decisions only a V2-NATIVE run can
+    # reach (REJECTED, plan rework), which V1 had no action for. What must hold is that
+    # every V1 action round-trips and that no two V2 pairs share a serialized action.
+    assert forward.items() <= REVIEW_TO_V1_ACTION.items()
+    assert len(set(REVIEW_TO_V1_ACTION.values())) == len(REVIEW_TO_V1_ACTION), (
+        "two V2 decisions serialize to one action — the chain is no longer comparable"
+    )
 
 
 # ── B: resume after interruption ──────────────────────────────────────────────────
@@ -329,13 +422,17 @@ async def test_every_considered_session_has_exactly_one_terminal_outcome(db, mon
     orphan = await seed(db, sources=[])
     no_report = await seed(db, report=None)
     nothing_at_all = await seed(db, report=None)
+    plan_only = await seed(
+        db, status=SessionStatus.AWAITING_PLAN, report=None, audits=[("plan_approved", "a" * 64)]
+    )
 
     saver = FakeSaver(
         {
             str(good): {"evidence": EVIDENCE, "contradictions": []},
             str(empty): {"evidence": [], "contradictions": []},
             str(unreadable): FakeSaver.BOOM,
-            str(orphan): {"evidence": EVIDENCE, "contradictions": []},
+            str(orphan): {"evidence": EVIDENCE_NO_URL, "contradictions": []},
+            str(plan_only): {"evidence": [], "contradictions": []},
             str(no_report): {"evidence": EVIDENCE, "contradictions": []},
             str(nothing_at_all): {"evidence": [], "contradictions": []},
         }
@@ -343,17 +440,18 @@ async def test_every_considered_session_has_exactly_one_terminal_outcome(db, mon
     report = await migrate_all(db, saver)
 
     sessions = (await db.execute(select(func.count()).select_from(Session))).scalar_one()
-    assert report.considered == sessions == 7
+    assert report.considered == sessions == 8
     assert report.accounted == report.considered, "unexplained remainder"
 
     rows = {r.session_id: r for r in (await db.execute(select(MigrationLedger))).scalars()}
-    assert len(rows) == 7, "one ledger row per considered session, no more and no less"
+    assert len(rows) == 8, "one ledger row per considered session, no more and no less"
     assert all(r.status in TERMINAL for r in rows.values()), "a run left IN_PROGRESS"
     assert rows[good].status == MigrationStatus.MIGRATED
     assert rows[empty].status == MigrationStatus.EMPTY
     assert rows[missing].status == MigrationStatus.CHECKPOINT_MISSING
     assert rows[unreadable].status == MigrationStatus.READ_FAILURE
     assert rows[orphan].status == MigrationStatus.INCONSISTENT_V1
+    assert rows[plan_only].failure_category == "PLAN_REVIEW_WITHOUT_PLAN"
     assert rows[no_report].status == MigrationStatus.NO_REPORT
 
     # `status` is a single slot and this run has two findings at once: no checkpoint
@@ -490,3 +588,323 @@ async def test_no_known_limitation_silently_covers_an_unrelated_field():
     allowed = {"contradictions", "sources"}
     for fields in KNOWN_LOSSY:
         assert set(fields) <= allowed, f"{sorted(fields)} is not a known V2 storage gap"
+
+
+# ── Gate B: internal bundle validity, kept apart from fidelity ───────────────────
+#
+# M2E-2 reported 124 runs BUNDLE_EQUIVALENT and would have failed `verify_bundle` on every
+# one of them, because the corpus used placeholder approval hashes. "Says the same thing"
+# and "is internally valid" are different properties, and the whole point of these tests is
+# that neither implies the other.
+
+
+def _real_audits(report: str) -> list[tuple[str, str]]:
+    """Approval hashes that actually bind to the report, as V1's gate writes them."""
+    return [
+        ("plan_approved", content_hash("the plan")),
+        ("approved", content_hash(report)),
+    ]
+
+
+async def test_a_migrated_run_produces_a_bundle_that_verifies(db):
+    sid = await _seed_complete(db, audits=_real_audits(REPORT))
+    saver = FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": []}})
+    await migrate_all(db, saver)
+    session = (await db.execute(select(Session).where(Session.id == sid))).scalar_one()
+
+    result = await validate_run(db, saver, session)
+    assert result.fidelity.verdict is BundleVerdict.BUNDLE_EQUIVALENT
+    assert result.validity_v1.passed is True, result.validity_v1.failed_checks
+    assert result.validity_v2.passed is True, result.validity_v2.failed_checks
+
+
+async def test_a_bundle_can_be_equivalent_and_invalid(db):
+    """The distinction the three gates exist to preserve, as a live example.
+
+    Placeholder approval hashes — exactly what the M2E-2 corpus used — make both bundles
+    fail `approval_chain` while the two representations remain identical.
+    """
+    sid = await _seed_complete(db)  # the default fixture's hashes are placeholders
+    saver = FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": []}})
+    await migrate_all(db, saver)
+    session = (await db.execute(select(Session).where(Session.id == sid))).scalar_one()
+
+    result = await validate_run(db, saver, session)
+    assert result.fidelity.verdict is BundleVerdict.BUNDLE_EQUIVALENT
+    assert result.validity_v1.passed is False
+    assert result.validity_v2.passed is False
+    assert "approval_chain" in result.validity_v2.failed_checks
+    # Both sides fail identically: V1 was already unverifiable and V2 inherited it. That is
+    # not a migration defect, and must not be reported as one.
+    assert result.validity_v1.failed_checks == result.validity_v2.failed_checks
+
+
+async def test_an_unassembled_bundle_is_not_measured_rather_than_failed(db):
+    """`passed is None` is the unmeasured-vs-zero rule applied to Gate B."""
+    sid = await seed(db, report=None)
+    session = (await db.execute(select(Session).where(Session.id == sid))).scalar_one()
+    v1, v2 = await check_validity(db, FakeSaver({}), session)
+    for side in (v1, v2):
+        assert side.assembled is False
+        assert side.passed is None, "a bundle that could not be built has not failed"
+        assert side.failed_checks == []
+
+
+async def test_no_v2_bundle_is_emitted_when_the_evidence_was_unreadable(db, real_saver):
+    """Invariant I10: a read path must not present evidence the migration could not read.
+
+    Found by measurement in F1 — before this, V1 refused to assemble such a run while V2
+    emitted a bundle whose every citation resolved to nothing and which failed its own
+    `claim_evidence_linkage` check.
+    """
+    sid = await _seed_complete(db, audits=_real_audits(REPORT))
+    await put_checkpoint(
+        real_saver, str(sid), {"evidence": EVIDENCE, "contradictions": []}, corrupt=True
+    )
+    await migrate_all(db, real_saver)
+    assert await _count(db, ResearchRun) == 1, "the run itself still migrates"
+
+    manifest, why = await assemble_v2(db, sid)
+    assert manifest is None
+    assert why == "V2_EVIDENCE_UNAVAILABLE"
+
+
+async def test_a_v2_native_run_is_not_gated_on_a_ledger_row(db):
+    """Absence of a ledger row means V2-native: its evidence rows ARE the record.
+
+    Without this the read contract would be inverted — every unmigrated run would look
+    like one whose evidence could not be read.
+    """
+    sid = await _seed_complete(db, audits=_real_audits(REPORT))
+    saver = FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": []}})
+    await migrate_all(db, saver)
+    await db.execute(MigrationLedger.__table__.delete())
+    await db.commit()
+
+    manifest, why = await assemble_v2(db, sid)
+    assert manifest is not None, why
+
+
+# ── I4: a PLAN approval must never serialize as a report approval ────────────────
+
+
+async def test_a_plan_approval_never_serializes_as_approved(db):
+    """`verify_bundle` treats `action == "approved"` as report authorization.
+
+    It rejects `plan_approved` today only because V1 happens to use a distinct string —
+    string inequality, not design. If a V2 assembler ever mapped an APPROVED review to
+    `"approved"` regardless of gate, a plan approval would satisfy the verifier's
+    load-bearing check, in a file no database constraint reaches (M2F Amendment §5.3).
+    """
+    assert REVIEW_TO_V1_ACTION[("PLAN", "APPROVED")] == "plan_approved"
+    assert REVIEW_TO_V1_ACTION[("REPORT", "APPROVED")] == "approved"
+
+    sid = await _seed_complete(db, audits=_real_audits(REPORT))
+    saver = FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": []}})
+    await migrate_all(db, saver)
+
+    manifest, _ = await assemble_v2(db, sid)
+    actions = [a.action for a in manifest.approval_chain]
+    assert "plan_approved" in actions
+    assert actions.count("approved") == 1, "the plan approval must not become a second one"
+
+
+# ── Gate C: historical non-fabrication ───────────────────────────────────────────
+
+
+def test_every_column_the_engine_writes_has_a_declared_provenance():
+    """The structural half of Gate C. Static, so a column in an unexercised branch counts."""
+    assert provenance.undeclared_columns() == []
+
+
+def test_no_provenance_declaration_describes_a_column_that_is_gone():
+    """The map must not become a description of a past version of the engine."""
+    assert provenance.stale_declarations() == []
+
+
+def test_an_undeclared_column_is_detected(tmp_path):
+    """The plant, run against a copy so the real engine is never edited."""
+    source = pathlib.Path(provenance.ENGINE_PATH).read_text()
+    planted = source.replace(
+        "                    content_hash=_sha(snippet),",
+        "                    content_hash=_sha(snippet),\n"
+        "                    made_up_column=1,  # PLANT: an undeclared write",
+        1,
+    )
+    assert planted != source, "the plant did not apply — the anchor moved"
+    path = tmp_path / "engine_planted.py"
+    path.write_text(planted)
+    assert provenance.undeclared_columns(path) == ["evidence.made_up_column"]
+
+
+def test_every_declared_constant_is_backed_by_a_reason():
+    """A constant without a stated reason is an unexamined default, not a decision."""
+    for table, columns in provenance.PROVENANCE.items():
+        for column, prov in columns.items():
+            if prov.kind in (provenance.Kind.CONST, provenance.Kind.NULL):
+                assert prov.reason.strip(), f"{table}.{column} has no reason"
+
+
+async def test_declared_constants_hold_in_the_migrated_rows(db):
+    """The runtime half. The map could say UNCHECKED while the engine writes ATTESTED."""
+    sid = await _seed_complete(db, audits=_real_audits(REPORT))
+    saver = FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": CONTRADICTIONS}})
+    await migrate_all(db, saver)
+    assert await _count(db, Evidence) > 0, "vacuous otherwise"
+    assert await provenance.constant_violations(db) == []
+
+
+# ── M8: the dry-run corpus itself is a fixture, and fixtures rot silently ────────
+#
+# M2E-2 measured bundle equivalence on 124 runs whose approval hashes were placeholders,
+# so every one of those bundles would have failed `verify_bundle`. The corpus now uses real
+# digests — and these tests exist because reverting that change broke nothing: the rest of
+# the suite uses `tests/migration_support.py`, and the dry-run corpus is only exercised when
+# someone runs the dry run by hand.
+
+
+def test_the_dry_run_corpus_binds_its_approvals_to_its_reports():
+    """An `approved` entry must hash the report it approved, or it authorizes nothing."""
+    checked = 0
+    for spec in (dryrun.build_shape(shape.name, i) for i, shape in enumerate(dryrun.SHAPES)):
+        approvals = [h for action, h in spec["audits"] if action == "approved"]
+        if not approvals:
+            continue
+        assert spec["report"], f"{spec['shape']} approves a report it does not have"
+        assert approvals == [content_hash(spec["report"])], spec["shape"]
+        checked += 1
+    assert checked >= 5, "too few shapes carry an approval for this to mean anything"
+
+
+def test_a_rework_request_does_not_hash_the_report_that_shipped():
+    """The rework was asked for against an earlier draft; only the approval binds."""
+    spec = dryrun.build_shape("reworked", 0)
+    reworks = [h for action, h in spec["audits"] if action == "rework_requested"]
+    assert reworks and reworks[0] != content_hash(spec["report"])
+
+
+async def test_equivalent_corpus_bundles_are_valid_on_both_sides(maker, real_saver):
+    """Acceptance criterion G4, as a test rather than only as a dry-run check.
+
+    Gate A and Gate B are independent, so `BUNDLE_EQUIVALENT` never implies validity — but
+    for a run where both sides assemble and V1 itself verifies, the migration must not have
+    produced something that does not.
+    """
+    corpus = [dryrun.build_shape(shape.name, i) for i, shape in enumerate(dryrun.SHAPES)]
+    async with maker() as db:
+        await dryrun.seed_corpus(db, real_saver, corpus)
+        await migrate_all(db, real_saver)
+
+        equivalent = 0
+        for sid in (await db.execute(select(Session.id))).scalars().all():
+            session = (await db.execute(select(Session).where(Session.id == sid))).scalar_one()
+            result = await validate_run(db, real_saver, session)
+            if result.fidelity.verdict is not BundleVerdict.BUNDLE_EQUIVALENT:
+                continue
+            equivalent += 1
+            assert result.validity_v1.passed is True, (
+                sid,
+                result.validity_v1.failed_checks,
+            )
+            assert result.validity_v2.passed is True, (
+                sid,
+                result.validity_v2.failed_checks,
+            )
+        assert equivalent >= 4, f"only {equivalent} equivalent runs — the assertion is thin"
+
+
+async def test_the_migration_never_invalidates_a_bundle_v1_could_verify(maker, real_saver):
+    """The one Gate B pairing that IS a migration defect: V1 valid, V2 invalid."""
+    corpus = [dryrun.build_shape(shape.name, i) for i, shape in enumerate(dryrun.SHAPES)]
+    async with maker() as db:
+        await dryrun.seed_corpus(db, real_saver, corpus)
+        await migrate_all(db, real_saver)
+
+        broken = []
+        for sid in (await db.execute(select(Session.id))).scalars().all():
+            session = (await db.execute(select(Session).where(Session.id == sid))).scalar_one()
+            v1, v2 = await check_validity(db, real_saver, session)
+            if v1.passed is True and v2.passed is False:
+                broken.append((str(sid), v2.failed_checks))
+        assert broken == [], f"the migration broke {len(broken)} verifiable bundle(s)"
+
+
+# ── The four gaps the F2/F3 plant sweep found silent ─────────────────────────────
+
+
+async def test_the_bundle_chain_follows_decision_order_not_the_clock(db):
+    """`reviews.sequence` is the order, and the bundle must read it.
+
+    The fixture's later `audit_log` row carries an EARLIER timestamp, so a chain ordered by
+    `created_at` comes out reversed. V1 guarantees neither distinctness nor monotonicity on
+    that column — only `audit_log.id` is monotonic — which is why S5 exists.
+    """
+    sid = await _seed_complete(
+        db,
+        audits=[("plan_approved", content_hash("plan")), ("approved", content_hash(REPORT))],
+        descending_audit_times=True,
+    )
+    saver = FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": []}})
+    await migrate_all(db, saver)
+
+    rows = (await db.execute(select(Review).order_by(Review.sequence))).scalars().all()
+    assert [r.gate for r in rows] == ["PLAN", "REPORT"]
+    assert rows[0].created_at > rows[1].created_at, "the fixture must invert the clock"
+
+    manifest, _ = await assemble_v2(db, sid)
+    assert [a.action for a in manifest.approval_chain] == ["plan_approved", "approved"]
+
+
+async def test_an_ambiguous_quotation_leaves_both_anchors_null(db):
+    """Both sides quoted, side A ambiguous: the refinement must decline, not pick.
+
+    Distinct from the all-or-nothing rule — here side B resolves perfectly, so only the
+    unique-match requirement can stop side A from guessing.
+    """
+    duplicated = [
+        {**EVIDENCE[0], "task_id": 1},
+        {**EVIDENCE[0], "task_id": 2},
+        {**EVIDENCE[1], "snippet": "A distinct passage from source b."},
+    ]
+    pair = [
+        {
+            "claim_a": "a",
+            "snippet_a": EVIDENCE[0]["snippet"],
+            "source_a": "https://e.org/a",
+            "claim_b": "b",
+            "snippet_b": "A distinct passage from source b.",
+            "source_b": "https://e.org/b",
+            "nature": "n",
+        }
+    ]
+    sid = await _seed_complete(db, sources=_number_sources(duplicated)[0])
+    await migrate_all(db, FakeSaver({str(sid): {"evidence": duplicated, "contradictions": pair}}))
+
+    row = (await db.execute(select(Contradiction))).scalar_one()
+    assert row.detection_state == "DETECTED", "the sources resolve, so the pair is real"
+    assert row.evidence_a_id is None, "two rows carry that quotation — it must not pick one"
+    assert row.evidence_b_id is None, "and half a resolved pair is not a pair"
+
+
+async def test_a_pair_naming_an_unknown_source_is_not_DETECTED(db):
+    """`DETECTED` requires both source anchors. An unresolvable side is not a detection."""
+    pair = [
+        {
+            "claim_a": "a",
+            "snippet_a": EVIDENCE[0]["snippet"],
+            "source_a": "https://e.org/a",
+            "claim_b": "b",
+            "snippet_b": "x",
+            "source_b": "https://not-in-this-run.invalid/z",
+            "nature": "n",
+        }
+    ]
+    sid = await _seed_complete(db)
+    await migrate_all(db, FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": pair}}))
+
+    row = (await db.execute(select(Contradiction))).scalar_one()
+    assert row.detection_state == "NOT_RUN"
+    assert row.source_a_id is None and row.source_b_id is None
+    # The quotations and the reason survive even though the pair could not be anchored:
+    # dropping them would lose a V1 fact to make a constraint pass.
+    assert row.quote_a and row.nature and row.summary_a

@@ -66,11 +66,23 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from sqlalchemy import event, func, select
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+# `download_headers` is the server's response-header policy for uploaded documents (the
+# no-render rule plus the narrow PDF exception). Imported, never restated: a second copy
+# of a security header policy is the worst kind of duplication this repo has.
+from app.api.v1.corpus import download_headers
+
+# The V2 request models are imported, not restated: the desktop host must accept exactly
+# the body the server does, and two Pydantic models with the same name in two files is how
+# that stops being true.
+from app.api.v1.v2_runs import CreateRunRequest as V2CreateRunRequest
+from app.api.v1.v2_runs import PlanReviewRequest as V2PlanReviewRequest
+from app.api.v1.v2_runs import ReportReviewRequest as V2ReportReviewRequest
 from app.models import POSTGRES_ONLY_TABLES, Base
 from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
@@ -78,10 +90,6 @@ from app.models.chat_message import ChatMessage
 from app.models.project import Project
 from app.models.session import Session, SessionStatus
 from app.models.user import User
-# `download_headers` is the server's response-header policy for uploaded documents (the
-# no-render rule plus the narrow PDF exception). Imported, never restated: a second copy
-# of a security header policy is the worst kind of duplication this repo has.
-from app.api.v1.corpus import download_headers
 from app.schemas.auth import UsageResponse
 from app.schemas.project import ProjectCreateRequest, ProjectListResponse, ProjectResponse
 from app.schemas.research import (
@@ -99,18 +107,15 @@ from app.schemas.research import (
     SessionListResponse,
     SessionSummary,
 )
-from app.services import local_llm, provider_health, usage
-from app.services import chat_scope
+from app.services import chat_scope, local_llm, provider_health, usage
 from app.services.sse import SSE_HEADERS
 from research_engine import bundle, catalog, citation_rate, outlines, prompts
 from research_engine.corpus import CorpusStore
 from research_engine.documents import MAX_DOCUMENT_BYTES
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-
 from research_engine.embeddings import EmbeddingsUnavailable, LocalEmbeddings
+from research_engine.events import make_event
 from research_engine.graph import build_graph
 from research_engine.llm_factory import get_llm, text_of
-from research_engine.events import make_event
 from research_engine.local import SqliteCache, load_env_file
 from research_engine.runconfig import (
     DEFAULT_MODELS,
@@ -2221,6 +2226,187 @@ def create_sidecar_app(
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Document not found.")
         data, filename, kind = found
         return Response(content=data, headers=download_headers(kind, filename))
+
+    # ── The V2 run surface ────────────────────────────────────────────────────────
+    #
+    # Second home of `app/api/v1/v2_runs.py`, added in the SAME milestone as the server
+    # routes rather than a release later. The chat panel and the bundle export both shipped
+    # server-only and 404'd in the desktop build for a whole release; `test_host_parity`
+    # exists to stop the third instance, and it caught these five before they landed.
+    #
+    # Only two things differ, and nothing else should: the user comes from the per-launch
+    # local token instead of a JWT, and the projection/lifecycle/bundle code is *imported*
+    # from `app/` rather than restated — one contract, one implementation.
+
+    async def _v2_run_or_404(db: AsyncSession, run_id: uuid.UUID, owner_id: uuid.UUID):
+        from app.api.v1.v2_runs import _run_or_404
+
+        return await _run_or_404(db, run_id, owner_id)
+
+    @api.post("/v2/runs", status_code=201)
+    async def v2_create_run(
+        body: V2CreateRunRequest,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.v2_runs import create_run
+
+        return await create_run(body, db, user)
+
+    @api.get("/v2/runs")
+    async def v2_list_runs(
+        project_id: uuid.UUID | None = None,
+        limit: int = 50,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.v2_runs import list_runs
+
+        return await list_runs(project_id, limit, db, user)
+
+    @api.get("/v2/runs/{run_id}")
+    async def v2_get_run(
+        run_id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.v2_runs import project_run
+
+        return await project_run(db, await _v2_run_or_404(db, run_id, user.id))
+
+    @api.post("/v2/runs/{run_id}/plan-review", status_code=201)
+    async def v2_submit_plan_review(
+        run_id: uuid.UUID,
+        body: V2PlanReviewRequest,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.v2_runs import submit_plan_review
+
+        return await submit_plan_review(run_id, body, db, user)
+
+    @api.post("/v2/runs/{run_id}/report-review", status_code=201)
+    async def v2_submit_report_review(
+        run_id: uuid.UUID,
+        body: V2ReportReviewRequest,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.v2_runs import submit_report_review
+
+        return await submit_report_review(run_id, body, db, user)
+
+    @api.get("/v2/runs/{run_id}/stream")
+    async def v2_stream_run(
+        run_id: uuid.UUID,
+        request: Request,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        """The V2 stream, over this host's in-process bus rather than Redis.
+
+        The only difference from the server, and the same one the V1 stream already has:
+        there is no Redis here, so the live tail comes from `SessionEventBus`. Backlog,
+        `Last-Event-ID` replay and the stop-list are identical, and the backlog query works
+        unchanged because `agent_logs.session_id` is polymorphic.
+        """
+        from app.api.v1.v2_runs import _TERMINAL_EVENTS as V2_TERMINAL
+        from app.api.v1.v2_runs import _run_or_404
+
+        run = await _run_or_404(db, run_id, user.id)
+        bus: SessionEventBus = app.state.sidecar["bus"]
+        last_event_id = request.headers.get("last-event-id")
+        after_id = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
+
+        async with session_factory() as sdb:
+            backlog = [
+                (row.id, row.payload)
+                for row in (
+                    await sdb.execute(
+                        select(AgentLog)
+                        .where(AgentLog.session_id == run_id, AgentLog.id > after_id)
+                        .order_by(AgentLog.id.asc())
+                    )
+                )
+                .scalars()
+                .all()
+            ]
+        already_done = run.status in ("COMPLETED", "FAILED", "CANCELLED")
+
+        async def gen() -> AsyncGenerator[str, None]:
+            yield f"data: {json.dumps({'type': 'connected', 'run_id': str(run_id)})}\n\n"
+            seen_max = after_id
+            for eid, payload in backlog:
+                seen_max = max(seen_max, eid or 0)
+                yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
+                if payload.get("type") in V2_TERMINAL:
+                    return
+            if already_done:
+                return
+            async with bus.subscribe(str(run_id)) as queue:
+                while True:
+                    eid, payload = await queue.get()
+                    if eid <= seen_max:
+                        continue
+                    yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
+                    seen_max = eid
+                    if payload.get("type") in V2_TERMINAL:
+                        return
+
+        return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+    @api.get("/v2/runs/{run_id}/export.md")
+    async def v2_export_markdown(
+        run_id: uuid.UUID,
+        revision_version: int | None = None,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.v2_runs import export_markdown
+
+        return await export_markdown(run_id, revision_version, db, user)
+
+    @api.get("/v2/runs/{run_id}/export.pdf", status_code=501)
+    async def v2_export_pdf(run_id: uuid.UUID):
+        # By design (docs/13 §7), same as the V1 route: desktop PDF is the WebView's
+        # print-to-PDF, and WeasyPrint stays out of the bundle. Declaring the route rather
+        # than omitting it is what makes the 501 a documented answer instead of a 404 the
+        # UI has to guess about.
+        raise HTTPException(
+            status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Desktop PDF uses the app's Print → Save as PDF. Server-side PDF is "
+            "not part of the desktop bundle.",
+        )
+
+    @api.post("/v2/runs/{run_id}/cancel")
+    async def v2_cancel_run(
+        run_id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.v2_runs import cancel_run
+
+        return await cancel_run(run_id, db, user)
+
+    @api.get("/v2/runs/{run_id}/bundle.json")
+    async def v2_get_bundle(
+        run_id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.v2_runs import get_bundle
+
+        return await get_bundle(run_id, db, user)
+
+    @api.get("/v2/runs/{run_id}/verification")
+    async def v2_get_verification(
+        run_id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.v2_runs import get_verification
+
+        return await get_verification(run_id, db, user)
 
     app.include_router(api)
     return app
