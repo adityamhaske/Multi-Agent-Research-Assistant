@@ -510,6 +510,13 @@ recommending one: make `revision_id` nullable and lean on `ck_review_plan`; give
 polymorphic subject; or admit a plan-scoped review table. Each has consequences for
 `uq_review_approval` and for the artifact FK chain, which is why it is not decided here.
 
+> **Superseded by M2F (F1).** This item's classification was wrong and its name has changed
+> to `V1_SOURCE_SNAPSHOT_DIVERGED_FROM_EVIDENCE`. The field is derived data — `_number_sources`
+> computes it, `verify_bundle` never reads it — and the V1 bundle for a mismatching run fails
+> its own `claim_evidence_linkage` check. It is a V1 inconsistency, not a V2 storage gap. The
+> measurement below stands; the reading of it does not. See
+> `V2_Migration_Fidelity_M2F.md` §9.1 and the amendment §2 C1.
+
 **2. `sources` does not store the snippet list, so `sessions.sources` cannot round-trip.**
 16 of 200 bundles mismatched on this field (`SOURCE_SNIPPETS_NOT_STORED`). V1's source entry
 carries `snippet` and `snippets`, both derived by `_number_sources` from the evidence. V2
@@ -534,6 +541,11 @@ means adding a column to M2D. Recorded so M2F can decide.
 
 **Also recorded, not a schema limitation:** `EMPTY`, `CHECKPOINT_MISSING` and `READ_FAILURE`
 are indistinguishable in the V2 domain tables — see §10.
+
+> **Resolved by M2F (F1), without a schema change.** The distinction stays in
+> `migration_ledger`, and the V2 bundle assembler now consults it: a run whose checkpoint could
+> not be read produces no bundle rather than one asserting zero evidence. Absence of a ledger
+> row means the run is V2-native, so its evidence rows are the complete record. Amendment §9.
 
 ---
 

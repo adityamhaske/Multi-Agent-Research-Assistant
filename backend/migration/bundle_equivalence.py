@@ -7,6 +7,17 @@ as `app/api/v1/research.py::export_bundle_json` does. The V2 bundle is assembled
 migrated domain tables. Both go through the same `research_engine.bundle.assemble`, so any
 difference is a difference in the *data*, not in the format.
 
+**Three independent gates, never combined into one verdict** (M2F Amendment §10). A bundle
+can be *equivalent but invalid* — the entire M2E-2 corpus was, because its approval hashes were
+placeholders — *valid but intentionally lossy*, or *not comparable* and still required to be
+non-fabricated. No two of the three imply the third.
+
+| | Gate | Question | Lives in |
+|---|---|---|---|
+| **A** | fidelity | does V2 say what V1 said? | `compare_run` |
+| **B** | validity | does each bundle pass `verify_bundle` on its own terms? | `check_validity` |
+| **C** | non-fabrication | is every migrated fact traceable to V1? | `migration/provenance.py` |
+
 **What a match does and does not mean.** `BUNDLE_EQUIVALENT` means one thing only:
 
     the V1 representation and the V2 representation are the same
@@ -45,7 +56,9 @@ from app.models.review import Review
 from app.models.revision import Revision
 from app.models.session import Session, SessionStatus
 from migration.checkpoint import CheckpointOutcome, read_checkpoint
+from migration.ledger import MigrationLedger
 from research_engine import bundle as bundle_mod
+from research_engine import verify_bundle
 
 #: The only fields normalised before comparison. See the module docstring.
 NORMALISED_FIELDS = ("created_at", "bundle_hash")
@@ -70,33 +83,93 @@ KNOWN_LOSSY: dict[frozenset[str], str] = {
     # V1 keys a contradiction by source URL; V2 keys it by evidence id and the migration
     # leaves both NULL, because V1 never recorded which evidence row a side came from.
     frozenset({"contradictions"}): "CONTRADICTION_PAIR_NOT_STORED",
-    # V2's `sources` has no snippet columns. The V1 shape is rebuilt by replaying
-    # `_number_sources` over the migrated evidence, so a run whose evidence no longer
-    # matches the source snapshot V1 recorded cannot round-trip.
-    frozenset({"sources"}): "SOURCE_SNIPPETS_NOT_STORED",
-    frozenset({"sources", "contradictions"}): "SOURCE_SNIPPETS_AND_CONTRADICTION_PAIR",
+    # NOT a V2 gap. `sources[].snippet(s)` is derived data: `_number_sources` computes it
+    # from evidence, `verify_bundle` never reads it, and the frontend treats it as a
+    # rendering helper. The V2 bundle rebuilds it by replaying that derivation, so a
+    # difference means the V1 snapshot no longer agrees with the evidence it was computed
+    # from — a V1 inconsistency, which its own `claim_evidence_linkage` check also fails
+    # (M2F §9.1). Named for what it detects, not for what M2E-3 first assumed.
+    frozenset({"sources"}): "V1_SOURCE_SNAPSHOT_DIVERGED_FROM_EVIDENCE",
+    frozenset({"sources", "contradictions"}): "V1_SOURCE_DIVERGENCE_AND_CONTRADICTION_PAIR",
 }
 
 
 class BundleVerdict(enum.StrEnum):
     BUNDLE_EQUIVALENT = "BUNDLE_EQUIVALENT"
     BUNDLE_MISMATCH = "BUNDLE_MISMATCH"
-    #: One side could not be assembled at all — no report, no migrated run, or a checkpoint
-    #: that could not be read. Never silently folded into either of the other two.
+    #: One side could not be assembled at all. Never silently folded into either of the
+    #: other two, and never reported without saying which side and why.
     NOT_COMPARABLE = "NOT_COMPARABLE"
+
+
+class V1Reason(enum.StrEnum):
+    """Could V1 itself have exported a bundle for this run?"""
+
+    EXPORTABLE = "V1_EXPORTABLE"
+    #: `export_bundle_json` refuses anything but COMPLETED.
+    STATUS_NOT_COMPLETED = "V1_STATUS_NOT_COMPLETED"
+    NO_REPORT = "V1_NO_REPORT"
+    CHECKPOINT_MISSING = "V1_CHECKPOINT_MISSING"
+    CHECKPOINT_UNREADABLE = "V1_CHECKPOINT_UNREADABLE"
+
+
+class V2Reason(enum.StrEnum):
+    """Does V2 hold a comparable representation?"""
+
+    PRESENT = "V2_PRESENT"
+    #: The migration refused or failed the run — INCONSISTENT_V1 or FAILED in the ledger.
+    RUN_ABSENT = "V2_RUN_ABSENT"
+    NO_REVISION = "V2_NO_REVISION"
+    #: The ledger says the checkpoint could not be read, so zero evidence rows is unknown
+    #: rather than measured (M2F Amendment §9.2).
+    EVIDENCE_UNAVAILABLE = "V2_EVIDENCE_UNAVAILABLE"
 
 
 @dataclass
 class BundleComparison:
+    """Gate A. Two reason **sets**, evaluated independently and reported in full.
+
+    Not one enum. A run can be both non-COMPLETED and report-less, and can *also* be absent
+    from V2 — and the previous single-reason form returned at the first match, so 12 of 48
+    not-comparable runs reported a V1 property while the material fact was that the
+    migration had refused them (M2F §9.2).
+    """
+
     session_id: str
     verdict: BundleVerdict
-    reason: str | None = None
+    #: Every applicable reason on each axis, sorted. Never empty: the "nothing is wrong"
+    #: case is an explicit `V1_EXPORTABLE` / `V2_PRESENT`, so there is no generic bucket.
+    v1_reasons: list[str] = field(default_factory=list)
+    v2_reasons: list[str] = field(default_factory=list)
     #: Field names that differ, in bundle-manifest order. Empty iff EQUIVALENT.
     differing_fields: list[str] = field(default_factory=list)
     #: `field -> (v1, v2)`, truncated. Diagnosis, never a place to stash a whole report.
     detail: dict[str, tuple[str, str]] = field(default_factory=dict)
-    #: For a mismatch: the named V2 limitation that explains it, or `UNCLASSIFIED`.
+    #: For a mismatch: the named limitation that explains it, or `UNCLASSIFIED`.
     limitation: str | None = None
+
+    @property
+    def comparable(self) -> bool:
+        return self.verdict is not BundleVerdict.NOT_COMPARABLE
+
+
+@dataclass
+class Validity:
+    """Gate B, for one side. `passed is None` means *not measured*, never *failed*."""
+
+    assembled: bool
+    passed: bool | None = None
+    failed_checks: list[str] = field(default_factory=list)
+
+
+@dataclass
+class RunValidation:
+    """Gates A and B for one run, kept apart. Gate C is corpus-wide by construction."""
+
+    session_id: str
+    fidelity: BundleComparison
+    validity_v1: Validity
+    validity_v2: Validity
 
 
 def _clip(value: Any, n: int = 240) -> str:
@@ -205,6 +278,23 @@ async def assemble_v2(
     ).scalar_one_or_none()
     if run is None:
         return None, "V2_RUN_ABSENT"
+
+    # The ledger read contract (M2F Amendment §9.2, invariant I10). A bundle is a read path
+    # that presents an evidence list, so it must not present one for a run whose checkpoint
+    # the migration could not read: `evidence` would be empty, every `[n]` would resolve to
+    # nothing, and the bundle would assert a measured zero it never measured.
+    #
+    # Found by measurement, not by review: before this, V1 refused to assemble such a run
+    # while V2 emitted a bundle that failed its own `claim_evidence_linkage` check. Absence
+    # of a ledger row means the run is V2-native, and its evidence rows ARE the record.
+    ledger = (
+        await db.execute(select(MigrationLedger).where(MigrationLedger.session_id == run_id))
+    ).scalar_one_or_none()
+    if ledger is not None and ledger.evidence_outcome in {
+        "CHECKPOINT_MISSING",
+        "CHECKPOINT_UNREADABLE",
+    }:
+        return None, "V2_EVIDENCE_UNAVAILABLE"
 
     revision = (
         (
@@ -350,34 +440,145 @@ async def assemble_v2(
 # ── Comparison ────────────────────────────────────────────────────────────────────
 
 
+async def _v1_axis(db: AsyncSession, saver, session: Session) -> set[str]:
+    """Every reason V1 itself could not have exported a bundle. All of them, not the first."""
+    reasons: set[str] = set()
+    if session.status != SessionStatus.COMPLETED:
+        reasons.add(V1Reason.STATUS_NOT_COMPLETED)
+    if not (session.final_report or session.draft_report):
+        reasons.add(V1Reason.NO_REPORT)
+
+    read = await read_checkpoint(saver, str(session.id))
+    if read.outcome is CheckpointOutcome.MISSING:
+        reasons.add(V1Reason.CHECKPOINT_MISSING)
+    elif read.outcome is CheckpointOutcome.UNREADABLE:
+        reasons.add(V1Reason.CHECKPOINT_UNREADABLE)
+
+    return reasons or {V1Reason.EXPORTABLE}
+
+
+async def _v2_axis(db: AsyncSession, run_id) -> set[str]:
+    """Every reason V2 holds no comparable representation.
+
+    Reads `migration_ledger` for the evidence-availability contract (M2F Amendment §9.2):
+    **absence of a ledger row means the run is V2-native**, so its evidence rows are the
+    complete record and zero of them is a measured zero. Only a ledger row saying the
+    checkpoint could not be read makes the count unknown.
+    """
+    reasons: set[str] = set()
+    run = (
+        await db.execute(select(ResearchRun).where(ResearchRun.id == run_id))
+    ).scalar_one_or_none()
+    if run is None:
+        reasons.add(V2Reason.RUN_ABSENT)
+        return reasons
+
+    revision = (
+        (
+            await db.execute(
+                select(Revision).where(Revision.run_id == run_id).order_by(Revision.version.desc())
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if revision is None:
+        reasons.add(V2Reason.NO_REVISION)
+
+    ledger = (
+        await db.execute(select(MigrationLedger).where(MigrationLedger.session_id == run_id))
+    ).scalar_one_or_none()
+    if ledger is not None and ledger.evidence_outcome in {
+        "CHECKPOINT_MISSING",
+        "CHECKPOINT_UNREADABLE",
+    }:
+        reasons.add(V2Reason.EVIDENCE_UNAVAILABLE)
+
+    return reasons or {V2Reason.PRESENT}
+
+
+# ── Gate A: representational fidelity ─────────────────────────────────────────────
+
+
 async def compare_run(db: AsyncSession, saver, session: Session) -> BundleComparison:
     """Assemble both sides and compare. Never returns a verdict it did not measure."""
     sid = str(session.id)
+    v1_reasons = await _v1_axis(db, saver, session)
+    v2_reasons = await _v2_axis(db, session.id)
+    axes = {
+        "v1_reasons": sorted(str(r) for r in v1_reasons),
+        "v2_reasons": sorted(str(r) for r in v2_reasons),
+    }
 
-    # The V1 route refuses to export a bundle for anything but a COMPLETED session, so a
-    # non-COMPLETED run has no V1 bundle to be equivalent to.
-    if session.status != SessionStatus.COMPLETED:
-        return BundleComparison(sid, BundleVerdict.NOT_COMPARABLE, f"V1_STATUS_{session.status}")
+    # Comparable only when *nothing* is wrong on either axis. Both sets are explicit, so a
+    # run never lands in an unexplained bucket.
+    if v1_reasons != {V1Reason.EXPORTABLE} or v2_reasons != {V2Reason.PRESENT}:
+        return BundleComparison(sid, BundleVerdict.NOT_COMPARABLE, **axes)
 
-    v1, why = await assemble_v1(db, saver, session)
-    if v1 is None:
-        return BundleComparison(sid, BundleVerdict.NOT_COMPARABLE, why)
-
-    v2, why = await assemble_v2(db, session.id)
-    if v2 is None:
-        return BundleComparison(sid, BundleVerdict.NOT_COMPARABLE, why)
+    v1, _ = await assemble_v1(db, saver, session)
+    v2, _ = await assemble_v2(db, session.id)
+    if v1 is None or v2 is None:  # pragma: no cover — the axes already excluded this
+        return BundleComparison(sid, BundleVerdict.NOT_COMPARABLE, **axes)
 
     left, right = _normalise(v1), _normalise(v2)
     differing = [k for k in left if left[k] != right[k]]
     if not differing:
-        return BundleComparison(sid, BundleVerdict.BUNDLE_EQUIVALENT)
+        return BundleComparison(sid, BundleVerdict.BUNDLE_EQUIVALENT, **axes)
 
     substantive = frozenset(differing) - {"bundle_hash"}
     return BundleComparison(
         sid,
         BundleVerdict.BUNDLE_MISMATCH,
-        reason="FIELDS_DIFFER",
+        **axes,
         differing_fields=differing,
         detail={k: (_clip(left[k]), _clip(right[k])) for k in differing if k != "bundle_hash"},
         limitation=KNOWN_LOSSY.get(substantive, "UNCLASSIFIED"),
+    )
+
+
+# ── Gate B: internal bundle validity ──────────────────────────────────────────────
+
+
+def _validity(manifest) -> Validity:
+    """Run the shipped standalone verifier over one bundle.
+
+    Deliberately the same `verify_bundle` a third party runs, imported rather than
+    reimplemented: a private copy of the checks would verify the migration against the
+    migration's own idea of validity.
+    """
+    if manifest is None:
+        # Not measured. `passed` stays None — a bundle that could not be assembled has not
+        # failed verification, and recording False would be the unmeasured-became-zero
+        # error one layer up.
+        return Validity(assembled=False)
+    result = verify_bundle.verify(manifest)
+    return Validity(
+        assembled=True,
+        passed=result.passed,
+        failed_checks=sorted(c.name for c in result.checks if not c.passed),
+    )
+
+
+async def check_validity(db: AsyncSession, saver, session: Session) -> tuple[Validity, Validity]:
+    """Gate B for both sides.
+
+    The V1 side is **diagnostic, not a pass/fail for the migration**: a V1 bundle that never
+    verified is a V1 fact, and blocking on it would make the migration hostage to historical
+    defects it did not cause. What matters is the pairing — V1 valid and V2 invalid is a
+    migration defect; both invalid is inherited; V2 valid where V1 was not is suspicious.
+    """
+    v1, _ = await assemble_v1(db, saver, session)
+    v2, _ = await assemble_v2(db, session.id)
+    return _validity(v1), _validity(v2)
+
+
+async def validate_run(db: AsyncSession, saver, session: Session) -> RunValidation:
+    """Gates A and B for one run, reported as separate fields and never combined."""
+    fidelity = await compare_run(db, saver, session)
+    validity_v1, validity_v2 = await check_validity(db, saver, session)
+    return RunValidation(
+        session_id=str(session.id),
+        fidelity=fidelity,
+        validity_v1=validity_v1,
+        validity_v2=validity_v2,
     )

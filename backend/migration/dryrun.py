@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import statistics
 import sys
@@ -46,7 +47,8 @@ from app.models.review import AuditEvent, Review
 from app.models.revision import Claim, ClaimEvidenceLink, Revision
 from app.models.session import Session, SessionStatus
 from app.models.user import User
-from migration.bundle_equivalence import BundleVerdict, compare_run
+from migration import provenance
+from migration.bundle_equivalence import BundleVerdict, validate_run
 from migration.cli import Refused, check_target, database_name, describe
 from migration.ledger import TERMINAL, MigrationLedger
 from migration.runner import migrate_all
@@ -65,7 +67,10 @@ COUNTED_TABLES = {
     "audit_events": AuditEvent,
 }
 
-HASH64 = "a" * 64
+
+def _hash(text: str) -> str:
+    """The same digest `bundle.report_hash` uses, so an approval can match a report."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 # ── The corpus ────────────────────────────────────────────────────────────────────
@@ -138,7 +143,14 @@ def build_shape(shape: str, index: int) -> dict:
         "evidence": evidence,
         "contradictions": [],
         "checkpoint": "present",
-        "audits": [("plan_approved", HASH64), ("approved", "b" * 64)],
+        # Real digests, not placeholders. M2E-2 used `"a"*64` and every bundle in the
+        # corpus therefore failed `verify_bundle`'s approval_chain check — equivalence was
+        # measured on bundles that could never have verified, which is exactly the
+        # collapse the three gates exist to separate (M2F Amendment §9.4).
+        "audits": [
+            ("plan_approved", _hash(f"plan for run {index}")),
+            ("approved", _hash(report or "")),
+        ],
         "rework": 0,
         "demo": False,
         "error": None,
@@ -146,7 +158,12 @@ def build_shape(shape: str, index: int) -> dict:
     }
 
     if shape == "reworked":
-        base["audits"] = [("rework_requested", "c" * 64), ("approved", "b" * 64)]
+        # The rework was requested against an earlier draft, so its hash must NOT be the
+        # report's — only the approval binds to the report that shipped.
+        base["audits"] = [
+            ("rework_requested", _hash(f"superseded draft for run {index}")),
+            ("approved", _hash(report)),
+        ]
         base["rework"] = 2
     elif shape == "demo":
         base["demo"] = True
@@ -180,7 +197,7 @@ def build_shape(shape: str, index: int) -> dict:
         base.update(
             status=SessionStatus.AWAITING_PLAN,
             report=None,
-            audits=[("plan_approved", HASH64)],
+            audits=[("plan_approved", _hash(f"plan for run {index}"))],
         )
     base["shape"] = shape
     base["index"] = index
@@ -335,10 +352,18 @@ class DryRunResult:
     peak_heap_mb: float = 0.0
     failures: int = 0
     retries: int = 0
-    bundle: dict[str, int] = field(default_factory=dict)
-    bundle_mismatch_fields: dict[str, int] = field(default_factory=dict)
-    bundle_limitations: dict[str, int] = field(default_factory=dict)
-    ledger_checks: dict[str, str] = field(default_factory=dict)
+    # ── Gate A: representational fidelity ──
+    fidelity: dict[str, int] = field(default_factory=dict)
+    fidelity_not_comparable: dict[str, int] = field(default_factory=dict)
+    fidelity_mismatch_fields: dict[str, int] = field(default_factory=dict)
+    fidelity_limitations: dict[str, int] = field(default_factory=dict)
+    # ── Gate B: internal bundle validity, both sides, never collapsed into Gate A ──
+    validity: dict[str, int] = field(default_factory=dict)
+    validity_failed_checks_v1: dict[str, int] = field(default_factory=dict)
+    validity_failed_checks_v2: dict[str, int] = field(default_factory=dict)
+    # ── Gate C: historical non-fabrication ──
+    grounding: dict[str, list[str]] = field(default_factory=dict)
+    checks: dict[str, str] = field(default_factory=dict)
     resume: dict[str, int] = field(default_factory=dict)
     unmigratable: dict[str, int] = field(default_factory=dict)
 
@@ -422,6 +447,7 @@ async def measure(
     sessions = (await db.execute(select(Session.id))).scalars().all()
     runs = {str(r) for r in (await db.execute(select(ResearchRun.id))).scalars()}
     ledgered_runs = {str(r.v2_run_id) for r in ledger.values() if r.v2_run_id}
+    equivalent_but_invalid: list[str] = []
     checks = {
         "one_ledger_row_per_considered_session": _verdict(len(ledger) == len(sessions)),
         "no_unexplained_remainder": _verdict(report.accounted == report.considered),
@@ -512,31 +538,99 @@ async def measure(
         # single-pass check rather than sitting beside it.
         checks.pop("rows_written_matches_the_database", None)
 
-    result.ledger_checks = dict(sorted(checks.items()))
-
-    # ── Bundle equivalence over every session, migrated or not ──
-    verdicts: dict[str, int] = {}
+    # ── Gates A, B and C over every session, migrated or not ──
+    #
+    # Three fields, never one verdict. A bundle can be equivalent and invalid (the whole of
+    # the M2E-2 corpus was), valid and intentionally lossy, or not comparable and still
+    # required to be grounded (M2F Amendment §10).
+    fidelity: dict[str, int] = {}
+    not_comparable: dict[str, int] = {}
     fields: dict[str, int] = {}
     limitations: dict[str, int] = {}
+    validity: dict[str, int] = {}
+    failed_v1: dict[str, int] = {}
+    failed_v2: dict[str, int] = {}
+
+    def _bump(bucket: dict, key: str) -> None:
+        bucket[key] = bucket.get(key, 0) + 1
+
     for sid in sessions:
         session = (await db.execute(select(Session).where(Session.id == sid))).scalar_one()
-        cmp_result = await compare_run(db, saver, session)
-        key = str(cmp_result.verdict)
-        if cmp_result.verdict is BundleVerdict.NOT_COMPARABLE:
-            key = f"NOT_COMPARABLE:{cmp_result.reason}"
-        verdicts[key] = verdicts.get(key, 0) + 1
-        for name in cmp_result.differing_fields:
-            fields[name] = fields.get(name, 0) + 1
-        if cmp_result.limitation:
-            limitations[cmp_result.limitation] = limitations.get(cmp_result.limitation, 0) + 1
-    result.bundle = dict(sorted(verdicts.items()))
-    result.bundle_mismatch_fields = dict(sorted(fields.items()))
-    result.bundle_limitations = dict(sorted(limitations.items()))
-    # An unrecognised difference is the one thing a dry run must never pass over.
-    result.ledger_checks["every_bundle_mismatch_is_a_named_limitation"] = _verdict(
-        "UNCLASSIFIED" not in limitations
+        run = await validate_run(db, saver, session)
+
+        _bump(fidelity, str(run.fidelity.verdict))
+        if run.fidelity.verdict is BundleVerdict.NOT_COMPARABLE:
+            _bump(
+                not_comparable,
+                f"v1={'+'.join(run.fidelity.v1_reasons)} | v2={'+'.join(run.fidelity.v2_reasons)}",
+            )
+        for name in run.fidelity.differing_fields:
+            _bump(fields, name)
+        if run.fidelity.limitation:
+            _bump(limitations, run.fidelity.limitation)
+
+        # `passed is None` means not measured. Rendered as "unassembled", never as a
+        # failure — a bundle that could not be built has not failed verification.
+        def _side(v):
+            return "unassembled" if v.passed is None else ("valid" if v.passed else "invalid")
+
+        _bump(validity, f"v1={_side(run.validity_v1)},v2={_side(run.validity_v2)}")
+        for name in run.validity_v1.failed_checks:
+            _bump(failed_v1, name)
+        for name in run.validity_v2.failed_checks:
+            _bump(failed_v2, name)
+
+        if run.fidelity.verdict is BundleVerdict.BUNDLE_EQUIVALENT and not (
+            run.validity_v1.passed and run.validity_v2.passed
+        ):
+            equivalent_but_invalid.append(str(sid))
+
+    result.fidelity = dict(sorted(fidelity.items()))
+    result.fidelity_not_comparable = dict(sorted(not_comparable.items()))
+    result.fidelity_mismatch_fields = dict(sorted(fields.items()))
+    result.fidelity_limitations = dict(sorted(limitations.items()))
+    result.validity = dict(sorted(validity.items()))
+    result.validity_failed_checks_v1 = dict(sorted(failed_v1.items()))
+    result.validity_failed_checks_v2 = dict(sorted(failed_v2.items()))
+
+    # Gate C is corpus-wide by construction: a declaration about the engine's source plus a
+    # check of every declared constant against every migrated row. Both halves are needed —
+    # the map could say UNCHECKED while the engine writes ATTESTED, and only the second
+    # would notice.
+    result.grounding = {
+        "undeclared_columns": provenance.undeclared_columns(),
+        "stale_declarations": provenance.stale_declarations(),
+        "constant_violations": await provenance.constant_violations(db),
+    }
+
+    checks.update(
+        {
+            # Gate A
+            "every_bundle_mismatch_is_a_named_limitation": _verdict(
+                "UNCLASSIFIED" not in limitations
+            ),
+            "no_generic_not_comparable_bucket": _verdict(
+                all(" | v2=" in key and not key.endswith("v2=") for key in not_comparable)
+            ),
+            # Gate B — the pairing is what carries meaning, not either side alone.
+            "no_migration_broke_a_valid_bundle": _verdict(
+                not any(k.startswith("v1=valid,v2=invalid") for k in validity)
+            ),
+            "no_v2_bundle_repairs_an_invalid_v1": _verdict(
+                not any(k.startswith("v1=invalid,v2=valid") for k in validity)
+            ),
+            "equivalent_bundles_are_valid_on_both_sides": _verdict(not equivalent_but_invalid),
+            # Gate C
+            "every_migrated_column_is_grounded": _verdict(
+                not result.grounding["undeclared_columns"]
+                and not result.grounding["stale_declarations"]
+            ),
+            "declared_constants_hold_in_the_data": _verdict(
+                not result.grounding["constant_violations"]
+            ),
+        }
     )
-    result.ledger_checks = dict(sorted(result.ledger_checks.items()))
+    result.checks = dict(sorted(checks.items()))
     return result
 
 
@@ -619,7 +713,7 @@ async def _main(args: argparse.Namespace) -> int:
         print(text_out)
         if args.out:
             Path(args.out).write_text(text_out + "\n", encoding="utf-8")
-        failed = [k for k, v in result.ledger_checks.items() if v != "PASS"]
+        failed = [k for k, v in result.checks.items() if v != "PASS"]
         return 1 if failed else 0
     finally:
         await engine.dispose()
