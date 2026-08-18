@@ -21,7 +21,7 @@ celery>=5.4,<6.0
 
 # Agent orchestration (docs/03_Tech_Stack.md — real LangGraph, no hand-rolled loops)
 langgraph>=1.0
-langgraph-checkpoint-postgres>=2.0
+langgraph-checkpoint-postgres>=3.1.2
 # SQLite checkpointing for the local host (research_engine.cli) and the desktop build
 # (docs/12 M9). Unused by the api/worker runtime, but kept here so CI exercises the
 # local-run tests that prove the engine works without Postgres.
