@@ -77,7 +77,13 @@ class ClaimRecord(BaseModel):
 class ApprovalRecord(BaseModel):
     """One HITL decision in the approval chain."""
 
-    action: str = Field(description='"approved" or "rework_requested"')
+    action: str = Field(
+        description=(
+            '"approved" or "rework_requested" at the report gate, "plan_approved" at the '
+            "plan gate. Only a report approval authorizes anything: the verifier counts "
+            "`approved` alone, and an artifact requires an APPROVED REPORT review."
+        )
+    )
     feedback: str | None = None
     draft_hash: str = Field(description="SHA-256 of the draft at decision time")
     timestamp: str = Field(description="ISO-8601 datetime")
