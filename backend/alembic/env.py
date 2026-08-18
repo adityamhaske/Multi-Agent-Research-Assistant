@@ -24,11 +24,6 @@ from app.models import (  # noqa: F401
 )
 from app.models.base import Base
 
-# The migration ledger lives outside `app.models` (it belongs to the V1 → V2 migration
-# tool, not to the product), so importing `app.models` does not register it. Without this
-# line `--autogenerate` would see the table as unknown and propose dropping it.
-from migration import ledger  # noqa: F401
-
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
