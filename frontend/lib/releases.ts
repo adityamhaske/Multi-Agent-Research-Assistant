@@ -33,6 +33,32 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "v2.0.0-rc",
+    date: "",
+    unreleased: true,
+    headline:
+      "Research becomes a structured record: evidence, claims, sources, conflicts, a human decision, and an artifact anyone can verify offline.",
+    improved: [
+      "A research run is no longer a report with citations bolted on. Evidence, sources, claims, claim-to-evidence links, contradictions, review decisions and the approved artifact are all first-class records you can inspect and export.",
+      "Every claim in a report can be traced to the evidence it resolved to and the source that evidence came from — and a claim that resolved to nothing says so instead of looking supported.",
+      "Retrieved is not cited, and retrieved is not verified. A source the report never cites keeps no citation number, and evidence carries a three-valued provenance state where UNCHECKED means nobody checked, not that it passed.",
+      "Conflicting sources are surfaced as a first-class finding — two attributed quotations side by side with the reason they cannot both hold — rather than buried in prose.",
+      "The review screen shows what you are approving: claims with and without evidence, cited versus retrieved-only sources, unresolved conflicts, and an unmeasured citation rate reported as unmeasured rather than as zero.",
+      "Approving a report freezes a verifiable artifact. The bundle it produces passes the same standalone verifier that ships with it, offline, with no network and no model.",
+      "A second human checkpoint before any search spends money: the research plan is reviewed on its own terms, and approving a plan never creates an artifact.",
+      "Reports are versioned. A rework adds a revision; it never overwrites the one a reviewer already read.",
+      "Migration tooling for V1 data with three separate verdicts — does V2 say what V1 said, is the bundle internally valid, and is every migrated fact traceable to something V1 recorded — kept apart rather than collapsed into one number.",
+      "The whole V2 surface works on the desktop build as well as the server, including live progress, exports and bundle download.",
+    ],
+    known: [
+      "V1 data has not been migrated in any deployment. The tooling is validated against disposable databases only, and two V1 states are recorded as unmigratable rather than repaired: evidence whose source URL was never recorded, and a plan approval for a run with no plan.",
+      "Corpus-mode research works on V2 but has no end-to-end test, because corpus mode requires a local embedder and the test environment has none.",
+      "Cancelling a run is advisory. It is recorded durably and no new work starts, but research already in flight runs to its next checkpoint.",
+      "Claim verification is not implemented: claims are extracted from the report's prose and carry no per-claim judgement.",
+      "Project memory does not yet ingest V2 runs.",
+    ],
+  },
+  {
     version: "Unreleased",
     date: "",
     unreleased: true,

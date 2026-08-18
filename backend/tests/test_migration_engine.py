@@ -27,6 +27,7 @@ from migration.runner import migrate_all
 from tests.migration_support import (
     CONTRADICTIONS,
     EVIDENCE,
+    EVIDENCE_NO_URL,
     PLAN,
     FakeSaver,
     open_db,
@@ -165,29 +166,85 @@ async def test_claim_lineage_is_never_inferred(db):
 # ── K / L: the two open mapping problems, resolved conservatively ────────────────
 
 
-async def test_a_review_without_a_report_is_classified_not_dropped(db):
+async def test_a_plan_approval_without_a_report_migrates_against_the_plan(db):
     """`submit_plan` runs at AWAITING_PLAN, before any draft exists (verified in code).
 
-    `reviews.revision_id` is NOT NULL, so V2 cannot hold it. Refuse the run rather than
-    fabricate a revision or discard the approval.
+    A plan approval with no report is therefore normal V1 behaviour. Its subject is the
+    PLAN version, and since M2F/S1 that is representable — with `revision_id` NULL and no
+    revision fabricated to hold it.
     """
     sid = await seed(
-        db, status=SessionStatus.FAILED, report=None, audits=[("plan_approved", "a" * 64)]
+        db,
+        status=SessionStatus.AWAITING_PLAN,
+        report=None,
+        plan=PLAN,
+        audits=[("plan_approved", "a" * 64)],
+    )
+    await migrate_all(db, FakeSaver({str(sid): {"evidence": [], "contradictions": []}}))
+
+    review = (await db.execute(select(Review))).scalar_one()
+    assert review.gate == "PLAN"
+    assert review.decision == "APPROVED"
+    assert review.revision_id is None, "no revision may be fabricated to hold a plan review"
+    assert review.plan_version_id is not None
+    assert review.run_id == sid
+    assert await _count(db, Revision) == 0
+
+
+async def test_a_plan_approval_with_no_plan_is_still_refused(db):
+    """There is nothing to point `plan_version_id` at, and a plan version is not invented."""
+    sid = await seed(
+        db, status=SessionStatus.AWAITING_PLAN, report=None, audits=[("plan_approved", "a" * 64)]
     )
     await migrate_all(db, FakeSaver({str(sid): {"evidence": [], "contradictions": []}}))
     led = (await db.execute(select(MigrationLedger))).scalar_one()
     assert led.status == MigrationStatus.INCONSISTENT_V1
-    assert led.failure_category == "REVIEW_WITHOUT_REVISION"
-    assert await _count(db, Revision) == 0, "no revision may be fabricated to hold a review"
-    assert await _count(db, ResearchRun) == 0, "the run must not be half-migrated"
-    # The V1 review is untouched and still there.
+    assert led.failure_category == "PLAN_REVIEW_WITHOUT_PLAN"
+    assert await _count(db, ResearchRun) == 0
     assert (await db.execute(select(func.count()).select_from(AuditLog))).scalar_one() == 1
 
 
-async def test_evidence_with_no_resolvable_source_is_classified_not_invented(db):
-    """Sources are derived by the synthesizer; a run that failed earlier has none."""
-    sid = await seed(db, sources=None)
+async def test_a_report_review_without_a_report_is_still_refused(db):
+    """Not merely unrepresentable — incoherent. The V1 gate requires a draft to exist."""
+    sid = await seed(db, status=SessionStatus.FAILED, report=None, audits=[("approved", "a" * 64)])
+    await migrate_all(db, FakeSaver({str(sid): {"evidence": [], "contradictions": []}}))
+    led = (await db.execute(select(MigrationLedger))).scalar_one()
+    assert led.failure_category == "REVIEW_WITHOUT_REVISION"
+    assert await _count(db, Revision) == 0
+
+
+async def test_a_source_is_recovered_from_the_evidence_that_names_it(db):
+    """`EvidenceChunk.source_url` is a required V1 field — recovery, not synthesis.
+
+    A run that failed before the synthesizer has no `sessions.sources`, but the executor
+    still recorded where each snippet came from. The source is created with NO citation
+    index, because the number is the synthesizer's and it never ran.
+    """
+    sid = await seed(db, status=SessionStatus.FAILED, report=None, sources=None)
     await migrate_all(db, FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": []}}))
+
+    led = (await db.execute(select(MigrationLedger))).scalar_one()
+    assert led.status != MigrationStatus.INCONSISTENT_V1, led.failure_category
+    sources = (await db.execute(select(Source))).scalars().all()
+    assert len(sources) == 2
+    assert all(s.citation_index is None for s in sources), "no index may be generated"
+    assert {s.url for s in sources} == {"https://e.org/a", "https://e.org/b"}
+    assert await _count(db, Evidence) == 2
+
+
+async def test_a_recovered_source_and_a_snapshot_source_are_one_row(db):
+    """Both are keyed on the normalized URL, so the same source cannot duplicate."""
+    sid = await seed(db)  # snapshot holds both URLs; evidence names the same two
+    await migrate_all(db, FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": []}}))
+    assert await _count(db, Source) == 2
+
+
+async def test_evidence_with_no_url_at_all_is_classified_not_invented(db):
+    """The one source case with no identity anywhere in V1."""
+    sid = await seed(db, sources=None)
+    await migrate_all(
+        db, FakeSaver({str(sid): {"evidence": EVIDENCE_NO_URL, "contradictions": []}})
+    )
     led = (await db.execute(select(MigrationLedger))).scalar_one()
     assert led.status == MigrationStatus.INCONSISTENT_V1
     assert led.failure_category == "EVIDENCE_SOURCE_UNRESOLVED"
@@ -201,7 +258,9 @@ async def test_evidence_with_no_resolvable_source_is_classified_not_invented(db)
 async def test_a_refused_run_leaves_no_partial_v2_rows(db):
     """The run inserts research_runs/sources first, then hits the refusal — all must roll back."""
     sid = await seed(db, sources=None)
-    await migrate_all(db, FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": []}}))
+    await migrate_all(
+        db, FakeSaver({str(sid): {"evidence": EVIDENCE_NO_URL, "contradictions": []}})
+    )
     for model in (ResearchRun, Source, Evidence, Revision, Claim, Review):
         assert await _count(db, model) == 0, f"{model.__name__} survived a rolled-back run"
     assert await _count(db, MigrationLedger) == 1, "the ledger must still explain the run"
@@ -219,7 +278,7 @@ async def test_every_considered_session_lands_in_exactly_one_terminal_bucket(db)
         {
             str(good): {"evidence": EVIDENCE, "contradictions": []},
             str(empty): {"evidence": [], "contradictions": []},
-            str(bad): {"evidence": EVIDENCE, "contradictions": []},
+            str(bad): {"evidence": EVIDENCE_NO_URL, "contradictions": []},
         }
     )
     report = await migrate_all(db, saver)
