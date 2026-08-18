@@ -1,0 +1,165 @@
+{
+  "accounted": 220,
+  "asymmetric_but_justified": 0,
+  "by_shape": {
+    "cancelled_as_failed": {
+      "MIGRATED": 8
+    },
+    "complete": {
+      "MIGRATED": 86
+    },
+    "complete_large": {
+      "MIGRATED": 17
+    },
+    "demo": {
+      "MIGRATED": 8
+    },
+    "empty_checkpoint": {
+      "EMPTY": 17
+    },
+    "evidence_without_url": {
+      "INCONSISTENT_V1": 4
+    },
+    "missing_checkpoint": {
+      "CHECKPOINT_MISSING": 13
+    },
+    "no_report": {
+      "NO_REPORT": 13
+    },
+    "plan_approved_no_plan": {
+      "INCONSISTENT_V1": 4
+    },
+    "plan_approved_no_report": {
+      "NO_REPORT": 4
+    },
+    "reworked": {
+      "MIGRATED": 21
+    },
+    "source_recovered_from_evidence": {
+      "NO_REPORT": 8
+    },
+    "unreadable_checkpoint": {
+      "READ_FAILURE": 4
+    },
+    "with_contradictions": {
+      "MIGRATED": 13
+    }
+  },
+  "by_status": {
+    "CHECKPOINT_MISSING": 13,
+    "EMPTY": 17,
+    "INCONSISTENT_V1": 8,
+    "MIGRATED": 153,
+    "NO_REPORT": 25,
+    "READ_FAILURE": 4
+  },
+  "checks": {
+    "a_v1_FAILED_run_stays_FAILED": "PASS",
+    "cancellation_never_becomes_CANCELLED": "PASS",
+    "claim_lineage_is_always_NULL": "PASS",
+    "declared_constants_hold_in_the_data": "PASS",
+    "detected_contradictions_have_both_source_anchors": "PASS",
+    "equivalent_bundles_are_valid_on_both_sides": "PASS",
+    "every_bundle_mismatch_is_a_named_limitation": "PASS",
+    "every_migrated_column_is_grounded": "PASS",
+    "every_outcome_is_terminal": "PASS",
+    "every_report_review_targets_a_revision": "PASS",
+    "every_shape_lands_where_expected": "PASS",
+    "every_source_url_came_from_v1": "PASS",
+    "every_v2_run_has_a_ledger_record": "PASS",
+    "evidence_is_never_ATTESTED": "PASS",
+    "evidence_refinement_is_all_or_nothing": "PASS",
+    "no_contradiction_claims_evidence_without_a_source": "PASS",
+    "no_generic_not_comparable_bucket": "PASS",
+    "no_migration_broke_a_valid_bundle": "PASS",
+    "no_partial_rows_for_a_refused_run": "PASS",
+    "no_plan_review_can_authorize_an_artifact": "PASS",
+    "no_source_carries_an_invented_citation_index": "PASS",
+    "no_unexplained_remainder": "PASS",
+    "no_unjustified_v2_bundle_where_v1_had_none": "PASS",
+    "no_v2_bundle_repairs_an_invalid_v1": "PASS",
+    "one_ledger_row_per_considered_session": "PASS",
+    "review_order_is_total_within_each_run": "PASS",
+    "rework_count_never_manufactures_revisions": "PASS",
+    "rows_written_matches_the_database": "PASS"
+  },
+  "considered": 220,
+  "dialect": "sqlite",
+  "failures": 0,
+  "fidelity": {
+    "BUNDLE_EQUIVALENT": 145,
+    "BUNDLE_MISMATCH": 17,
+    "NOT_COMPARABLE": 58
+  },
+  "fidelity_limitations": {
+    "V1_SOURCE_SNAPSHOT_DIVERGED_FROM_EVIDENCE": 17
+  },
+  "fidelity_mismatch_fields": {
+    "bundle_hash": 17,
+    "sources": 17
+  },
+  "fidelity_not_comparable": {
+    "v1=V1_CHECKPOINT_MISSING | v2=V2_EVIDENCE_UNAVAILABLE": 13,
+    "v1=V1_CHECKPOINT_UNREADABLE | v2=V2_EVIDENCE_UNAVAILABLE": 4,
+    "v1=V1_NO_REPORT+V1_STATUS_NOT_COMPLETED | v2=V2_NO_REVISION": 25,
+    "v1=V1_NO_REPORT+V1_STATUS_NOT_COMPLETED | v2=V2_RUN_ABSENT": 8,
+    "v1=V1_STATUS_NOT_COMPLETED | v2=V2_PRESENT": 8
+  },
+  "grounding": {
+    "constant_violations": [],
+    "stale_declarations": [],
+    "undeclared_columns": []
+  },
+  "max_ms": 71.0,
+  "mean_ms": 25.25,
+  "p50_ms": 25.0,
+  "p95_ms": 68.0,
+  "p99_ms": 70.0,
+  "peak_heap_mb": 2.364,
+  "resume": {},
+  "retries": 0,
+  "rows_by_table": {
+    "audit_events": 378,
+    "claim_evidence_links": 612,
+    "claims": 714,
+    "contradictions": 13,
+    "evidence": 687,
+    "research_plans": 212,
+    "research_runs": 212,
+    "reviews": 378,
+    "revisions": 187,
+    "sources": 789
+  },
+  "rows_by_table_in_db": {
+    "audit_events": 378,
+    "claim_evidence_links": 612,
+    "claims": 714,
+    "contradictions": 13,
+    "evidence": 687,
+    "research_plans": 212,
+    "research_runs": 212,
+    "reviews": 378,
+    "revisions": 187,
+    "sources": 789
+  },
+  "rows_per_second": 628.2,
+  "runs_seeded": 220,
+  "target": "/private/tmp/claude-501/-Users-adityamhaske-Documents-projects-Multi-Agent-Research-Assistant/b64ccfdb-c6b6-4302-85ff-4fd549d5e310/scratchpad/f5.sqlite (sqlite)",
+  "total_rows": 4182,
+  "unmigratable": {
+    "EVIDENCE_SOURCE_UNRESOLVED": 4,
+    "PLAN_REVIEW_WITHOUT_PLAN": 4
+  },
+  "validity": {
+    "v1=invalid,v2=invalid": 17,
+    "v1=unassembled,v2=unassembled": 50,
+    "v1=valid,v2=valid": 153
+  },
+  "validity_failed_checks_v1": {
+    "claim_evidence_linkage": 17
+  },
+  "validity_failed_checks_v2": {
+    "claim_evidence_linkage": 17
+  },
+  "wall_seconds": 6.6572
+}

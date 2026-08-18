@@ -42,6 +42,7 @@ docs/
 | [Configuration](getting-started/21-configuration.md) | The settings you actually reach for |
 | [Local LLM setup](getting-started/22-local-llm.md) | Running on Ollama, and which models work |
 | [Desktop app](getting-started/23-desktop-app.md) | Install, first run, and what differs from the server |
+| [V2 research model](getting-started/24-v2-research-model.md) | What a run records, what approval means, and how to verify an artifact yourself |
 | [Troubleshooting](getting-started/24-troubleshooting.md) | The failures people actually hit |
 
 ## User guide

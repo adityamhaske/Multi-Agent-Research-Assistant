@@ -14,6 +14,7 @@ from app.models.base import Base
 from app.models.chat_message import ChatMessage
 from app.models.chat_thread import ChatThread
 from app.models.memory_chunk import MemoryChunk
+from app.models.migration_ledger import MigrationLedger
 from app.models.project import Project
 from app.models.project_memory import ProjectMemoryItem, ProjectMemoryProvenance
 from app.models.refresh_token import RefreshToken
@@ -59,6 +60,7 @@ __all__ = [
     "ChatThread",
     "MemoryChunk",
     "AuditLog",
+    "MigrationLedger",
     "RefreshToken",
     # V2 (M2D) — created, not yet written to.
     "ResearchRun",

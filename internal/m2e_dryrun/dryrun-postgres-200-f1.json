@@ -1,0 +1,152 @@
+{
+  "accounted": 200,
+  "by_shape": {
+    "cancelled_as_failed": {
+      "MIGRATED": 8
+    },
+    "complete": {
+      "MIGRATED": 80
+    },
+    "complete_large": {
+      "MIGRATED": 16
+    },
+    "demo": {
+      "MIGRATED": 8
+    },
+    "empty_checkpoint": {
+      "EMPTY": 16
+    },
+    "missing_checkpoint": {
+      "CHECKPOINT_MISSING": 12
+    },
+    "no_report": {
+      "NO_REPORT": 12
+    },
+    "orphan_evidence": {
+      "INCONSISTENT_V1": 8
+    },
+    "plan_approved_no_report": {
+      "INCONSISTENT_V1": 4
+    },
+    "reworked": {
+      "MIGRATED": 20
+    },
+    "unreadable_checkpoint": {
+      "READ_FAILURE": 4
+    },
+    "with_contradictions": {
+      "MIGRATED": 12
+    }
+  },
+  "by_status": {
+    "CHECKPOINT_MISSING": 12,
+    "EMPTY": 16,
+    "INCONSISTENT_V1": 12,
+    "MIGRATED": 144,
+    "NO_REPORT": 12,
+    "READ_FAILURE": 4
+  },
+  "checks": {
+    "a_v1_FAILED_run_stays_FAILED": "PASS",
+    "cancellation_never_becomes_CANCELLED": "PASS",
+    "claim_lineage_is_always_NULL": "PASS",
+    "declared_constants_hold_in_the_data": "PASS",
+    "equivalent_bundles_are_valid_on_both_sides": "PASS",
+    "every_bundle_mismatch_is_a_named_limitation": "PASS",
+    "every_migrated_column_is_grounded": "PASS",
+    "every_outcome_is_terminal": "PASS",
+    "every_shape_lands_where_expected": "PASS",
+    "every_v2_run_has_a_ledger_record": "PASS",
+    "evidence_is_never_ATTESTED": "PASS",
+    "no_generic_not_comparable_bucket": "PASS",
+    "no_migration_broke_a_valid_bundle": "PASS",
+    "no_partial_rows_for_a_refused_run": "PASS",
+    "no_source_was_synthesised": "PASS",
+    "no_unexplained_remainder": "PASS",
+    "no_v2_bundle_repairs_an_invalid_v1": "PASS",
+    "one_ledger_row_per_considered_session": "PASS",
+    "rework_count_never_manufactures_revisions": "PASS",
+    "rows_written_matches_the_database": "PASS"
+  },
+  "considered": 200,
+  "dialect": "postgresql",
+  "failures": 0,
+  "fidelity": {
+    "BUNDLE_EQUIVALENT": 124,
+    "BUNDLE_MISMATCH": 28,
+    "NOT_COMPARABLE": 48
+  },
+  "fidelity_limitations": {
+    "CONTRADICTION_PAIR_NOT_STORED": 12,
+    "V1_SOURCE_SNAPSHOT_DIVERGED_FROM_EVIDENCE": 16
+  },
+  "fidelity_mismatch_fields": {
+    "bundle_hash": 28,
+    "contradictions": 12,
+    "sources": 16
+  },
+  "fidelity_not_comparable": {
+    "v1=V1_CHECKPOINT_MISSING | v2=V2_EVIDENCE_UNAVAILABLE": 12,
+    "v1=V1_CHECKPOINT_UNREADABLE | v2=V2_EVIDENCE_UNAVAILABLE": 4,
+    "v1=V1_NO_REPORT+V1_STATUS_NOT_COMPLETED | v2=V2_NO_REVISION": 12,
+    "v1=V1_NO_REPORT+V1_STATUS_NOT_COMPLETED | v2=V2_RUN_ABSENT": 12,
+    "v1=V1_STATUS_NOT_COMPLETED | v2=V2_PRESENT": 8
+  },
+  "grounding": {
+    "constant_violations": [],
+    "stale_declarations": [],
+    "undeclared_columns": []
+  },
+  "max_ms": 94.0,
+  "mean_ms": 31.94,
+  "p50_ms": 30.0,
+  "p95_ms": 84.0,
+  "p99_ms": 90.0,
+  "peak_heap_mb": 2.591,
+  "resume": {},
+  "retries": 0,
+  "rows_by_table": {
+    "audit_events": 352,
+    "claim_evidence_links": 576,
+    "claims": 672,
+    "contradictions": 12,
+    "evidence": 612,
+    "research_plans": 188,
+    "research_runs": 188,
+    "reviews": 352,
+    "revisions": 176,
+    "sources": 708
+  },
+  "rows_by_table_in_db": {
+    "audit_events": 352,
+    "claim_evidence_links": 576,
+    "claims": 672,
+    "contradictions": 12,
+    "evidence": 612,
+    "research_plans": 188,
+    "research_runs": 188,
+    "reviews": 352,
+    "revisions": 176,
+    "sources": 708
+  },
+  "rows_per_second": 501.3,
+  "runs_seeded": 200,
+  "target": "m2e_dryrun (postgresql)",
+  "total_rows": 3836,
+  "unmigratable": {
+    "EVIDENCE_SOURCE_UNRESOLVED": 8,
+    "REVIEW_WITHOUT_REVISION": 4
+  },
+  "validity": {
+    "v1=invalid,v2=invalid": 16,
+    "v1=unassembled,v2=unassembled": 40,
+    "v1=valid,v2=valid": 144
+  },
+  "validity_failed_checks_v1": {
+    "claim_evidence_linkage": 16
+  },
+  "validity_failed_checks_v2": {
+    "claim_evidence_linkage": 16
+  },
+  "wall_seconds": 7.6514
+}

@@ -31,6 +31,27 @@ are not lint rules and `npm run lint` will not catch them:
    <reason>` marker on the same line. Auth is httpOnly cookies only (docs/03); the marker
    exists so a genuine non-auth UI preference is reviewable rather than invisible.
 
+## The E2E suite registers more accounts than the limiter allows
+
+`REGISTER_IP` is 5 per hour per IP (`app/services/rate_limit.py`), and it is deliberately
+not configurable — it is brute-force protection, not a throughput knob, and the comment
+beside it says so. The Playwright suite registers **one account per journey**, and there are
+more journeys than that, so running the whole suite against one backend in one hour ends in
+`429` on the last ones.
+
+This is not caused by whichever spec happens to fail; `golden.spec.ts` alone already exceeds
+it. Each spec passes when run on its own.
+
+To run the suite locally, clear the counter between files — the E2E stack owns its Redis
+database, so this touches nothing else:
+
+```bash
+docker exec research_redis redis-cli -n 5 FLUSHDB
+```
+
+Do not raise or bypass the limit to make the suite green. A registration cap that a test
+suite can turn off is not a cap.
+
 ## Theming: tokens, and both themes are real
 
 `next-themes` uses the **class** strategy — `.dark` on `<html>`, with Tailwind's `dark:`
