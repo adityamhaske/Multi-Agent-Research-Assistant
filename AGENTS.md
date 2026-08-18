@@ -280,6 +280,46 @@ The suite also pins the two traps this table already warned about in prose: ever
   and the alias can disagree with what served the request. Never treat one as a disclosed
   model — record what actually answered.
 
+## The V2 native runtime
+
+New runs persist through `app/v2_runtime.py`; migrated runs go through `migration/engine.py`.
+Both write the same tables, and the rules below hold for both — a native run must not be able
+to record something a migrated one is refused.
+
+- **The lifecycle is host-agnostic and lives in one file.** `app/v2_runtime.py` has no FastAPI,
+  no auth and no Redis, because the server router *and* the desktop sidecar both call it. The
+  V2 routes were added to both hosts in the same commit, and `test_host_parity` caught them
+  before they landed — which is the third time that harness has paid for itself.
+- **`app/v2_execution.py` is the only bridge from the engine to V2.** It calls
+  `research_engine.runner.run`/`.resume` with the same ports and the same `RunConfig` the V1
+  worker uses — nothing in `research_engine/` knows V2 exists, and it must stay that way.
+  `persist_outcome` is the seam: pure over (db, run, outcome, state), so the integration test
+  drives the real graph and then calls it directly.
+- **Evidence comes from the checkpoint, not from `RunOutcome`.** The outcome carries the
+  report, the numbered sources and the metrics; evidence and contradictions have always lived
+  in the LangGraph state, which is why the V1 bundle route reads them there too. The adapter
+  reads the final state once, through the tri-state reader, and after that the `evidence`
+  table is authoritative.
+- **`agent_logs.session_id` has no foreign key.** It is polymorphic across `sessions.id` and
+  `research_runs.id`, because an FK can only point at one of them — and before `0018` a
+  V2-native run could not write the trace its bundle's `trace_available` claims. Deletion is
+  cascaded by the ORM relationship on `Session`, not by the database.
+- **`app/v2_bundle.py` is the one bundle assembler.** `migration/bundle_equivalence` delegates
+  to it. If they ever diverge, "the migration produces the same bundle the product does" stops
+  being a measurement and becomes a coincidence.
+- **Artifact authorization goes through `app/authorization.py`.** Never re-derive
+  `gate == 'REPORT' and decision == 'APPROVED'` at a call site.
+- **`migration_ledger` is a model, not a tool artifact.** It lives in `app/models/` because the
+  product reads it: `v2_bundle` consults `evidence_outcome` before claiming a run gathered no
+  evidence. `migration/ledger.py` re-exports the names.
+
+**Never run a planted-failure sweep and a validation run at the same time.** The sweeps mutate
+source files in place and restore them afterwards; a dry run executed in that window measures
+planted code. Worse, a sweep killed by a timeout leaves the plant *active* — an F4 plant
+(`sequence=1`) survived a killed background sweep and produced two convincing-looking
+"dialect divergences" that were entirely fictional. Run sweeps in the foreground, one at a
+time, and `grep -rn PLANT` before trusting any number.
+
 ## The V1 → V2 migration
 
 `backend/migration/` is a tool, not a service. Three rules it has already cost something to
@@ -293,6 +333,15 @@ learn (`internal/V2_Migration_Validation_M2E3.md`):
   evidence.** Nothing in the V2 domain tables distinguishes them — only `migration_ledger`
   does. That is why the ledger outlives the migration, and why "0 evidence" read from V2
   alone is not a measured fact.
+- **Artifact authorization is enforced four times, and all four must move together.** Only
+  an APPROVED **REPORT** review may authorize a `ResearchArtifact`. The database says so
+  (`fk_artifact_review → reviews(id, decision, gate)` plus `ck_artifact_gate`), `app/authorization.py`
+  says so, the bundle assembler says so, and `verify_bundle` says so. The serialization layer
+  is the one that looks redundant and is not: the verifier's load-bearing check is
+  `action == "approved"`, and it rejects `plan_approved` only because V1 uses a distinct
+  string — so an assembler that mapped every APPROVED review to `"approved"` would authorize
+  a plan approval in a JSON file no constraint reaches. Relaxing `reviews.revision_id`
+  without the gate column would have opened exactly that hole.
 - **The CLI never reads `DATABASE_URL`.** `--database-url` is required, writing additionally
   needs `--confirm-database NAME` matching the DSN, and the dry-run tool refuses any target
   whose `sessions` table is not empty. A tool that defaults to the operator's environment is

@@ -31,7 +31,13 @@ from sqlalchemy.exc import IntegrityError
 
 from app.models import POSTGRES_ONLY_TABLES, Base
 from app.models.project import Project
-from app.models.research import Evidence, ResearchPlan, ResearchRun, Source
+from app.models.research import (
+    Contradiction,
+    Evidence,
+    ResearchPlan,
+    ResearchRun,
+    Source,
+)
 from app.models.review import ResearchArtifact, Review
 from app.models.revision import Claim, ClaimEvidenceLink, Revision
 from app.models.user import User
@@ -509,6 +515,8 @@ def test_an_artifact_cannot_reference_a_rework_review(sqlite_engine, pg_engine):
         conn.execute(
             insert(Review).values(
                 id=(rv := uuid.uuid4()),
+                run_id=ids["run"],
+                sequence=1,
                 revision_id=ids["revision"],
                 reviewer_id=ids["user"],
                 gate="REPORT",
@@ -526,6 +534,7 @@ def test_an_artifact_cannot_reference_a_rework_review(sqlite_engine, pg_engine):
                 revision_id=ids["revision"],
                 review_id=rv,
                 review_decision="REWORK_REQUESTED",
+                review_gate="REPORT",
                 format_version=1,
                 payload={},
                 artifact_hash=HASH64,
@@ -543,6 +552,8 @@ def test_an_artifact_from_an_approving_review_is_accepted(sqlite_engine, pg_engi
         conn.execute(
             insert(Review).values(
                 id=(rv := uuid.uuid4()),
+                run_id=ids["run"],
+                sequence=2,
                 revision_id=ids["revision"],
                 reviewer_id=ids["user"],
                 gate="REPORT",
@@ -560,6 +571,7 @@ def test_an_artifact_from_an_approving_review_is_accepted(sqlite_engine, pg_engi
                 revision_id=ids["revision"],
                 review_id=rv,
                 review_decision="APPROVED",
+                review_gate="REPORT",
                 format_version=1,
                 payload={},
                 artifact_hash=HASH64,
@@ -580,6 +592,8 @@ def test_only_one_approving_review_per_revision(sqlite_engine, pg_engine):
             conn.execute(
                 insert(Review).values(
                     id=uuid.uuid4(),
+                    run_id=ids["run"],
+                    sequence=3,
                     revision_id=ids["revision"],
                     reviewer_id=ids["user"],
                     gate="REPORT",
@@ -597,10 +611,14 @@ def test_two_rework_reviews_of_one_revision_are_allowed(sqlite_engine, pg_engine
     """Proves the index is partial rather than total — a rework loop must keep working."""
 
     def build(conn, ids):
-        for _ in range(2):
+        for position in range(1, 3):
             conn.execute(
                 insert(Review).values(
                     id=uuid.uuid4(),
+                    run_id=ids["run"],
+                    # Distinct positions: two reviews of one run are two decisions in
+                    # sequence, and `uq_review_sequence` says so.
+                    sequence=position,
                     revision_id=ids["revision"],
                     reviewer_id=ids["user"],
                     gate="REPORT",
@@ -622,6 +640,8 @@ def test_a_plan_gate_review_must_name_the_plan_version(sqlite_engine, pg_engine)
         conn.execute(
             insert(Review).values(
                 id=uuid.uuid4(),
+                run_id=ids["run"],
+                sequence=5,
                 revision_id=ids["revision"],
                 reviewer_id=ids["user"],
                 gate="PLAN",
@@ -652,6 +672,8 @@ def test_a_report_gate_review_must_not_name_a_plan_version(sqlite_engine, pg_eng
         conn.execute(
             insert(Review).values(
                 id=uuid.uuid4(),
+                run_id=ids["run"],
+                sequence=6,
                 revision_id=ids["revision"],
                 reviewer_id=ids["user"],
                 gate="REPORT",
@@ -765,6 +787,8 @@ def test_deleting_a_run_that_carries_a_review_is_refused(sqlite_engine, pg_engin
         conn.execute(
             insert(Review).values(
                 id=uuid.uuid4(),
+                run_id=ids["run"],
+                sequence=7,
                 revision_id=ids["revision"],
                 reviewer_id=ids["user"],
                 gate="REPORT",
@@ -832,3 +856,109 @@ def test_evidence_sequence_must_be_unique_within_a_run(sqlite_engine, pg_engine)
 
     for engine, label in _both(sqlite_engine, pg_engine):
         assert _refuses(engine, build), f"{label} allowed a duplicate sequence"
+
+
+# --- the contradiction pair, at the granularity V1 observed (M2F/S4) ---
+
+
+def test_a_detected_contradiction_needs_both_source_anchors(sqlite_engine, pg_engine):
+    """`ck_contra_pair` moved from evidence level to source level and must still bite.
+
+    V1's detector is shown `{source_url: [snippets]}` and never sees an evidence row, so
+    the source anchors are what a detection means. A DETECTED row without them claims a
+    finding nothing recorded.
+    """
+
+    def build(conn, ids):
+        conn.execute(
+            insert(Contradiction).values(
+                id=uuid.uuid4(),
+                run_id=ids["run"],
+                source_a_id=None,
+                source_b_id=None,
+                summary_a="a",
+                summary_b="b",
+                detection_state="DETECTED",
+                review_state="UNREVIEWED",
+                created_at=ids["now"],
+            )
+        )
+
+    for engine, label in _both(sqlite_engine, pg_engine):
+        assert _refuses(engine, build), f"{label} stored a DETECTED pair with no sources"
+
+
+def test_a_half_resolved_evidence_refinement_is_rejected(sqlite_engine, pg_engine):
+    """`ck_contra_refine`: one evidence anchor without the other is not a pair.
+
+    The CHECK fires before the foreign key has anything to say, which is the point — the
+    shape is wrong regardless of whether the referenced row exists.
+    """
+
+    def build(conn, ids):
+        conn.execute(
+            insert(Contradiction).values(
+                id=uuid.uuid4(),
+                run_id=ids["run"],
+                source_a_id=ids["source"],
+                source_b_id=None,
+                evidence_a_id=uuid.uuid4(),
+                evidence_b_id=None,
+                summary_a="a",
+                summary_b="b",
+                detection_state="NOT_RUN",
+                review_state="UNREVIEWED",
+                created_at=ids["now"],
+            )
+        )
+
+    for engine, label in _both(sqlite_engine, pg_engine):
+        assert _refuses(engine, build), f"{label} stored half a resolved pair"
+
+
+def test_many_uncited_sources_may_coexist_in_one_run(sqlite_engine, pg_engine):
+    """`uq_source_index` is partial, so "retrieved but never cited" is not a scarce state.
+
+    A total unique constraint would allow at most one uncited source per run, which is the
+    opposite of what S3 exists to permit.
+    """
+
+    def build(conn, ids):
+        for _ in range(3):
+            conn.execute(
+                insert(Source).values(
+                    id=uuid.uuid4(),
+                    run_id=ids["run"],
+                    url=f"https://example.invalid/{uuid.uuid4()}",
+                    normalized_url=f"https://example.invalid/{uuid.uuid4()}",
+                    kind="WEB",
+                    retrieval_status="UNKNOWN",
+                    citation_index=None,
+                    retrieved_at=ids["now"],
+                )
+            )
+
+    for engine, label in _both(sqlite_engine, pg_engine):
+        assert _accepts(engine, build), f"{label} forbade a second uncited source"
+
+
+def test_two_sources_still_cannot_share_a_citation_number(sqlite_engine, pg_engine):
+    """Partial does not mean absent: among numbered sources the index is still unique."""
+
+    def build(conn, ids):
+        for _ in range(2):
+            conn.execute(
+                insert(Source).values(
+                    id=uuid.uuid4(),
+                    run_id=ids["run"],
+                    url=f"https://example.invalid/{uuid.uuid4()}",
+                    normalized_url=f"https://example.invalid/{uuid.uuid4()}",
+                    kind="WEB",
+                    retrieval_status="UNKNOWN",
+                    citation_index=7,
+                    retrieved_at=ids["now"],
+                )
+            )
+
+    for engine, label in _both(sqlite_engine, pg_engine):
+        assert _refuses(engine, build), f"{label} allowed a duplicate citation index"
