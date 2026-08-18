@@ -49,10 +49,10 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.authorization import approval_chain
 from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
 from app.models.research import Contradiction, Evidence, ResearchRun, Source
-from app.models.review import Review
 from app.models.revision import Revision
 from app.models.session import Session, SessionStatus
 from migration.checkpoint import CheckpointOutcome, read_checkpoint
@@ -80,9 +80,6 @@ REVIEW_TO_V1_ACTION = {
 #: That is the point: "never silently ignore mismatches" means an unrecognised difference
 #: must be louder than a recognised one, not quieter.
 KNOWN_LOSSY: dict[frozenset[str], str] = {
-    # V1 keys a contradiction by source URL; V2 keys it by evidence id and the migration
-    # leaves both NULL, because V1 never recorded which evidence row a side came from.
-    frozenset({"contradictions"}): "CONTRADICTION_PAIR_NOT_STORED",
     # NOT a V2 gap. `sources[].snippet(s)` is derived data: `_number_sources` computes it
     # from evidence, `verify_bundle` never reads it, and the frontend treats it as a
     # rendering helper. The V2 bundle rebuilds it by replaying that derivation, so a
@@ -90,7 +87,6 @@ KNOWN_LOSSY: dict[frozenset[str], str] = {
     # from — a V1 inconsistency, which its own `claim_evidence_linkage` check also fails
     # (M2F §9.1). Named for what it detects, not for what M2E-3 first assumed.
     frozenset({"sources"}): "V1_SOURCE_SNAPSHOT_DIVERGED_FROM_EVIDENCE",
-    frozenset({"sources", "contradictions"}): "V1_SOURCE_DIVERGENCE_AND_CONTRADICTION_PAIR",
 }
 
 
@@ -378,41 +374,47 @@ async def assemble_v2(
         .scalars()
         .all()
     )
-    # V1's pair is keyed by source URL; V2 keys it by evidence id, and the migration leaves
-    # both NULL because V1 never recorded which evidence row a side came from. So the URLs
-    # are genuinely absent from V2 and are emitted as such — a run with contradictions will
-    # report BUNDLE_MISMATCH on this field, which is the truthful outcome and is recorded as
-    # a V2 mapping limitation rather than hidden by a normalisation.
+    # All seven V1 fields, from the columns S4 added. V1's pair is
+    # `(claim_a, snippet_a, source_a, claim_b, snippet_b, source_b, nature)` and V2 now
+    # holds every one of them, at the source granularity the detector actually worked in.
     contradiction_dicts = [
         {
-            "source_a": None,
-            "source_b": None,
             "claim_a": c.summary_a,
+            "snippet_a": c.quote_a or "",
+            "source_a": by_source[c.source_a_id].url if c.source_a_id in by_source else "",
             "claim_b": c.summary_b,
+            "snippet_b": c.quote_b or "",
+            "source_b": by_source[c.source_b_id].url if c.source_b_id in by_source else "",
+            "nature": c.nature or "",
         }
         for c in contradictions
     ]
 
-    reviews = (
-        (
-            await db.execute(
-                select(Review)
-                .where(Review.revision_id == revision.id)
-                .order_by(Review.created_at.asc(), Review.id.asc())
+    # Run-scoped and ordered by `sequence`, not by revision: a PLAN review has no
+    # `revision_id` at all, so the old single-parent read would silently omit every plan
+    # approval from the chain (M2F Amendment §8.2).
+    reviews = await approval_chain(db, run_id)
+    approval_chain_dicts = []
+    for r in reviews:
+        action = REVIEW_TO_V1_ACTION.get((r.gate, r.decision))
+        if action is None:  # pragma: no cover — AUDIT_MAP invertibility is pinned by a test
+            raise ValueError(f"review {r.id} has no V1 action for {r.gate}/{r.decision}")
+        # The serialization layer of the artifact-authorization rule (M2F Amendment §5.3).
+        # `verify_bundle` treats `action == "approved"` as report authorization; emitting
+        # that string for a plan approval would satisfy the verifier's load-bearing check
+        # in a file no database constraint reaches.
+        if r.gate == "PLAN" and action == verify_bundle.REPORT_APPROVAL_ACTION:
+            raise ValueError(
+                f"review {r.id} is a PLAN approval and would serialize as a report approval"
             )
+        approval_chain_dicts.append(
+            {
+                "action": action,
+                "feedback": r.feedback,
+                "draft_hash": r.reviewed_hash,
+                "timestamp": r.created_at.isoformat(),
+            }
         )
-        .scalars()
-        .all()
-    )
-    approval_chain = [
-        {
-            "action": REVIEW_TO_V1_ACTION.get((r.gate, r.decision), ""),
-            "feedback": r.feedback,
-            "draft_hash": r.reviewed_hash,
-            "timestamp": r.created_at.isoformat(),
-        }
-        for r in reviews
-    ]
 
     return (
         bundle_mod.assemble(
@@ -428,7 +430,7 @@ async def assemble_v2(
             tokens_output=run.tokens_output,
             elapsed_seconds=float(run.elapsed_seconds) if run.elapsed_seconds else None,
             research_depth=run.depth,
-            approval_chain=approval_chain,
+            approval_chain=approval_chain_dicts,
             trace=await _trace(db, run.id),
             trace_available=True,
             demo=run.demo,

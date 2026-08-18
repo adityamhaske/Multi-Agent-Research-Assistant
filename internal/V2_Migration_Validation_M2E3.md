@@ -465,6 +465,11 @@ same report — which is precisely why V2 persists them (M2A §3.5) and why
 
 Both are reported here, both are real, and neither is repaired by the migration.
 
+> **Narrowed by M2F (F3).** `EvidenceChunk.source_url` is a required V1 field written by the
+> executor, so a source named only there is *recovered*, not synthesised — with
+> `citation_index` NULL, because the number is the synthesizer's and it never ran. Only
+> evidence with an **empty** `source_url` still refuses. 4 of 220 in the F5 corpus.
+
 ### `EVIDENCE_SOURCE_UNRESOLVED` — 8 of 200 in the dry-run corpus
 
 Evidence exists in the checkpoint whose `source_url` has no entry in `sessions.sources`.
@@ -479,6 +484,13 @@ composite FK `(source_id, run_id) → sources(id, run_id)`. There is no honest p
 
 *What the migration does.* Refuses the run: `INCONSISTENT_V1`, zero V2 rows, V1 untouched,
 reason recorded. **No synthetic `Source` is created.** Planted as P7.
+
+> **Resolved by M2F (F2), without inventing anything.** A plan review's subject is the
+> `ResearchPlan` version; `reviews.revision_id` is now nullable with `ck_review_report` as the
+> mirror of `ck_review_plan`, and the artifact FK gained `gate` in the same migration so the
+> relaxation could not open an authorization hole. What still refuses: a *report* review with
+> no report (incoherent, not merely unrepresentable) and a plan approval for a run with no
+> plan (`PLAN_REVIEW_WITHOUT_PLAN`). 4 of 220 in the F5 corpus.
 
 ### `REVIEW_WITHOUT_REVISION` — 4 of 200 in the dry-run corpus
 
@@ -526,12 +538,19 @@ recorded, and cannot when it does not (a pruned or emptied checkpoint being the 
 case). Not a data-loss bug: the snippets live in `evidence`. It is a statement that V2 has no
 way to record *what the source list said at synthesis time*.
 
+> **Resolved by M2F (F3).** `contradictions` gained source anchors, both quotations and
+> `nature`, and `ck_contra_pair` moved to source level — the granularity V1's detector
+> actually works in. All seven V1 fields now round-trip; the class is gone from `KNOWN_LOSSY`.
+
 **3. `contradictions` cannot be reconstructed.** 12 of 200 bundles mismatched
 (`CONTRADICTION_PAIR_NOT_STORED`). V1's pair is `(source_a, source_b, claim_a, claim_b)`,
 keyed by URL. V2 keys the pair by evidence id, and the migration leaves both NULL because V1
 never recorded which evidence row a side came from. Recording `DETECTED` without the pair
 would violate `ck_contra_pair`; `NOT_RUN` with summaries is the truthful compromise, and it
 means the V1 "Conflicting evidence" block cannot be regenerated from V2 alone.
+
+> **Resolved by M2F (F2).** `reviews` gained `run_id` and `sequence`, migrated from the rank
+> of `audit_log.id`, with `UNIQUE (run_id, sequence)`.
 
 **4. `reviews` has no per-run ordinal.** V1 orders the approval chain by `audit_log.id`. V2
 can only order by `(created_at, id)`, and the id is a uuid5 — so two reviews sharing a

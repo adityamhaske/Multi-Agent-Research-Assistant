@@ -293,6 +293,15 @@ learn (`internal/V2_Migration_Validation_M2E3.md`):
   evidence.** Nothing in the V2 domain tables distinguishes them — only `migration_ledger`
   does. That is why the ledger outlives the migration, and why "0 evidence" read from V2
   alone is not a measured fact.
+- **Artifact authorization is enforced four times, and all four must move together.** Only
+  an APPROVED **REPORT** review may authorize a `ResearchArtifact`. The database says so
+  (`fk_artifact_review → reviews(id, decision, gate)` plus `ck_artifact_gate`), `app/authorization.py`
+  says so, the bundle assembler says so, and `verify_bundle` says so. The serialization layer
+  is the one that looks redundant and is not: the verifier's load-bearing check is
+  `action == "approved"`, and it rejects `plan_approved` only because V1 uses a distinct
+  string — so an assembler that mapped every APPROVED review to `"approved"` would authorize
+  a plan approval in a JSON file no constraint reaches. Relaxing `reviews.revision_id`
+  without the gate column would have opened exactly that hole.
 - **The CLI never reads `DATABASE_URL`.** `--database-url` is required, writing additionally
   needs `--confirm-database NAME` matching the DSN, and the dry-run tool refuses any target
   whose `sessions` table is not empty. A tool that defaults to the operator's environment is

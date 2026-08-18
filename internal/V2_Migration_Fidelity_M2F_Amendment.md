@@ -1,8 +1,8 @@
 # M2F Amendment — fidelity findings as explicit V2 domain invariants
 
-**Status:** amendment to `V2_Migration_Fidelity_M2F.md`. **Documentation only.**
-**No schema changed. No code changed. Production untouched. S1–S6 and M1–M6 remain unimplemented.**
+**Status:** amendment to `V2_Migration_Fidelity_M2F.md`, **implemented** in F2–F5 — see §17b.
 **Supersedes** M2F §6–§9 where marked; M2F otherwise stands.
+**Production untouched.** S1–S5 shipped as `0017_m2f_domain_fidelity`; S6 stayed withdrawn.
 
 ---
 
@@ -575,6 +575,32 @@ M2F's decisions 1–4 are answered by this amendment (§4, §5, §6). These rema
 | **O7** | Does `ApprovalRecord.action`'s description need correcting to include `plan_approved`? | Yes, but it is a bundle-format documentation fix outside M2F's scope |
 
 ---
+
+## 17b. Implementation record — F2 through F5 (2026-08-18)
+
+Implemented in one pass. `0017_m2f_domain_fidelity` carries S1–S5 as one revision, proven to
+upgrade **and** downgrade on Postgres; S6 stayed withdrawn.
+
+| Decision | Outcome |
+|---|---|
+| O1 attributed quotation | **adopted.** `source_a_id`/`source_b_id` + `quote_a`/`quote_b` + `nature`; `ck_contra_pair` is source-level. `summary_*` kept (rename deferred) |
+| O2 `reviewed_hash` NOT NULL at the plan gate | **kept**, unchanged |
+| O3 review ordinal | **adopted.** `reviews.run_id` + `sequence`, `UNIQUE (run_id, sequence)` |
+| O4 drop nameless evidence instead of refusing | **still no.** Empty `source_url` refuses; S6 stayed withdrawn so there is nothing to record incompleteness in |
+| O5 re-open S6 at dual-read | still open, unchanged |
+| O6 Gate B's V1 side annotates | **adopted.** 17 runs are invalid on both sides and are not counted against the migration |
+| O7 `ApprovalRecord.action` description | **fixed** — it now names `plan_approved` |
+
+Measured on 220 runs, identical on Postgres and SQLite: fidelity 145 equivalent / 17 mismatch
+(one named limitation) / 58 not-comparable across five reason-set pairs; validity 153
+valid-both / 17 invalid-both / 50 unassembled-both, with **zero** V1-valid→V2-invalid and
+**zero** V1-invalid→V2-valid; grounding clean over 108 declared columns. `INCONSISTENT_V1`
+fell from 12/200 to 8/220 — and part of that fall is the schema ceasing to forbid data V1
+always had, not the migration recovering more.
+
+41 planted violations across three sweeps, all firing. Four were silent on first run and
+became four new tests: bundle-chain ordering under a tied clock, an ambiguous quotation with
+both sides quoted, a pair naming an unknown source, and the two new CHECK constraints.
 
 ## 18. Scope statement
 

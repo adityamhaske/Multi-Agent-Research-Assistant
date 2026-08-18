@@ -43,12 +43,13 @@ from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
 from app.models.project import Project
 from app.models.research import Contradiction, Evidence, ResearchPlan, ResearchRun, Source
-from app.models.review import AuditEvent, Review
+from app.models.review import AuditEvent, ResearchArtifact, Review
 from app.models.revision import Claim, ClaimEvidenceLink, Revision
 from app.models.session import Session, SessionStatus
 from app.models.user import User
 from migration import provenance
 from migration.bundle_equivalence import BundleVerdict, validate_run
+from migration.checkpoint import read_checkpoint
 from migration.cli import Refused, check_target, database_name, describe
 from migration.ledger import TERMINAL, MigrationLedger
 from migration.runner import migrate_all
@@ -99,8 +100,15 @@ SHAPES = [
     Shape("unreadable_checkpoint", 2, "READ_FAILURE"),
     Shape("no_report", 6, "NO_REPORT"),
     Shape("cancelled_as_failed", 4, "MIGRATED"),
-    Shape("orphan_evidence", 4, "INCONSISTENT_V1"),
-    Shape("plan_approved_no_report", 2, "INCONSISTENT_V1"),
+    # The synthesizer never ran, so `sessions.sources` is empty — but the executor still
+    # recorded where each snippet came from, so the sources are RECOVERABLE (M2F/F3).
+    Shape("source_recovered_from_evidence", 4, "NO_REPORT"),
+    # No URL anywhere in V1: the one source case that stays non-migratable.
+    Shape("evidence_without_url", 2, "INCONSISTENT_V1"),
+    # A plan approval before any draft — normal V1, and representable since M2F/F2.
+    Shape("plan_approved_no_report", 2, "NO_REPORT"),
+    # ...but only against a plan that exists.
+    Shape("plan_approved_no_plan", 2, "INCONSISTENT_V1"),
 ]
 
 
@@ -168,12 +176,17 @@ def build_shape(shape: str, index: int) -> dict:
     elif shape == "demo":
         base["demo"] = True
     elif shape == "with_contradictions":
+        # All seven fields `validate_pairs` emits. The quotations are the exact evidence
+        # snippets, so the evidence refinement resolves uniquely (M2F Amendment §7.4).
         base["contradictions"] = [
             {
-                "source_a": "https://example.invalid/doc-1",
-                "source_b": "https://example.invalid/doc-3",
                 "claim_a": "the metric rose",
+                "snippet_a": evidence[0]["snippet"],
+                "source_a": "https://example.invalid/doc-1",
                 "claim_b": "the metric fell",
+                "snippet_b": evidence[2]["snippet"],
+                "source_b": "https://example.invalid/doc-3",
+                "nature": "the two figures cannot both describe the same benchmark",
             }
         ]
     elif shape == "empty_checkpoint":
@@ -187,16 +200,35 @@ def build_shape(shape: str, index: int) -> dict:
     elif shape == "cancelled_as_failed":
         # V1 records a user cancellation as FAILED with a message. Never inferred (M2E §0.2).
         base.update(status=SessionStatus.FAILED, error="Research stopped by user.")
-    elif shape == "orphan_evidence":
-        # The synthesizer never ran, so `sessions.sources` is empty while the checkpoint
-        # still holds evidence — the EVIDENCE_SOURCE_UNRESOLVED case.
+    elif shape == "source_recovered_from_evidence":
         base.update(status=SessionStatus.FAILED, sources=[], report=None, audits=[])
+    elif shape == "evidence_without_url":
+        base.update(
+            status=SessionStatus.FAILED,
+            sources=[],
+            report=None,
+            audits=[],
+            evidence=[
+                {
+                    "task_id": 1,
+                    "source_url": "",
+                    "source_title": "",
+                    "snippet": "a snippet the executor could not attribute",
+                    "key_fact": "unattributed",
+                }
+            ],
+        )
     elif shape == "plan_approved_no_report":
-        # `submit_plan` runs at AWAITING_PLAN, before any draft — the REVIEW_WITHOUT_REVISION
-        # case, which V2 cannot represent because `reviews.revision_id` is NOT NULL.
         base.update(
             status=SessionStatus.AWAITING_PLAN,
             report=None,
+            audits=[("plan_approved", _hash(f"plan for run {index}"))],
+        )
+    elif shape == "plan_approved_no_plan":
+        base.update(
+            status=SessionStatus.AWAITING_PLAN,
+            report=None,
+            plan=None,
             audits=[("plan_approved", _hash(f"plan for run {index}"))],
         )
     base["shape"] = shape
@@ -259,8 +291,8 @@ async def seed_corpus(db, saver, corpus: list[dict]) -> dict[str, uuid.UUID]:
                 skip_plan_gate=False,
                 error_message=spec["error"],
                 model_routing={"planner": "google:gemini-2.5-flash"},
-                plan_json={"tasks": spec["plan"]},
-                outline_json={"sections": ["Findings", "Limitations"]},
+                plan_json=({"tasks": spec["plan"]} if spec["plan"] else None),
+                outline_json=({"sections": ["Findings", "Limitations"]} if spec["plan"] else None),
                 created_at=created,
                 updated_at=created,
             )
@@ -362,6 +394,9 @@ class DryRunResult:
     validity_failed_checks_v1: dict[str, int] = field(default_factory=dict)
     validity_failed_checks_v2: dict[str, int] = field(default_factory=dict)
     # ── Gate C: historical non-fabrication ──
+    #: V1 could not assemble a bundle and V2 could, for a reason that is acceptable: V1's
+    #: export route refuses a non-COMPLETED run that V2 nonetheless migrated in full.
+    asymmetric_but_justified: int = 0
     grounding: dict[str, list[str]] = field(default_factory=dict)
     checks: dict[str, str] = field(default_factory=dict)
     resume: dict[str, int] = field(default_factory=dict)
@@ -448,6 +483,8 @@ async def measure(
     runs = {str(r) for r in (await db.execute(select(ResearchRun.id))).scalars()}
     ledgered_runs = {str(r.v2_run_id) for r in ledger.values() if r.v2_run_id}
     equivalent_but_invalid: list[str] = []
+    unassembled_v1_but_v2: list[str] = []
+    justified_asymmetry: list[str] = []
     checks = {
         "one_ledger_row_per_considered_session": _verdict(len(ledger) == len(sessions)),
         "no_unexplained_remainder": _verdict(report.accounted == report.considered),
@@ -497,8 +534,72 @@ async def measure(
         (str(row.run_id), row.url) for row in (await db.execute(select(Source))).scalars()
     }
 
+    # ── F5's dangerous cases, each a named FAIL rather than a footnote ──
+    contradiction_rows = (await db.execute(select(Contradiction))).scalars().all()
+    review_rows = (await db.execute(select(Review))).scalars().all()
+    artifact_rows = (await db.execute(select(ResearchArtifact))).scalars().all()
+
+    # A source is grounded if its URL appears in the V1 snapshot OR on a V1 evidence chunk.
+    # Recovery from the executor's own record is legitimate — `EvidenceChunk.source_url` is
+    # a required V1 field — and anything else is invention. This replaces the older
+    # snapshot-only check, which called a legitimate recovery a synthesis.
+    v1_urls: set[tuple[str, str]] = set(v1_source_urls)
+    for sid_ in (await db.execute(select(Session.id))).scalars().all():
+        read = await read_checkpoint(saver, str(sid_))
+        for item in read.evidence:
+            if isinstance(item, dict) and item.get("source_url"):
+                v1_urls.add((str(sid_), item["source_url"]))
+
+    per_run_sequences: dict[str, list[int]] = {}
+    for review in review_rows:
+        per_run_sequences.setdefault(str(review.run_id), []).append(review.sequence)
+
     checks.update(
         {
+            # PLAN approval → Artifact = FAIL
+            "no_plan_review_can_authorize_an_artifact": _verdict(
+                all(a.review_gate == "REPORT" for a in artifact_rows)
+                and all(r.revision_id is None for r in review_rows if r.gate == "PLAN")
+            ),
+            "every_report_review_targets_a_revision": _verdict(
+                all(r.revision_id is not None for r in review_rows if r.gate == "REPORT")
+            ),
+            # empty source_url → fabricated Source = FAIL
+            "every_source_url_came_from_v1": _verdict(migrated_sources <= v1_urls),
+            "no_source_carries_an_invented_citation_index": _verdict(
+                all(
+                    row.citation_index is None or row.citation_index >= 1
+                    for row in (await db.execute(select(Source))).scalars()
+                )
+            ),
+            # ambiguous evidence match → DETECTED contradiction = FAIL
+            "detected_contradictions_have_both_source_anchors": _verdict(
+                all(
+                    (c.source_a_id is not None and c.source_b_id is not None)
+                    for c in contradiction_rows
+                    if c.detection_state == "DETECTED"
+                )
+            ),
+            "evidence_refinement_is_all_or_nothing": _verdict(
+                all(
+                    (c.evidence_a_id is None) == (c.evidence_b_id is None)
+                    for c in contradiction_rows
+                )
+            ),
+            "no_contradiction_claims_evidence_without_a_source": _verdict(
+                all(
+                    c.source_a_id is not None
+                    for c in contradiction_rows
+                    if c.evidence_a_id is not None
+                )
+            ),
+            # review ordering
+            "review_order_is_total_within_each_run": _verdict(
+                all(
+                    sorted(seqs) == list(range(1, len(seqs) + 1))
+                    for seqs in per_run_sequences.values()
+                )
+            ),
             "cancellation_never_becomes_CANCELLED": _verdict(
                 all(r.status != "CANCELLED" and r.cancelled_at is None for r in runs_rows)
             ),
@@ -515,7 +616,6 @@ async def measure(
                 )
             ),
             "claim_lineage_is_always_NULL": _verdict(all(c.lineage_id is None for c in claim_rows)),
-            "no_source_was_synthesised": _verdict(migrated_sources <= v1_source_urls),
             "every_shape_lands_where_expected": _verdict(
                 all(
                     set(result.by_shape.get(shape.name, {})) in ({shape.expect}, set())
@@ -584,6 +684,16 @@ async def measure(
             run.validity_v1.passed and run.validity_v2.passed
         ):
             equivalent_but_invalid.append(str(sid))
+        # V1 could not produce a bundle at all but V2 did: either V2 is asserting evidence
+        # V1 never had, or the run legitimately migrated a report V1's export route refused
+        # (non-COMPLETED status). Only the second is acceptable, so it is checked, not
+        # assumed.
+        if not run.validity_v1.assembled and run.validity_v2.assembled:
+            justified = "V1_STATUS_NOT_COMPLETED" in run.fidelity.v1_reasons and (
+                "V1_CHECKPOINT_MISSING" not in run.fidelity.v1_reasons
+                and "V1_CHECKPOINT_UNREADABLE" not in run.fidelity.v1_reasons
+            )
+            (unassembled_v1_but_v2 if not justified else justified_asymmetry).append(str(sid))
 
     result.fidelity = dict(sorted(fidelity.items()))
     result.fidelity_not_comparable = dict(sorted(not_comparable.items()))
@@ -597,6 +707,7 @@ async def measure(
     # check of every declared constant against every migrated row. Both halves are needed —
     # the map could say UNCHECKED while the engine writes ATTESTED, and only the second
     # would notice.
+    result.asymmetric_but_justified = len(justified_asymmetry)
     result.grounding = {
         "undeclared_columns": provenance.undeclared_columns(),
         "stale_declarations": provenance.stale_declarations(),
@@ -620,6 +731,7 @@ async def measure(
                 not any(k.startswith("v1=invalid,v2=valid") for k in validity)
             ),
             "equivalent_bundles_are_valid_on_both_sides": _verdict(not equivalent_but_invalid),
+            "no_unjustified_v2_bundle_where_v1_had_none": _verdict(not unassembled_v1_but_v2),
             # Gate C
             "every_migrated_column_is_grounded": _verdict(
                 not result.grounding["undeclared_columns"]

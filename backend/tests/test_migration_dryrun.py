@@ -18,7 +18,7 @@ import pathlib
 import pytest
 from sqlalchemy import func, select, update
 
-from app.models.research import Evidence, ResearchRun, Source
+from app.models.research import Contradiction, Evidence, ResearchRun, Source
 from app.models.review import Review
 from app.models.revision import Claim, ClaimEvidenceLink, Revision
 from app.models.session import Session, SessionStatus
@@ -38,9 +38,11 @@ from migration.dryrun import put_checkpoint
 from migration.ledger import TERMINAL, MigrationLedger, MigrationStatus
 from migration.runner import migrate_all
 from research_engine.bundle import content_hash
+from research_engine.graph import _number_sources
 from tests.migration_support import (
     CONTRADICTIONS,
     EVIDENCE,
+    EVIDENCE_NO_URL,
     PLAN,
     REPORT,
     FakeSaver,
@@ -134,22 +136,63 @@ async def test_a_v2_difference_is_reported_not_ignored(db):
     assert result.limitation == "UNCLASSIFIED"
 
 
-async def test_contradictions_do_not_round_trip_and_say_so(db):
-    """A documented V2 mapping limitation, surfaced rather than normalised away.
+async def test_contradictions_round_trip_at_the_granularity_v1_observed(db):
+    """All seven V1 fields survive, and the pair is anchored where V1 anchored it.
 
-    V1 keys a contradiction by source URL. V2 keys it by evidence id, and the migration
-    leaves both NULL because V1 never recorded which evidence row a side came from. The
-    bundle therefore cannot be rebuilt, and the comparison reports exactly that field.
+    V1's detector is shown `{source_url: [snippets]}` and never sees an evidence row, so
+    the pair is source-level. Until M2F the schema demanded evidence references V1 never
+    recorded, which forced the migration to write `NOT_RUN` about a detector that had run.
     """
     sid = await _seed_complete(db)
     saver = FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": CONTRADICTIONS}})
     await migrate_all(db, saver)
 
+    row = (await db.execute(select(Contradiction))).scalar_one()
+    assert row.detection_state == "DETECTED"
+    assert row.source_a_id is not None and row.source_b_id is not None
+    assert row.nature and row.quote_a and row.summary_a
+
     session = (await db.execute(select(Session).where(Session.id == sid))).scalar_one()
     result = await compare_run(db, saver, session)
-    assert result.verdict is BundleVerdict.BUNDLE_MISMATCH
-    assert result.differing_fields == ["contradictions", "bundle_hash"]
-    assert result.limitation == "CONTRADICTION_PAIR_NOT_STORED"
+    assert result.verdict is BundleVerdict.BUNDLE_EQUIVALENT, (
+        result.differing_fields,
+        result.detail,
+    )
+
+
+async def test_an_ambiguous_quotation_does_not_become_an_evidence_reference(db):
+    """Two evidence rows from one source carrying the same text: the refinement must not pick.
+
+    Choosing "the first" would assert a link the detector never made. The pair stays
+    DETECTED — V1 did detect it — with the evidence anchors NULL.
+    """
+    duplicated = [
+        {**EVIDENCE[0], "task_id": 1},
+        {**EVIDENCE[0], "task_id": 2},
+        EVIDENCE[1],
+    ]
+    sid = await _seed_complete(db, sources=_number_sources(duplicated)[0])
+    saver = FakeSaver({str(sid): {"evidence": duplicated, "contradictions": CONTRADICTIONS}})
+    await migrate_all(db, saver)
+
+    row = (await db.execute(select(Contradiction))).scalar_one()
+    assert row.detection_state == "DETECTED", "the detector did run and did find a pair"
+    assert row.source_a_id is not None, "the source anchor is what V1 guarantees"
+    assert row.evidence_a_id is None, "an ambiguous quotation must not resolve"
+    assert row.evidence_b_id is None, "ck_contra_refine: half a pair is not a pair"
+
+
+async def test_a_unique_quotation_does_refine_to_its_evidence_row(db):
+    """The refinement is allowed — it is only the guessing that is not."""
+    sid = await _seed_complete(db)
+    saver = FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": CONTRADICTIONS}})
+    await migrate_all(db, saver)
+
+    row = (await db.execute(select(Contradiction))).scalar_one()
+    # `snippet_a` is the exact text of evidence[0]; `snippet_b` is empty, so side B cannot
+    # resolve — and ck_contra_refine therefore clears side A too.
+    assert row.quote_a == EVIDENCE[0]["snippet"]
+    assert (row.evidence_a_id is None) == (row.evidence_b_id is None)
 
 
 @pytest.mark.parametrize(
@@ -191,7 +234,7 @@ async def test_a_refused_run_reports_V2_RUN_ABSENT_and_not_only_a_v1_property(db
     not-comparable runs in the M2E-2 corpus were in exactly this position (M2F §9.2).
     """
     sid = await seed(db, status=SessionStatus.FAILED, report=None, sources=[])
-    saver = FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": []}})
+    saver = FakeSaver({str(sid): {"evidence": EVIDENCE_NO_URL, "contradictions": []}})
     await migrate_all(db, saver)
     assert (
         await db.execute(select(MigrationLedger))
@@ -373,13 +416,17 @@ async def test_every_considered_session_has_exactly_one_terminal_outcome(db, mon
     orphan = await seed(db, sources=[])
     no_report = await seed(db, report=None)
     nothing_at_all = await seed(db, report=None)
+    plan_only = await seed(
+        db, status=SessionStatus.AWAITING_PLAN, report=None, audits=[("plan_approved", "a" * 64)]
+    )
 
     saver = FakeSaver(
         {
             str(good): {"evidence": EVIDENCE, "contradictions": []},
             str(empty): {"evidence": [], "contradictions": []},
             str(unreadable): FakeSaver.BOOM,
-            str(orphan): {"evidence": EVIDENCE, "contradictions": []},
+            str(orphan): {"evidence": EVIDENCE_NO_URL, "contradictions": []},
+            str(plan_only): {"evidence": [], "contradictions": []},
             str(no_report): {"evidence": EVIDENCE, "contradictions": []},
             str(nothing_at_all): {"evidence": [], "contradictions": []},
         }
@@ -387,17 +434,18 @@ async def test_every_considered_session_has_exactly_one_terminal_outcome(db, mon
     report = await migrate_all(db, saver)
 
     sessions = (await db.execute(select(func.count()).select_from(Session))).scalar_one()
-    assert report.considered == sessions == 7
+    assert report.considered == sessions == 8
     assert report.accounted == report.considered, "unexplained remainder"
 
     rows = {r.session_id: r for r in (await db.execute(select(MigrationLedger))).scalars()}
-    assert len(rows) == 7, "one ledger row per considered session, no more and no less"
+    assert len(rows) == 8, "one ledger row per considered session, no more and no less"
     assert all(r.status in TERMINAL for r in rows.values()), "a run left IN_PROGRESS"
     assert rows[good].status == MigrationStatus.MIGRATED
     assert rows[empty].status == MigrationStatus.EMPTY
     assert rows[missing].status == MigrationStatus.CHECKPOINT_MISSING
     assert rows[unreadable].status == MigrationStatus.READ_FAILURE
     assert rows[orphan].status == MigrationStatus.INCONSISTENT_V1
+    assert rows[plan_only].failure_category == "PLAN_REVIEW_WITHOUT_PLAN"
     assert rows[no_report].status == MigrationStatus.NO_REPORT
 
     # `status` is a single slot and this run has two findings at once: no checkpoint
@@ -773,3 +821,84 @@ async def test_the_migration_never_invalidates_a_bundle_v1_could_verify(maker, r
             if v1.passed is True and v2.passed is False:
                 broken.append((str(sid), v2.failed_checks))
         assert broken == [], f"the migration broke {len(broken)} verifiable bundle(s)"
+
+
+# ── The four gaps the F2/F3 plant sweep found silent ─────────────────────────────
+
+
+async def test_the_bundle_chain_follows_decision_order_not_the_clock(db):
+    """`reviews.sequence` is the order, and the bundle must read it.
+
+    The fixture's later `audit_log` row carries an EARLIER timestamp, so a chain ordered by
+    `created_at` comes out reversed. V1 guarantees neither distinctness nor monotonicity on
+    that column — only `audit_log.id` is monotonic — which is why S5 exists.
+    """
+    sid = await _seed_complete(
+        db,
+        audits=[("plan_approved", content_hash("plan")), ("approved", content_hash(REPORT))],
+        descending_audit_times=True,
+    )
+    saver = FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": []}})
+    await migrate_all(db, saver)
+
+    rows = (await db.execute(select(Review).order_by(Review.sequence))).scalars().all()
+    assert [r.gate for r in rows] == ["PLAN", "REPORT"]
+    assert rows[0].created_at > rows[1].created_at, "the fixture must invert the clock"
+
+    manifest, _ = await assemble_v2(db, sid)
+    assert [a.action for a in manifest.approval_chain] == ["plan_approved", "approved"]
+
+
+async def test_an_ambiguous_quotation_leaves_both_anchors_null(db):
+    """Both sides quoted, side A ambiguous: the refinement must decline, not pick.
+
+    Distinct from the all-or-nothing rule — here side B resolves perfectly, so only the
+    unique-match requirement can stop side A from guessing.
+    """
+    duplicated = [
+        {**EVIDENCE[0], "task_id": 1},
+        {**EVIDENCE[0], "task_id": 2},
+        {**EVIDENCE[1], "snippet": "A distinct passage from source b."},
+    ]
+    pair = [
+        {
+            "claim_a": "a",
+            "snippet_a": EVIDENCE[0]["snippet"],
+            "source_a": "https://e.org/a",
+            "claim_b": "b",
+            "snippet_b": "A distinct passage from source b.",
+            "source_b": "https://e.org/b",
+            "nature": "n",
+        }
+    ]
+    sid = await _seed_complete(db, sources=_number_sources(duplicated)[0])
+    await migrate_all(db, FakeSaver({str(sid): {"evidence": duplicated, "contradictions": pair}}))
+
+    row = (await db.execute(select(Contradiction))).scalar_one()
+    assert row.detection_state == "DETECTED", "the sources resolve, so the pair is real"
+    assert row.evidence_a_id is None, "two rows carry that quotation — it must not pick one"
+    assert row.evidence_b_id is None, "and half a resolved pair is not a pair"
+
+
+async def test_a_pair_naming_an_unknown_source_is_not_DETECTED(db):
+    """`DETECTED` requires both source anchors. An unresolvable side is not a detection."""
+    pair = [
+        {
+            "claim_a": "a",
+            "snippet_a": EVIDENCE[0]["snippet"],
+            "source_a": "https://e.org/a",
+            "claim_b": "b",
+            "snippet_b": "x",
+            "source_b": "https://not-in-this-run.invalid/z",
+            "nature": "n",
+        }
+    ]
+    sid = await _seed_complete(db)
+    await migrate_all(db, FakeSaver({str(sid): {"evidence": EVIDENCE, "contradictions": pair}}))
+
+    row = (await db.execute(select(Contradiction))).scalar_one()
+    assert row.detection_state == "NOT_RUN"
+    assert row.source_a_id is None and row.source_b_id is None
+    # The quotations and the reason survive even though the pair could not be anchored:
+    # dropping them would lose a V1 fact to make a constraint pass.
+    assert row.quote_a and row.nature and row.summary_a

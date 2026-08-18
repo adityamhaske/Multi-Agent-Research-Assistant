@@ -140,15 +140,19 @@ PROVENANCE: dict[str, dict[str, Provenance]] = {
     "sources": {
         "id": DERIVED("uuid5(NS, 'source|run_id|normalized_url')"),
         "run_id": FROM("sessions.id"),
-        "url": FROM("sessions.sources[i].url"),
-        "normalized_url": DERIVED("_norm_url(sessions.sources[i].url)"),
-        "title": FROM("sessions.sources[i].title"),
+        # Two V1 locations, not one: the synthesizer's numbered snapshot, or — when the
+        # synthesizer never ran — the executor's own record on the evidence chunk.
+        "url": FROM("sessions.sources[i].url, else checkpoint evidence[j].source_url"),
+        "normalized_url": DERIVED("_norm_url(url)"),
+        "title": FROM("sessions.sources[i].title, else checkpoint evidence[j].source_title"),
         "kind": DERIVED("'CORPUS' if url startswith corpus:// else 'WEB'"),
         "retrieval_status": CONST(
             "UNKNOWN",
             "V1 never recorded whether a page was fetched or only seen in a search result",
         ),
-        "citation_index": FROM("sessions.sources[i].index"),
+        # NULL when the source was recovered from evidence: the number is assigned by the
+        # synthesizer, and a run that failed before it has none. Never generated.
+        "citation_index": DERIVED("sessions.sources[i].index, else NULL (retrieved, uncited)"),
         "corpus_document_id": DERIVED("url after the corpus:// prefix, else NULL"),
         "retrieved_at": FROM("sessions.created_at — V1 kept no per-source retrieval time"),
     },
@@ -174,18 +178,23 @@ PROVENANCE: dict[str, dict[str, Provenance]] = {
     "contradictions": {
         "id": DERIVED("uuid5(NS, 'contradiction|run_id|position')"),
         "run_id": FROM("sessions.id"),
-        "evidence_a_id": NULL(
-            "V1 keys the pair by source URL, not by evidence id. Resolving it is M2F/F4; "
-            "until then the reference is absent rather than guessed"
-        ),
-        "evidence_b_id": NULL("same as evidence_a_id"),
+        # The authoritative anchors: `validate_pairs` drops any pair whose URL was not in
+        # the detector's input, so a surviving pair's sources are V1-guaranteed.
+        "source_a_id": DERIVED("the sources row matching _norm_url(contradictions[j].source_a)"),
+        "source_b_id": DERIVED("the sources row matching _norm_url(contradictions[j].source_b)"),
+        # The refinement, and only when the quotation matches EXACTLY ONE evidence row.
+        # No fallback: picking a row would assert a link the detector never made.
+        "evidence_a_id": DERIVED("unique evidence whose snippet equals quote_a, else NULL"),
+        "evidence_b_id": DERIVED("unique evidence whose snippet equals quote_b, else NULL"),
+        "quote_a": FROM("checkpoint contradictions[j].snippet_a"),
+        "quote_b": FROM("checkpoint contradictions[j].snippet_b"),
         "summary_a": FROM("checkpoint contradictions[j].claim_a"),
         "summary_b": FROM("checkpoint contradictions[j].claim_b"),
+        "nature": FROM("checkpoint contradictions[j].nature"),
         "dimension": CONST("UNCLASSIFIED", "V1's detector records no dimension"),
-        "detection_state": CONST(
-            "NOT_RUN",
-            "ck_contra_pair forbids DETECTED without both evidence references, and V1 "
-            "recorded none. Revised by M2F/S4; NOT_RUN is what is storable today",
+        "detection_state": DERIVED(
+            "DETECTED when both source anchors resolve — the granularity V1 worked in — "
+            "else NOT_RUN"
         ),
         "review_state": CONST("UNREVIEWED", "V1 has no contradiction review workflow"),
         "created_at": FROM("sessions.created_at"),
@@ -239,7 +248,12 @@ PROVENANCE: dict[str, dict[str, Provenance]] = {
     },
     "reviews": {
         "id": DERIVED("uuid5(NS, 'review|run_id|audit_log.id')"),
-        "revision_id": DERIVED("the run's single migrated revision"),
+        "run_id": FROM("sessions.id"),
+        # `audit_log.id` is BIGSERIAL and monotonic, so its rank IS V1's decision order.
+        # A transformation of a V1 fact, and the only place that order still exists.
+        "sequence": DERIVED("rank of audit_log.id within the session, 1-based"),
+        # NULL at the plan gate: a plan review's subject is the plan version.
+        "revision_id": DERIVED("the run's single migrated revision, NULL for a PLAN review"),
         "reviewer_id": FROM("audit_log.user_id"),
         "plan_version_id": DERIVED("the migrated plan, for PLAN-gate rows only"),
         "gate": DERIVED("AUDIT_MAP[audit_log.action][0]"),
