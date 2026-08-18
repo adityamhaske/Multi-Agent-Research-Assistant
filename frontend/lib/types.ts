@@ -420,3 +420,214 @@ export interface OutlineTemplate {
   summary: string;
   sections: OutlineSection[];
 }
+
+/* ── V2 run graph ──────────────────────────────────────────────────────────────
+ *
+ * The contract served by `GET /v2/runs/{id}` on both hosts. Written now, ahead of the UI
+ * milestone, because the shapes are the part that is expensive to change once nine
+ * surfaces read them.
+ *
+ * Every three-valued vocabulary is a union of literals rather than a boolean. That is the
+ * whole point: a reader must be able to tell "we checked and it failed" from "we never
+ * checked", and a `verified: boolean` would make the product's central claim unrepresentable
+ * in its own types.
+ */
+
+/** `UNCHECKED` is not `UNATTESTED`. Never collapse these. */
+export type ProvenanceState = 'ATTESTED' | 'UNATTESTED' | 'UNCHECKED';
+export type AttestationGrade = 'FETCHED_BODY' | 'SEARCH_SNIPPET' | 'CORPUS_DOCUMENT';
+export type ClaimVerificationState =
+  | 'SUPPORTED'
+  | 'UNSUPPORTED'
+  | 'INSUFFICIENT_EVIDENCE'
+  | 'UNCHECKED';
+/** `NOT_RUN` and `DETECTOR_UNAVAILABLE` are different findings from "none found". */
+export type ContradictionDetectionState = 'DETECTED' | 'NOT_RUN' | 'DETECTOR_UNAVAILABLE';
+export type ReviewGate = 'PLAN' | 'REPORT';
+export type ReviewDecision = 'APPROVED' | 'REWORK_REQUESTED' | 'REJECTED';
+export type RunStatusV2 =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'AWAITING_PLAN'
+  | 'AWAITING_REVIEW'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'CANCELLED';
+
+export interface V2Run {
+  id: string;
+  project_id: string;
+  question: string;
+  status: RunStatusV2;
+  depth: string;
+  corpus_mode: boolean;
+  demo: boolean;
+  skip_plan_gate: boolean;
+  model_routing: Record<string, string> | null;
+  cost_usd: number;
+  tokens_input: number;
+  tokens_output: number;
+  elapsed_seconds: number | null;
+  /** Null means UNMEASURED. Rendering it as 0 is the bug this field exists to prevent. */
+  citation_resolution_rate: number | null;
+  error_message: string | null;
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface V2Plan {
+  id: string;
+  version: number;
+  tasks: PlanTask[];
+  outline_sections: unknown[];
+  /** `UNKNOWN` appears only on plans migrated from V1, which could not tell the model's
+   *  proposal from a human's edit. A native run always knows. */
+  origin: 'MODEL_PROPOSED' | 'HUMAN_EDITED' | 'TEMPLATE' | 'UNKNOWN';
+  approved_at: string | null;
+}
+
+export interface V2Source {
+  id: string;
+  url: string;
+  title: string | null;
+  kind: 'WEB' | 'CORPUS';
+  retrieval_status: string;
+  /** Null means retrieved but never cited. Do not number it. */
+  citation_index: number | null;
+  corpus_document_id: string | null;
+}
+
+export interface V2Evidence {
+  id: string;
+  source_id: string;
+  sequence: number;
+  task_id: string | null;
+  snippet: string;
+  content_hash: string;
+  key_fact: string | null;
+  provenance_state: ProvenanceState;
+  attested_against: AttestationGrade | null;
+  attestation_run_at: string | null;
+}
+
+export interface V2Revision {
+  id: string;
+  version: number;
+  report_markdown: string;
+  report_hash: string;
+  /** The last evidence sequence visible at synthesis. A threshold, not a count. */
+  evidence_watermark: number;
+  created_at: string;
+}
+
+export interface V2Claim {
+  id: string;
+  revision_id: string;
+  position: number;
+  text: string;
+  extraction_method: 'DERIVED_FROM_REPORT' | 'MODEL_STRUCTURED' | 'HUMAN_EDITED';
+  verification_state: ClaimVerificationState;
+  verification_method: 'NUMERIC_GROUNDING' | 'MODEL_JUDGE' | 'NOT_RUN';
+  /** Reserved and always null today: nothing has observed claim identity across revisions. */
+  lineage_id: string | null;
+}
+
+export interface V2ClaimEvidenceLink {
+  id: string;
+  claim_id: string;
+  evidence_id: string;
+  stance: 'SUPPORTS' | 'CONTRADICTS' | 'CONTEXT';
+  origin: 'CITATION_MARKER' | 'MODEL_ASSERTED' | 'HUMAN_ASSERTED';
+}
+
+/**
+ * A conflict between two ATTRIBUTED QUOTATIONS. The source anchors are what the detector
+ * observed; the evidence anchors are a refinement and are often null, because a quotation
+ * that matches two evidence rows must not be resolved to one of them.
+ */
+export interface V2Contradiction {
+  id: string;
+  source_a_id: string | null;
+  source_b_id: string | null;
+  evidence_a_id: string | null;
+  evidence_b_id: string | null;
+  quote_a: string | null;
+  quote_b: string | null;
+  summary_a: string | null;
+  summary_b: string | null;
+  nature: string | null;
+  dimension: string | null;
+  detection_state: ContradictionDetectionState;
+  review_state: 'UNREVIEWED' | 'ACKNOWLEDGED' | 'DISMISSED';
+}
+
+export interface V2Review {
+  id: string;
+  /** Explicit position within the run. Do not sort by `created_at`. */
+  sequence: number;
+  gate: ReviewGate;
+  decision: ReviewDecision;
+  /** Null for a PLAN review — its subject is the plan version. */
+  revision_id: string | null;
+  plan_version_id: string | null;
+  feedback: string | null;
+  reviewed_hash: string;
+  created_at: string;
+}
+
+export interface V2Artifact {
+  id: string;
+  artifact_hash: string;
+  format_version: number;
+  review_id: string | null;
+  /** Always `REPORT`: a plan approval cannot authorize an artifact. */
+  review_gate: ReviewGate;
+  review_decision: ReviewDecision;
+  revision_id: string | null;
+  demo: boolean;
+  created_at: string;
+}
+
+/** The whole graph, as one response. See `app/api/v1/v2_runs.py` for why it is aggregate. */
+export interface V2RunGraph {
+  run: V2Run;
+  plans: V2Plan[];
+  sources: V2Source[];
+  evidence: V2Evidence[];
+  revisions: V2Revision[];
+  claims: V2Claim[];
+  claim_evidence_links: V2ClaimEvidenceLink[];
+  contradictions: V2Contradiction[];
+  reviews: V2Review[];
+  artifact: V2Artifact | null;
+}
+
+/**
+ * `GET /v2/runs/{id}/verification` — every check the standalone verifier ran.
+ *
+ * `assembled: false` means the verifier was NOT run, and `passed` is then null. That is not
+ * the same as a failure, and a UI must not render it as one.
+ */
+export interface V2Verification {
+  assembled: boolean;
+  reason: string | null;
+  passed: boolean | null;
+  bundle_hash?: string;
+  frozen?: boolean;
+  checks: { name: string; passed: boolean; detail: string | null }[];
+}
+
+/** One row of `GET /v2/runs` — the History list. */
+export interface V2RunSummary {
+  id: string;
+  project_id: string;
+  question: string;
+  status: RunStatusV2;
+  depth: string;
+  demo: boolean;
+  cost_usd: number;
+  citation_resolution_rate: number | null;
+  has_artifact: boolean;
+  created_at: string;
+}
