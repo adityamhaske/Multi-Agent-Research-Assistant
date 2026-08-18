@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 
 import { Disclosure } from "@/components/ui/Disclosure";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { useV2Cancel, useV2ReportReview, useV2Verification } from "@/hooks/v2";
+import { useV2Cancel, useV2PlanReview, useV2ReportReview, useV2Verification } from "@/hooks/v2";
 import { apiBase } from "@/lib/desktop";
 import type { V2Claim, V2Contradiction, V2Evidence, V2RunGraph, V2Source } from "@/lib/types";
 
@@ -25,17 +25,47 @@ import { CitationChip, Hash, ProvenanceChip, runTotals } from "./primitives";
  * retrieved ≠ verified, retrieved ≠ cited, and a citation marker ≠ evidence.
  */
 
-type Tab = "report" | "claims" | "evidence" | "sources" | "contradictions" | "review" | "artifact";
+type Tab =
+  | "plan"
+  | "report"
+  | "claims"
+  | "evidence"
+  | "sources"
+  | "contradictions"
+  | "review"
+  | "artifact";
 
 export function RunWorkspace({ graph }: { graph: V2RunGraph }) {
   const totals = useMemo(() => runTotals(graph), [graph]);
-  const [tab, setTab] = useState<Tab>(
-    graph.artifact ? "artifact" : graph.run.status === "AWAITING_REVIEW" ? "review" : "report",
-  );
+  // The tab a run's current state demands, or null when nothing is waiting on a person.
+  const demanded: Tab | null = graph.artifact
+    ? "artifact"
+    : graph.run.status === "AWAITING_REVIEW"
+      ? "review"
+      : graph.run.status === "AWAITING_PLAN"
+        ? "plan"
+        : null;
+
+  const [tab, setTab] = useState<Tab>(demanded ?? "report");
+
+  // Re-route when the run REACHES a gate, not only when the page is first opened.
+  //
+  // Found by the end-to-end journey: a run watched from RUNNING through to
+  // AWAITING_REVIEW left the reviewer on the Report tab with the decision hidden behind
+  // another one, because the opening tab was computed once by `useState`. Written as
+  // setState-during-render keyed on the demanded tab — the codebase's "reset state when a
+  // prop changes" pattern — rather than an effect, so the correct tab is painted in the
+  // same commit as the new status instead of one frame later.
+  const [lastDemanded, setLastDemanded] = useState<Tab | null>(demanded);
+  if (demanded !== lastDemanded) {
+    setLastDemanded(demanded);
+    if (demanded) setTab(demanded);
+  }
   const [focusClaim, setFocusClaim] = useState<string | null>(null);
   const [focusSource, setFocusSource] = useState<string | null>(null);
 
   const tabs: { id: Tab; label: string; count?: number | null }[] = [
+    ...(graph.plans.length > 0 ? [{ id: "plan" as const, label: "Plan" }] : []),
     { id: "report", label: "Report" },
     { id: "claims", label: "Claims", count: totals.claims.length },
     { id: "evidence", label: "Evidence", count: totals.evidence },
@@ -69,6 +99,7 @@ export function RunWorkspace({ graph }: { graph: V2RunGraph }) {
       </div>
 
       <div role="tabpanel">
+        {tab === "plan" && <PlanPanel graph={graph} />}
         {tab === "report" && <ReportPanel graph={graph} />}
         {tab === "claims" && (
           <ClaimsPanel
@@ -93,6 +124,109 @@ export function RunWorkspace({ graph }: { graph: V2RunGraph }) {
         {tab === "review" && <ReviewPanel graph={graph} />}
         {tab === "artifact" && <ArtifactPanel graph={graph} />}
       </div>
+    </div>
+  );
+}
+
+/* ── Plan ───────────────────────────────────────────────────────────────────── */
+
+/**
+ * The design gate. **Approving a plan is not approving a report**, and nothing in this
+ * panel may suggest otherwise: no "verified", no artifact language, and the button says
+ * what happens next — research starts.
+ */
+function PlanPanel({ graph }: { graph: V2RunGraph }) {
+  const review = useV2PlanReview(graph.run.id);
+  const [feedback, setFeedback] = useState("");
+  const plan = graph.plans[graph.plans.length - 1];
+  const decided = graph.reviews.some((r) => r.gate === "PLAN");
+
+  if (!plan) {
+    return <EmptyState title="No plan" description="This run did not stop at the design gate." />;
+  }
+
+  const open = graph.run.status === "AWAITING_PLAN" && !decided;
+
+  return (
+    <div className="space-y-3">
+      <div className="card p-4">
+        <h3 className="text-sm font-semibold text-text-primary">Research plan</h3>
+        <p className="mt-1 text-xs text-text-secondary">{graph.run.question}</p>
+        <p className="mt-2 text-[0.6875rem] text-text-muted">
+          Version {plan.version} ·{" "}
+          {plan.origin === "MODEL_PROPOSED" ? "proposed by the planner" : plan.origin.toLowerCase()}
+          {plan.approved_at && " · approved"}
+        </p>
+
+        <h4 className="mt-3 text-xs font-medium text-text-secondary">Tasks</h4>
+        <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm text-text-primary">
+          {plan.tasks.map((t, i) => (
+            <li key={i}>{typeof t === "object" && t && "query" in t ? String(t.query) : String(t)}</li>
+          ))}
+        </ol>
+
+        {plan.outline_sections.length > 0 && (
+          <>
+            <h4 className="mt-3 text-xs font-medium text-text-secondary">Report outline</h4>
+            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-text-primary">
+              {plan.outline_sections.map((sec, i) => (
+                <li key={i}>
+                  {typeof sec === "object" && sec && "title" in sec
+                    ? String((sec as { title: unknown }).title)
+                    : String(sec)}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+
+      {open ? (
+        <div className="card p-4">
+          <label htmlFor="plan-feedback" className="text-sm font-medium text-text-primary">
+            Changes to request
+          </label>
+          <textarea
+            id="plan-feedback"
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            rows={2}
+            placeholder="What should the plan cover instead?"
+            className="input mt-2 w-full"
+          />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              className="btn-secondary"
+              disabled={review.isPending}
+              onClick={() =>
+                review.mutate({ decision: "REWORK_REQUESTED", feedback: feedback || null })
+              }
+            >
+              Request changes
+            </button>
+            <button
+              className="btn-primary"
+              disabled={review.isPending}
+              onClick={() => review.mutate({ decision: "APPROVED" })}
+            >
+              Approve plan
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-text-secondary">
+            Approving the plan starts the research. It does <strong>not</strong> approve a
+            report and creates no artifact — you will review the draft separately.
+          </p>
+          {review.isError && (
+            <p className="mt-2 text-xs text-status-danger">{(review.error as Error).message}</p>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-text-secondary">
+          {decided
+            ? "This plan has been decided. Research runs against it."
+            : "The plan gate is closed for this run."}
+        </p>
+      )}
     </div>
   );
 }

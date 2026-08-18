@@ -21,7 +21,7 @@ import { useStartV2Research, useV2Runs } from "@/hooks/v2";
 export default function ResearchPage() {
   const router = useRouter();
   // `activeId` is undefined while the switcher loads; scoped fetches hold off on that.
-  const { activeId: projectId } = useActiveProject();
+  const { activeId: projectId, isLoading: projectsLoading } = useActiveProject();
   const [question, setQuestion] = useState("");
   const start = useStartV2Research();
   const { data: runs, isLoading } = useV2Runs(projectId ?? null);
@@ -60,8 +60,14 @@ export default function ResearchPage() {
           />
         </div>
         <div className="flex items-center justify-between gap-3">
+          {/* A disabled button with no reason is the worst state a first-run user can meet:
+              it looks broken rather than blocked. Say which of the two it is. */}
           <p className="text-xs text-text-muted">
-            The run pauses for your review before anything is finalised.
+            {projectsLoading
+              ? "Loading your projects…"
+              : projectId
+                ? "The run pauses for your review before anything is finalised."
+                : "Create a project first — research is always scoped to one."}
           </p>
           <button
             type="submit"

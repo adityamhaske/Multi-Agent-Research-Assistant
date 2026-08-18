@@ -17,6 +17,10 @@ import { expect, test, type Page } from "@playwright/test";
  * LangGraph engine, the V2 domain rows are written by the real adapter, and the downloaded
  * bundle is checked by `research_engine/verify_bundle.py` as a subprocess.
  *
+ * **Running this alongside the golden suite needs the register counter cleared** —
+ * `REGISTER_IP` is 5/hour and the suite registers one account per journey, which the golden
+ * file alone already exceeds. See frontend/AGENTS.md; do not raise the limit.
+ *
  * The last step is the one that matters. A UI that renders six green ticks it computed
  * itself would pass a test that only looked at the screen; this shells out to the shipped
  * verifier and requires *it* to agree.
@@ -41,6 +45,26 @@ async function register(page: Page): Promise<void> {
   await page.waitForURL(/\/(dashboard|project|research)/, { timeout: 60_000 });
 }
 
+/**
+ * A fresh account owns no project, and every research run is scoped to one.
+ *
+ * Created through the app's own API using the browser's authenticated context — a
+ * *precondition*, not part of the journey under test. The research execution itself is not
+ * mocked anywhere: everything from "start research" onward goes through the real UI, the
+ * real worker and the real engine.
+ */
+async function ensureProject(page: Page): Promise<void> {
+  const existing = await page.request.get("/api/v1/projects?archived=false");
+  expect(existing.ok(), `projects list failed: ${existing.status()}`).toBe(true);
+  const { projects } = (await existing.json()) as { projects: unknown[] };
+  if (projects.length > 0) return;
+
+  const created = await page.request.post("/api/v1/projects", {
+    data: { name: `E2E ${Date.now()}`, description: "V2 journey" },
+  });
+  expect(created.ok(), `project create failed: ${created.status()}`).toBe(true);
+}
+
 test.describe("V2 research journey", () => {
   // The engine runs a full plan → execute → critic → synthesize cycle even in fake mode.
   test.setTimeout(240_000);
@@ -48,7 +72,11 @@ test.describe("V2 research journey", () => {
   test("question to verified artifact, checked by the standalone verifier", async ({ page }) => {
     await register(page);
 
-    // 1–2. Open Research and start a run.
+    // 1. A project. Research is always project-scoped, and a fresh account has none — the
+    // Research page says so rather than showing a dead button, and this is that path.
+    await ensureProject(page);
+
+    // 2. Open Research and start a run.
     await page.goto("/research");
     await expect(page.getByRole("heading", { name: "Research" })).toBeVisible();
     await page.getByLabel("Research question").fill(QUESTION);
@@ -100,7 +128,9 @@ test.describe("V2 research journey", () => {
       "Claim / evidence linkage",
       "Approval chain",
     ]) {
-      await expect(page.getByText(label)).toBeVisible();
+      // Exact: the bundle blurb below also contains the phrase "the approval chain", and a
+      // substring match there would be ambiguous rather than wrong.
+      await expect(page.getByText(label, { exact: true })).toBeVisible();
     }
 
     // 12. Download the bundle through the UI control a user would actually click.
@@ -123,7 +153,7 @@ test.describe("V2 research journey", () => {
     // frontend assertion standing in for it.
     const verifier = spawnSync(
       "python",
-      ["-m", "research_engine.verify_bundle", bundlePath, "--json"],
+      ["-m", "research_engine.verify_bundle", bundlePath, "--format", "json"],
       { cwd: path.resolve(process.cwd(), "../backend"), encoding: "utf8" },
     );
     expect(verifier.error, `verifier failed to launch: ${verifier.error?.message}`).toBeFalsy();

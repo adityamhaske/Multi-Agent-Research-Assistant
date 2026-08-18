@@ -17,9 +17,11 @@ import { RunWorkspace } from "./RunWorkspace";
  */
 
 const mutate = vi.fn();
+const planMutate = vi.fn();
 vi.mock("@/hooks/v2", () => {
   return {
     useV2ReportReview: () => ({ mutate, isPending: false, isError: false, error: null }),
+    useV2PlanReview: () => ({ mutate: planMutate, isPending: false, isError: false, error: null }),
     useV2Cancel: () => ({ mutate: vi.fn(), isPending: false, data: undefined }),
     useV2Verification: () => ({
       data: {
@@ -343,5 +345,152 @@ describe("RunWorkspace", () => {
     fireEvent.click(screen.getByRole("tab", { name: /Report/ }));
     expect(screen.getByText(/Revision 2 of 2/)).toBeInTheDocument();
     expect(screen.getByText(/never overwrites one/)).toBeInTheDocument();
+  });
+});
+
+
+describe("Plan gate", () => {
+  const awaitingPlan = () =>
+    graph({
+      run: { ...graph().run, status: "AWAITING_PLAN" },
+      plans: [
+        {
+          id: "pl1",
+          version: 1,
+          tasks: [
+            {
+              id: 1,
+              query: "survey memory architectures",
+              rationale: "",
+              subtopics: [],
+              include: false,
+              source_hint: "",
+            },
+          ],
+          outline_sections: ["Findings", "Limitations"],
+          origin: "MODEL_PROPOSED",
+          approved_at: null,
+        },
+      ],
+      revisions: [],
+      claims: [],
+      claim_evidence_links: [],
+    });
+
+  it("opens on the plan when the design gate is waiting", () => {
+    view(awaitingPlan());
+    expect(screen.getByText("Research plan")).toBeInTheDocument();
+    expect(screen.getByText("survey memory architectures")).toBeInTheDocument();
+    expect(screen.getByText("Findings")).toBeInTheDocument();
+  });
+
+  it("never implies the plan approval approves a report or an artifact", () => {
+    view(awaitingPlan());
+    expect(screen.getByText(/Approving the plan starts the research/)).toBeInTheDocument();
+    expect(screen.getByText(/approve a report and creates no artifact/)).toBeInTheDocument();
+    expect(screen.queryByText("Verified artifact")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Approve report" })).not.toBeInTheDocument();
+  });
+
+  it("sends the plan approval", async () => {
+    view(awaitingPlan());
+    fireEvent.click(screen.getByRole("button", { name: "Approve plan" }));
+    await waitFor(() => expect(planMutate).toHaveBeenCalledWith({ decision: "APPROVED" }));
+  });
+
+  it("sends requested changes with the feedback typed", async () => {
+    view(awaitingPlan());
+    fireEvent.change(screen.getByLabelText("Changes to request"), {
+      target: { value: "Cover the adversarial split." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Request changes" }));
+    await waitFor(() =>
+      expect(planMutate).toHaveBeenCalledWith({
+        decision: "REWORK_REQUESTED",
+        feedback: "Cover the adversarial split.",
+      }),
+    );
+  });
+
+  it("closes the gate controls once the plan has been decided", () => {
+    view(
+      graph({
+        run: { ...graph().run, status: "RUNNING" },
+        plans: [
+          {
+            id: "pl1",
+            version: 1,
+            tasks: [
+              { id: 1, query: "q", rationale: "", subtopics: [], include: false, source_hint: "" },
+            ],
+            outline_sections: [],
+            origin: "MODEL_PROPOSED",
+            approved_at: "2026-08-18T00:00:00Z",
+          },
+        ],
+        reviews: [
+          {
+            id: "rv-plan",
+            sequence: 1,
+            gate: "PLAN",
+            decision: "APPROVED",
+            revision_id: null,
+            plan_version_id: "pl1",
+            feedback: null,
+            reviewed_hash: "e".repeat(64),
+            created_at: "2026-08-18T00:00:00Z",
+          },
+        ],
+      }),
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Plan" }));
+    expect(screen.queryByRole("button", { name: "Approve plan" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Research runs against it/)).toBeInTheDocument();
+  });
+});
+
+describe("gate routing", () => {
+  it("moves to the review when a watched run REACHES the gate", () => {
+    // The defect the end-to-end journey found: the opening tab was chosen once, so a run
+    // watched from RUNNING to AWAITING_REVIEW left the decision behind another tab.
+    const running = graph({
+      run: { ...graph().run, status: "RUNNING" },
+      revisions: [],
+      claims: [],
+      claim_evidence_links: [],
+    });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { rerender } = render(
+      <QueryClientProvider client={qc}>
+        <RunWorkspace graph={running} />
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByText("What you are approving")).not.toBeInTheDocument();
+
+    rerender(
+      <QueryClientProvider client={qc}>
+        <RunWorkspace graph={graph()} />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText("What you are approving")).toBeInTheDocument();
+  });
+
+  it("does not yank the user off a tab they chose while nothing is waiting", () => {
+    const done = graph({ run: { ...graph().run, status: "COMPLETED" } });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { rerender } = render(
+      <QueryClientProvider client={qc}>
+        <RunWorkspace graph={done} />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("tab", { name: /Sources/ }));
+    expect(screen.getByText("Retrieved, not cited")).toBeInTheDocument();
+
+    rerender(
+      <QueryClientProvider client={qc}>
+        <RunWorkspace graph={{ ...done, run: { ...done.run, cost_usd: 0.02 } }} />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText("Retrieved, not cited")).toBeInTheDocument();
   });
 });
