@@ -45,7 +45,14 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - name: Install system deps (WeasyPrint)
-        run: sudo apt-get update && sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0
+        run: |
+          MISSING=""
+          for pkg in libpango-1.0-0 libpangoft2-1.0-0; do
+            if ! dpkg -s "$pkg" >/dev/null 2>&1; then MISSING="$MISSING $pkg"; fi
+          done
+          if [ -n "$MISSING" ]; then
+            sudo apt-get install -y $MISSING || { sudo apt-get update -o Acquire::Retries=3 && sudo apt-get install -y $MISSING; }
+          fi
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Lint
@@ -189,7 +196,14 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - name: Install system deps (WeasyPrint)
-        run: sudo apt-get update && sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0
+        run: |
+          MISSING=""
+          for pkg in libpango-1.0-0 libpangoft2-1.0-0; do
+            if ! dpkg -s "$pkg" >/dev/null 2>&1; then MISSING="$MISSING $pkg"; fi
+          done
+          if [ -n "$MISSING" ]; then
+            sudo apt-get install -y $MISSING || { sudo apt-get update -o Acquire::Retries=3 && sudo apt-get install -y $MISSING; }
+          fi
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -r requirements.txt
