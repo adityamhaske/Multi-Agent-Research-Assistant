@@ -46,6 +46,7 @@ from app.schemas.research import (
 from app.services import checkpoints, export, model_routing, usage
 from app.services.sse import SSE_HEADERS
 from app.workers.tasks import resume_agent_pipeline, resume_plan_gate, run_agent_pipeline
+from research_engine import bundle
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/research", tags=["Research"])
@@ -262,18 +263,10 @@ async def stream_events(
     )
 
 
-#: Prepended to the report text of any demo export (docs/17 §6.2). Markdown, so it
-#: survives into the PDF renderer as well as the `.md` file.
-_DEMO_STAMP = (
-    "> ## ⚠ DEMO — NOT REAL RESEARCH\n"
-    ">\n"
-    "> This report was produced with **scripted models and fixture sources** so the\n"
-    "> product could be demonstrated without an API key. The citations below resolve to\n"
-    "> real-looking references, but **nothing here was researched and nothing here is\n"
-    "> verified**. Do not cite, share, or act on it.\n"
-    "\n"
-    "---\n\n"
-)
+#: The demo banner and the "stamped iff demo" rule now live in `research_engine.bundle`,
+#: the host-agnostic export home, so the desktop sidecar stamps `.md` identically (#52).
+#: Aliased here because this module and `v2_runs` have always referred to `_DEMO_STAMP`.
+_DEMO_STAMP = bundle.DEMO_STAMP_MD
 
 
 def _report_or_404(session: Session, *, stamp_demo: bool = True) -> str:
@@ -296,7 +289,7 @@ def _report_or_404(session: Session, *, stamp_demo: bool = True) -> str:
     report = session.final_report or session.draft_report
     if not report:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No report available to export.")
-    return f"{_DEMO_STAMP}{report}" if (session.demo and stamp_demo) else report
+    return bundle.stamp_demo_md(report, demo=bool(session.demo) and stamp_demo)
 
 
 @router.get("/{session_id}/export.md")

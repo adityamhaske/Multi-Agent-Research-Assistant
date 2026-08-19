@@ -72,17 +72,19 @@ from sqlalchemy import event, func, select
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-# `download_headers` is the server's response-header policy for uploaded documents (the
+# `download_headers` is the shared response-header policy for uploaded documents (the
 # no-render rule plus the narrow PDF exception). Imported, never restated: a second copy
-# of a security header policy is the worst kind of duplication this repo has.
-from app.api.v1.corpus import download_headers
+# of a security header policy is the worst kind of duplication this repo has. It lives in
+# a stdlib-only module rather than in the server's corpus route, because importing that
+# route reaches `app.config` and this host has no server settings to build (#50).
+from app.services.document_headers import download_headers
 
 # The V2 request models are imported, not restated: the desktop host must accept exactly
 # the body the server does, and two Pydantic models with the same name in two files is how
 # that stops being true.
-from app.api.v1.v2_runs import CreateRunRequest as V2CreateRunRequest
-from app.api.v1.v2_runs import PlanReviewRequest as V2PlanReviewRequest
-from app.api.v1.v2_runs import ReportReviewRequest as V2ReportReviewRequest
+from app.schemas.v2 import CreateRunRequest as V2CreateRunRequest
+from app.schemas.v2 import PlanReviewRequest as V2PlanReviewRequest
+from app.schemas.v2 import ReportReviewRequest as V2ReportReviewRequest
 from app.models import POSTGRES_ONLY_TABLES, Base
 from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
@@ -1528,6 +1530,14 @@ def create_sidecar_app(
         report = session.final_report or session.draft_report
         if not report:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No report available to export.")
+        # Demo-stamped exactly as the server stamps it (#52). Both hosts call the same
+        # `bundle.stamp_demo_md`, so the rule has one implementation rather than two that
+        # have to be kept in step by discipline. The desktop `.md` shipped unstamped for a
+        # whole release while docs/29 promised every export path stamps — an unmarked
+        # fixture report leaving the app is the one thing the demo flag exists to prevent.
+        # The bundle stays unstamped on both hosts: prose in the report body would break
+        # `report_hash` against the approval chain.
+        report = bundle.stamp_demo_md(report, demo=bool(session.demo))
         report += bundle.render_model_attribution_md(session.model_routing)
         filename = f"research-{str(session.id)[:8]}.md"
         return Response(
