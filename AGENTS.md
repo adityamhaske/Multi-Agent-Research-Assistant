@@ -205,6 +205,35 @@ path only at release time, so a divergence ships. Prefer extracting the shared l
 one function over keeping two copies in step by discipline — `map_local_host` is the
 worked example of doing that after the fact.
 
+**A route that exists on both hosts can still be desktop-only broken, and parity will not
+see it.** Every divergence above was a *missing* route; this one is not. The sidecar's V2
+routes import their handlers from `app.api.v1.v2_runs` rather than restating them, so
+registration is identical on both hosts and `test_host_parity` is satisfied — while every
+V2 route on the packaged app answered 500, in three separate layers:
+
+| Layer | Why it only bit the desktop |
+|---|---|
+| `app.config` builds `Settings` at import, requiring `database_url`/`jwt_secret_key` | A dev shell and CI both export them; an installed app exports neither |
+| `app.db.redis` imported `redis` at module scope | `research-sidecar.spec` **excludes** `redis` — the desktop speaks SQLite only — so this is a `ModuleNotFoundError` in the bundle and fine from source |
+| `create_run` imports `app.workers.tasks` when `dispatch` is set | Same: `celery` is excluded, and this host has no broker or worker either way |
+
+Three rules come out of it. **Anything the desktop imports at *request* time must also fit
+in the bundle** — `test_sidecar_startup.py` reads the spec's own `excludes` list and
+asserts the V2 import tree touches none of it, after building the app the way the launcher
+does, because the host's own configuration decides which drivers load.
+**`test_sidecar_startup.py`'s existing assertions cover startup only**, which is precisely
+why they were green: the V2 handlers are imported when the first V2 request arrives.
+And **V2 execution is server-only** — `v2_execution.execute_run` takes a Redis lock, opens
+the server engine and checkpoints to Postgres — so the desktop refuses `dispatch` with a
+501 rather than creating a run nothing will ever advance. Wiring an in-process V2 driver is
+the fix; widening the bundle is not. The desktop journey is V1 today (`DESKTOP_UI_CALLS`
+lists no V2 path), which is the only reason this was latent rather than a shipped 500.
+
+The same packaged-app run turned up the behavioural twin: `POST /projects` answered a
+duplicate name with an unhandled `IntegrityError` while the server returned 409 with the
+offending name. Route parity held throughout — **parity checks registration; only a test
+that calls the route checks behaviour.**
+
 **`tests/test_host_parity.py` is now the enforcement.** Added in M1, before any extraction,
 because a refactor without a contract test just moves the drift. It holds four tables and
 fails if any of them rots:
