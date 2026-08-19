@@ -1,14 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
-import { Disclosure } from "@/components/ui/Disclosure";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { useV2Cancel, useV2PlanReview, useV2ReportReview, useV2Verification } from "@/hooks/v2";
-import { apiBase } from "@/lib/desktop";
-import type { V2Claim, V2Contradiction, V2Evidence, V2RunGraph, V2Source } from "@/lib/types";
+import { useV2Cancel } from "@/hooks/v2";
+import type { V2RunGraph } from "@/lib/types";
+import { isTab, type Tab } from "@/lib/v2Tabs";
 
-import { CitationChip, Hash, ProvenanceChip, runTotals } from "./primitives";
+import { ArtifactPanel } from "./panels/ArtifactPanel";
+import { ClaimsPanel } from "./panels/ClaimsPanel";
+import { ContradictionsPanel } from "./panels/ContradictionsPanel";
+import { EvidencePanel } from "./panels/EvidencePanel";
+import { PlanPanel } from "./panels/PlanPanel";
+import { ReportPanel } from "./panels/ReportPanel";
+import { ReviewPanel } from "./panels/ReviewPanel";
+import { SourcesPanel } from "./panels/SourcesPanel";
+import { runTotals } from "./primitives";
 
 /**
  * The V2 research workspace.
@@ -16,27 +22,35 @@ import { CitationChip, Hash, ProvenanceChip, runTotals } from "./primitives";
  * The tab order *is* the argument the product makes: a report is the end of a chain, not the
  * whole of it.
  *
- *     Report → Claims → Evidence → Sources → Contradictions → Review → Artifact
+ *     Plan → Report → Claims → Evidence → Sources → Contradictions → Review → Artifact
  *
  * Every tab reads the same `V2RunGraph`, so the counts on one cannot disagree with the rows
  * on another, and moving claim → evidence → source is a filter rather than a fetch.
  *
  * Three distinctions the layout refuses to blur, because they are the product:
  * retrieved ≠ verified, retrieved ≠ cited, and a citation marker ≠ evidence.
+ *
+ * The tablist follows the ARIA pattern properly: one tab stop for the whole strip, arrow
+ * keys to move, `aria-controls` to the panel, and the panel focusable so keyboard focus
+ * lands somewhere after a switch. It previously had `role="tab"` and nothing else, which is
+ * the shape that looks right in a screenshot and traps a keyboard user in the strip.
  */
 
-type Tab =
-  | "plan"
-  | "report"
-  | "claims"
-  | "evidence"
-  | "sources"
-  | "contradictions"
-  | "review"
-  | "artifact";
-
-export function RunWorkspace({ graph }: { graph: V2RunGraph }) {
+export function RunWorkspace({
+  graph,
+  initialTab,
+  onTabChange,
+}: {
+  graph: V2RunGraph;
+  /** Deep link from the URL, honoured once on mount. */
+  initialTab?: Tab | null;
+  /** Called when a *person* picks a tab, so the page can put it in the URL. Not called
+   *  for the automatic re-route below: reaching a gate should move the view, not rewrite
+   *  the reader's history. */
+  onTabChange?: (tab: Tab) => void;
+}) {
   const totals = useMemo(() => runTotals(graph), [graph]);
+
   // The tab a run's current state demands, or null when nothing is waiting on a person.
   const demanded: Tab | null = graph.artifact
     ? "artifact"
@@ -46,7 +60,9 @@ export function RunWorkspace({ graph }: { graph: V2RunGraph }) {
         ? "plan"
         : null;
 
-  const [tab, setTab] = useState<Tab>(demanded ?? "report");
+  // A deep link wins on first paint — someone following a link to the Evidence tab meant
+  // it — but a run parked at a gate still overrides on the *transition* below.
+  const [tab, setTab] = useState<Tab>(initialTab ?? demanded ?? "report");
 
   // Re-route when the run REACHES a gate, not only when the page is first opened.
   //
@@ -61,8 +77,33 @@ export function RunWorkspace({ graph }: { graph: V2RunGraph }) {
     setLastDemanded(demanded);
     if (demanded) setTab(demanded);
   }
+
+  // Cross-tab focus: following a claim to its evidence, or evidence to its source, is a
+  // filter on data already loaded. Both are cleared explicitly rather than left to linger,
+  // because a silently filtered ledger is how a reader miscounts a run.
   const [focusClaim, setFocusClaim] = useState<string | null>(null);
   const [focusSource, setFocusSource] = useState<string | null>(null);
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  const select = useCallback(
+    (next: Tab, fromUser = true) => {
+      setTab(next);
+      if (fromUser) onTabChange?.(next);
+    },
+    [onTabChange],
+  );
+
+  /** Moving to another tab programmatically must not leave a stale filter behind. */
+  const go = useCallback(
+    (next: Tab, opts?: { claim?: string | null; source?: string | null }) => {
+      if (opts && "claim" in opts) setFocusClaim(opts.claim ?? null);
+      if (opts && "source" in opts) setFocusSource(opts.source ?? null);
+      select(next);
+    },
+    [select],
+  );
 
   const tabs: { id: Tab; label: string; count?: number | null }[] = [
     ...(graph.plans.length > 0 ? [{ id: "plan" as const, label: "Plan" }] : []),
@@ -75,721 +116,110 @@ export function RunWorkspace({ graph }: { graph: V2RunGraph }) {
     { id: "artifact", label: "Artifact" },
   ];
 
+  // The demanded tab may not be in the strip (a run with no plan rows never shows Plan),
+  // so the rendered selection is clamped to what exists.
+  const active = tabs.some((t) => t.id === tab) ? tab : "report";
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const i = tabs.findIndex((t) => t.id === active);
+    let next = -1;
+    if (e.key === "ArrowRight") next = (i + 1) % tabs.length;
+    else if (e.key === "ArrowLeft") next = (i - 1 + tabs.length) % tabs.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = tabs.length - 1;
+    if (next === -1) return;
+    e.preventDefault();
+    const id = tabs[next]!.id;
+    select(id);
+    tabRefs.current[id]?.focus();
+  };
+
   return (
     <div className="space-y-4">
-      <div role="tablist" aria-label="Research run" className="flex flex-wrap gap-1 border-b border-border-subtle">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
-            className={`-mb-px border-b-2 px-3 py-2 text-[0.8125rem] font-medium transition-colors ${
-              tab === t.id
-                ? "border-accent text-accent"
-                : "border-transparent text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            {t.label}
-            {t.count !== undefined && t.count !== null && (
-              <span className="ml-1.5 text-text-muted">{t.count}</span>
-            )}
-          </button>
-        ))}
+      {/* Overflows horizontally rather than wrapping into three rows on a phone: eight
+          labels with counts do not fit, and a wrapped tab strip stops reading as one
+          control. */}
+      <div className="-mx-1 overflow-x-auto px-1">
+        <div
+          role="tablist"
+          aria-label="Research run"
+          onKeyDown={onKeyDown}
+          className="flex min-w-max gap-1 border-b border-border"
+        >
+          {tabs.map((t) => {
+            const selected = active === t.id;
+            return (
+              <button
+                key={t.id}
+                ref={(el) => {
+                  tabRefs.current[t.id] = el;
+                }}
+                id={`run-tab-${t.id}`}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls={`run-panel-${t.id}`}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => select(t.id)}
+                className={`-mb-px shrink-0 border-b-2 px-3 py-2 text-[0.8125rem] font-medium transition-colors ${
+                  selected
+                    ? "border-accent text-accent"
+                    : "border-transparent text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                {t.label}
+                {t.count !== undefined && t.count !== null && (
+                  <span className="ml-1.5 tabular-nums text-text-muted">{t.count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div role="tabpanel">
-        {tab === "plan" && <PlanPanel graph={graph} />}
-        {tab === "report" && <ReportPanel graph={graph} />}
-        {tab === "claims" && (
+      <div
+        ref={panelRef}
+        role="tabpanel"
+        id={`run-panel-${active}`}
+        aria-labelledby={`run-tab-${active}`}
+        tabIndex={0}
+        className="focus:outline-none"
+      >
+        {active === "plan" && <PlanPanel graph={graph} />}
+        {active === "report" && <ReportPanel graph={graph} />}
+        {active === "claims" && (
           <ClaimsPanel
             graph={graph}
-            onInspectSource={(id) => {
-              setFocusSource(id);
-              setTab("sources");
-            }}
+            onInspectEvidence={(claimId) => go("evidence", { claim: claimId })}
+            onInspectSource={(sourceId) => go("sources", { source: sourceId })}
           />
         )}
-        {tab === "evidence" && <EvidencePanel graph={graph} focusClaim={focusClaim} />}
-        {tab === "sources" && <SourcesPanel graph={graph} focus={focusSource} />}
-        {tab === "contradictions" && (
-          <ContradictionsPanel
+        {active === "evidence" && (
+          <EvidencePanel
             graph={graph}
-            onInspectEvidence={(claimId) => {
-              setFocusClaim(claimId);
-              setTab("evidence");
+            focusClaim={focusClaim}
+            onClearFocus={() => setFocusClaim(null)}
+            onInspectSource={(sourceId) => go("sources", { source: sourceId })}
+          />
+        )}
+        {active === "sources" && (
+          <SourcesPanel
+            graph={graph}
+            focus={focusSource}
+            onInspectEvidence={(sourceId) => {
+              // Evidence filters by claim, not by source; jumping there with a stale claim
+              // filter would show a subset that has nothing to do with the source clicked.
+              setFocusClaim(null);
+              setFocusSource(sourceId);
+              select("evidence");
             }}
           />
         )}
-        {tab === "review" && <ReviewPanel graph={graph} />}
-        {tab === "artifact" && <ArtifactPanel graph={graph} />}
-      </div>
-    </div>
-  );
-}
-
-/* ── Plan ───────────────────────────────────────────────────────────────────── */
-
-/**
- * The design gate. **Approving a plan is not approving a report**, and nothing in this
- * panel may suggest otherwise: no "verified", no artifact language, and the button says
- * what happens next — research starts.
- */
-function PlanPanel({ graph }: { graph: V2RunGraph }) {
-  const review = useV2PlanReview(graph.run.id);
-  const [feedback, setFeedback] = useState("");
-  const plan = graph.plans[graph.plans.length - 1];
-  const decided = graph.reviews.some((r) => r.gate === "PLAN");
-
-  if (!plan) {
-    return <EmptyState title="No plan" description="This run did not stop at the design gate." />;
-  }
-
-  const open = graph.run.status === "AWAITING_PLAN" && !decided;
-
-  return (
-    <div className="space-y-3">
-      <div className="card p-4">
-        <h3 className="text-sm font-semibold text-text-primary">Research plan</h3>
-        <p className="mt-1 text-xs text-text-secondary">{graph.run.question}</p>
-        <p className="mt-2 text-[0.6875rem] text-text-muted">
-          Version {plan.version} ·{" "}
-          {plan.origin === "MODEL_PROPOSED" ? "proposed by the planner" : plan.origin.toLowerCase()}
-          {plan.approved_at && " · approved"}
-        </p>
-
-        <h4 className="mt-3 text-xs font-medium text-text-secondary">Tasks</h4>
-        <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm text-text-primary">
-          {plan.tasks.map((t, i) => (
-            <li key={i}>{typeof t === "object" && t && "query" in t ? String(t.query) : String(t)}</li>
-          ))}
-        </ol>
-
-        {plan.outline_sections.length > 0 && (
-          <>
-            <h4 className="mt-3 text-xs font-medium text-text-secondary">Report outline</h4>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-text-primary">
-              {plan.outline_sections.map((sec, i) => (
-                <li key={i}>
-                  {typeof sec === "object" && sec && "title" in sec
-                    ? String((sec as { title: unknown }).title)
-                    : String(sec)}
-                </li>
-              ))}
-            </ul>
-          </>
+        {active === "contradictions" && <ContradictionsPanel graph={graph} />}
+        {active === "review" && (
+          <ReviewPanel graph={graph} onShowTab={(t) => isTab(t) && select(t)} />
         )}
-      </div>
-
-      {open ? (
-        <div className="card p-4">
-          <label htmlFor="plan-feedback" className="text-sm font-medium text-text-primary">
-            Changes to request
-          </label>
-          <textarea
-            id="plan-feedback"
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-            rows={2}
-            placeholder="What should the plan cover instead?"
-            className="input mt-2 w-full"
-          />
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              className="btn-secondary"
-              disabled={review.isPending}
-              onClick={() =>
-                review.mutate({ decision: "REWORK_REQUESTED", feedback: feedback || null })
-              }
-            >
-              Request changes
-            </button>
-            <button
-              className="btn-primary"
-              disabled={review.isPending}
-              onClick={() => review.mutate({ decision: "APPROVED" })}
-            >
-              Approve plan
-            </button>
-          </div>
-          <p className="mt-2 text-xs text-text-secondary">
-            Approving the plan starts the research. It does <strong>not</strong> approve a
-            report and creates no artifact — you will review the draft separately.
-          </p>
-          {review.isError && (
-            <p className="mt-2 text-xs text-status-danger">{(review.error as Error).message}</p>
-          )}
-        </div>
-      ) : (
-        <p className="text-xs text-text-secondary">
-          {decided
-            ? "This plan has been decided. Research runs against it."
-            : "The plan gate is closed for this run."}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/* ── Report ─────────────────────────────────────────────────────────────────── */
-
-function ReportPanel({ graph }: { graph: V2RunGraph }) {
-  const { latest } = runTotals(graph);
-  if (!latest) {
-    return (
-      <EmptyState
-        title="No report yet"
-        description="The run has not produced a revision. Evidence gathered so far is on the Evidence tab."
-      />
-    );
-  }
-  return (
-    <div className="space-y-3">
-      {graph.revisions.length > 1 && (
-        <p className="text-xs text-text-secondary">
-          Revision {latest.version} of {graph.revisions.length}. Earlier revisions are kept
-          unchanged — a rework adds a version, it never overwrites one.
-        </p>
-      )}
-      <article className="prose-report whitespace-pre-wrap text-sm leading-relaxed text-text-primary">
-        {latest.report_markdown}
-      </article>
-      <p className="text-xs text-text-muted">
-        Report hash <Hash value={latest.report_hash} /> · evidence watermark{" "}
-        {latest.evidence_watermark}
-      </p>
-    </div>
-  );
-}
-
-/* ── Claims ─────────────────────────────────────────────────────────────────── */
-
-function ClaimsPanel({
-  graph,
-  onInspectSource,
-}: {
-  graph: V2RunGraph;
-  onInspectSource: (sourceId: string) => void;
-}) {
-  const { claims } = runTotals(graph);
-  const evidenceById = new Map(graph.evidence.map((e) => [e.id, e]));
-  const sourceById = new Map(graph.sources.map((s) => [s.id, s]));
-
-  if (claims.length === 0) {
-    return <EmptyState title="No claims yet" description="Claims are derived when a report is produced." />;
-  }
-
-  return (
-    <div className="space-y-2">
-      <p className="text-xs text-text-secondary">
-        Every sentence the report asserts, with the evidence it resolved to. A claim with no
-        supporting evidence is shown as such rather than hidden — that is the point of listing
-        them separately from the prose.
-      </p>
-      {claims.map((claim) => {
-        const links = graph.claim_evidence_links.filter((l) => l.claim_id === claim.id);
-        const support = links
-          .map((l) => evidenceById.get(l.evidence_id))
-          .filter((e): e is V2Evidence => Boolean(e));
-        return (
-          <div key={claim.id} className="card p-3">
-            <p className="text-sm text-text-primary">{claim.text}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[0.6875rem] text-text-muted">
-              <span
-                title="No claim-level verification has run. This is not a judgement that the claim is true or false."
-                className="rounded bg-bg-elevated px-1.5 py-0.5"
-              >
-                {claim.verification_state}
-              </span>
-              <span>·</span>
-              <span title="Claims are derived from the report's prose, not emitted as structured output.">
-                {claim.extraction_method.toLowerCase().replace(/_/g, " ")}
-              </span>
-            </div>
-            {support.length === 0 ? (
-              <p className="mt-2 text-xs text-status-warning">
-                No evidence resolved for this claim. Its citation markers, if any, pointed at
-                nothing the run retrieved.
-              </p>
-            ) : (
-              <Disclosure label={`${support.length} supporting evidence item${support.length === 1 ? "" : "s"}`}>
-                <ul className="space-y-2">
-                  {support.map((e) => {
-                    const source = sourceById.get(e.source_id);
-                    return (
-                      <li key={e.id} className="rounded border border-border-subtle p-2">
-                        <div className="flex items-center gap-2">
-                          {source && <CitationChip source={source} />}
-                          <ProvenanceChip state={e.provenance_state} />
-                          {source && (
-                            <button
-                              onClick={() => onInspectSource(source.id)}
-                              className="truncate text-xs text-accent hover:underline"
-                            >
-                              {source.title || source.url}
-                            </button>
-                          )}
-                        </div>
-                        <blockquote className="mt-1.5 border-l-2 border-border-subtle pl-2 text-xs text-text-secondary">
-                          {e.snippet || <em>The snippet was blanked when it could not be found in the retrieved text.</em>}
-                        </blockquote>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </Disclosure>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ── Evidence ───────────────────────────────────────────────────────────────── */
-
-function EvidencePanel({ graph, focusClaim }: { graph: V2RunGraph; focusClaim: string | null }) {
-  const sourceById = new Map(graph.sources.map((s) => [s.id, s]));
-  const claimById = new Map(graph.claims.map((c) => [c.id, c]));
-  const linksByEvidence = new Map<string, V2Claim[]>();
-  for (const link of graph.claim_evidence_links) {
-    const claim = claimById.get(link.claim_id);
-    if (!claim) continue;
-    linksByEvidence.set(link.evidence_id, [...(linksByEvidence.get(link.evidence_id) ?? []), claim]);
-  }
-
-  const rows = focusClaim
-    ? graph.evidence.filter((e) =>
-        graph.claim_evidence_links.some((l) => l.claim_id === focusClaim && l.evidence_id === e.id),
-      )
-    : graph.evidence;
-
-  if (rows.length === 0) {
-    return (
-      <EmptyState
-        title="No evidence recorded"
-        description="Nothing was retrieved for this run, or the run has not reached the executor yet."
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      <p className="text-xs text-text-secondary">
-        What the executor extracted, in the order it arrived. <strong>Retrieved is not
-        verified</strong> — the provenance chip says whether anything checked this snippet
-        against what the retriever actually returned.
-      </p>
-      {rows.map((e) => {
-        const source = sourceById.get(e.source_id);
-        const claims = linksByEvidence.get(e.id) ?? [];
-        return (
-          <div key={e.id} className="card p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[0.6875rem] text-text-muted">#{e.sequence}</span>
-              {source && <CitationChip source={source} />}
-              <ProvenanceChip state={e.provenance_state} />
-              {source && (
-                <a
-                  href={source.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="truncate text-xs text-accent hover:underline"
-                >
-                  {source.title || source.url}
-                </a>
-              )}
-            </div>
-            <blockquote className="mt-2 border-l-2 border-border-subtle pl-2 text-sm text-text-primary">
-              {e.snippet || (
-                <em className="text-text-muted">
-                  Blanked: this snippet could not be found in what the retriever returned.
-                </em>
-              )}
-            </blockquote>
-            {e.key_fact && <p className="mt-1.5 text-xs text-text-secondary">{e.key_fact}</p>}
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[0.6875rem] text-text-muted">
-              <Hash value={e.content_hash} />
-              {claims.length > 0 && <span>· supports {claims.length} claim{claims.length === 1 ? "" : "s"}</span>}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ── Sources ────────────────────────────────────────────────────────────────── */
-
-function SourcesPanel({ graph, focus }: { graph: V2RunGraph; focus: string | null }) {
-  if (graph.sources.length === 0) {
-    return <EmptyState title="No sources" description="Nothing was retrieved for this run." />;
-  }
-  const evidenceBySource = new Map<string, V2Evidence[]>();
-  for (const e of graph.evidence) {
-    evidenceBySource.set(e.source_id, [...(evidenceBySource.get(e.source_id) ?? []), e]);
-  }
-  const uncited = graph.sources.filter((s: V2Source) => s.citation_index === null);
-
-  return (
-    <div className="space-y-2">
-      <p className="text-xs text-text-secondary">
-        Everything the run retrieved. <strong>Retrieved is not cited</strong>: {uncited.length} of{" "}
-        {graph.sources.length} carry no citation number because the report does not reference
-        them. They are listed anyway — omitting them would overstate how much of the retrieval
-        made it into the report.
-      </p>
-      {graph.sources.map((s) => {
-        const evidence = evidenceBySource.get(s.id) ?? [];
-        return (
-          <div
-            key={s.id}
-            className={`card p-3 ${focus === s.id ? "ring-1 ring-accent" : ""} ${
-              s.citation_index === null ? "border-dashed" : ""
-            }`}
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <CitationChip source={s} />
-              <a
-                href={s.url}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="truncate text-sm text-accent hover:underline"
-              >
-                {s.title || s.url}
-              </a>
-            </div>
-            <p className="mt-1 truncate text-xs text-text-muted">{s.url}</p>
-            <div className="mt-1.5 flex flex-wrap gap-3 text-[0.6875rem] text-text-muted">
-              <span>{s.kind === "CORPUS" ? "Uploaded document" : "Web"}</span>
-              <span title="How the source was obtained. UNKNOWN means the run did not record it.">
-                {s.retrieval_status.toLowerCase().replace(/_/g, " ")}
-              </span>
-              <span>
-                {evidence.length} evidence item{evidence.length === 1 ? "" : "s"}
-              </span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ── Contradictions ─────────────────────────────────────────────────────────── */
-
-function ContradictionsPanel({
-  graph,
-  onInspectEvidence,
-}: {
-  graph: V2RunGraph;
-  onInspectEvidence: (claimId: string) => void;
-}) {
-  const sourceById = new Map(graph.sources.map((s) => [s.id, s]));
-  const detected = graph.contradictions.filter((c) => c.detection_state === "DETECTED");
-  const notRun = graph.contradictions.filter((c) => c.detection_state !== "DETECTED");
-
-  if (graph.contradictions.length === 0) {
-    return (
-      <EmptyState
-        title="No conflicting claims recorded"
-        description="The detector ran and surfaced no pair where two sources cannot both be right."
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {notRun.length > 0 && (
-        <p className="rounded border border-status-warning/40 bg-status-warning-bg p-2 text-xs text-status-warning">
-          {notRun.length} record{notRun.length === 1 ? "" : "s"} where the detector did not
-          produce an anchored pair. A detector that could not run is not the same as a clean
-          bill of health, so it is shown rather than dropped.
-        </p>
-      )}
-      {detected.map((c: V2Contradiction) => {
-        const a = c.source_a_id ? sourceById.get(c.source_a_id) : null;
-        const b = c.source_b_id ? sourceById.get(c.source_b_id) : null;
-        return (
-          <div key={c.id} className="card p-0">
-            <div className="grid gap-px bg-border-subtle md:grid-cols-2">
-              <Side source={a} quote={c.quote_a} summary={c.summary_a} />
-              <Side source={b} quote={c.quote_b} summary={c.summary_b} />
-            </div>
-            {c.nature && (
-              <p className="border-t border-border-subtle p-3 text-xs text-text-secondary">
-                <span className="font-medium text-text-primary">Why they conflict: </span>
-                {c.nature}
-              </p>
-            )}
-            <p className="border-t border-border-subtle px-3 py-2 text-[0.6875rem] text-text-muted">
-              Surfaced, not resolved. The report does not decide between these — a reviewer does.
-              {c.evidence_a_id === null && (
-                <>
-                  {" "}
-                  The quoted text could not be matched to exactly one evidence item, so no
-                  evidence link is claimed.
-                </>
-              )}
-            </p>
-          </div>
-        );
-      })}
-      {detected.length > 0 && graph.claims.length > 0 && (
-        <button
-          onClick={() => onInspectEvidence(graph.claims[0]!.id)}
-          className="text-xs text-accent hover:underline"
-        >
-          Inspect the evidence behind these claims →
-        </button>
-      )}
-    </div>
-  );
-}
-
-function Side({
-  source,
-  quote,
-  summary,
-}: {
-  source: V2Source | null | undefined;
-  quote: string | null;
-  summary: string | null;
-}) {
-  return (
-    <div className="bg-bg-surface p-3">
-      {source ? (
-        <a
-          href={source.url}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="truncate text-xs font-medium text-accent hover:underline"
-        >
-          {source.title || source.url}
-        </a>
-      ) : (
-        <span className="text-xs text-text-muted">Source not recorded</span>
-      )}
-      {summary && <p className="mt-1.5 text-sm text-text-primary">{summary}</p>}
-      {quote && (
-        <blockquote className="mt-1.5 border-l-2 border-border-subtle pl-2 text-xs text-text-secondary">
-          {quote}
-        </blockquote>
-      )}
-    </div>
-  );
-}
-
-/* ── Review ─────────────────────────────────────────────────────────────────── */
-
-function ReviewPanel({ graph }: { graph: V2RunGraph }) {
-  const totals = runTotals(graph);
-  const review = useV2ReportReview(graph.run.id);
-  const [feedback, setFeedback] = useState("");
-
-  if (graph.artifact) {
-    return (
-      <EmptyState
-        title="Already approved"
-        description="This run has a verifiable artifact. See the Artifact tab."
-      />
-    );
-  }
-  if (!totals.latest) {
-    return <EmptyState title="Nothing to review" description="The run has not produced a report." />;
-  }
-
-  const unchecked = graph.evidence.filter((e) => e.provenance_state === "UNCHECKED").length;
-
-  return (
-    <div className="space-y-4">
-      <div className="card p-4">
-        <h3 className="text-sm font-semibold text-text-primary">What you are approving</h3>
-        <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-          <Stat label="Claims in the report" value={totals.claims.length} />
-          <Stat
-            label="Claims with supporting evidence"
-            value={`${totals.supported} of ${totals.claims.length}`}
-            warn={totals.unsupported > 0}
-          />
-          <Stat label="Evidence items" value={totals.evidence} />
-          <Stat
-            label="Sources cited"
-            value={`${totals.citedSources} cited · ${totals.uncitedSources} retrieved only`}
-          />
-          <Stat
-            label="Conflicting claim pairs"
-            value={totals.contradictions}
-            warn={totals.contradictions > 0}
-          />
-          <Stat
-            label="Citation resolution"
-            value={
-              graph.run.citation_resolution_rate === null
-                ? "not measured"
-                : `${Math.round(graph.run.citation_resolution_rate * 100)}%`
-            }
-          />
-        </dl>
-      </div>
-
-      {(totals.unsupported > 0 || unchecked > 0 || totals.contradictions > 0) && (
-        <div className="rounded border border-status-warning/40 bg-status-warning-bg p-3 text-xs text-status-warning">
-          <p className="font-medium">Before you approve</p>
-          <ul className="mt-1.5 list-disc space-y-1 pl-4">
-            {totals.unsupported > 0 && (
-              <li>
-                {totals.unsupported} claim{totals.unsupported === 1 ? "" : "s"} resolved to no
-                evidence.
-              </li>
-            )}
-            {unchecked > 0 && (
-              <li>
-                {unchecked} evidence item{unchecked === 1 ? "" : "s"} carry no per-item
-                verification. Unchecked is not verified.
-              </li>
-            )}
-            {totals.contradictions > 0 && (
-              <li>
-                {totals.contradictions} conflicting pair
-                {totals.contradictions === 1 ? "" : "s"} remain unresolved.
-              </li>
-            )}
-          </ul>
-        </div>
-      )}
-
-      <div className="card p-4">
-        <label htmlFor="rework-feedback" className="text-sm font-medium text-text-primary">
-          Feedback for a rework
-        </label>
-        <textarea
-          id="rework-feedback"
-          value={feedback}
-          onChange={(e) => setFeedback(e.target.value)}
-          rows={3}
-          placeholder="What should the next revision do differently?"
-          className="input mt-2 w-full"
-        />
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            className="btn-secondary"
-            disabled={review.isPending}
-            onClick={() =>
-              review.mutate({ decision: "REWORK_REQUESTED", feedback: feedback || null })
-            }
-          >
-            Request rework
-          </button>
-          <button
-            className="btn-primary"
-            disabled={review.isPending}
-            onClick={() => review.mutate({ decision: "APPROVED" })}
-          >
-            Approve report
-          </button>
-        </div>
-        <p className="mt-2 text-xs text-text-secondary">
-          Approving creates a <strong>verifiable research artifact</strong>: a frozen copy of
-          this report, its evidence, its claims and this decision, hashed so a third party can
-          check it offline without trusting this app.
-        </p>
-        {review.isError && (
-          <p className="mt-2 text-xs text-status-danger">{(review.error as Error).message}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Stat({ label, value, warn }: { label: string; value: string | number; warn?: boolean }) {
-  return (
-    <div>
-      <dt className="text-xs text-text-secondary">{label}</dt>
-      <dd className={`text-sm font-medium ${warn ? "text-status-warning" : "text-text-primary"}`}>
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-/* ── Artifact ───────────────────────────────────────────────────────────────── */
-
-const CHECK_COPY: Record<string, string> = {
-  bundle_integrity: "Bundle integrity",
-  report_integrity: "Report integrity",
-  evidence_integrity: "Evidence integrity",
-  citation_resolution: "Citation resolution",
-  claim_evidence_linkage: "Claim / evidence linkage",
-  approval_chain: "Approval chain",
-  schema_validity: "Schema validity",
-};
-
-function ArtifactPanel({ graph }: { graph: V2RunGraph }) {
-  const { data, isLoading } = useV2Verification(graph.run.id, Boolean(graph.artifact));
-  const base = apiBase();
-
-  if (!graph.artifact) {
-    return (
-      <EmptyState
-        title="No artifact yet"
-        description="An artifact exists only once a human has approved a report at the review gate."
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="card p-4">
-        <h3 className="text-sm font-semibold text-text-primary">Verified artifact</h3>
-        <p className="mt-1 text-xs text-text-secondary">
-          Frozen at approval. Bundle hash <Hash value={graph.artifact.artifact_hash} />
-        </p>
-        <div className="mt-3 space-y-1.5">
-          {isLoading && <p className="text-xs text-text-muted">Running the verifier…</p>}
-          {data?.assembled === false && (
-            <p className="text-xs text-text-muted">
-              Not verified: {data.reason}. This is not a failure — the verifier did not run.
-            </p>
-          )}
-          {data?.checks.map((c) => (
-            <div key={c.name} className="flex items-start gap-2 text-xs">
-              <span className={c.passed ? "text-status-success" : "text-status-danger"}>
-                {c.passed ? "✓" : "✕"}
-              </span>
-              <span className="text-text-primary">{CHECK_COPY[c.name] ?? c.name}</span>
-              {!c.passed && c.detail && (
-                <span className="text-status-danger">— {c.detail.split("\n")[0]}</span>
-              )}
-            </div>
-          ))}
-        </div>
-        {data?.passed === true && (
-          <p className="mt-3 text-xs text-text-secondary">
-            Every check was run by the same standalone verifier that ships with the bundle. You
-            can re-run it yourself on the downloaded file.
-          </p>
-        )}
-      </div>
-
-      <div className="card p-4">
-        <h3 className="text-sm font-semibold text-text-primary">Download</h3>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <a className="btn-secondary" href={`${base}/v2/runs/${graph.run.id}/export.md`}>
-            Markdown
-          </a>
-          <a className="btn-secondary" href={`${base}/v2/runs/${graph.run.id}/export.pdf`}>
-            PDF
-          </a>
-          <a className="btn-primary" href={`${base}/v2/runs/${graph.run.id}/bundle.json`}>
-            Verification bundle
-          </a>
-        </div>
-        <p className="mt-2 text-xs text-text-secondary">
-          The bundle is the canonical export: it carries the report, every claim, every evidence
-          snippet with its hash, the sources, the conflicts and the approval chain, and it
-          verifies offline with no network and no AI.
-        </p>
+        {active === "artifact" && <ArtifactPanel graph={graph} />}
       </div>
     </div>
   );
@@ -797,17 +227,62 @@ function ArtifactPanel({ graph }: { graph: V2RunGraph }) {
 
 /* ── Cancel ─────────────────────────────────────────────────────────────────── */
 
+/**
+ * Stopping a run.
+ *
+ * The copy is careful because the mechanism is: cancel is **advisory** on both hosts —
+ * neither outcome writer checks status before persisting — so a button labelled "Cancel"
+ * would promise something the backend does not do. The server's own `detail` is preferred
+ * over this page's wording whenever it answers.
+ */
 export function CancelButton({ runId }: { runId: string }) {
   const cancel = useV2Cancel(runId);
+  const [confirming, setConfirming] = useState(false);
+
+  if (cancel.isSuccess) {
+    return (
+      <p className="max-w-xs text-xs text-text-secondary">
+        {cancel.data?.detail ?? "Stop requested."}
+      </p>
+    );
+  }
+
   return (
     <div className="text-right">
-      <button className="btn-secondary" disabled={cancel.isPending} onClick={() => cancel.mutate()}>
-        Stop run
-      </button>
-      <p className="mt-1 max-w-xs text-[0.6875rem] text-text-muted">
-        {cancel.data?.detail ??
-          "Records a stop request. Work already in flight finishes its current step — this does not kill the run mid-sentence."}
+      {confirming ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            className="btn btn-danger"
+            disabled={cancel.isPending}
+            onClick={() => cancel.mutate()}
+          >
+            {cancel.isPending && <span className="spinner" />}
+            Confirm stop
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={cancel.isPending}
+            onClick={() => setConfirming(false)}
+          >
+            Keep running
+          </button>
+        </div>
+      ) : (
+        <button type="button" className="btn btn-secondary" onClick={() => setConfirming(true)}>
+          Stop run
+        </button>
+      )}
+      <p className="mt-1 max-w-xs text-[length:var(--text-micro)] leading-snug text-text-muted">
+        Records a stop request. Work already in flight finishes its current step — this does
+        not kill the run mid-sentence.
       </p>
+      {cancel.isError && (
+        <p className="mt-1 text-xs text-danger" role="alert">
+          {(cancel.error as Error).message}
+        </p>
+      )}
     </div>
   );
 }

@@ -4,9 +4,10 @@ import { ensureProject, register, startResearch } from "./v2-helpers";
 /**
  * The two gates, and the live connection, against a real stack.
  *
- * Companion to `v2-journey.spec.ts`, which covers question → artifact with the plan gate
- * skipped. These cover what that one deliberately does not: the design gate as a user meets
- * it, and what happens when the event stream drops mid-run.
+ * Companion to `v2-journey.spec.ts`, which walks the whole chain to a verified bundle.
+ * These interrogate two things that journey passes through rather than examines: what the
+ * design gate is allowed to claim (nothing about a report, and no artifact), and what
+ * happens when the event stream drops mid-run.
  *
  * Nothing is mocked. The engine runs in the demo configuration that ships in production.
  */
@@ -18,8 +19,9 @@ test.describe("V2 plan gate", () => {
     await register(page);
     await ensureProject(page);
 
-    // `skipPlanGate: false` is the product default for a run started from the form; the
-    // journey spec uses the other branch, so this is the one that reaches the design gate.
+    // `skipPlanGate: false` matches what the run form sends. Posted through the API rather
+    // than clicked, so this spec starts from the gate deterministically instead of
+    // re-testing the form the journey spec already drives.
     const runId = await startResearch(page, { skipPlanGate: false });
 
     // 1. The run stops at the plan, not at a report.
@@ -27,7 +29,7 @@ test.describe("V2 plan gate", () => {
     await expect(page.getByRole("heading", { name: "Research plan" })).toBeVisible({
       timeout: 180_000,
     });
-    await expect(page.getByText(/Paused: the research plan is waiting/)).toBeVisible();
+    await expect(page.getByText(/the research plan is waiting for your approval/)).toBeVisible();
 
     // 2. The plan is real: the planner's tasks and the outline it chose.
     const planPanel = page.getByRole("tabpanel");

@@ -79,11 +79,13 @@ export default async function Home() {
   // first because `cookies()` cannot be called from a statically exported route at all;
   // this is not an optimisation, it is what makes the export possible.
   if (!isPagesBuild) {
+    // Into the research flow, not the legacy V1 run form: /research is the product's
+    // entry point and /dashboard is the earlier pipeline's.
     if (!isDesktop) {
       const store = await cookies();
-      if (store.has("access_token")) redirect("/dashboard");
+      if (store.has("access_token")) redirect("/research");
     } else {
-      redirect("/dashboard");
+      redirect("/research");
     }
   }
 

@@ -51,8 +51,9 @@ export async function ensureProject(page: Page): Promise<void> {
  *
  * `skipPlanGate` is a real product option, not a test hook: the run form sends `false` so a
  * user meets the design gate, while a script POSTing an un-updated body keeps the ungated
- * journey. The gate spec needs the first, the artifact journey the second, so it is
- * threaded through the API for determinism rather than clicked.
+ * journey (AGENTS.md, "three defaults, and they disagree on purpose"). Both populations are
+ * real, so both are reachable here — threaded through the API for determinism rather than
+ * clicked, since the form itself is exercised by `v2-journey.spec.ts`.
  */
 export async function startResearch(
   page: Page,

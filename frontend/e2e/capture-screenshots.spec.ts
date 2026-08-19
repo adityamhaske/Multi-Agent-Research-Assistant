@@ -59,7 +59,10 @@ test("capture product screenshots", async ({ page }) => {
   const submit = page.locator('form button[type="submit"]');
   await expect(submit).toHaveAccessibleName(/\S/);
   await submit.click();
-  await page.waitForURL("**/dashboard");
+  // Login lands on /research now. This capture walks the legacy V1 journey, so it opens
+  // the legacy form explicitly rather than relying on where login happens to land.
+  await page.waitForURL(/\/(research|dashboard)/);
+  await page.goto("/dashboard");
 
   // ── 2. Dashboard (light) ──────────────────────────────────────────────────
   await setTheme(page, "light");
