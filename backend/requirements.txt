@@ -60,7 +60,7 @@ bcrypt>=5.0.0
 cryptography>=43.0
 # OS keychain access for the desktop sidecar (docs/12 M9). The server never uses it —
 # desktop provider keys live in Keychain/Credential Locker/SecretService, not the DB.
-keyring>=25.0
+keyring>=25.7.0
 
 # Observability
 structlog>=24.4
