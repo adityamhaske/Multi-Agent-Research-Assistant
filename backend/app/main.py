@@ -21,6 +21,14 @@ configure_logging(json_output=settings.is_production)
 
 logger = structlog.get_logger()
 
+#: The application version, reported by the OpenAPI document and by `/health`.
+#:
+#: One constant rather than two literals: these were written out separately and drifted —
+#: both still said `1.0.0` through the whole 1.0.x line, so `/health` reported a version the
+#: deployment had not been running for two releases. Bump this with `desktop/tauri.conf.json`
+#: and `frontend/lib/releases.ts` when cutting a tag.
+APP_VERSION = "2.0.0"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -45,7 +53,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Multi-Agent Research Assistant API",
-    version="1.0.0",
+    version=APP_VERSION,
     description="Self-hostable research assistant with an auditable human-in-the-loop gate.",
     docs_url=None if settings.is_production else "/docs",
     redoc_url=None if settings.is_production else "/redoc",
@@ -74,7 +82,7 @@ app.include_router(api_router, prefix="/api/v1")
 @app.get("/health", tags=["Health"])
 async def health_check():
     """Liveness — the process is up. Used by the container HEALTHCHECK."""
-    return {"status": "ok", "version": "1.0.0"}
+    return {"status": "ok", "version": APP_VERSION}
 
 
 @app.get("/health/ready", tags=["Health"])

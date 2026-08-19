@@ -1,6 +1,6 @@
 [package]
 name = "research-desktop"
-version = "1.0.2"
+version = "2.0.0"
 description = "Local-first research, no login, no server (docs/12 M9, docs/13 §7)"
 authors = ["Research Engine"]
 edition = "2021"

@@ -66,21 +66,51 @@ by default and should be turned on for anything public
 
 ## 4. Run your first research
 
+**Research** in the sidebar starts a run and opens its workspace.
+
 1. **Ask a question.** Ten characters minimum; a real question works better than a keyword.
 2. **Pick a depth** — `fast`, `balanced`, or `comprehensive`. Depth is the main cost dial:
    it sets how much the planner decomposes the question.
-3. **Submit.** You land on the session page and the live feed starts. Events stream over
-   SSE and are also written durably, so a refresh or a late-joining tab loses nothing.
+3. **Submit.** You land on the run workspace and the live feed starts. Events stream over
+   SSE and are also written durably; a dropped stream reconnects with `Last-Event-ID` and
+   the backend replays what was missed, so a refresh or a late-joining tab loses nothing.
 4. **Review the plan.** The run pauses at the design gate before anything is searched. Edit
    the subtopics, drop tasks you did not ask for, pick a report outline, then approve.
+   Approving a plan spends money; it does not create an artifact.
    ([Review and approval](../user-guide/26-review-and-approval.md))
 5. **Watch the pipeline.** Executor and critic work through the tasks; the critic sends weak
    evidence back within a bounded retry limit.
-6. **Review the draft.** The second gate shows word count, source count, unresolved
-   contradictions, and cost so far. Approve, or send it back with feedback for a rework.
-7. **Read the report.** Hover any `[n]` for the source and the verbatim snippet behind that
-   claim. Export `.md`, `.pdf`, or the verifiable `.bundle.json`.
-   ([Exports](../user-guide/29-exports.md))
+6. **Read the record, not just the draft.** The workspace tabs run in the order the product
+   argues for — **Plan → Report → Claims → Evidence → Sources → Contradictions → Review →
+   Artifact**. Claims shows what the report asserts and what each assertion resolved to;
+   Sources separates cited from retrieved-only; Contradictions shows attributed quotations
+   that cannot both hold.
+7. **Review the draft.** The Review tab shows what you are approving *before* you approve
+   it: claims with and without supporting evidence, cited versus retrieved-only sources,
+   unresolved conflicts, and a citation rate that reads "unmeasured" when it was not
+   measured. Approve, or send it back with feedback for a rework — a rework adds a revision
+   and never overwrites the one you just read.
+8. **Take the artifact.** Approving the report freezes a `ResearchArtifact`. The **Artifact**
+   tab shows the verifier's own checks and offers the `.bundle.json`. Reports also export as
+   `.md` and `.pdf`. ([Exports](../user-guide/29-exports.md))
+
+## 5. Verify the artifact yourself
+
+The bundle is the point of the whole chain: it is checkable by someone who does not trust
+this application, and does not need it running.
+
+```bash
+cd backend
+python -m research_engine.verify_bundle ~/Downloads/research-abc12345.bundle.json
+```
+
+Exit status is `0` when every check passes and `1` when any fails; add `--format json` for
+machine-readable output. The verifier needs no network, no API key, and no model.
+
+A pass means the artifact is internally consistent and unaltered since approval. It does
+**not** mean the research is correct — see
+[the V2 research model](24-v2-research-model.md#verifying-an-artifact-yourself) for exactly
+what each check proves and what none of them do.
 
 ## Try it without a key first
 
