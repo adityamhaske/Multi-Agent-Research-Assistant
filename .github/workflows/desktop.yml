@@ -104,9 +104,10 @@ jobs:
         run: chmod +x backend/dist/research-sidecar/research-sidecar
       - name: Linux build dependencies (WebKitGTK etc.)
         if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
+        uses: ./.github/actions/apt-install
+        with:
+          packages: >-
+            libwebkit2gtk-4.1-dev build-essential curl wget file
             libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
       - uses: actions/setup-node@v7
         with:

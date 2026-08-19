@@ -405,6 +405,14 @@ same job passed on the PR head** — the merge commits and their heads are the s
 so a pass there and a failure here is the environment, not the diff. That is the one case
 worth a single re-run; a second failure is real.
 
+**Every apt install goes through `.github/actions/apt-install`.** There is no raw
+`apt-get` left in `.github/workflows/`, and adding one back reintroduces the hang it
+exists to bound: the same two-line install sat in `ci.yml` twice and `desktop.yml` once,
+and on the same day it wedged five jobs — one for ninety minutes — while other jobs ran
+it in six seconds. A stalled mirror connection never returns, so the job burns its whole
+timeout and the log ends mid-step naming nothing. The action bounds each attempt and
+retries; it deliberately does not change *which* packages are installed.
+
 ## A release is not finished until the website says so
 
 The public site (`frontend/app/(site)/`, published to GitHub Pages) is **generated from

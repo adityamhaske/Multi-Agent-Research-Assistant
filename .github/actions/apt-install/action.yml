@@ -1,0 +1,62 @@
+name: apt-install
+description: >
+  Install Debian packages, bounding each attempt and retrying. Exists because an
+  unbounded `apt-get` is the single most common way a job on this repo hangs.
+
+# Why this is an action and not three copies of a shell loop: the same two-line
+# `apt-get update && apt-get install` appeared in ci.yml twice and desktop.yml once,
+# and on 2026-08-19 it wedged five separate jobs — one for 90 minutes — while other
+# jobs in the same minute ran it in six seconds. A hung mirror connection never
+# returns, so the job burns its whole timeout and the log ends mid-step, naming
+# nothing. Bounding each attempt turns a silent hour into a warning and a retry.
+#
+# Deliberately NOT changed here: the install itself. No --no-install-recommends,
+# no --fix-missing, no mirror swap. Those alter which packages land, and WeasyPrint
+# and the Tauri shell both depend on what these pull in today. This wraps the same
+# command; it does not tune it.
+
+inputs:
+  packages:
+    description: Space-separated package names, passed through unquoted on purpose.
+    required: true
+  attempts:
+    description: How many times to try before giving up.
+    required: false
+    default: "3"
+  timeout-seconds:
+    description: >
+      Wall-clock bound on each individual apt invocation. 180s is roughly 12x the
+      normal duration of the slowest of these installs, so it cannot trip on a
+      merely slow mirror — only on one that has stopped responding.
+    required: false
+    default: "180"
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        APT_PACKAGES: ${{ inputs.packages }}
+        APT_ATTEMPTS: ${{ inputs.attempts }}
+        APT_TIMEOUT: ${{ inputs.timeout-seconds }}
+      run: |
+        # No `set -e`: a failed attempt must fall through to the retry, not end the step.
+        set -uo pipefail
+        for attempt in $(seq 1 "$APT_ATTEMPTS"); do
+          # `sudo timeout` rather than `timeout sudo`, so the kill signal reaches
+          # apt-get itself instead of a sudo wrapper that may not forward it.
+          # $APT_PACKAGES is unquoted so it splits into separate package arguments.
+          # shellcheck disable=SC2086
+          if sudo timeout "$APT_TIMEOUT" apt-get update \
+            && sudo timeout "$APT_TIMEOUT" apt-get install -y $APT_PACKAGES; then
+            echo "apt-get succeeded on attempt ${attempt}/${APT_ATTEMPTS}"
+            exit 0
+          fi
+          echo "::warning::apt-get attempt ${attempt}/${APT_ATTEMPTS} failed or exceeded ${APT_TIMEOUT}s"
+          # A timed-out `update` can leave a half-written package index behind, which
+          # makes every later attempt fail for a different reason than the first one.
+          sudo rm -rf /var/lib/apt/lists/*
+          sleep $(( attempt * 5 ))
+        done
+        echo "::error::apt-get failed after ${APT_ATTEMPTS} attempts — see the warnings above for which stage"
+        exit 1
