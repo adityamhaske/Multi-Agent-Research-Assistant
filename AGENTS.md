@@ -421,6 +421,12 @@ packages are already there; install from the index the image already ships; and 
 refresh, bounded, retried, and repointed at `archive.ubuntu.com`. It deliberately does not
 change *which* packages are installed.
 
+Measured once that landed: on `ubuntu-latest` the WeasyPrint pair is **already present**,
+so `backend` and `golden-e2e` now clear the step in under a second having touched no
+network at all. The step that had been risking a ninety-minute hang was doing nothing on
+those two jobs. Keep it anyway — the packages are there because of what the image happens
+to ship, and images change; the fast path is what makes that safe in both directions.
+
 ## A release is not finished until the website says so
 
 The public site (`frontend/app/(site)/`, published to GitHub Pages) is **generated from
