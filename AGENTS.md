@@ -392,6 +392,19 @@ A raw control character in a source file compounds this: GNU grep prints
 `Binary file … matches` instead of the offending line, so the failure names the file and
 hides the reason. Prefer a `\u0000` escape sequence over an embedded NUL byte.
 
+**Not every red `main` is a red commit.** `Sidecar (windows-latest)` installs
+`backend/requirements.txt`, which floats several C extensions (`lxml>=5.2` among them),
+and Windows is the only runner with no system `libxml2` — so if pip ever picks a version
+whose Windows wheel is not on the index yet, it falls back to a source build and the job
+dies on `fatal error C1083: Cannot open include file: 'libxml/xmlversion.h'`. That names a
+compiler, so it reads like a toolchain break; it is a packaging race, and it resolves
+itself when the wheel lands. This happened on 2026-08-19: the identical tree passed at
+04:02, three merges went red at 05:00–05:02, and a re-run at 06:26 installed cleanly with
+nothing changed. **Before believing a Windows-only dependency failure, check whether the
+same job passed on the PR head** — the merge commits and their heads are the same content,
+so a pass there and a failure here is the environment, not the diff. That is the one case
+worth a single re-run; a second failure is real.
+
 ## A release is not finished until the website says so
 
 The public site (`frontend/app/(site)/`, published to GitHub Pages) is **generated from
