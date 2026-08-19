@@ -69,6 +69,31 @@ router = APIRouter(prefix="/v2/runs", tags=["v2"])
 #: `sidecar._TERMINAL_EVENTS`.
 _TERMINAL_EVENTS = ("COMPLETED", "FAILED", "HITL_READY", "PLAN_READY")
 
+#: Events after which *replay* stops — only the true terminals, deliberately NOT the gates.
+#:
+#: The distinction matters and V2 originally missed it. `_TERMINAL_EVENTS` is the right
+#: rule for the live tail: a graph suspended at an interrupt publishes nothing more, so
+#: holding the socket open waits on no one. Applying it to the backlog is a different
+#: statement — "stop reading history at the first gate" — and it is wrong. A client that
+#: reconnects without a `Last-Event-ID` (a fresh EventSource, which is what a status
+#: change creates) replays from id 0, hits the `PLAN_READY` row left over from the design
+#: gate, and returns: everything the run did *after* the gate is never delivered, and the
+#: live tail is never reached either. The V1 stream stops replay on
+#: `("COMPLETED", "FAILED")` only, for exactly this reason; V2 copied the tail's list into
+#: both places.
+_REPLAY_STOP_EVENTS = ("COMPLETED", "FAILED")
+
+#: Run states in which nothing further will be published until a human acts, so the stream
+#: closes after replaying the backlog instead of tailing.
+#:
+#: This is the check that `_TERMINAL_EVENTS` used to perform accidentally, by stopping the
+#: *replay* at a gate. Doing it on the run's current status instead separates the two
+#: questions properly: "has history moved past a gate" (it may have, and the client needs
+#: what came after) versus "is the run sitting at one right now" (then there is nobody to
+#: wait for). Without this, removing the gates from the replay rule would leave a client
+#: reconnecting to a gate-parked run holding a socket nothing will ever write to.
+_SUSPENDED_STATUSES = ("COMPLETED", "FAILED", "CANCELLED", "AWAITING_PLAN", "AWAITING_REVIEW")
+
 
 async def _run_or_404(db: AsyncSession, run_id: uuid.UUID, owner_id: uuid.UUID) -> ResearchRun:
     """Ownership is a single-table predicate, which is why `owner_id` is denormalised.
@@ -621,7 +646,7 @@ async def stream_run(
     The stop-list is the V1 one plus nothing: a stream held open on a suspended graph waits
     on no one, so it closes at `PLAN_READY` and `HITL_READY` as well as the two terminals.
     """
-    await _run_or_404(db, run_id, current_user.id)
+    run = await _run_or_404(db, run_id, current_user.id)
     last_event_id = request.headers.get("last-event-id")
     after_id = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
 
@@ -652,8 +677,11 @@ async def stream_run(
             for eid, payload in replay:
                 seen_max = max(seen_max, eid or 0)
                 yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
-                if payload.get("type") in _TERMINAL_EVENTS:
+                if payload.get("type") in _REPLAY_STOP_EVENTS:
                     return
+
+            if run.status in _SUSPENDED_STATUSES:
+                return
 
             async for message in pubsub.listen():
                 if message["type"] != "message":
