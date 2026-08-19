@@ -445,7 +445,9 @@ describe("Plan gate", () => {
     );
     fireEvent.click(screen.getByRole("tab", { name: "Plan" }));
     expect(screen.queryByRole("button", { name: "Approve plan" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Research runs against it/)).toBeInTheDocument();
+    // The closed gate names the decision that closed it, rather than saying only that the
+    // gate is shut: "approved" and "reworked" are different histories.
+    expect(screen.getByText(/You approved this plan/)).toBeInTheDocument();
   });
 });
 
@@ -492,5 +494,188 @@ describe("gate routing", () => {
       </QueryClientProvider>,
     );
     expect(screen.getByText("Retrieved, not cited")).toBeInTheDocument();
+  });
+});
+
+/**
+ * The workspace as a *control*, not just a renderer.
+ *
+ * These cover the four things the first version got wrong about being one: the tab strip
+ * was `role="tab"` and nothing else (so a keyboard user could reach it and not move within
+ * it), the chosen tab lived only in component state (so refresh, Back and a shared link all
+ * lost the reader's place), the report was pre-wrapped plain text (so a citation that
+ * resolved to nothing looked exactly like one that resolved), and following a claim into
+ * the evidence ledger filtered it silently.
+ */
+describe("workspace navigation", () => {
+  it("wires each tab to its panel, with one tab stop for the whole strip", () => {
+    view(graph());
+    const selected = screen.getByRole("tab", { selected: true });
+    expect(selected).toHaveAttribute("aria-controls", "run-panel-review");
+    expect(selected).toHaveAttribute("tabindex", "0");
+
+    const other = screen.getByRole("tab", { name: /Evidence/ });
+    expect(other).toHaveAttribute("tabindex", "-1");
+
+    const panel = screen.getByRole("tabpanel");
+    expect(panel).toHaveAttribute("id", "run-panel-review");
+    expect(panel).toHaveAttribute("aria-labelledby", "run-tab-review");
+  });
+
+  it("moves between tabs with the arrow keys", () => {
+    view(graph());
+    const strip = screen.getByRole("tablist");
+    fireEvent.keyDown(strip, { key: "ArrowRight" });
+    expect(screen.getByRole("tab", { selected: true })).toHaveAccessibleName(/Artifact/);
+    fireEvent.keyDown(strip, { key: "Home" });
+    expect(screen.getByRole("tab", { selected: true })).toHaveAccessibleName(/Report/);
+  });
+
+  it("opens on the tab a deep link names", () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <RunWorkspace graph={graph()} initialTab="sources" />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText("Retrieved, not cited")).toBeInTheDocument();
+  });
+
+  it("reports a tab a person picked, so the page can put it in the URL", () => {
+    const onTabChange = vi.fn();
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <RunWorkspace graph={graph()} onTabChange={onTabChange} />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("tab", { name: /Claims/ }));
+    expect(onTabChange).toHaveBeenCalledWith("claims");
+  });
+
+  it("does not rewrite the URL when a gate re-routes the view by itself", () => {
+    const onTabChange = vi.fn();
+    const running = graph({ run: { ...graph().run, status: "RUNNING" } });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { rerender } = render(
+      <QueryClientProvider client={qc}>
+        <RunWorkspace graph={running} onTabChange={onTabChange} />
+      </QueryClientProvider>,
+    );
+    rerender(
+      <QueryClientProvider client={qc}>
+        <RunWorkspace graph={graph()} onTabChange={onTabChange} />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText("What you are approving")).toBeInTheDocument();
+    expect(onTabChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("the evidence chain", () => {
+  it("renders the report as markdown, with a resolved citation and a visible ⚠ for one that is not", () => {
+    view(
+      graph({
+        revisions: [
+          {
+            id: "r1",
+            version: 1,
+            report_markdown: "# Findings\n\nGrounding raised accuracy [1], unlike [9].",
+            report_hash: "b".repeat(64),
+            evidence_watermark: 1,
+            created_at: "2026-08-18T00:00:00Z",
+          },
+        ],
+      }),
+    );
+    fireEvent.click(screen.getByRole("tab", { name: /Report/ }));
+
+    // Markdown, not a literal "#".
+    expect(screen.getByRole("heading", { name: "Findings" })).toBeInTheDocument();
+    // [1] resolves to source 1 and becomes a chip that names it.
+    expect(
+      screen.getByRole("button", { name: /Source 1: Paper One/ }),
+    ).toBeInTheDocument();
+    // [9] resolves to nothing, and says so rather than rendering clean.
+    expect(screen.getByTitle(/Citation \[9\] does not resolve to a source/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/1 of 2 citation markers in this text resolve to nothing/),
+    ).toBeInTheDocument();
+  });
+
+  it("says a filtered evidence ledger is filtered, and offers the way back", () => {
+    view(graph());
+    fireEvent.click(screen.getByRole("tab", { name: /Claims/ }));
+    fireEvent.click(screen.getByText("1 supporting evidence item"));
+    fireEvent.click(screen.getByText(/Inspect this claim's evidence in full/));
+
+    expect(screen.getByText(/showing the 1 evidence item behind one claim, out of 1/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show all evidence" }));
+    expect(screen.queryByText(/showing the 1 evidence item/)).not.toBeInTheDocument();
+  });
+
+  it("spells out a claim's verification state instead of printing the wire enum", () => {
+    view(graph());
+    fireEvent.click(screen.getByRole("tab", { name: /Claims/ }));
+    const chip = screen.getAllByText("Verification not run")[0]!;
+    expect(chip.getAttribute("title")).toMatch(/not a judgement that the claim is true or false/i);
+    expect(screen.queryByText("UNCHECKED")).not.toBeInTheDocument();
+  });
+
+  it("groups cited sources apart from ones the report never referenced", () => {
+    view(graph());
+    fireEvent.click(screen.getByRole("tab", { name: /Sources/ }));
+    expect(screen.getByRole("heading", { name: /Cited sources \(1\)/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Retrieved, never cited \(1\)/ })).toBeInTheDocument();
+  });
+
+  it("does not claim the detector ran when there is no record either way", () => {
+    view(graph({ contradictions: [] }));
+    fireEvent.click(screen.getByRole("tab", { name: /Contradictions/ }));
+    expect(screen.getByText("No conflicting claims recorded")).toBeInTheDocument();
+    // The old copy asserted "The detector ran and surfaced no pair" from an empty list.
+    expect(screen.queryByText(/The detector ran and surfaced no pair/)).not.toBeInTheDocument();
+    expect(screen.getByText(/records itself as unavailable/)).toBeInTheDocument();
+  });
+
+  it("reports a detector that could not run as a gap, not as a clean bill of health", () => {
+    view(
+      graph({
+        contradictions: [
+          {
+            id: "x0",
+            source_a_id: null,
+            source_b_id: null,
+            evidence_a_id: null,
+            evidence_b_id: null,
+            quote_a: null,
+            quote_b: null,
+            summary_a: null,
+            summary_b: null,
+            nature: null,
+            dimension: "UNCLASSIFIED",
+            detection_state: "DETECTOR_UNAVAILABLE",
+            review_state: "UNREVIEWED",
+          },
+        ],
+      }),
+    );
+    fireEvent.click(screen.getByRole("tab", { name: /Contradictions/ }));
+    expect(screen.getByText(/could not run for this run/)).toBeInTheDocument();
+    expect(screen.getByText(/not a clean bill of health/)).toBeInTheDocument();
+  });
+});
+
+describe("the review gate", () => {
+  it("shows the hash the approval will sign", () => {
+    view(graph());
+    expect(screen.getByText(/Approving signs this exact text/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Report hash being approved/)).toBeInTheDocument();
+  });
+
+  it("previews the verifier's verdict before the decision, marked as a preview", () => {
+    view(graph());
+    expect(screen.getByText("What the verifier would say")).toBeInTheDocument();
+    expect(screen.getByText(/nothing is frozen until you approve/)).toBeInTheDocument();
   });
 });

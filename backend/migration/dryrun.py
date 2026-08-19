@@ -418,6 +418,31 @@ async def _count(db, model) -> int:
 async def measure(
     db, saver, shapes: dict[str, str], *, interrupt_after: int | None = None
 ) -> DryRunResult:
+    """Run the migration against the seeded corpus and grade it against every invariant.
+
+    Three independent gates, each recorded as its own field rather than folded into one
+    pass/fail — a bundle can land in any combination of them, and collapsing the gates
+    would hide which kind of defect a failure actually is (M2F Amendment §10):
+
+    * **Gate A — representational fidelity.** Does the V2 bundle say the same thing V1's
+      did, field for field, for the sessions where a comparison is even possible?
+    * **Gate B — internal bundle validity**, checked on both sides independently. A V1
+      bundle and its V2 migration are graded separately so "the migration preserved an
+      already-broken bundle" and "the migration broke a valid one" are distinguishable.
+    * **Gate C — historical non-fabrication.** Every migrated column is grounded in a
+      declared V1 source (`migration.provenance`), and the declared constants
+      (UNCHECKED evidence, NULL claim lineage, …) actually hold in what got written —
+      the map could claim UNCHECKED while the engine wrote ATTESTED, and only checking
+      the data catches that.
+
+    `interrupt_after` re-runs `migrate_all` a second time to prove resume is idempotent:
+    the first pass commits and stops, the second must process only the remainder and
+    must not re-insert what the first pass already wrote (`resume_duplicated_nothing`).
+
+    Every named invariant in `checks` is a `_verdict(...)` computed from the actual rows
+    in `db`, not asserted — this function is the harness the invariants are measured
+    against, not a report of what they are supposed to be.
+    """
     dialect = db.bind.dialect.name if db.bind is not None else "unknown"
     result = DryRunResult(
         target="", dialect=dialect, runs_seeded=len(shapes), considered=0, accounted=0

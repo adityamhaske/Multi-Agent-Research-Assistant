@@ -88,11 +88,7 @@ export default function ProjectPage() {
             </p>
           ) : runs.length === 0 ? (
             <p className="text-sm text-text-secondary">
-              Nothing researched here yet.{" "}
-              <Link href="/dashboard" className="text-accent hover:underline">
-                Ask a question
-              </Link>{" "}
-              to start.
+              No legacy sessions in this project.
             </p>
           ) : (
             <ul className="divide-y divide-border">

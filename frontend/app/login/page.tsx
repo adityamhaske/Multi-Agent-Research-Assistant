@@ -87,7 +87,7 @@ export default function LoginPage() {
         await register.mutateAsync({ email, password });
         try {
           await login.mutateAsync({ email, password });
-          router.replace("/dashboard");
+          router.replace("/research");
         } catch {
           toast.success("Account created successfully. Please sign in.");
           setMode("login");
@@ -95,7 +95,7 @@ export default function LoginPage() {
         }
       } else {
         await login.mutateAsync({ email, password });
-        router.replace("/dashboard");
+        router.replace("/research");
       }
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Something went wrong. Please try again.";
@@ -390,7 +390,7 @@ export default function LoginPage() {
 
                   <button
                     type="button"
-                    onClick={() => router.push("/dashboard")}
+                    onClick={() => router.push("/research")}
                     className="btn btn-primary w-full justify-center py-2.5 font-mono text-xs uppercase tracking-wider"
                   >
                     Enter Research Workspace →

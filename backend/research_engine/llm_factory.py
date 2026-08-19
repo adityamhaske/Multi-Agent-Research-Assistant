@@ -168,6 +168,13 @@ def map_local_host(base_url: str) -> str:
 
 
 def _build(provider: str, model: str, role: str) -> BaseChatModel:
+    """Construct the LangChain chat model for one `provider:model` route.
+
+    One function, one branch per provider, rather than a shared client with per-provider
+    flags — the providers genuinely differ (which kwargs they accept, whether they need a
+    key, whether SSRF and local-host rewriting apply), and a single-model implementation
+    growing table-driven config to paper over that only hides the differences.
+    """
     cfg = _ROLE_CONFIG[role]
     key = api_key_for(provider)
     # Ollama and local custom endpoints run locally and can operate without a key.

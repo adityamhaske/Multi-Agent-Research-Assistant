@@ -135,7 +135,7 @@ export function StartModelPicker({
             </p>
           ) : (
             <select
-              className="input w-full"
+              className="input-base w-full"
               value={selectedRoute}
               onChange={(e) => onChange(routeToRouting(e.target.value))}
               aria-label="Cloud model"
@@ -181,7 +181,7 @@ export function StartModelPicker({
           ) : (
             <>
               <select
-                className="input w-full"
+                className="input-base w-full"
                 value={selectedRoute}
                 onChange={(e) => onChange(routeToRouting(e.target.value))}
                 aria-label="Local model"

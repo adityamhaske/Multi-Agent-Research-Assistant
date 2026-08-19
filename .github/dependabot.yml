@@ -11,6 +11,19 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    groups:
+      # react and react-dom are exact-pinned and reach into each other's internals, so
+      # they are one unit even though npm calls them two packages. Ungrouped, Dependabot
+      # opened #66 bumping react 19.2.4 -> 19.2.8 and leaving react-dom on 19.2.4: the
+      # mismatched pair failed to load and took 10 of 20 Vitest suites with it, which no
+      # rebase could fix because nothing was stale. The type packages ride along because
+      # @types/react and @types/react-dom are versioned against the same pair.
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
 
   - package-ecosystem: "github-actions"
     directory: "/"

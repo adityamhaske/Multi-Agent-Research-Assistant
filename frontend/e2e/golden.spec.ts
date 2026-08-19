@@ -64,7 +64,7 @@ function reportView(page: Page) {
   return page.locator('section[aria-labelledby="report-heading"]');
 }
 
-/** Register a fresh account; the app logs straight in and lands on the dashboard. */
+/** Register a fresh account, then open the legacy run form these journeys cover. */
 async function registerAndLogin(page: Page): Promise<string> {
   const email = uniqueEmail();
   await page.goto("/login");
@@ -72,7 +72,11 @@ async function registerAndLogin(page: Page): Promise<string> {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await submitAuthForm(page);
-  await page.waitForURL("**/dashboard");
+  // Login now lands on /research — the V2 flow is the product's entry point. These
+  // journeys exercise the *legacy* V1 run form, which the navigation deliberately no
+  // longer points at, so they go there explicitly instead of relying on the landing.
+  await page.waitForURL(/\/(research|dashboard)/);
+  await page.goto("/dashboard");
   return email;
 }
 

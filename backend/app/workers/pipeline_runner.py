@@ -136,6 +136,24 @@ async def _execute(
     resume: tuple[bool, str | None] | None,
     plan: dict | None = None,
 ) -> None:
+    """Drive one session through the engine end to end: lock, wire ports, resume-or-run.
+
+    `resume`/`plan` select which of three engine entry points this call is (fresh start,
+    plan-gate resume, hitl-gate resume) — see the branch below. All three share the same
+    lock, the same Postgres checkpointer and the same corpus guard, because a session that
+    can start any of these three ways must not be able to start the other two
+    concurrently.
+
+    The session lock is acquired first and released last (the `finally` chain), because
+    Celery can redeliver a task — unlike the desktop's single in-process host, more than
+    one worker can legitimately pick up the same `session_id` here. A busy lock is not an
+    error: the caller that lost the race simply returns, trusting the caller that holds it
+    to finish and persist the outcome.
+
+    The corpus-mode guard (local embedder required, corpus database must already exist)
+    runs *before* the checkpointer is opened, so a run that cannot proceed fails with a
+    clear reason instead of spending a database round trip first.
+    """
     lock_token = uuid.uuid4().hex
     await init_redis_pool()
     try:
