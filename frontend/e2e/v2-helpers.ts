@@ -1,4 +1,4 @@
-import { expect, type Page } from "./fixtures";
+import { expect, waitForAuthRedirect, type Page } from "./fixtures";
 
 /**
  * Shared steps for the V2 journeys.
@@ -30,7 +30,7 @@ export async function register(page: Page): Promise<void> {
   const submit = page.locator('form button[type="submit"]');
   await expect(submit).toHaveAccessibleName(/\S/);
   await submit.click();
-  await page.waitForURL(/\/(dashboard|project|research)/, { timeout: 60_000 });
+  await waitForAuthRedirect(page, /\/(dashboard|project|research)/, 60_000);
 }
 
 /** A project, through the app's own API. Research is always project-scoped. */

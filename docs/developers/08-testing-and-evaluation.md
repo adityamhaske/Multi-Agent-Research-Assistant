@@ -39,6 +39,36 @@ not at the planner.
 cd frontend && npm run e2e
 ```
 
+**Running it locally.** The suite drives the real stack, so bring one up first — `./start.sh
+--fake` is enough, and fake mode is what CI uses. Then point Playwright at it:
+
+```bash
+E2E_NO_SERVER=1 E2E_BASE_URL=http://localhost:3031 npm run e2e
+```
+
+Omit `E2E_NO_SERVER` and Playwright builds and starts the frontend itself; set it when one
+is already running, which is faster and what CI does.
+
+**Repeated local runs are safe, and that is not an accident.** Registration is capped at 5
+per IP per hour and the cap is *not* configurable — it is brute-force protection, and one a
+test suite can switch off is not a cap. The suite registers one account per journey and has
+more journeys than that, so it would exhaust the cap on the first run and fail on the
+second. `e2e/fixtures.ts` therefore deletes this suite's own `rl:*` counters before each
+journey; it never issues `FLUSHDB`, because the same Redis carries the SSE channels and the
+search cache and blowing those away would change what the run under test actually does.
+
+If you do hit the cap — running one spec against a stack whose Redis the fixture cannot
+reach, say — the failure now names itself rather than surfacing as a navigation timeout.
+Clear the counters by hand with:
+
+```bash
+redis-cli -n 1 --scan --pattern 'rl:*' | xargs -r redis-cli -n 1 del
+```
+
+The cap itself stays armed: `backend/tests/test_auth_rate_limit.py` proves a sixth
+registration from one address is refused, and pins the published limit so widening it has
+to be deliberate.
+
 CI starts the API and the worker in fake mode, then Playwright. It waits for an explicit
 worker preload signal rather than for a ping — a Celery worker answers a ping while LangGraph
 and the provider clients are still importing, which measurably cost tens of seconds on the

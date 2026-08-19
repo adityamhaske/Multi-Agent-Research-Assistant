@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, waitForAuthRedirect, type Page } from "./fixtures";
 
 /**
  * The three golden journeys (docs/08 §2). CI blocks merge to `main` if any fails.
@@ -75,7 +75,7 @@ async function registerAndLogin(page: Page): Promise<string> {
   // Login now lands on /research — the V2 flow is the product's entry point. These
   // journeys exercise the *legacy* V1 run form, which the navigation deliberately no
   // longer points at, so they go there explicitly instead of relying on the landing.
-  await page.waitForURL(/\/(research|dashboard)/);
+  await waitForAuthRedirect(page, /\/(research|dashboard)/);
   await page.goto("/dashboard");
   return email;
 }

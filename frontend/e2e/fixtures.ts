@@ -91,4 +91,61 @@ export const test = base.extend({
   },
 });
 
+/**
+ * Wait for the post-authentication redirect, failing fast and by name if the request was
+ * rate limited (issue #51).
+ *
+ * Without this, an exhausted `REGISTER_IP` counter surfaces as a `waitForURL` timeout —
+ * 60s or 180s of nothing, reported against a navigation helper that is working perfectly.
+ * It reads as "the app is broken", and it cost real debugging time before anyone thought
+ * to look at the response body. The counter reset above makes that rare, but rare is not
+ * never: a developer running one spec directly, or a stack sharing Redis with something
+ * else, can still hit it.
+ *
+ * The race is deliberate rather than checking the response after the fact. The 429 and the
+ * redirect are mutually exclusive outcomes of the same submit, and whichever happens is
+ * known immediately — so there is no reason to spend the timeout discovering it.
+ */
+export async function waitForAuthRedirect(
+  page: import("@playwright/test").Page,
+  pattern: RegExp,
+  timeout = 60_000,
+): Promise<void> {
+  const limited = page
+    .waitForResponse(
+      (r) => /\/api\/v1\/auth\/(register|login)/.test(r.url()) && r.status() === 429,
+      { timeout },
+    )
+    .then(() => "limited" as const)
+    .catch(() => "none" as const);
+
+  const arrived = page
+    .waitForURL(pattern, { timeout })
+    .then(() => "ok" as const)
+    .catch((err: unknown) => err);
+
+  const winner = await Promise.race([limited, arrived]);
+
+  if (winner === "limited") {
+    throw new Error(
+      "Authentication was rate limited (HTTP 429) — this is the E2E suite hitting the " +
+        "registration cap, not a product failure.\n" +
+        "The cap is brute-force protection and is deliberately not configurable, so the " +
+        "fix is to clear this suite's counters, never to raise it:\n" +
+        "  redis-cli -n 1 --scan --pattern 'rl:*' | xargs -r redis-cli -n 1 del\n" +
+        "`clearRateLimitCounters()` does this before every journey; reaching this message " +
+        "means it could not reach Redis (check E2E_REDIS_URL).",
+    );
+  }
+  if (winner === "ok") return;
+  // Both timed out: the 429 watcher lost the race by resolving "none" first. Defer to the
+  // navigation's own error, which is the accurate one when no rate limiting occurred.
+  if (winner === "none") {
+    const result = await arrived;
+    if (result !== "ok") throw result;
+    return;
+  }
+  throw winner;
+}
+
 export { expect, type Page } from "@playwright/test";
