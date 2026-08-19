@@ -473,9 +473,8 @@ same job passed on the PR head** — the merge commits and their heads are the s
 so a pass there and a failure here is the environment, not the diff. That is the one case
 worth a single re-run; a second failure is real.
 
-**Every apt install goes through `.github/actions/apt-install`.** There is no raw
-`apt-get` left in `.github/workflows/`, and adding one back reintroduces the hang it
-exists to bound: the same two-line install sat in `ci.yml` twice and `desktop.yml` once,
+**Every apt install goes through `.github/actions/apt-install`.** Adding a raw `apt-get`
+back reintroduces the hang it exists to bound: the same two-line install sat in `ci.yml` twice and `desktop.yml` once,
 and on the same day it wedged five jobs — one for ninety minutes — while other jobs ran
 it in six seconds. A stalled mirror connection never returns, so the job burns its whole
 timeout and the log ends mid-step naming nothing.
@@ -503,6 +502,16 @@ keyed on the resolved `@playwright/test` version, and the install step carries a
 `timeout-minutes`. The rule the two cases share: **an unbounded download does not fail, it
 hangs**, and a hung job names nothing in its log. Bound every network step that can stall,
 and do not fetch what you can cache.
+
+**`--with-deps` was hiding a raw `apt-get` from all of that**, which is how the rule above
+was true of the workflow files and false of what actually ran. The flag shells out to apt
+internally, so the browser step's ten-minute budget was covering a CDN download *and* an
+unbounded package install; when the apt half wedged — same runner pool, same window as the
+Tauri shell job — the step burned the whole budget and reported nothing. `golden-e2e` now
+installs the libraries through the composite action and runs `playwright install chromium`
+without the flag, so each bound guards one thing. The package list comes from
+`npx playwright install-deps --dry-run chromium`; a stale list costs a browser that fails
+to launch naming the missing library, which is the failure you want.
 
 **Size a bound against what it guards, not against the happy path.** The apt action's
 per-attempt timeout has now been sized wrongly twice, in opposite directions. First 180s,
