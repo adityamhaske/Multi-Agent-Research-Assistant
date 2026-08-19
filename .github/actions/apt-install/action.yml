@@ -26,17 +26,30 @@ inputs:
   timeout-seconds:
     description: >
       Wall-clock bound on each individual apt invocation. This guards against a
-      connection that has stopped responding, NOT against slowness, and those need
-      very different numbers: `apt-get install` of these package sets takes ~6-80s,
-      but a full `apt-get update` refreshes every index for main/restricted/universe/
-      multiverse across two suites — tens of megabytes — and legitimately runs for
-      minutes on a congested mirror. A 180s bound was sized against the install and
-      killed an update that was still actively downloading. 300s is far above any
-      observed working refresh and far below the 90-minute stalls this exists to stop.
-      The workflow step also carries its own `timeout-minutes` as a hard ceiling, so
-      raising this cannot bring back an unbounded job.
+      connection that has stopped responding, NOT against slowness, and the two need
+      very different numbers — which this value has now been sized wrongly for twice,
+      in both directions:
+
+        * 180s, sized against an install (~6-80s), killed an `apt-get update` that was
+          still actively downloading. A full refresh pulls every index for
+          main/restricted/universe/multiverse across two suites.
+        * 300s, sized against that refresh, then killed the *install* on the Tauri
+          shell job — the WebKitGTK/GTK dev chain is ~150 packages and several hundred
+          megabytes, and the attempt died mid-download on package 93 having made
+          steady progress throughout. That job had passed on the commit before, so the
+          real install time straddles 300s depending on the mirror: a bound that is
+          sometimes above the working case and sometimes below it reads as a flake.
+
+      Hence 900s. The rule both mistakes broke is that a bound meant to catch a dead
+      connection must sit above the slowest *working* case, not near the typical one;
+      the stalls this exists to stop run to 90 minutes and the job timeout is six
+      hours, so there is an order of magnitude of headroom to spend here. The workflow
+      step carries its own `timeout-minutes` as the hard ceiling, and that — not this
+      number — is what guarantees a job can never hang; it must be sized to allow every
+      attempt this value permits, or a retry becomes unreachable, which is the second
+      half of what failed on the shell job.
     required: false
-    default: "300"
+    default: "900"
 
 runs:
   using: composite

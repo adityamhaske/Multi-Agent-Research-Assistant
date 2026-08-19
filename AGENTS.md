@@ -505,13 +505,27 @@ hangs**, and a hung job names nothing in its log. Bound every network step that 
 and do not fetch what you can cache.
 
 **Size a bound against what it guards, not against the happy path.** The apt action's
-per-attempt timeout was first set to 180s from the *install* duration (~6-80s), and then
-killed an `apt-get update` that was still actively downloading — a full refresh pulls every
-index for main/restricted/universe/multiverse across two suites and legitimately runs for
-minutes. A bound meant to catch a dead connection must sit above the slowest *working* case
-or it becomes a second source of red. It is now 300s per attempt with a `timeout-minutes`
-ceiling on the workflow step, so the inner number can be generous without the job ever
-being able to hang.
+per-attempt timeout has now been sized wrongly twice, in opposite directions. First 180s,
+taken from the *install* duration (~6-80s), which killed an `apt-get update` that was still
+actively downloading — a full refresh pulls every index for main/restricted/universe/
+multiverse across two suites and legitimately runs for minutes. Then 300s, taken from that
+refresh, which killed the *install* on the Tauri `shell` job: the WebKitGTK/GTK dev chain is
+~150 packages and several hundred megabytes, and the attempt died mid-download on package 93
+having made steady progress the whole time. It is now **900s** per attempt.
+
+Two lessons, and the second is the one that keeps being missed. A bound meant to catch a
+dead connection must sit above the slowest *working* case, not near the typical one — the
+stalls it guards against run to ninety minutes against a six-hour job timeout, so there is an
+order of magnitude of headroom to spend and no prize for spending none of it. And **the
+step's `timeout-minutes` must be sized from the action's own worst case**, `attempts x
+(update + install)`: at 12 minutes the shell job burned attempt 1 plus the start of attempt
+2's refresh and then reported only that the step timed out, which names neither stage and
+makes the retry dead code. Both ceilings are 35 minutes now.
+
+The tell that a bound is too tight rather than a mirror being dead: **the job passes on the
+commit before and fails on this one with no relevant diff.** A real hang is reproducible and
+names nothing; a bound straddling the working case alternates. Neither is a flake to re-run
+away — the first is an outage, the second is a number to fix.
 
 ## A release is not finished until the website says so
 

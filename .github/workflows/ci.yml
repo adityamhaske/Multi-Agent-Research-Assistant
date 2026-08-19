@@ -46,10 +46,12 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install system deps (WeasyPrint)
         uses: ./.github/actions/apt-install
-        # Hard ceiling over the action's own per-attempt bounds. The inner timeout is
-        # deliberately generous so it cannot kill a slow-but-progressing index refresh;
-        # this is what guarantees the job still cannot hang for hours if it does.
-        timeout-minutes: 12
+        # Hard ceiling over the action's own per-attempt bounds, and it has to be sized
+        # from them: 2 attempts x (update + install) at 900s each. A ceiling that cuts
+        # in before the retry does makes the retry dead code — the shell job burned its
+        # 12 minutes on attempt 1 plus the start of attempt 2's refresh and reported the
+        # step timing out, which names neither stage.
+        timeout-minutes: 35
         with:
           packages: libpango-1.0-0 libpangoft2-1.0-0
       - name: Install dependencies
@@ -196,10 +198,12 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install system deps (WeasyPrint)
         uses: ./.github/actions/apt-install
-        # Hard ceiling over the action's own per-attempt bounds. The inner timeout is
-        # deliberately generous so it cannot kill a slow-but-progressing index refresh;
-        # this is what guarantees the job still cannot hang for hours if it does.
-        timeout-minutes: 12
+        # Hard ceiling over the action's own per-attempt bounds, and it has to be sized
+        # from them: 2 attempts x (update + install) at 900s each. A ceiling that cuts
+        # in before the retry does makes the retry dead code — the shell job burned its
+        # 12 minutes on attempt 1 plus the start of attempt 2's refresh and reported the
+        # step timing out, which names neither stage.
+        timeout-minutes: 35
         with:
           packages: libpango-1.0-0 libpangoft2-1.0-0
       - name: Install backend dependencies
