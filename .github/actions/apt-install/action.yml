@@ -25,9 +25,10 @@ inputs:
     default: "3"
   timeout-seconds:
     description: >
-      Wall-clock bound on each individual apt invocation. 180s is roughly 12x the
-      normal duration of the slowest of these installs, so it cannot trip on a
-      merely slow mirror — only on one that has stopped responding.
+      Wall-clock bound on each individual apt invocation. The two real call sites
+      normally take ~6-14s (WeasyPrint's two libs) and ~80s (the Tauri shell's
+      WebKitGTK set), so 180s leaves the slower one a bit over 2x headroom — enough
+      that a merely slow mirror finishes, short enough that a dead one is caught.
     required: false
     default: "180"
 
@@ -56,6 +57,21 @@ runs:
           # A timed-out `update` can leave a half-written package index behind, which
           # makes every later attempt fail for a different reason than the first one.
           sudo rm -rf /var/lib/apt/lists/*
+          # Retrying the same host is what does NOT work here. Measured on 2026-08-19:
+          # three bounded attempts against the runner's default mirror failed in 570s,
+          # having already burned ninety minutes unbounded on other jobs, while other
+          # runners in the same minute completed the identical command in six seconds.
+          # A wedged mirror connection is per-runner and does not heal on request, so
+          # the retry has to change the host it is asking. archive.ubuntu.com is the
+          # canonical archive — same packages, same versions, slower from Azure, which
+          # is a fine trade for the second attempt onward. Both the deb822 (.sources)
+          # and legacy (.list) layouts are rewritten, since the runner image has moved
+          # between them before.
+          if [ "$attempt" -eq 1 ]; then
+            echo "switching to archive.ubuntu.com for the remaining attempts"
+            sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g; s|[a-z0-9-]*\.archive\.ubuntu\.com|archive.ubuntu.com|g' \
+              /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null || true
+          fi
           sleep $(( attempt * 5 ))
         done
         echo "::error::apt-get failed after ${APT_ATTEMPTS} attempts — see the warnings above for which stage"
