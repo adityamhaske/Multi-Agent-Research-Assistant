@@ -29,7 +29,6 @@ from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -50,6 +49,15 @@ from app.models.research import (
 from app.models.review import ResearchArtifact, Review
 from app.models.revision import Claim, ClaimEvidenceLink, Revision
 from app.models.user import User
+
+# Request bodies live in app/schemas/v2.py so the desktop sidecar can import the exact
+# same contract without this module's `app.config` chain (#50). Re-exported here: this
+# is where the routes and their tests have always referred to them.
+from app.schemas.v2 import (  # noqa: F401  (re-export)
+    CreateRunRequest,
+    PlanReviewRequest,
+    ReportReviewRequest,
+)
 from app.services.sse import SSE_HEADERS
 from research_engine.bundle import render_model_attribution_md
 
@@ -60,38 +68,6 @@ router = APIRouter(prefix="/v2/runs", tags=["v2"])
 #: held open there waits on no one. Mirrors the V1 stream's stop-list and
 #: `sidecar._TERMINAL_EVENTS`.
 _TERMINAL_EVENTS = ("COMPLETED", "FAILED", "HITL_READY", "PLAN_READY")
-
-
-class CreateRunRequest(BaseModel):
-    """The domain entry point for a V2-native run."""
-
-    project_id: uuid.UUID
-    question: str = Field(min_length=1, max_length=2000)
-    depth: str = Field("balanced", description="fast | balanced | comprehensive")
-    corpus_mode: bool = False
-    skip_plan_gate: bool = True
-    topic_seeds: list | None = None
-    outline_template: str | None = None
-    #: Dispatch the run to the worker. False creates the domain row only — used by tests
-    #: that drive the engine in-process, and by any caller that wants to stage a run.
-    dispatch: bool = True
-
-
-class PlanReviewRequest(BaseModel):
-    decision: str = Field("APPROVED", description="APPROVED | REWORK_REQUESTED | REJECTED")
-    feedback: str | None = None
-    dispatch: bool = True
-
-
-class ReportReviewRequest(BaseModel):
-    """A decision about a revision. `dispatch` drives the rework resume."""
-
-    revision_version: int | None = Field(
-        None, description="Which revision was reviewed. Defaults to the latest."
-    )
-    decision: str = Field(..., description="APPROVED | REWORK_REQUESTED | REJECTED")
-    feedback: str | None = None
-    dispatch: bool = True
 
 
 async def _run_or_404(db: AsyncSession, run_id: uuid.UUID, owner_id: uuid.UUID) -> ResearchRun:
