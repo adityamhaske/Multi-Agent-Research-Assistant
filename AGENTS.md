@@ -360,6 +360,45 @@ inside its own attempt.
   exception into `None` once produced "planner: could not produce a valid task list" for
   what was actually an exhausted quota, sending debugging in the wrong direction for days.
 
+## Comments explain intent, not syntax
+
+Every file in this repository — `graph.py`, `v2_runtime.py`, `authorization.py`,
+`dryrun.py`, `RunWorkspace.tsx`, the Dockerfiles, the regression tests — is held to the
+same standard: a comment earns its place by telling a competent engineer something the
+code cannot tell them by itself. That bar is deliberately high. Most lines need nothing;
+the ones that encode a decision, an invariant, or a scar need real prose.
+
+**A comment must explain at least one of:** what a non-obvious function/section is
+responsible for; why it exists rather than a simpler alternative; an architectural
+invariant it protects (a project-isolation boundary, a two-hosts-one-contract rule, an
+unmeasured-vs-zero distinction); a failure-handling decision (why an error is swallowed,
+retried, or propagated); a security or isolation constraint; a performance or
+compatibility constraint; a domain-semantics distinction the type system doesn't carry
+(retrieved ≠ cited, UNCHECKED ≠ ATTESTED); or an assumption the code relies on that isn't
+visible at the call site.
+
+**Forbidden:** narrating syntax (`# loop over users`, `# increment counter`); a comment
+on every line to raise a coverage number; restating the function name in prose; an
+invented historical justification ("fixes bug #123") that stops being useful the moment
+the ticket closes — write the durable invariant instead, the way `map_local_host`
+explains *why* the container/host rewrite is needed rather than which PR added it; and a
+comment that describes behavior the code next to it no longer has. A stale comment is
+worse than none, because it is trusted.
+
+**When you change behavior, update the comment describing it in the same change.** A
+comment is a claim about the code; if the code changes and the comment doesn't, the claim
+becomes false and the next reader is misled with confidence. This applies to docstrings
+and to the prose in this file and in `backend/AGENTS.md` / `frontend/AGENTS.md` equally —
+see the standing instruction at the top of this file.
+
+**Before adding a comment, ask whether the code already says it.** This repository's
+existing density is high on purpose (`research_engine/graph.py` and `app/v2_runtime.py`
+are the reference examples — read one before writing prose elsewhere in the codebase),
+so the marginal comment usually needs to work harder to justify itself, not less. If a
+review pass turns up a function that already explains itself through its name, its types,
+and one clear surrounding comment, adding a second one restating the same thing is noise,
+not thoroughness.
+
 ## What CI actually enforces
 
 Green locally ≠ green in CI. Run what CI runs:
