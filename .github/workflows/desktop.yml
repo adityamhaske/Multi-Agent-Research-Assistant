@@ -93,7 +93,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Fetch the sidecar built for this OS
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: research-sidecar-${{ matrix.os }}
           path: backend/dist/research-sidecar/

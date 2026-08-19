@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { CancelButton, RunWorkspace } from "@/components/v2/RunWorkspace";
 import { runTotals } from "@/components/v2/primitives";
 import { isLive, useV2Run, useV2RunStream } from "@/hooks/v2";
+import { shouldOpenStream } from "@/lib/sessionStream";
 
 /**
  * One research run, from question to verified artifact.
@@ -34,7 +35,16 @@ function RunPageInner() {
   const runId = useSearchParams().get("id") ?? "";
   const { data: graph, isLoading, error } = useV2Run(runId || null);
   const live = isLive(graph?.run.status);
-  const { degraded } = useV2RunStream(runId, live, graph?.run.status);
+  // Subscribe for every loaded run, finished ones included — not just while `live`.
+  // The stream is the only path by which this host reads `agent_logs`: the V2 stream
+  // endpoint replays them on connect and then ends the response at a terminal event, so
+  // a finished run costs one short request and yields its history. Gating on `live`
+  // discarded that history entirely, and made the reconnect journey a race the page
+  // usually lost — a fake-mode run reaches the review gate in well under a second, so the
+  // first fetch often resolved after the run was already terminal and no stream was ever
+  // opened. `lib/sessionStream.ts` records V1 hitting and fixing exactly this; V2 shipped
+  // with the unfixed copy.
+  const { degraded } = useV2RunStream(runId, shouldOpenStream(graph?.run.status), graph?.run.status);
 
   if (!runId) {
     return (
