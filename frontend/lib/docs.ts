@@ -182,6 +182,7 @@ const NAV_ORDER: Record<string, string[]> = {
     "deployment/docker",
     "deployment/production",
     "deployment/operations",
+    "deployment/migration-v1-to-v2",
   ],
   developers: [
     "developers/development",

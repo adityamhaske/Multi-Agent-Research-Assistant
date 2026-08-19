@@ -25,9 +25,16 @@ from typing import Literal
 import httpx
 import structlog
 
-from app.config import settings
+# The default Ollama URL is read from the engine's process RunConfig, not from
+# `app.config.settings`. Both are the same value on the server — `app/runtime.py` copies
+# `settings.ollama_base_url` straight into the process default — but `app.config` builds a
+# `Settings` requiring `DATABASE_URL` and `JWT_SECRET_KEY` at import, which the desktop
+# host does not have. Importing it here killed the packaged sidecar at startup (#50), and
+# a lazy import would only have moved the crash to the first Settings-page probe, since
+# the sidecar calls `probe()`/`pull()` with no explicit base_url.
 from research_engine import catalog
 from research_engine.llm_factory import map_local_host
+from research_engine.runconfig import get_run_config
 
 logger = structlog.get_logger()
 
@@ -189,7 +196,7 @@ async def probe(base_url: str | None = None) -> LocalLLMStatus:
     substitution automatically for the actual pipeline calls; the health check now agrees
     with the thing it's supposed to be checking.
     """
-    configured = base_url or settings.ollama_base_url
+    configured = base_url or get_run_config().ollama_base_url
     dial_url = map_local_host(configured)
     url = f"{_api_root(dial_url)}/api/tags"
 
@@ -283,7 +290,7 @@ async def pull(model: str, base_url: str | None = None) -> AsyncIterator[PullPro
     non-200 response yields one `PullProgress(status="error")` instead of propagating,
     matching `probe`'s "every failure becomes a status a user can act on" contract.
     """
-    configured = base_url or settings.ollama_base_url
+    configured = base_url or get_run_config().ollama_base_url
     dial_url = map_local_host(configured)
     url = f"{_api_root(dial_url)}/api/pull"
 
