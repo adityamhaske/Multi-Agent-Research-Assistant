@@ -95,3 +95,9 @@ The audit trail carries every decision in order: each `approved` or `rework_requ
 action, its verbatim feedback, the hash of the draft it applied to, and its timestamp. The
 bundle export carries that chain, and its verifier checks that at least one `approved` entry
 hashes to the report you are holding.
+
+What that trail guarantees, and what it does not, is written out under
+[`audit_log` semantics](../architecture/05-data-model.md#semantics) — including one
+limitation worth knowing as a reviewer: a decision is recorded before the work it triggers
+is dispatched, so in the rare case that the dispatch fails, the record can show a decision
+whose work never ran, and nothing reconciles the two.

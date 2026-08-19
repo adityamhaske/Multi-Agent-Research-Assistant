@@ -139,6 +139,12 @@ a different session.
 hashes the approved research design rather than a draft, so the design decision travels in
 the same chain without ever satisfying the check above.
 
+The rules these entries obey — who may write one, why the chain is ordered by id rather
+than timestamp, why it is append-only without a database constraint enforcing it, and the
+fact that `draft_hash` carries two different hashed objects — are set out under
+[`audit_log` semantics](../architecture/05-data-model.md#semantics). Worth reading before
+trusting a chain: verifying a bundle means trusting them.
+
 ## Standalone verifier
 
 Ships with the engine. No model, no network, no database.
