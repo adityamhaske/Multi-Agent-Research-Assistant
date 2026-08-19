@@ -241,6 +241,42 @@ def serialize(bundle: BundleManifest) -> str:
     return json.dumps(bundle.model_dump(), sort_keys=True, indent=2, ensure_ascii=False) + "\n"
 
 
+#: Prepended to the report text of any demo export (docs/17 §6.2). Markdown, so it
+#: survives into the PDF renderer as well as the `.md` file.
+#:
+#: **Lives here for the same reason `render_model_attribution_md` does:** both the API
+#: server and the desktop sidecar export `.md`, and both must stamp it. It used to be a
+#: private constant in `app/api/v1/research.py`, which the sidecar could not reach — so the
+#: desktop `.md` export shipped unstamped while `docs/user-guide/29-exports.md` promised
+#: that "every export path stamps the artifact" (#52). That is precisely the artifact the
+#: flag exists to prevent: a scripted, fixture-sourced report that leaves the app looking
+#: like research.
+#:
+#: The bundle deliberately does NOT carry this. `report_hash` is checked against the
+#: `draft_hash` recorded at approval, so injecting prose into the report body afterwards
+#: breaks the approval chain. The bundle carries `demo` as a hash-covered field instead.
+DEMO_STAMP_MD = (
+    "> ## ⚠ DEMO — NOT REAL RESEARCH\n"
+    ">\n"
+    "> This report was produced with **scripted models and fixture sources** so the\n"
+    "> product could be demonstrated without an API key. The citations below resolve to\n"
+    "> real-looking references, but **nothing here was researched and nothing here is\n"
+    "> verified**. Do not cite, share, or act on it.\n"
+    "\n"
+    "---\n\n"
+)
+
+
+def stamp_demo_md(report: str, *, demo: bool) -> str:
+    """Prepend the demo banner when `demo` is set. The one place either host decides.
+
+    A function rather than a bare constant so the rule ("stamped iff demo") has a single
+    implementation too, not just a single string — `tests/test_demo_stamp_parity.py`
+    pins that both hosts route through it.
+    """
+    return f"{DEMO_STAMP_MD}{report}" if demo else report
+
+
 def render_model_attribution_md(model_routing: dict[str, str] | None) -> str:
     """A "Models used" Markdown footer — the `.md`/`.pdf` export counterpart of this
     module's `models` field (requirement 1: disclosure "in the report/export").

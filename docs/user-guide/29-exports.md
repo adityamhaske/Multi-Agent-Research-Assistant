@@ -77,11 +77,17 @@ Full specification: [Research bundle format](../reference/15-bundle-format.md).
 ## Demo runs are stamped
 
 A run made with scripted models and fixture sources is marked in the database, and every
-export path stamps the artifact:
+export path stamps the artifact — **on both hosts**:
 
 - `.md` and `.pdf` carry a prominent **⚠ DEMO — NOT REAL RESEARCH** banner at the top;
 - the bundle carries a hash-covered `demo` field instead, and the verifier prints the
   provenance above its verdict.
+
+The banner text and the "stamped iff demo" rule live in one place, `research_engine.bundle`,
+and the server and the desktop sidecar both call it. That is not decoration: the desktop
+`.md` export shipped *unstamped* for a release while this page already promised otherwise,
+which is exactly the unmarked fixture report the flag exists to prevent. A parity test now
+fails the build if either host stops applying it, or if either starts stamping the bundle.
 
 The bundle is stamped differently on purpose. Injecting prose into the report body would
 change the report hash and break the approval-chain check, making every demo bundle fail

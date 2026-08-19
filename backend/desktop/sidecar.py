@@ -72,17 +72,19 @@ from sqlalchemy import event, func, select
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-# `download_headers` is the server's response-header policy for uploaded documents (the
+# `download_headers` is the shared response-header policy for uploaded documents (the
 # no-render rule plus the narrow PDF exception). Imported, never restated: a second copy
-# of a security header policy is the worst kind of duplication this repo has.
-from app.api.v1.corpus import download_headers
+# of a security header policy is the worst kind of duplication this repo has. It lives in
+# a stdlib-only module rather than in the server's corpus route, because importing that
+# route reaches `app.config` and this host has no server settings to build (#50).
+from app.services.document_headers import download_headers
 
 # The V2 request models are imported, not restated: the desktop host must accept exactly
 # the body the server does, and two Pydantic models with the same name in two files is how
 # that stops being true.
-from app.api.v1.v2_runs import CreateRunRequest as V2CreateRunRequest
-from app.api.v1.v2_runs import PlanReviewRequest as V2PlanReviewRequest
-from app.api.v1.v2_runs import ReportReviewRequest as V2ReportReviewRequest
+from app.schemas.v2 import CreateRunRequest as V2CreateRunRequest
+from app.schemas.v2 import PlanReviewRequest as V2PlanReviewRequest
+from app.schemas.v2 import ReportReviewRequest as V2ReportReviewRequest
 from app.models import POSTGRES_ONLY_TABLES, Base
 from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
@@ -138,6 +140,14 @@ _KEYRING_SERVICE = "research-assistant-desktop"
 # gates are in the list: PLAN_READY suspends the graph exactly as HITL_READY does, and a
 # stream left open on it would hold a connection nothing will ever write to again.
 _TERMINAL_EVENTS = ("COMPLETED", "FAILED", "HITL_READY", "PLAN_READY")
+
+#: Events after which *replay* stops — the true terminals only, deliberately not the gates.
+#: Second home of `app.api.v1.v2_runs._REPLAY_STOP_EVENTS`; see the reasoning there. The
+#: stop-list above is right for the live tail and wrong for the backlog: a client that
+#: reconnects without a `Last-Event-ID` replays from 0, and stopping at the design gate
+#: hides everything the run did after it. The server's V1 stream has always drawn this
+#: distinction; both V2 streams and this host's V1 stream did not.
+_REPLAY_STOP_EVENTS = ("COMPLETED", "FAILED")
 
 
 # ── Event fan-out ────────────────────────────────────────────────────────────────
@@ -627,9 +637,7 @@ def create_sidecar_app(
         # "two homes, one contract" shape that keeps biting: M2D added two more
         # pgvector-dependent tables and an inline filter would have silently tried to
         # create them.
-        tables = [
-            t for t in Base.metadata.sorted_tables if t.name not in POSTGRES_ONLY_TABLES
-        ]
+        tables = [t for t in Base.metadata.sorted_tables if t.name not in POSTGRES_ONLY_TABLES]
         async with engine.begin() as conn:
             await conn.run_sync(
                 lambda sync_conn: Base.metadata.create_all(sync_conn, tables=tables)
@@ -1220,7 +1228,17 @@ def create_sidecar_app(
         # A session that already reached a terminal state needs no live tail — the
         # backlog IS the stream. (The server has the same implicit behavior; here it
         # is spelled out because the in-process bus only holds this launch's events.)
-        already_done = session.status in (SessionStatus.COMPLETED, SessionStatus.FAILED)
+        # Terminal *or* parked at a gate: in both cases nothing more will be published
+        # until a human acts, so the stream ends after the backlog instead of tailing.
+        # The gates moved here from the replay stop-list — stopping replay at a gate also
+        # hid every event after it (see `_REPLAY_STOP_EVENTS`), which is a different and
+        # wrong statement. Second home of `v2_runs._SUSPENDED_STATUSES`.
+        already_done = session.status in (
+            SessionStatus.COMPLETED,
+            SessionStatus.FAILED,
+            SessionStatus.AWAITING_PLAN,
+            SessionStatus.AWAITING_APPROVAL,
+        )
 
         async def gen() -> AsyncGenerator[str, None]:
             yield f"data: {json.dumps({'type': 'connected'})}\n\n"
@@ -1228,7 +1246,7 @@ def create_sidecar_app(
             for eid, payload in backlog:
                 seen_max = max(seen_max, eid or 0)
                 yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
-                if payload.get("type") in _TERMINAL_EVENTS:
+                if payload.get("type") in _REPLAY_STOP_EVENTS:
                     return
             if already_done:
                 return
@@ -1376,9 +1394,7 @@ def create_sidecar_app(
                 user_id=user.id,
                 action="approved" if payload.approved else "rework_requested",
                 feedback=None if payload.approved else payload.feedback,
-                draft_hash=hashlib.sha256(
-                    (session.draft_report or "").encode("utf-8")
-                ).hexdigest(),
+                draft_hash=hashlib.sha256((session.draft_report or "").encode("utf-8")).hexdigest(),
             )
         )
         session.status = SessionStatus.RUNNING
@@ -1528,6 +1544,14 @@ def create_sidecar_app(
         report = session.final_report or session.draft_report
         if not report:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No report available to export.")
+        # Demo-stamped exactly as the server stamps it (#52). Both hosts call the same
+        # `bundle.stamp_demo_md`, so the rule has one implementation rather than two that
+        # have to be kept in step by discipline. The desktop `.md` shipped unstamped for a
+        # whole release while docs/29 promised every export path stamps — an unmarked
+        # fixture report leaving the app is the one thing the demo flag exists to prevent.
+        # The bundle stays unstamped on both hosts: prose in the report body would break
+        # `report_hash` against the approval chain.
+        report = bundle.stamp_demo_md(report, demo=bool(session.demo))
         report += bundle.render_model_attribution_md(session.model_routing)
         filename = f"research-{str(session.id)[:8]}.md"
         return Response(
@@ -1691,9 +1715,7 @@ def create_sidecar_app(
         eid = bus.append(str(session_id), payload)
         payload["id"] = eid
         db.add(
-            AgentLog(
-                session_id=session_id, event_type="FAILED", agent_name=None, payload=payload
-            )
+            AgentLog(session_id=session_id, event_type="FAILED", agent_name=None, payload=payload)
         )
         await db.commit()
 
@@ -2310,6 +2332,7 @@ def create_sidecar_app(
         `Last-Event-ID` replay and the stop-list are identical, and the backlog query works
         unchanged because `agent_logs.session_id` is polymorphic.
         """
+        from app.api.v1.v2_runs import _REPLAY_STOP_EVENTS as V2_REPLAY_STOP
         from app.api.v1.v2_runs import _TERMINAL_EVENTS as V2_TERMINAL
         from app.api.v1.v2_runs import _run_or_404
 
@@ -2331,7 +2354,13 @@ def create_sidecar_app(
                 .scalars()
                 .all()
             ]
-        already_done = run.status in ("COMPLETED", "FAILED", "CANCELLED")
+        already_done = run.status in (
+            "COMPLETED",
+            "FAILED",
+            "CANCELLED",
+            "AWAITING_PLAN",
+            "AWAITING_REVIEW",
+        )
 
         async def gen() -> AsyncGenerator[str, None]:
             yield f"data: {json.dumps({'type': 'connected', 'run_id': str(run_id)})}\n\n"
@@ -2339,7 +2368,7 @@ def create_sidecar_app(
             for eid, payload in backlog:
                 seen_max = max(seen_max, eid or 0)
                 yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
-                if payload.get("type") in V2_TERMINAL:
+                if payload.get("type") in V2_REPLAY_STOP:
                     return
             if already_done:
                 return

@@ -9,11 +9,11 @@ pydantic-settings>=2.15.0
 # Database
 sqlalchemy[asyncio]>=2.0.51,<2.1
 asyncpg>=0.31.0
-alembic>=1.14
+alembic>=1.19.1
 # pgvector's SQLAlchemy type + asyncpg codec for `memory_chunks.embedding` (docs/14 §3).
 # The server-side extension is a separate prerequisite: migration 0006 enables it, and the
 # compose files pin pgvector/pgvector:pgNN because stock postgres images do not ship it.
-pgvector>=0.3
+pgvector>=0.5.0
 
 # Cache / Queue
 redis[hiredis]>=8.1.0
@@ -21,7 +21,7 @@ celery>=5.4,<6.0
 
 # Agent orchestration (docs/03_Tech_Stack.md — real LangGraph, no hand-rolled loops)
 langgraph>=1.0
-langgraph-checkpoint-postgres>=2.0
+langgraph-checkpoint-postgres>=3.1.2
 # SQLite checkpointing for the local host (research_engine.cli) and the desktop build
 # (docs/12 M9). Unused by the api/worker runtime, but kept here so CI exercises the
 # local-run tests that prove the engine works without Postgres.
@@ -33,7 +33,7 @@ psycopg[binary]>=3.3.4
 langchain-core>=0.3
 langchain-google-genai>=2.0
 # BYOK providers — enabled for Anthropic routing (MODEL_*=anthropic:...).
-langchain-anthropic>=1.5.3
+langchain-anthropic>=1.5.6
 # Required, not optional: OpenAI, OpenRouter, and Ollama all speak the OpenAI wire
 # protocol, so this one client covers three providers — including Ollama, which is the
 # offline/local-model story (docs/12 M8, docs/13 §6/§8).

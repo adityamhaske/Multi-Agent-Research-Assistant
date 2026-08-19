@@ -72,6 +72,7 @@ docs/
 | [Deploy with Docker](deployment/09-docker.md) | Images, Compose, startup ordering, migrations, health |
 | [Production deployment](deployment/30-production.md) | TLS, hardening, backups, upgrades, releases |
 | [Operations](deployment/31-operations.md) | Observability, runbook, cost control, housekeeping |
+| [Migrating V1 data to V2](deployment/38-migration-v1-to-v2.md) | The migration tool, its three gates, its outcome ledger, and what it refuses to invent |
 
 ## Developers
 
