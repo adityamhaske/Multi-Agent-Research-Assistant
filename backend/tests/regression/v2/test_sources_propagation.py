@@ -5,6 +5,7 @@
 
 from research_engine.runner import _outcome
 
+
 def test_outcome_preserves_sources_from_graph_state():
     mock_sources = [{"url": "https://example.com/a"}]
     state = {"draft_report": "d", "sources": mock_sources}
