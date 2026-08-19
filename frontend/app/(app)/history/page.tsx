@@ -1,249 +1,228 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useActiveProject } from "@/components/ActiveProject";
-import { SessionCard } from "@/components/SessionCard";
-import { useSessions } from "@/hooks/queries";
-import { STATUS_ORDER, statusMeta } from "@/lib/status";
-import type { SessionStatus } from "@/lib/types";
-
-const LIMIT = 20;
-
-/**
- * Derived from the shared vocabulary, never restated (docs/07 §2, Phase 7). This list
- * was hand-written and had already fallen behind: `AWAITING_PLAN` was missing, so a run
- * parked at the design gate — the one a user is most likely scanning for — could be seen
- * and not filtered for.
- */
-const FILTERS: { value: SessionStatus | "ALL"; label: string }[] = [
-  { value: "ALL", label: "All" },
-  ...STATUS_ORDER.map((value) => ({ value, label: statusMeta(value).label })),
-];
-
-/** Depth is on every session row, so it filters client-side like status does. */
-const DEPTHS = ["fast", "balanced", "comprehensive"] as const;
+import { LegacySessions } from "@/components/history/LegacySessions";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { RunCard } from "@/components/v2/RunCard";
+import { useV2Runs } from "@/hooks/v2";
+import { V2_STATUS_ORDER, v2StatusMeta } from "@/lib/v2Status";
+import type { RunStatusV2 } from "@/lib/types";
 
 /**
- * Verified-citation rate bands. The product's central claim, made scannable.
+ * Everything that has been researched.
  *
- * "Unmeasured" is its own band rather than being swept into the lowest one: a report
- * with no citable claims and a report whose every marker is broken are opposite
- * findings, and `citation_resolution_rate` is `null` for the first and `0` for the
- * second. A band of "under 80%" that quietly included nulls would be the
- * unmeasured-as-zero bug wearing a filter.
+ * This page used to list V1 sessions and nothing else, while the V2 runs it exists to
+ * record were reachable only from a list at the bottom of the Research page. A user who
+ * clicked "History" after doing research in this product saw none of it.
+ *
+ * The filters are derived from data every row already carries, so none of them can lie
+ * about what they select. Two are worth spelling out:
+ *
+ * - **Artifact** is not a synonym for "finished". A run can be COMPLETED and carry no
+ *   artifact, and the difference is exactly the product's claim, so it filters separately.
+ * - **Status options are the statuses actually present on this page**, not the whole
+ *   vocabulary, so the strip never offers a filter that selects nothing.
  */
-const CITATION_BANDS = {
-  ALL: { label: "Any", match: () => true },
-  PERFECT: { label: "100% verified", match: (r: number | null) => r === 1 },
-  PARTIAL: { label: "Under 100%", match: (r: number | null) => r !== null && r < 1 },
-  UNMEASURED: { label: "Not measured", match: (r: number | null) => r === null },
-} as const;
+
+type Scope = "project" | "all";
+type Verified = "any" | "artifact" | "none";
 
 export default function HistoryPage() {
-  const [page, setPage] = useState(1);
-  const [filter, setFilter] = useState<SessionStatus | "ALL">("ALL");
-  const [depth, setDepth] = useState<(typeof DEPTHS)[number] | "ALL">("ALL");
-  const [band, setBand] = useState<keyof typeof CITATION_BANDS>("ALL");
-  const [model, setModel] = useState<string>("ALL");
-  // Archived is a separate destination, not another status filter — a session is
-  // archived *or* active, and mixing them would defeat the point of getting one
-  // out of the way. Switching views resets paging.
-  const [showArchived, setShowArchived] = useState(false);
-  const { activeId, active } = useActiveProject();
-  const { data, isLoading, isError, refetch, isFetching } = useSessions(
-    page,
-    LIMIT,
-    showArchived,
-    activeId
+  const { activeId, active, projects } = useActiveProject();
+  const [scope, setScope] = useState<Scope>("project");
+  const [status, setStatus] = useState<RunStatusV2 | "ALL">("ALL");
+  const [verified, setVerified] = useState<Verified>("any");
+  const [query, setQuery] = useState("");
+
+  const { data: runs, isLoading, isError, refetch } = useV2Runs(
+    scope === "project" ? (activeId ?? null) : null,
   );
 
-  const rows = data?.sessions ?? [];
-  // Every distinct route any listed run dialled, so the picker only offers models that
-  // actually appear on this page rather than the whole catalog.
-  const models = Array.from(
-    new Set(rows.flatMap((s) => Object.values(s.model_routing ?? {}))),
-  ).sort();
-
-  const visible = rows.filter(
-    (s) =>
-      (filter === "ALL" || s.status === filter) &&
-      (depth === "ALL" || s.research_depth === depth) &&
-      CITATION_BANDS[band].match(s.citation_resolution_rate) &&
-      (model === "ALL" || Object.values(s.model_routing ?? {}).includes(model)),
+  const projectNames = useMemo(
+    () => new Map(projects.map((p) => [p.id, p.name])),
+    [projects],
   );
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / LIMIT)) : 1;
+
+  const present = useMemo(() => {
+    const seen = new Set(runs?.map((r) => r.status) ?? []);
+    return V2_STATUS_ORDER.filter((s) => seen.has(s));
+  }, [runs]);
+
+  const needle = query.trim().toLowerCase();
+  const visible = (runs ?? []).filter(
+    (r) =>
+      (status === "ALL" || r.status === status) &&
+      (verified === "any" ||
+        (verified === "artifact" ? r.has_artifact : !r.has_artifact)) &&
+      (needle === "" || r.question.toLowerCase().includes(needle)),
+  );
+
+  const filtering = status !== "ALL" || verified !== "any" || needle !== "";
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-8">
+      <section aria-labelledby="history-heading" className="space-y-4">
         <div>
-          <h1 className="font-serif text-xl font-bold tracking-tight text-text-primary">
-            {showArchived ? "Archived legacy sessions" : "Legacy sessions"}
+          <h1
+            id="history-heading"
+            className="font-serif text-2xl font-bold tracking-tight text-text-primary"
+          >
+            History
           </h1>
-          {active && (
-            <p className="mt-0.5 font-mono text-xs text-text-muted">
-              in <span className="text-text-secondary">{active.name}</span>
-            </p>
-          )}
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-text-muted">
+            Every research run, with the decision it is waiting on and whether it produced a
+            verifiable artifact.
+          </p>
         </div>
-        {/* Two independent axes, laid out as two controls: a single row of tabs would
-            imply that picking a depth clears the status, which it does not. */}
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-1.5 font-mono text-xs text-text-muted">
-            <span>Depth</span>
+
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+          <label className="flex flex-col gap-1">
+            <span className="font-mono text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted">
+              Search questions
+            </span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Filter by wording…"
+              className="input-base h-8 w-56 py-1 text-xs"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="font-mono text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted">
+              Scope
+            </span>
             <select
-              value={depth}
-              onChange={(e) => setDepth(e.target.value as typeof depth)}
-              className="border border-border bg-bg-surface px-2 py-1 font-mono text-xs text-text-primary"
+              value={scope}
+              onChange={(e) => setScope(e.target.value as Scope)}
+              className="input-base h-8 w-44 py-1 text-xs"
             >
-              <option value="ALL">Any</option>
-              {DEPTHS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
+              <option value="project">{active ? active.name : "This project"}</option>
+              <option value="all">All projects</option>
             </select>
           </label>
 
-          <label className="flex items-center gap-1.5 font-mono text-xs text-text-muted">
-            <span>Citations</span>
+          <label className="flex flex-col gap-1">
+            <span className="font-mono text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted">
+              Artifact
+            </span>
             <select
-              value={band}
-              onChange={(e) => setBand(e.target.value as keyof typeof CITATION_BANDS)}
-              className="border border-border bg-bg-surface px-2 py-1 font-mono text-xs text-text-primary"
+              value={verified}
+              onChange={(e) => setVerified(e.target.value as Verified)}
+              className="input-base h-8 w-44 py-1 text-xs"
             >
-              {Object.entries(CITATION_BANDS).map(([key, b]) => (
-                <option key={key} value={key}>
-                  {b.label}
-                </option>
-              ))}
+              <option value="any">Any</option>
+              <option value="artifact">Has a verified artifact</option>
+              <option value="none">No artifact yet</option>
             </select>
           </label>
 
-          {models.length > 1 && (
-            <label className="flex items-center gap-1.5 font-mono text-xs text-text-muted">
-              <span>Model</span>
-              <select
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className="max-w-[12rem] border border-border bg-bg-surface px-2 py-1 font-mono text-xs text-text-primary"
-              >
-                <option value="ALL">Any</option>
-                {models.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-
-          <div className="flex flex-wrap gap-1" role="tablist" aria-label="Filter by status">
-            {FILTERS.map((f) => (
+          {present.length > 1 && (
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Filter by status">
               <button
-                key={f.value}
                 type="button"
-                role="tab"
-                aria-selected={filter === f.value}
-                onClick={() => setFilter(f.value)}
-                className={`px-3 py-1 font-mono text-xs font-medium border transition-colors ${
-                  filter === f.value
-                    ? "bg-accent text-white border-accent"
-                    : "bg-bg-surface text-text-muted border-border hover:text-text-primary"
+                aria-pressed={status === "ALL"}
+                onClick={() => setStatus("ALL")}
+                className={`border px-3 py-1 font-mono text-xs font-medium transition-colors ${
+                  status === "ALL"
+                    ? "border-accent bg-accent text-accent-contrast"
+                    : "border-border bg-bg-surface text-text-muted hover:text-text-primary"
                 }`}
               >
-                {f.label}
+                All
               </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => {
-                setShowArchived((v) => !v);
-                setPage(1);
-              }}
-              aria-pressed={showArchived}
-              className={`ml-1 px-3 py-1 font-mono text-xs font-medium border transition-colors ${
-                showArchived
-                  ? "bg-accent text-white border-accent"
-                  : "bg-bg-surface text-text-muted border-border hover:text-text-primary"
-              }`}
-            >
-              {showArchived ? "← Active History" : "Archived"}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="card h-28 animate-pulse" aria-hidden />
-          ))}
-        </div>
-      ) : isError ? (
-        <div className="card text-sm text-text-muted">
-          Couldn&apos;t load sessions.{" "}
-          <button onClick={() => refetch()} className="text-accent hover:underline">
-            Retry
-          </button>
-        </div>
-      ) : rows.length === 0 ? (
-        <div className="card text-center">
-          {showArchived ? (
-            <p className="text-sm text-text-secondary">
-              Nothing archived. Archiving moves a session out of History without deleting it.
-            </p>
-          ) : (
-            <>
-              <p className="text-sm text-text-secondary">
-                No research in {active ? `“${active.name}”` : "this project"} yet.
-              </p>
-              <Link
-                href="/dashboard"
-                className="mt-2 inline-block text-sm text-accent hover:underline"
-              >
-                Start your first research →
-              </Link>
-            </>
+              {present.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  aria-pressed={status === s}
+                  onClick={() => setStatus(s)}
+                  className={`border px-3 py-1 font-mono text-xs font-medium transition-colors ${
+                    status === s
+                      ? "border-accent bg-accent text-accent-contrast"
+                      : "border-border bg-bg-surface text-text-muted hover:text-text-primary"
+                  }`}
+                >
+                  {v2StatusMeta(s).label}
+                </button>
+              ))}
+            </div>
           )}
         </div>
-      ) : visible.length === 0 ? (
-        <div className="card text-center text-sm text-text-muted">
-          No sessions match this filter on this page.
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2" aria-busy={isFetching}>
-          {visible.map((s) => (
-            <SessionCard key={s.session_id} session={s} />
-          ))}
-        </div>
-      )}
 
-      {data && totalPages > 1 && (
-        <div className="flex items-center justify-center gap-3 pt-2">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            disabled={page <= 1 || isFetching}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            ← Prev
-          </button>
-          <span className="text-sm text-text-muted tabular-nums">
-            Page {page} of {totalPages}
-          </span>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            disabled={page >= totalPages || isFetching}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          >
-            Next →
-          </button>
-        </div>
-      )}
+        {isLoading ? (
+          <div className="grid gap-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="card h-20 animate-pulse" aria-hidden />
+            ))}
+            <span className="sr-only">Loading your research history…</span>
+          </div>
+        ) : isError ? (
+          <EmptyState
+            title="Couldn't load your history"
+            description="The request failed. Nothing has been lost — this page could not read it."
+            action={
+              <button type="button" onClick={() => refetch()} className="btn btn-secondary">
+                Try again
+              </button>
+            }
+          />
+        ) : (runs ?? []).length === 0 ? (
+          <EmptyState
+            title="No research yet"
+            description={
+              scope === "project"
+                ? "Nothing has been researched in this project. Start a question and it will be recorded here."
+                : "Nothing has been researched in any of your projects yet."
+            }
+          />
+        ) : visible.length === 0 ? (
+          <EmptyState
+            title="Nothing matches these filters"
+            description={`${runs!.length} run${runs!.length === 1 ? "" : "s"} are hidden by the current filters.`}
+            action={
+              <button
+                type="button"
+                onClick={() => {
+                  setStatus("ALL");
+                  setVerified("any");
+                  setQuery("");
+                }}
+                className="btn btn-secondary"
+              >
+                Clear filters
+              </button>
+            }
+          />
+        ) : (
+          <>
+            <p className="font-mono text-xs text-text-muted" aria-live="polite">
+              {filtering
+                ? `${visible.length} of ${runs!.length} runs`
+                : `${visible.length} run${visible.length === 1 ? "" : "s"}`}
+            </p>
+            <ul className="grid gap-3">
+              {visible.map((r) => (
+                <li key={r.id}>
+                  <RunCard
+                    run={r}
+                    showProject={
+                      scope === "all" ? (projectNames.get(r.project_id) ?? null) : null
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+
+      {/* The earlier pipeline's runs, kept readable rather than hidden — and rendered as
+          nothing at all on an account that never used it. */}
+      <LegacySessions />
     </div>
   );
 }

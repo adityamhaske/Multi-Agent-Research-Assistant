@@ -16,6 +16,9 @@
 # next.js
 /.next/
 /out/
+# Screenshots from the offline UI QA harness (frontend/e2e/uiqa.mjs). Runtime
+# artifacts, regenerated on demand — never committed.
+/.uiqa/
 
 # Variant-exclusive session route symlinks, created by
 # scripts/prepare-session-routes.mjs from app-routes/session/ (docs/13 §7).

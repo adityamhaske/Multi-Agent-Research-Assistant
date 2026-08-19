@@ -62,8 +62,25 @@ whose only definition lives in one of the two blocks, and never inline a hex —
 above will catch it, but the reason is that half-themed components look correct to whoever
 wrote them and broken to everyone on the other theme.
 
+The one exception is a token defined *entirely* as a `color-mix` of tokens that are
+themselves redefined under `.dark` — `--warning-soft` and friends. Both operands re-resolve
+per theme, so the mix does too, and restating the expression in `.dark` could only ever
+drift from the original. Do not "fix" those by duplicating them.
+
+**A utility naming a token that does not exist renders nothing, and nothing warns.**
+Tailwind v4 generates color utilities from the `@theme inline` block, so `bg-warning-soft`
+works and `bg-status-warning-bg` — a name no token ever produced — is silently dropped.
+It is not a lint error, not a type error, and not a build failure: it is a chip with no
+background. The entire V2 workspace shipped that way, along with `border-border-subtle`,
+`bg-accent-subtle`, a `.prose-report` that was never written and an `.input` class that
+does not exist, which is why the whole surface read as unstyled. When you reach for a
+utility, check the token is in `@theme inline`; `class="btn-primary"` needs `btn` too,
+because the base class is where the padding lives.
+
 Values are contrast-audited against **both** the page ground and the card surface. If you
-change a token, check it clears WCAG AA (4.5:1) on both, in both themes.
+change a token, check it clears WCAG AA (4.5:1) on both, in both themes. Ink on an
+accent fill is `--accent-contrast`, never `#fff`: the dark accent is a light mint, and
+white on it measures about 1.5:1.
 
 ## Agent colors carry meaning
 
@@ -91,6 +108,29 @@ indistinguishable from ordinary accented chrome.
 copies from `app-routes/session/{web,desktop}/` before `dev`, `build`, and `e2e`, because
 the web build needs a dynamic `[sessionId]` route and the desktop build needs a static
 export. Edit `app-routes/`, never the generated directory.
+
+## Looking at it
+
+`node e2e/uiqa.mjs` screenshots every V2 surface in both themes at three widths, and
+`node e2e/uiqa-interactions.mjs` presses the workspace's controls — arrow keys, the URL,
+Back, refresh, a double-clicked submit. Both drive fixtures with no backend
+(`e2e/uiqa.fixture.mjs`), so states that are awkward to reach on demand — a failed run, an
+unresolved citation marker, a conflicting pair — are one command away. Neither is run by
+CI and neither is a test; they exist because "it compiles" is not "it looks right", and
+because the unstyled-workspace bug above passed lint, typecheck, `npm test` and all three
+builds. They need a built app on `$UIQA_BASE`:
+
+```bash
+npm run build && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public
+PORT=3040 node .next/standalone/server.js &
+UIQA_BASE=http://127.0.0.1:3040 node e2e/uiqa.mjs
+```
+
+`next start` does not serve an `output: standalone` build — it will happily serve a *stale*
+`.next` from an earlier `build:desktop` instead, which costs an hour the first time.
+
+This is not `capture-screenshots.spec.ts`: that one drives a real stack to produce the
+images `docs/` publishes, and its output is a product artifact.
 
 ## Running it
 

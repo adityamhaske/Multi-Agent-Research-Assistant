@@ -79,7 +79,7 @@ export function SideNav({ user }: { user?: User }) {
         {/* Brand Header */}
         <div className={`flex items-center ${collapsed && !isMobile ? "flex-col gap-2.5" : "justify-between"} px-1 pt-1`}>
           <Link
-            href="/dashboard"
+            href="/research"
             className="flex items-center gap-2.5 group overflow-hidden"
             title={collapsed && !isMobile ? "Research Assistant" : undefined}
           >
@@ -119,10 +119,19 @@ export function SideNav({ user }: { user?: User }) {
           <ProjectSwitcher collapsed={collapsed && !isMobile} menuDirection="down" />
         </div>
 
-        {/* New Research Quick Button */}
+        {/* The primary action, and it points at the V2 research flow.
+            It used to point at /dashboard — the V1 run form — so the sidebar's single
+            most prominent control started a *legacy* run, while the V2 workspace the
+            product is built around was reachable only from a secondary nav row. That is
+            the "V1 competing with V2" problem in its most expensive place.
+
+            It shares a destination with the "Research" row below, deliberately: one is an
+            action and one is a place, and both are how people look for this. What must
+            not happen — and did — is two controls pointing at two different research
+            products. */}
         <div className="pt-1">
           <Link
-            href="/dashboard"
+            href="/research"
             onClick={() => isMobile && setMobileOpen(false)}
             title={collapsed && !isMobile ? "New Research" : undefined}
             className={`btn btn-primary w-full ${
@@ -136,10 +145,11 @@ export function SideNav({ user }: { user?: User }) {
           </Link>
         </div>
 
-        {/* Nav Links. No "Dashboard" entry here — the New Research button above
-            already points at /dashboard, and a second link to the same route
-            was the sidebar's duplicate entry point (docs/07 §2). No section
-            label either: three icons need no header to explain them. */}
+        {/* Nav links. No "Dashboard" entry: /dashboard is the legacy V1 run form, and
+            giving it a row would put two ways to start research side by side without
+            saying that they produce different things. It stays reachable — the legacy
+            sessions it produced are listed under History — but it is not a destination
+            the navigation recommends. */}
         <nav className="space-y-1 pt-2">
           {/* Project-first (docs/07 §2, Phase 6): Overview is the active project itself,
               and everything under it is scoped to that project. A project used to be a
@@ -175,6 +185,11 @@ export function SideNav({ user }: { user?: User }) {
             collapsed={collapsed && !isMobile}
             onClick={() => isMobile && setMobileOpen(false)}
           />
+          {/* Chat is a capability over approved research, not a way research is done, so
+              it sits below a rule rather than in the same run of items. */}
+          {!isDesktop && (
+            <div className="my-2 border-t border-border" aria-hidden />
+          )}
           {!isDesktop && (
             <NavItem
               href="/chat"
@@ -210,7 +225,7 @@ export function SideNav({ user }: { user?: User }) {
     <>
       {/* Mobile Top Bar */}
       <header className="md:hidden shrink-0 flex h-14 items-center justify-between border-b border-border bg-bg-base/90 px-4 backdrop-blur-md z-30">
-        <Link href="/dashboard" className="flex items-center gap-2 font-bold text-text-primary">
+        <Link href="/research" className="flex items-center gap-2 font-bold text-text-primary">
           <BrandLogo className="h-6 w-6" />
           <span className="text-sm font-semibold tracking-tight">Research Assistant</span>
         </Link>

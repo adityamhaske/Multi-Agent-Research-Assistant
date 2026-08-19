@@ -94,7 +94,7 @@ export function SiteHeader({ eyebrow }: { eyebrow?: string }) {
           </a>
         ) : (
           <Link
-            href="/dashboard"
+            href="/research"
             className="ml-1 flex h-8 items-center border border-border bg-bg-surface px-2.5 font-mono text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
           >
             Open app →

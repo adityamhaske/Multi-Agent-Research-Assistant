@@ -109,12 +109,38 @@ export default function DashboardPage() {
           model exists (docs/17 §8a). */}
       <FirstRunNotice />
 
+      {/* This page starts a run on the earlier pipeline. It is kept working — existing
+          links, scripts and the legacy sessions it produced all still resolve — but the
+          navigation no longer points here, and a reader who lands on it by URL is told
+          which of the two they are looking at. An unlabelled second way to start research
+          is how a product ends up feeling like two products. */}
+      <div
+        role="note"
+        className="border px-4 py-3"
+        style={{
+          borderColor: "var(--info-line)",
+          backgroundColor: "var(--info-soft)",
+        }}
+      >
+        <p className="text-sm text-text-primary">
+          This is the <strong>legacy</strong> research form.
+        </p>
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-text-secondary">
+          It still works, and it is where your older sessions came from. New research —
+          with the evidence, claims, conflicts and verifiable artifact — starts on{" "}
+          <Link href="/research" className="text-accent hover:underline">
+            the Research page
+          </Link>
+          .
+        </p>
+      </div>
+
       <section aria-labelledby="new-research">
         <h1
           id="new-research"
           className="mb-1 font-serif text-2xl font-bold tracking-tight text-text-primary"
         >
-          New Research
+          Legacy research
         </h1>
         <p className="mb-5 max-w-2xl text-sm leading-relaxed text-text-muted">
           Ask a question. The agents plan, gather cited evidence, and draft a report for your
@@ -312,7 +338,7 @@ export default function DashboardPage() {
       <section aria-labelledby="recent">
         <div className="mb-4 flex items-center justify-between">
           <h2 id="recent" className="font-serif text-lg font-bold tracking-tight text-text-primary">
-            Recent Sessions
+            Recent legacy sessions
           </h2>
           {data && data.total > 5 && (
             <Link href="/history" className="font-mono text-xs text-accent hover:underline">

@@ -8,8 +8,9 @@ import { expect, test, type Page } from "./fixtures";
 /**
  * The V2 journey, end to end, through the browser.
  *
- *   start research → real execution → evidence → claims → sources → contradictions
- *   → review → approve → verified artifact → download bundle → standalone verifier PASS
+ *   start research → design gate → real execution → evidence → claims → sources
+ *   → contradictions → review → approve → verified artifact → download bundle
+ *   → standalone verifier PASS
  *
  * The backend runs with `LLM_MODE=fake` — scripted models and fixture retrievers, the same
  * demo path that ships in production — so the run is deterministic and free. **Nothing about
@@ -88,11 +89,21 @@ test.describe("V2 research journey", () => {
     const runId = new URL(page.url()).searchParams.get("id")!;
     await expect(page.getByRole("heading", { name: QUESTION })).toBeVisible();
 
-    // 4. Wait for the engine to finish and the draft to reach the review gate. The Review
+    // 4. The design gate, because the run form sends `skip_plan_gate: false` — the run
+    // stops before anything is searched (AGENTS.md, "three defaults, and they disagree on
+    // purpose"). `v2-gates.spec.ts` is what interrogates this gate; here it is walked
+    // through, because a journey that skipped the product's default path would not be the
+    // journey a user takes.
+    await expect(page.getByRole("heading", { name: "Research plan" })).toBeVisible({
+      timeout: 180_000,
+    });
+    await page.getByRole("button", { name: "Approve plan" }).click();
+
+    // 5. Wait for the engine to finish and the draft to reach the review gate. The Review
     // tab's heading only renders once a revision exists.
     await expect(page.getByText("What you are approving")).toBeVisible({ timeout: 180_000 });
 
-    // 5–8. The chain, tab by tab. Each assertion is about a distinction the product makes,
+    // 6–9. The chain, tab by tab. Each assertion is about a distinction the product makes,
     // not merely about a row being present.
     await page.getByRole("tab", { name: /Evidence/ }).click();
     await expect(page.getByText("Unchecked").first()).toBeVisible();
@@ -113,12 +124,12 @@ test.describe("V2 research journey", () => {
         .or(page.getByText(/Surfaced, not resolved/).first()),
     ).toBeVisible();
 
-    // 9–10. Review and approve.
+    // 10–11. Review and approve.
     await page.getByRole("tab", { name: "Review" }).click();
     await expect(page.getByText(/verifiable research artifact/)).toBeVisible();
     await page.getByRole("button", { name: "Approve report" }).click();
 
-    // 11. The artifact appears, with the verifier's own six checks.
+    // 12. The artifact appears, with the verifier's own six checks.
     await expect(page.getByText("Verified artifact")).toBeVisible({ timeout: 60_000 });
     for (const label of [
       "Bundle integrity",
@@ -133,7 +144,7 @@ test.describe("V2 research journey", () => {
       await expect(page.getByText(label, { exact: true })).toBeVisible();
     }
 
-    // 12. Download the bundle through the UI control a user would actually click.
+    // 13. Download the bundle through the UI control a user would actually click.
     const [download] = await Promise.all([
       page.waitForEvent("download"),
       page.getByRole("link", { name: "Verification bundle" }).click(),
@@ -149,7 +160,7 @@ test.describe("V2 research journey", () => {
       true,
     );
 
-    // 13–14. The shipped standalone verifier, as a subprocess. No network, no AI, and no
+    // 14–15. The shipped standalone verifier, as a subprocess. No network, no AI, and no
     // frontend assertion standing in for it.
     const verifier = spawnSync(
       "python",
