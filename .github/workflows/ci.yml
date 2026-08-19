@@ -45,14 +45,13 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - name: Install system deps (WeasyPrint)
-        run: |
-          MISSING=""
-          for pkg in libpango-1.0-0 libpangoft2-1.0-0; do
-            if ! dpkg -s "$pkg" >/dev/null 2>&1; then MISSING="$MISSING $pkg"; fi
-          done
-          if [ -n "$MISSING" ]; then
-            sudo apt-get install -y $MISSING || { sudo apt-get update -o Acquire::Retries=3 && sudo apt-get install -y $MISSING; }
-          fi
+        uses: ./.github/actions/apt-install
+        # Hard ceiling over the action's own per-attempt bounds. The inner timeout is
+        # deliberately generous so it cannot kill a slow-but-progressing index refresh;
+        # this is what guarantees the job still cannot hang for hours if it does.
+        timeout-minutes: 12
+        with:
+          packages: libpango-1.0-0 libpangoft2-1.0-0
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Lint
@@ -196,14 +195,13 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - name: Install system deps (WeasyPrint)
-        run: |
-          MISSING=""
-          for pkg in libpango-1.0-0 libpangoft2-1.0-0; do
-            if ! dpkg -s "$pkg" >/dev/null 2>&1; then MISSING="$MISSING $pkg"; fi
-          done
-          if [ -n "$MISSING" ]; then
-            sudo apt-get install -y $MISSING || { sudo apt-get update -o Acquire::Retries=3 && sudo apt-get install -y $MISSING; }
-          fi
+        uses: ./.github/actions/apt-install
+        # Hard ceiling over the action's own per-attempt bounds. The inner timeout is
+        # deliberately generous so it cannot kill a slow-but-progressing index refresh;
+        # this is what guarantees the job still cannot hang for hours if it does.
+        timeout-minutes: 12
+        with:
+          packages: libpango-1.0-0 libpangoft2-1.0-0
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -r requirements.txt
@@ -270,8 +268,27 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
+      - name: Resolve the Playwright version for the cache key
+        id: pw
+        working-directory: frontend
+        # Keyed on the resolved version rather than the lockfile hash: the browser
+        # build is tied to @playwright/test's version and nothing else in the lockfile,
+        # so an unrelated dependency bump must not evict a perfectly good browser.
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache the Playwright browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
       - name: Install Playwright browser
         working-directory: frontend
+        # Bounded because this is the largest network fetch in CI — ~184 MB of Chrome
+        # from cdn.playwright.dev — and on 2026-08-19 two consecutive runners wedged on
+        # it, the second for 3h40m against a normal 17s, on course to burn the whole
+        # 6-hour job timeout. Same lesson as the apt action next door: an unbounded
+        # download does not fail, it hangs, and a job that hangs tells you nothing.
+        # Ten minutes is ~35x the normal duration, so it only fires on a real stall.
+        timeout-minutes: 10
         run: npx playwright install --with-deps chromium
       - name: Build frontend
         working-directory: frontend

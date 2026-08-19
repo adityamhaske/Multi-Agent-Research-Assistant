@@ -104,14 +104,15 @@ jobs:
         run: chmod +x backend/dist/research-sidecar/research-sidecar
       - name: Linux build dependencies (WebKitGTK etc.)
         if: runner.os == 'Linux'
-        run: |
-          MISSING=""
-          for pkg in libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev; do
-            if ! dpkg -s "$pkg" >/dev/null 2>&1; then MISSING="$MISSING $pkg"; fi
-          done
-          if [ -n "$MISSING" ]; then
-            sudo apt-get install -y $MISSING || { sudo apt-get update -o Acquire::Retries=3 && sudo apt-get install -y $MISSING; }
-          fi
+        uses: ./.github/actions/apt-install
+        # Hard ceiling over the action's own per-attempt bounds — see ci.yml. This set
+        # is the one that actually needs an index refresh (the -dev packages are not on
+        # the runner image), so it is the call site most likely to reach that stage.
+        timeout-minutes: 12
+        with:
+          packages: >-
+            libwebkit2gtk-4.1-dev build-essential curl wget file
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
       - uses: actions/setup-node@v7
         with:
           node-version: "22"

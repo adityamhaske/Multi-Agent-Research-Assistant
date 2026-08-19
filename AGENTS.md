@@ -431,6 +431,59 @@ A raw control character in a source file compounds this: GNU grep prints
 `Binary file … matches` instead of the offending line, so the failure names the file and
 hides the reason. Prefer a `\u0000` escape sequence over an embedded NUL byte.
 
+**Not every red `main` is a red commit.** `Sidecar (windows-latest)` installs
+`backend/requirements.txt`, which floats several C extensions (`lxml>=5.2` among them),
+and Windows is the only runner with no system `libxml2` — so if pip ever picks a version
+whose Windows wheel is not on the index yet, it falls back to a source build and the job
+dies on `fatal error C1083: Cannot open include file: 'libxml/xmlversion.h'`. That names a
+compiler, so it reads like a toolchain break; it is a packaging race, and it resolves
+itself when the wheel lands. This happened on 2026-08-19: the identical tree passed at
+04:02, three merges went red at 05:00–05:02, and a re-run at 06:26 installed cleanly with
+nothing changed. **Before believing a Windows-only dependency failure, check whether the
+same job passed on the PR head** — the merge commits and their heads are the same content,
+so a pass there and a failure here is the environment, not the diff. That is the one case
+worth a single re-run; a second failure is real.
+
+**Every apt install goes through `.github/actions/apt-install`.** There is no raw
+`apt-get` left in `.github/workflows/`, and adding one back reintroduces the hang it
+exists to bound: the same two-line install sat in `ci.yml` twice and `desktop.yml` once,
+and on the same day it wedged five jobs — one for ninety minutes — while other jobs ran
+it in six seconds. A stalled mirror connection never returns, so the job burns its whole
+timeout and the log ends mid-step naming nothing.
+
+**`apt-get update` is the operation that fails, and it is usually unnecessary.** It
+contacts every source for every index, so a single wedged entry stalls the whole command
+even while the host serving the package answers normally — measured: an update fetched
+three InRelease files from `archive.ubuntu.com` and then sat 140s on the rest until the
+bound killed it. So the action tries, in order: skip entirely if `dpkg -s` says the
+packages are already there; install from the index the image already ships; and only then
+refresh, bounded, retried, and repointed at `archive.ubuntu.com`. It deliberately does not
+change *which* packages are installed.
+
+Measured once that landed: on `ubuntu-latest` the WeasyPrint pair is **already present**,
+so `backend` and `golden-e2e` now clear the step in under a second having touched no
+network at all. The step that had been risking a ninety-minute hang was doing nothing on
+those two jobs. Keep it anyway — the packages are there because of what the image happens
+to ship, and images change; the fast path is what makes that safe in both directions.
+
+**The Playwright browser is the other unbounded fetch, and it is cached now.** It is the
+largest download in CI — ~184 MB of Chrome from `cdn.playwright.dev` — and on the same day
+two consecutive runners wedged on it, the second for 3h40m against a normal 17s, on course
+to burn the whole six-hour job timeout. `golden-e2e` now restores `~/.cache/ms-playwright`
+keyed on the resolved `@playwright/test` version, and the install step carries a
+`timeout-minutes`. The rule the two cases share: **an unbounded download does not fail, it
+hangs**, and a hung job names nothing in its log. Bound every network step that can stall,
+and do not fetch what you can cache.
+
+**Size a bound against what it guards, not against the happy path.** The apt action's
+per-attempt timeout was first set to 180s from the *install* duration (~6-80s), and then
+killed an `apt-get update` that was still actively downloading — a full refresh pulls every
+index for main/restricted/universe/multiverse across two suites and legitimately runs for
+minutes. A bound meant to catch a dead connection must sit above the slowest *working* case
+or it becomes a second source of red. It is now 300s per attempt with a `timeout-minutes`
+ceiling on the workflow step, so the inner number can be generous without the job ever
+being able to hang.
+
 ## A release is not finished until the website says so
 
 The public site (`frontend/app/(site)/`, published to GitHub Pages) is **generated from
