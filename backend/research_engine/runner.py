@@ -176,7 +176,6 @@ def _outcome(result: dict, state: dict) -> RunOutcome:
         draft_report=state.get("draft_report"),
         final_report=state.get("final_report") or state.get("draft_report"),
         elapsed_seconds=round(time.time() - state.get("started_at", time.time()), 2),
-        sources=state.get("sources") or [],
         **totals,
     )
 
