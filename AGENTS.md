@@ -427,6 +427,15 @@ network at all. The step that had been risking a ninety-minute hang was doing no
 those two jobs. Keep it anyway — the packages are there because of what the image happens
 to ship, and images change; the fast path is what makes that safe in both directions.
 
+**The Playwright browser is the other unbounded fetch, and it is cached now.** It is the
+largest download in CI — ~184 MB of Chrome from `cdn.playwright.dev` — and on the same day
+two consecutive runners wedged on it, the second for 3h40m against a normal 17s, on course
+to burn the whole six-hour job timeout. `golden-e2e` now restores `~/.cache/ms-playwright`
+keyed on the resolved `@playwright/test` version, and the install step carries a
+`timeout-minutes`. The rule the two cases share: **an unbounded download does not fail, it
+hangs**, and a hung job names nothing in its log. Bound every network step that can stall,
+and do not fetch what you can cache.
+
 ## A release is not finished until the website says so
 
 The public site (`frontend/app/(site)/`, published to GitHub Pages) is **generated from
