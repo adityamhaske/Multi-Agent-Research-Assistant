@@ -69,6 +69,7 @@ from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from sqlalchemy import event, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -582,6 +583,29 @@ def create_sidecar_app(
     data_path.mkdir(parents=True, exist_ok=True)
     bearer = token or secrets.token_urlsafe(32)
 
+    # The V2 routes below import their handlers from `app.api.v1.v2_runs` rather than
+    # restating them — one contract, one implementation — and that module reaches
+    # `app.config` through `app.db.base`. `app/config.py` builds its `Settings` at import
+    # time and requires `database_url` and `jwt_secret_key`: a *server* contract this host
+    # has no use for, since auth here is the per-launch bearer token above and the database
+    # is the SQLite file below. Absent those two names the import raises, so every V2 route
+    # answers 500 on its first request while the server is perfectly healthy.
+    #
+    # That asymmetry is why it survived to a release build. A dev shell and CI both export
+    # both variables (`tests/conftest.py` sets them via `setdefault`), so the whole suite —
+    # `test_host_parity` included — exercises an environment no installed app ever has.
+    # Route *registration* is identical across hosts here; only invocation diverged.
+    #
+    # `setdefault`, so a repo checkout already exporting a real DSN keeps it. The engine
+    # `app.db.base` builds from this is never used on this host — the sidecar passes its
+    # own session into every handler — but pointing it at the desktop's own database is
+    # what makes an accidental future use read real rows instead of silently empty ones.
+    os.environ.setdefault(
+        "DATABASE_URL", f"sqlite+aiosqlite:///{data_path / 'desktop.sqlite'}"
+    )
+    # No JWT is ever minted here; this only has to exist, and must not be a shipped constant.
+    os.environ.setdefault("JWT_SECRET_KEY", secrets.token_urlsafe(32))
+
     engine = create_async_engine(f"sqlite+aiosqlite:///{data_path / 'desktop.sqlite'}")
 
     @event.listens_for(engine.sync_engine, "connect")
@@ -883,7 +907,18 @@ def create_sidecar_app(
     ):
         project = Project(user_id=user.id, name=payload.name, description=payload.description)
         db.add(project)
-        await db.commit()
+        try:
+            await db.commit()
+        except IntegrityError:
+            # Same answer the server gives, for the same reason: the unique index is
+            # case-insensitive, so a duplicate is only reliably detectable here. Without
+            # this the desktop ProjectSwitcher answered an ordinary retyped name with a
+            # 500 from an unhandled IntegrityError while the server explained itself.
+            await db.rollback()
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail=f"You already have a project named '{payload.name}'.",
+            ) from None
         await db.refresh(project)
         return _project_response(project)
 
@@ -2271,6 +2306,26 @@ def create_sidecar_app(
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
+        # Creating the run is host-agnostic; *executing* it is not. `v2_execution.execute_run`
+        # takes a Redis lock, opens the server engine and checkpoints to Postgres — none of
+        # which exist here — and on the server `dispatch` means enqueuing a Celery task this
+        # host has no broker or worker for. Answering up front, before the row exists, beats
+        # both alternatives: a 500 from the absent `celery` import (what this did), or a run
+        # persisted in a state nothing will ever advance. Same shape as `export.pdf` below,
+        # for the same reason — a capability this host genuinely lacks says so.
+        #
+        # The desktop journey is V1 (`DESKTOP_UI_CALLS` in tests/test_host_parity.py lists no
+        # V2 path), so nothing in the shipped UI reaches this; it is the local API contract
+        # that has to stay honest. Wiring an in-process V2 driver is the fix, not a wider
+        # bundle.
+        if body.dispatch:
+            raise HTTPException(
+                status.HTTP_501_NOT_IMPLEMENTED,
+                detail=(
+                    "V2 run execution is server-only. This host can create and inspect V2 "
+                    "runs but cannot drive one; post with dispatch=false, or use the server."
+                ),
+            )
         from app.api.v1.v2_runs import create_run
 
         return await create_run(body, db, user)

@@ -395,3 +395,20 @@ async def test_usage_counts_a_completed_run(sidecar):
     after = (await sidecar.get("/api/v1/auth/me/usage", headers=_auth())).json()
     assert after["month"]["tokens_total"] >= before["month"]["tokens_total"]
     assert after["last_session"]["tokens_total"] > 0, "a completed run reported no tokens at all"
+
+
+async def test_a_duplicate_project_name_is_a_conflict_on_the_desktop_too(sidecar):
+    """The ProjectSwitcher's most ordinary error path must not be a 500.
+
+    `POST /projects` is a shipped desktop control (`DESKTOP_UI_CALLS`), and retyping a name
+    you already used is not an edge case. The server catches `IntegrityError` and answers
+    409 with the offending name; the desktop let it escape as an unhandled 500. Found by
+    running the PyInstaller-packaged sidecar rather than the source app — the divergence is
+    in behaviour, so route-level parity was satisfied throughout.
+    """
+    first = await sidecar.post("/api/v1/projects", json={"name": "Duplicate Name"}, headers=_auth())
+    assert first.status_code == 201
+
+    again = await sidecar.post("/api/v1/projects", json={"name": "Duplicate Name"}, headers=_auth())
+    assert again.status_code == 409, f"expected a conflict, got {again.status_code}"
+    assert "Duplicate Name" in again.json()["detail"]
