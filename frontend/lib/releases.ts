@@ -33,7 +33,7 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
-    version: "v2.0.0-rc",
+    version: "v2.0.0",
     date: "",
     unreleased: true,
     headline:
@@ -43,39 +43,29 @@ export const RELEASES: Release[] = [
       "Every claim in a report can be traced to the evidence it resolved to and the source that evidence came from — and a claim that resolved to nothing says so instead of looking supported.",
       "Retrieved is not cited, and retrieved is not verified. A source the report never cites keeps no citation number, and evidence carries a three-valued provenance state where UNCHECKED means nobody checked, not that it passed.",
       "Conflicting sources are surfaced as a first-class finding — two attributed quotations side by side with the reason they cannot both hold — rather than buried in prose.",
+      "A run workspace built around that record: plan, evidence, claims, sources, conflicts, review and artifact as views over one run, with live progress that reconnects and replays what it missed rather than restarting.",
       "The review screen shows what you are approving: claims with and without evidence, cited versus retrieved-only sources, unresolved conflicts, and an unmeasured citation rate reported as unmeasured rather than as zero.",
       "Approving a report freezes a verifiable artifact. The bundle it produces passes the same standalone verifier that ships with it, offline, with no network and no model.",
-      "A second human checkpoint before any search spends money: the research plan is reviewed on its own terms, and approving a plan never creates an artifact.",
+      "A second human checkpoint before any search spends money: the research plan is reviewed on its own terms. Drop a task and it is never researched; reword one and that is what gets searched. Approving a plan never creates an artifact.",
       "Reports are versioned. A rework adds a revision; it never overwrites the one a reviewer already read.",
-      "Migration tooling for V1 data with three separate verdicts — does V2 say what V1 said, is the bundle internally valid, and is every migrated fact traceable to something V1 recorded — kept apart rather than collapsed into one number.",
-      "The whole V2 surface works on the desktop build as well as the server, including live progress, exports and bundle download.",
-    ],
-    known: [
-      "V1 data has not been migrated in any deployment. The tooling is validated against disposable databases only, and two V1 states are recorded as unmigratable rather than repaired: evidence whose source URL was never recorded, and a plan approval for a run with no plan.",
-      "Corpus-mode research works on V2 but has no end-to-end test, because corpus mode requires a local embedder and the test environment has none.",
-      "Cancelling a run is advisory. It is recorded durably and no new work starts, but research already in flight runs to its next checkpoint.",
-      "Claim verification is not implemented: claims are extracted from the report's prose and carry no per-claim judgement.",
-      "Project memory does not yet ingest V2 runs.",
-    ],
-  },
-  {
-    version: "Unreleased",
-    date: "",
-    unreleased: true,
-    headline:
-      "The research design gate, scoped follow-ups, and in-app document preview.",
-    improved: [
-      "A second human checkpoint: the run now pauses after the planner so you can edit the subtopics and pick the report outline before any search spends money. Drop a task and it is never researched; reword one and that is what gets searched.",
       "Follow-up questions can be pinned to this report, your corpus, the web, or everything — and the answer states which grounding produced it.",
       "PDF, Markdown, text and HTML documents preview in place from the corpus list, instead of downloading and switching applications. Uploaded HTML renders inside a fully sandboxed frame.",
-      "A project workspace that joins recent runs, corpus and model configuration in one view.",
       "History filters by verified-citation rate and by model, so a weak run is findable rather than buried.",
-      "Follow-up chat works on the desktop build. It previously rendered a chat box that returned 404 — the sidecar had no chat routes at all.",
+      "Migration tooling for V1 data with three separate verdicts — does V2 say what V1 said, is the bundle internally valid, and is every migrated fact traceable to something V1 recorded — kept apart rather than collapsed into one number.",
+      "The whole V2 surface works on the desktop build as well as the server, including live progress, exports and bundle download. Follow-up chat and bundle export previously returned 404 on desktop; a parity suite now fails the build when a route exists on one host and not the other.",
       "Keyless demo mode (`--fake`) no longer reaches a real embedding provider. It was billing real API calls on a run the product described as free.",
     ],
     known: [
-      "Citation support is still measured at 90% on a single local-model run, and that measurement predates this work. It needs re-running before the number is leaned on.",
-      "The desktop bundle for this work has not been tagged or published yet.",
+      "No production database has been migrated. The tooling is validated against disposable copies — including one restored from real production data, which migrated 11 of 11 sessions with no fidelity mismatch — but running it on your own data is your decision and your backup.",
+      "Two V1 states are recorded as unmigratable rather than repaired: evidence whose source URL was never recorded, and a plan approval for a run with no plan. Neither occurred in the restored-production run.",
+      "Some V1 history cannot be recovered at all and is recorded as absent rather than filled in: superseded report drafts, whether a plan was edited, and whether a run was cancelled. V1 overwrote the first two and never recorded the third as a state.",
+      "Corpus-mode research works on V2 but has no end-to-end test, because corpus mode requires a local embedder and the test environment has none.",
+      "Cancelling a run is advisory. It is recorded durably and no new work starts, but research already in flight runs to its next checkpoint.",
+      "Claim verification is not implemented: claims are extracted from the report's prose and carry no per-claim judgement.",
+      "Claim lineage across revisions is not tracked. Nothing observes that a sentence in revision 2 is the assertion from revision 1.",
+      "Project memory does not yet ingest V2 runs.",
+      "The V2 run list returns the most recent runs up to a limit and is not paginated.",
+      "Citation support is still measured at 90% on a single self-judged local-model run, and that measurement predates this work. It needs re-running before the number is leaned on.",
     ],
   },
   {
