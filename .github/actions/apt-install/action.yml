@@ -22,15 +22,21 @@ inputs:
   attempts:
     description: How many times to try before giving up.
     required: false
-    default: "3"
+    default: "2"
   timeout-seconds:
     description: >
-      Wall-clock bound on each individual apt invocation. The two real call sites
-      normally take ~6-14s (WeasyPrint's two libs) and ~80s (the Tauri shell's
-      WebKitGTK set), so 180s leaves the slower one a bit over 2x headroom — enough
-      that a merely slow mirror finishes, short enough that a dead one is caught.
+      Wall-clock bound on each individual apt invocation. This guards against a
+      connection that has stopped responding, NOT against slowness, and those need
+      very different numbers: `apt-get install` of these package sets takes ~6-80s,
+      but a full `apt-get update` refreshes every index for main/restricted/universe/
+      multiverse across two suites — tens of megabytes — and legitimately runs for
+      minutes on a congested mirror. A 180s bound was sized against the install and
+      killed an update that was still actively downloading. 300s is far above any
+      observed working refresh and far below the 90-minute stalls this exists to stop.
+      The workflow step also carries its own `timeout-minutes` as a hard ceiling, so
+      raising this cannot bring back an unbounded job.
     required: false
-    default: "180"
+    default: "300"
 
 runs:
   using: composite

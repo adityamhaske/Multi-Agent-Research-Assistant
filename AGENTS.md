@@ -475,6 +475,15 @@ keyed on the resolved `@playwright/test` version, and the install step carries a
 hangs**, and a hung job names nothing in its log. Bound every network step that can stall,
 and do not fetch what you can cache.
 
+**Size a bound against what it guards, not against the happy path.** The apt action's
+per-attempt timeout was first set to 180s from the *install* duration (~6-80s), and then
+killed an `apt-get update` that was still actively downloading — a full refresh pulls every
+index for main/restricted/universe/multiverse across two suites and legitimately runs for
+minutes. A bound meant to catch a dead connection must sit above the slowest *working* case
+or it becomes a second source of red. It is now 300s per attempt with a `timeout-minutes`
+ceiling on the workflow step, so the inner number can be generous without the job ever
+being able to hang.
+
 ## A release is not finished until the website says so
 
 The public site (`frontend/app/(site)/`, published to GitHub Pages) is **generated from

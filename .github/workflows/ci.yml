@@ -46,6 +46,10 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install system deps (WeasyPrint)
         uses: ./.github/actions/apt-install
+        # Hard ceiling over the action's own per-attempt bounds. The inner timeout is
+        # deliberately generous so it cannot kill a slow-but-progressing index refresh;
+        # this is what guarantees the job still cannot hang for hours if it does.
+        timeout-minutes: 12
         with:
           packages: libpango-1.0-0 libpangoft2-1.0-0
       - name: Install dependencies
@@ -192,6 +196,10 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install system deps (WeasyPrint)
         uses: ./.github/actions/apt-install
+        # Hard ceiling over the action's own per-attempt bounds. The inner timeout is
+        # deliberately generous so it cannot kill a slow-but-progressing index refresh;
+        # this is what guarantees the job still cannot hang for hours if it does.
+        timeout-minutes: 12
         with:
           packages: libpango-1.0-0 libpangoft2-1.0-0
       - name: Install backend dependencies

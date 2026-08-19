@@ -105,6 +105,10 @@ jobs:
       - name: Linux build dependencies (WebKitGTK etc.)
         if: runner.os == 'Linux'
         uses: ./.github/actions/apt-install
+        # Hard ceiling over the action's own per-attempt bounds — see ci.yml. This set
+        # is the one that actually needs an index refresh (the -dev packages are not on
+        # the runner image), so it is the call site most likely to reach that stage.
+        timeout-minutes: 12
         with:
           packages: >-
             libwebkit2gtk-4.1-dev build-essential curl wget file
