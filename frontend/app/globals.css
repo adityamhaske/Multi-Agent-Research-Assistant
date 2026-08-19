@@ -89,6 +89,26 @@
   --danger: #DC2626;
   --info: #2F52C8;
 
+  /* Status surfaces — the tinted panel and hairline that go with each status hue.
+   *
+   * Defined once, and deliberately so. The rule is that no colour may have its ONLY
+   * definition inside one theme block (frontend/AGENTS.md), and a mix of two tokens that
+   * are *each* redefined under `.dark` satisfies it by construction: both operands
+   * re-resolve there, so the mix does too. Restating the same expression in `.dark` could
+   * only ever drift from this one.
+   *
+   * They exist because the V2 workspace was hand-assembling this tint at nine call sites
+   * as `bg-status-warning-bg` — a utility no theme ever generated, so every warning panel
+   * in the workspace rendered with no background at all. */
+  --success-soft: color-mix(in srgb, var(--success) 12%, var(--bg-surface));
+  --warning-soft: color-mix(in srgb, var(--warning) 12%, var(--bg-surface));
+  --danger-soft: color-mix(in srgb, var(--danger) 12%, var(--bg-surface));
+  --info-soft: color-mix(in srgb, var(--info) 12%, var(--bg-surface));
+  --success-line: color-mix(in srgb, var(--success) 35%, var(--border));
+  --warning-line: color-mix(in srgb, var(--warning) 35%, var(--border));
+  --danger-line: color-mix(in srgb, var(--danger) 35%, var(--border));
+  --info-line: color-mix(in srgb, var(--info) 35%, var(--border));
+
   /* Agent identity — one hue per pipeline stage (docs/07 §3).
    * Planner, Synthesizer and the human gate previously shared one green, which made two
    * different stages of the rail look like the same stage. Hues are spread around the
@@ -311,6 +331,15 @@
   --color-danger: var(--danger);
   --color-info: var(--info);
 
+  --color-success-soft: var(--success-soft);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger-soft: var(--danger-soft);
+  --color-info-soft: var(--info-soft);
+  --color-success-line: var(--success-line);
+  --color-warning-line: var(--warning-line);
+  --color-danger-line: var(--danger-line);
+  --color-info-line: var(--info-line);
+
   --color-agent-planner: var(--agent-planner);
   --color-agent-executor: var(--agent-executor);
   --color-agent-critic: var(--agent-critic);
@@ -445,7 +474,11 @@
 
   .btn-primary {
     background-color: var(--accent);
-    color: #ffffff;
+    /* `--accent-contrast`, not white. The dark theme's accent is a light mint
+     * (#5FD3A6), and white-on-mint measures about 1.5:1 — the app's single most
+     * prominent control was the one place the palette was ignored. The token exists
+     * precisely so the readable ink flips with the theme. */
+    color: var(--accent-contrast);
     border-color: var(--accent);
   }
   .btn-primary:hover:not(:disabled) {
@@ -716,7 +749,7 @@
   .segmented-item[aria-selected="true"],
   .segmented-item[aria-checked="true"] {
     background-color: var(--accent);
-    color: #ffffff;
+    color: var(--accent-contrast);
   }
 
   .spinner {

@@ -210,7 +210,7 @@ export function ModelPicker() {
                   <select
                     id={`model-${role}`}
                     aria-label={`Model for ${ROLE_COPY[role].label}`}
-                    className="input w-full"
+                    className="input-base w-full"
                     value={current[role]}
                     disabled={busy}
                     onChange={(e) => applyRouting({ ...current, [role]: e.target.value })}
