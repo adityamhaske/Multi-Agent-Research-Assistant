@@ -41,15 +41,46 @@ runs:
         APT_ATTEMPTS: ${{ inputs.attempts }}
         APT_TIMEOUT: ${{ inputs.timeout-seconds }}
       run: |
-        # No `set -e`: a failed attempt must fall through to the retry, not end the step.
+        # No `set -e`: a failed stage must fall through to the next, not end the step.
         set -uo pipefail
+
+        # Stage 0 — is there anything to do at all? The runner image already carries a
+        # great many libraries as transitive dependencies, and a package that is present
+        # needs no index, no mirror and no network. This is the only stage that can
+        # succeed while the archive is unreachable, so it goes first.
+        missing=""
+        for pkg in $APT_PACKAGES; do
+          dpkg -s "$pkg" >/dev/null 2>&1 || missing="$missing $pkg"
+        done
+        missing="${missing# }"
+        if [ -z "$missing" ]; then
+          echo "already installed, no network needed: $APT_PACKAGES"
+          exit 0
+        fi
+        echo "missing: $missing"
+
+        # Stage 1 — install from the index the image already ships, without refreshing it.
+        # `apt-get update` is the operation that fails here: it contacts every source for
+        # every index, so one wedged mirror entry stalls the whole command even when the
+        # host serving the package is answering fine. Measured on 2026-08-19: an update
+        # pulled three InRelease files from archive.ubuntu.com successfully and then sat
+        # for 140s on the remaining entries until the bound killed it. The shipped index
+        # is usually only hours stale and names these packages perfectly well, so trying
+        # the install first skips the fragile step entirely in the common case.
+        # shellcheck disable=SC2086
+        if sudo timeout "$APT_TIMEOUT" apt-get install -y $missing; then
+          echo "installed from the image's existing index; no apt-get update required"
+          exit 0
+        fi
+        echo "::warning::install from the shipped index failed; refreshing it"
+
+        # Stage 2 — only now pay for an update, bounded and retried.
         for attempt in $(seq 1 "$APT_ATTEMPTS"); do
           # `sudo timeout` rather than `timeout sudo`, so the kill signal reaches
           # apt-get itself instead of a sudo wrapper that may not forward it.
-          # $APT_PACKAGES is unquoted so it splits into separate package arguments.
           # shellcheck disable=SC2086
           if sudo timeout "$APT_TIMEOUT" apt-get update \
-            && sudo timeout "$APT_TIMEOUT" apt-get install -y $APT_PACKAGES; then
+            && sudo timeout "$APT_TIMEOUT" apt-get install -y $missing; then
             echo "apt-get succeeded on attempt ${attempt}/${APT_ATTEMPTS}"
             exit 0
           fi
@@ -57,20 +88,20 @@ runs:
           # A timed-out `update` can leave a half-written package index behind, which
           # makes every later attempt fail for a different reason than the first one.
           sudo rm -rf /var/lib/apt/lists/*
-          # Retrying the same host is what does NOT work here. Measured on 2026-08-19:
-          # three bounded attempts against the runner's default mirror failed in 570s,
-          # having already burned ninety minutes unbounded on other jobs, while other
-          # runners in the same minute completed the identical command in six seconds.
-          # A wedged mirror connection is per-runner and does not heal on request, so
-          # the retry has to change the host it is asking. archive.ubuntu.com is the
-          # canonical archive — same packages, same versions, slower from Azure, which
-          # is a fine trade for the second attempt onward. Both the deb822 (.sources)
-          # and legacy (.list) layouts are rewritten, since the runner image has moved
-          # between them before.
           if [ "$attempt" -eq 1 ]; then
-            echo "switching to archive.ubuntu.com for the remaining attempts"
-            sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g; s|[a-z0-9-]*\.archive\.ubuntu\.com|archive.ubuntu.com|g' \
+            # Retrying the same host does not help: a wedged mirror connection is
+            # per-runner and does not heal on request. Point every Ubuntu archive entry
+            # at the canonical host, which was measured responding normally from a runner
+            # whose default mirror had stalled. Both the deb822 (.sources) and legacy
+            # (.list) layouts are rewritten, since the image has moved between them.
+            echo "switching remaining attempts to archive.ubuntu.com"
+            sudo sed -i -E 's#https?://[A-Za-z0-9.-]*archive\.ubuntu\.com#http://archive.ubuntu.com#g' \
               /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null || true
+            # Prove the rewrite actually landed, rather than assuming a glob matched.
+            if grep -rqs 'azure\.archive\.ubuntu\.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null; then
+              echo "::warning::azure mirror entries survived the rewrite; sources are:"
+              grep -rs 'ubuntu\.com' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null || true
+            fi
           fi
           sleep $(( attempt * 5 ))
         done

@@ -410,9 +410,15 @@ worth a single re-run; a second failure is real.
 exists to bound: the same two-line install sat in `ci.yml` twice and `desktop.yml` once,
 and on the same day it wedged five jobs — one for ninety minutes — while other jobs ran
 it in six seconds. A stalled mirror connection never returns, so the job burns its whole
-timeout and the log ends mid-step naming nothing. The action bounds each attempt, and
-because a wedged mirror is per-runner and does not heal on request, the retry moves to
-`archive.ubuntu.com` rather than asking the same host again. It deliberately does not
+timeout and the log ends mid-step naming nothing.
+
+**`apt-get update` is the operation that fails, and it is usually unnecessary.** It
+contacts every source for every index, so a single wedged entry stalls the whole command
+even while the host serving the package answers normally — measured: an update fetched
+three InRelease files from `archive.ubuntu.com` and then sat 140s on the rest until the
+bound killed it. So the action tries, in order: skip entirely if `dpkg -s` says the
+packages are already there; install from the index the image already ships; and only then
+refresh, bounded, retried, and repointed at `archive.ubuntu.com`. It deliberately does not
 change *which* packages are installed.
 
 ## A release is not finished until the website says so
