@@ -745,7 +745,23 @@ def _numbers_grounded(claim: str, snippets: str) -> bool:
 #: because widening the shared pattern would change what the eval judge counts as a claim,
 #: which is a metrics-definition change and needs a `METRICS_VERSION` bump to be honest.
 #: `tests/test_claim_extraction_parity.py` pins the divergence so it stays deliberate.
-_VSOURCES_RE = re.compile(r"(?i)#{0,6}\s*(sources|references|citations|bibliography)\b")
+#:
+#: The two branches are not interchangeable, and collapsing them to one optional `#`
+#: (`#{0,6}`) is what issue #48 was: with the marker optional the pattern also matched
+#: ordinary prose that merely *starts* with the word — "Sources of error were considered
+#: [1]." — so the scan broke there and every remaining claim went unchecked. Unchecked
+#: means its citation markers are never stripped, so the report renders *more* verified
+#: than it is, which is the one failure class this project refuses outright. The heading
+#: branch therefore stays open-ended (so `## Sources and References` still ends the body,
+#: exactly as it does for the judge), while the bare-label branch must consume the whole
+#: line — a label is all a label line contains.
+_VSOURCES_RE = re.compile(
+    r"(?i)(?:"
+    r"#{1,6}\s*(?:sources|references|citations|bibliography)\b"
+    r"|"
+    r"(?:sources|references|citations|bibliography)\s*:?\s*$"
+    r")"
+)
 
 
 def _cited_claims(draft: str) -> list[str]:
@@ -758,7 +774,8 @@ def _cited_claims(draft: str) -> list[str]:
     Two scanning differences from `claims.claim_lines` remain, both deliberate:
 
     1. A **bare** `Sources` line ends the body here (`_VSOURCES_RE`), where the judge
-       requires a `#` heading.
+       requires a `#` heading. Only a line that is *nothing but* the label counts; prose
+       opening with the word is a claim like any other (issue #48).
     2. The judge also skips the engine-rendered *Conflicting evidence* block. This pass
        does not need to: the block is appended by `synthesizer_node` *after* the fidelity
        check has already run, so it is never present in the draft this function sees.

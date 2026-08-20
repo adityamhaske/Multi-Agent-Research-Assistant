@@ -46,10 +46,12 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install system deps (WeasyPrint)
         uses: ./.github/actions/apt-install
-        # Hard ceiling over the action's own per-attempt bounds. The inner timeout is
-        # deliberately generous so it cannot kill a slow-but-progressing index refresh;
-        # this is what guarantees the job still cannot hang for hours if it does.
-        timeout-minutes: 12
+        # Hard ceiling over the action's own per-attempt bounds, and it has to be sized
+        # from them: 2 attempts x (update + install) at 900s each. A ceiling that cuts
+        # in before the retry does makes the retry dead code — the shell job burned its
+        # 12 minutes on attempt 1 plus the start of attempt 2's refresh and reported the
+        # step timing out, which names neither stage.
+        timeout-minutes: 35
         with:
           packages: libpango-1.0-0 libpangoft2-1.0-0
       - name: Install dependencies
@@ -196,10 +198,12 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install system deps (WeasyPrint)
         uses: ./.github/actions/apt-install
-        # Hard ceiling over the action's own per-attempt bounds. The inner timeout is
-        # deliberately generous so it cannot kill a slow-but-progressing index refresh;
-        # this is what guarantees the job still cannot hang for hours if it does.
-        timeout-minutes: 12
+        # Hard ceiling over the action's own per-attempt bounds, and it has to be sized
+        # from them: 2 attempts x (update + install) at 900s each. A ceiling that cuts
+        # in before the retry does makes the retry dead code — the shell job burned its
+        # 12 minutes on attempt 1 plus the start of attempt 2's refresh and reported the
+        # step timing out, which names neither stage.
+        timeout-minutes: 35
         with:
           packages: libpango-1.0-0 libpangoft2-1.0-0
       - name: Install backend dependencies
@@ -280,6 +284,24 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ms-playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+      - name: Playwright system libraries
+        uses: ./.github/actions/apt-install
+        # This is what `playwright install --with-deps` used to do for us, and the reason
+        # it no longer does it: `--with-deps` shells out to a raw `apt-get` that the
+        # bounded action never saw, so the one apt path left in this workflow was also
+        # the only unbounded one. It hung for the full ten minutes of the browser step's
+        # budget and reported nothing, on the same runner pool and in the same window
+        # that wedged the Tauri shell job's apt.
+        #
+        # Regenerate with `npx playwright install-deps --dry-run chromium`, which prints
+        # exactly this list. Pinning it here costs a refresh when Playwright adds a
+        # dependency — and buys a browser that fails to launch with a named missing
+        # library instead of a download that stalls silently.
+        timeout-minutes: 35
+        with:
+          packages: >-
+            libasound2-data libasound2t64 libcups2t64 libdrm-amdgpu1 libdrm-common
+            libdrm-intel1 libdrm2 libnss3 xserver-common xvfb
       - name: Install Playwright browser
         working-directory: frontend
         # Bounded because this is the largest network fetch in CI — ~184 MB of Chrome
@@ -288,8 +310,12 @@ jobs:
         # 6-hour job timeout. Same lesson as the apt action next door: an unbounded
         # download does not fail, it hangs, and a job that hangs tells you nothing.
         # Ten minutes is ~35x the normal duration, so it only fires on a real stall.
+        #
+        # Browsers only. With the libraries installed above, this step is a no-op on a
+        # cache hit, which is what makes the bound meaningful: it now guards one fetch
+        # rather than a fetch and an unbounded package install sharing a single budget.
         timeout-minutes: 10
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
       - name: Build frontend
         working-directory: frontend
         run: npm run build

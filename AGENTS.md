@@ -205,6 +205,35 @@ path only at release time, so a divergence ships. Prefer extracting the shared l
 one function over keeping two copies in step by discipline — `map_local_host` is the
 worked example of doing that after the fact.
 
+**A route that exists on both hosts can still be desktop-only broken, and parity will not
+see it.** Every divergence above was a *missing* route; this one is not. The sidecar's V2
+routes import their handlers from `app.api.v1.v2_runs` rather than restating them, so
+registration is identical on both hosts and `test_host_parity` is satisfied — while every
+V2 route on the packaged app answered 500, in three separate layers:
+
+| Layer | Why it only bit the desktop |
+|---|---|
+| `app.config` builds `Settings` at import, requiring `database_url`/`jwt_secret_key` | A dev shell and CI both export them; an installed app exports neither |
+| `app.db.redis` imported `redis` at module scope | `research-sidecar.spec` **excludes** `redis` — the desktop speaks SQLite only — so this is a `ModuleNotFoundError` in the bundle and fine from source |
+| `create_run` imports `app.workers.tasks` when `dispatch` is set | Same: `celery` is excluded, and this host has no broker or worker either way |
+
+Three rules come out of it. **Anything the desktop imports at *request* time must also fit
+in the bundle** — `test_sidecar_startup.py` reads the spec's own `excludes` list and
+asserts the V2 import tree touches none of it, after building the app the way the launcher
+does, because the host's own configuration decides which drivers load.
+**`test_sidecar_startup.py`'s existing assertions cover startup only**, which is precisely
+why they were green: the V2 handlers are imported when the first V2 request arrives.
+And **V2 execution is server-only** — `v2_execution.execute_run` takes a Redis lock, opens
+the server engine and checkpoints to Postgres — so the desktop refuses `dispatch` with a
+501 rather than creating a run nothing will ever advance. Wiring an in-process V2 driver is
+the fix; widening the bundle is not. The desktop journey is V1 today (`DESKTOP_UI_CALLS`
+lists no V2 path), which is the only reason this was latent rather than a shipped 500.
+
+The same packaged-app run turned up the behavioural twin: `POST /projects` answered a
+duplicate name with an unhandled `IntegrityError` while the server returned 409 with the
+offending name. Route parity held throughout — **parity checks registration; only a test
+that calls the route checks behaviour.**
+
 **`tests/test_host_parity.py` is now the enforcement.** Added in M1, before any extraction,
 because a refactor without a contract test just moves the drift. It holds four tables and
 fails if any of them rots:
@@ -444,9 +473,8 @@ same job passed on the PR head** — the merge commits and their heads are the s
 so a pass there and a failure here is the environment, not the diff. That is the one case
 worth a single re-run; a second failure is real.
 
-**Every apt install goes through `.github/actions/apt-install`.** There is no raw
-`apt-get` left in `.github/workflows/`, and adding one back reintroduces the hang it
-exists to bound: the same two-line install sat in `ci.yml` twice and `desktop.yml` once,
+**Every apt install goes through `.github/actions/apt-install`.** Adding a raw `apt-get`
+back reintroduces the hang it exists to bound: the same two-line install sat in `ci.yml` twice and `desktop.yml` once,
 and on the same day it wedged five jobs — one for ninety minutes — while other jobs ran
 it in six seconds. A stalled mirror connection never returns, so the job burns its whole
 timeout and the log ends mid-step naming nothing.
@@ -475,14 +503,38 @@ keyed on the resolved `@playwright/test` version, and the install step carries a
 hangs**, and a hung job names nothing in its log. Bound every network step that can stall,
 and do not fetch what you can cache.
 
+**`--with-deps` was hiding a raw `apt-get` from all of that**, which is how the rule above
+was true of the workflow files and false of what actually ran. The flag shells out to apt
+internally, so the browser step's ten-minute budget was covering a CDN download *and* an
+unbounded package install; when the apt half wedged — same runner pool, same window as the
+Tauri shell job — the step burned the whole budget and reported nothing. `golden-e2e` now
+installs the libraries through the composite action and runs `playwright install chromium`
+without the flag, so each bound guards one thing. The package list comes from
+`npx playwright install-deps --dry-run chromium`; a stale list costs a browser that fails
+to launch naming the missing library, which is the failure you want.
+
 **Size a bound against what it guards, not against the happy path.** The apt action's
-per-attempt timeout was first set to 180s from the *install* duration (~6-80s), and then
-killed an `apt-get update` that was still actively downloading — a full refresh pulls every
-index for main/restricted/universe/multiverse across two suites and legitimately runs for
-minutes. A bound meant to catch a dead connection must sit above the slowest *working* case
-or it becomes a second source of red. It is now 300s per attempt with a `timeout-minutes`
-ceiling on the workflow step, so the inner number can be generous without the job ever
-being able to hang.
+per-attempt timeout has now been sized wrongly twice, in opposite directions. First 180s,
+taken from the *install* duration (~6-80s), which killed an `apt-get update` that was still
+actively downloading — a full refresh pulls every index for main/restricted/universe/
+multiverse across two suites and legitimately runs for minutes. Then 300s, taken from that
+refresh, which killed the *install* on the Tauri `shell` job: the WebKitGTK/GTK dev chain is
+~150 packages and several hundred megabytes, and the attempt died mid-download on package 93
+having made steady progress the whole time. It is now **900s** per attempt.
+
+Two lessons, and the second is the one that keeps being missed. A bound meant to catch a
+dead connection must sit above the slowest *working* case, not near the typical one — the
+stalls it guards against run to ninety minutes against a six-hour job timeout, so there is an
+order of magnitude of headroom to spend and no prize for spending none of it. And **the
+step's `timeout-minutes` must be sized from the action's own worst case**, `attempts x
+(update + install)`: at 12 minutes the shell job burned attempt 1 plus the start of attempt
+2's refresh and then reported only that the step timed out, which names neither stage and
+makes the retry dead code. Both ceilings are 35 minutes now.
+
+The tell that a bound is too tight rather than a mirror being dead: **the job passes on the
+commit before and fails on this one with no relevant diff.** A real hang is reproducible and
+names nothing; a bound straddling the working case alternates. Neither is a flake to re-run
+away — the first is an outage, the second is a number to fix.
 
 ## A release is not finished until the website says so
 

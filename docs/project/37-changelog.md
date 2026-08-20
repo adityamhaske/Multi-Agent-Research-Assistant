@@ -62,12 +62,32 @@ against 1.0.2 stops working. See [the V2 research model](../getting-started/24-v
   one number: does V2 say what V1 said (fidelity), is the result internally valid
   (validity), and is every migrated fact traceable to something V1 recorded (grounding).
   See the [migration guide](../deployment/38-migration-v1-to-v2.md).
-- **Server and desktop parity is now enforced, not intended.** The whole V2 surface works on
-  the desktop build — live progress, exports, bundle download. Follow-up chat and bundle
-  export previously 404'd there; a parity suite now fails the build when a route exists on
-  one host and not the other.
+- **Server and desktop route parity is now enforced, not intended.** Follow-up chat and
+  bundle export previously 404'd on the desktop build; a parity suite now fails the build
+  when a route exists on one host and not the other. **Route parity is not feature parity**
+  — see *Desktop support* below for what the desktop build actually runs.
 - **Keyless demo mode no longer reaches a real embedding provider.** It was billing real API
   calls on a run the product described as free.
+
+### Desktop support in 2.0.0
+
+| | Research journey | V2 record (evidence, claims, sources, review, artifact) |
+|---|---|---|
+| **Web application** (server + worker) | V2 | Supported |
+| **Desktop application** (Tauri + sidecar) | V1 | Read and inspect only — runs cannot be executed |
+
+The desktop build ships the **V1** research journey for 2.0.0. Its sidecar serves the V2
+routes and they answer correctly, but nothing in the desktop UI calls them, and a V2 run
+cannot be *executed* there: `v2_execution.execute_run` acquires a Redis lock, opens the
+server database engine and checkpoints to Postgres, none of which exist on a host that is
+SQLite-and-keychain by design. Asked to dispatch a V2 run, the desktop answers **501 Not
+Implemented** and creates nothing, rather than persisting a run no driver would ever
+advance.
+
+Making the desktop a V2 host means writing an in-process V2 driver — a second execution
+path with its own checkpointer and no distributed lock. That is a milestone, not a patch,
+and it is not in this release. Verified by running the packaged sidecar, not inferred from
+the configuration file.
 
 **Known**
 

@@ -112,6 +112,51 @@ carried in the same chain.
 The row is written **before** the resume is queued, so the record of what a human chose
 survives a worker that dies mid-run.
 
+### Semantics
+
+A bundle's `approval_chain` is derived entirely from these rows, and
+`verify_bundle`'s `approval_chain` check is what decides whether an artifact is
+trustworthy — so a reader verifying a bundle is, in the end, trusting the rules below.
+They are pinned by `backend/tests/test_audit_log_semantics.py`, which fails if this
+section stops describing the code.
+
+**Writers — four, and no others.** `submit_plan` (`plan_approved`) and `approve_or_rework`
+(`approved` / `rework_requested`), once on each host: `app/api/v1/research.py` for the
+server and `desktop/sidecar.py` for the desktop. **The graph never writes one.** A pipeline
+state change is not a decision, and a chain carrying entries no human authored would
+describe something other than what it claims to.
+
+**`draft_hash` holds two different hashed objects.** At the report gate it is
+`sha256(draft_report)` — the link that ties an approval to the exact text approved, and the
+one the verifier checks. At the design gate the same column holds
+`sha256(json.dumps({"tasks", "outline"}, sort_keys=True))`, hashing a *plan*. **No shipped
+tool verifies that second value.** This overload is intentional for now: splitting the
+column is a schema change, and carrying both decisions in one ordered chain is what lets a
+bundle show the whole history. Anyone reading only the verifier would reasonably assume one
+meaning, which is why it is written down here.
+
+**Ordering is meaning.** Both hosts read the chain `ORDER BY id ASC`, never by timestamp —
+a rework followed by an approval is a different history from the reverse, and two decisions
+inside the same second must not be free to swap.
+
+**Append-only in practice, not by constraint.** Nothing in the codebase updates or deletes
+an `audit_log` row; rows cascade-delete with their session, which is the one legitimate
+removal, since the decision is about that session and does not outlive it. There is **no
+database constraint** enforcing append-only — the guarantee is the absence of a writer, and
+that absence is what the test checks.
+
+**Transactionality, and the gap in it.** The row is committed in the same transaction as
+the session's status change, before the resume is dispatched. What is *not* handled: if the
+dispatch fails after that commit, the decision is recorded and the work never happens, and
+nothing reconciles the two. The bias is deliberate — a decision a human made is evidence
+and is recorded when made — but the reconciliation gap is real and undocumented elsewhere.
+
+**No writer catches exceptions around the audit write**, so a failure to record a decision
+fails the request rather than silently proceeding without a record.
+
+**`rework_count` on `sessions` is a second, redundant record** of the same events, used for
+the rework cap. It can disagree with the chain and nothing checks that it doesn't.
+
 ## projects
 
 | Column | Type | Notes |

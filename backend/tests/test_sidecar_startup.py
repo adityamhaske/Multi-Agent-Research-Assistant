@@ -120,3 +120,69 @@ def test_v2_request_models_have_exactly_one_home():
     assert v2_runs.CreateRunRequest is v2.CreateRunRequest
     assert v2_runs.PlanReviewRequest is v2.PlanReviewRequest
     assert v2_runs.ReportReviewRequest is v2.ReportReviewRequest
+
+
+#: Imported by the sidecar's V2 routes at *request* time rather than at startup, which is
+#: why the startup assertions above never saw them. `create_sidecar_app` imports each
+#: handler inside the route body so the module stays out of the launch path.
+LAZY_REQUEST_IMPORTS = ("app.api.v1.v2_runs",)
+
+
+def _spec_excludes() -> list[str]:
+    """The exclude list, read from `research-sidecar.spec` rather than copied.
+
+    A second copy of this list is a second thing to forget: the spec is what PyInstaller
+    obeys, so the spec is what the test has to read. Parsed rather than imported because
+    the spec is only valid under PyInstaller (it references injected globals like
+    SPECPATH).
+    """
+    import ast
+    from pathlib import Path
+
+    spec = Path(__file__).resolve().parents[1] / "desktop" / "research-sidecar.spec"
+    tree = ast.parse(spec.read_text())
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "excludes" for t in node.targets
+        ):
+            return [ast.literal_eval(e) for e in node.value.elts]
+    raise AssertionError("no `excludes` assignment found in research-sidecar.spec")
+
+
+def test_lazy_v2_imports_pull_in_no_excluded_package():
+    """What the desktop imports *per request* must also fit in the bundle.
+
+    `test_sidecar_import_tree_excludes_weasyprint` walks the startup tree only, so it is
+    blind by construction to the V2 handlers — they are imported when the first V2 request
+    arrives. That blind spot shipped: the spec excludes `redis` because the desktop speaks
+    SQLite only, `app.api.v1.v2_runs` imported it at module scope for the server stream's
+    `Depends(get_redis)`, and every V2 route on the packaged app answered 500 with
+    `ModuleNotFoundError: No module named 'redis'`. From a source checkout the package is
+    installed, so nothing anywhere was red.
+
+    Asserting on `sys.modules` rather than on the built bundle keeps this a fast unit test
+    that still measures the real thing: a package the sidecar imports is a package
+    PyInstaller must ship, and every name below is one the spec refuses to.
+    """
+    excluded = _spec_excludes()
+    imports = "; ".join(f"import {m}" for m in LAZY_REQUEST_IMPORTS)
+    # The app is *built* first, with the server environment stripped, because the host's
+    # own configuration decides which drivers the shared modules then load. Asserting on a
+    # bare import instead would measure the suite's environment: `conftest` exports a
+    # Postgres DSN, so `app.db.base` would pull in `asyncpg` — excluded, but excluded for a
+    # host that never sees that DSN. Building the app the way the launcher does is what
+    # makes this a statement about the shipped artifact.
+    result = _run(
+        "import sys, json, tempfile; import desktop.sidecar;"
+        "desktop.sidecar.create_sidecar_app("
+        "data_dir=tempfile.mkdtemp(), token='guard', fake=True);"
+        f"{imports};"
+        f"print(json.dumps([n for n in {excluded!r} if n in sys.modules]))",
+        strip_server_env=True,
+    )
+    assert result.returncode == 0, result.stderr
+    found = result.stdout.strip().splitlines()[-1]
+    assert found == "[]", (
+        f"the sidecar's request-time import tree pulls in {found}, which "
+        f"research-sidecar.spec excludes — these 500 in the packaged app only"
+    )

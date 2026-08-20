@@ -52,7 +52,7 @@ export const RELEASES: Release[] = [
       "PDF, Markdown, text and HTML documents preview in place from the corpus list, instead of downloading and switching applications. Uploaded HTML renders inside a fully sandboxed frame.",
       "History filters by verified-citation rate and by model, so a weak run is findable rather than buried.",
       "Migration tooling for V1 data with three separate verdicts — does V2 say what V1 said, is the bundle internally valid, and is every migrated fact traceable to something V1 recorded — kept apart rather than collapsed into one number.",
-      "The whole V2 surface works on the desktop build as well as the server, including live progress, exports and bundle download. Follow-up chat and bundle export previously returned 404 on desktop; a parity suite now fails the build when a route exists on one host and not the other.",
+      "Server and desktop serve the same routes, and a parity suite fails the build when one host has a route the other does not — follow-up chat and bundle export previously 404'd on desktop. Route parity is not feature parity, and this release does not claim it: the desktop UI ships the V1 research journey, and V2 *execution* is server-only because it takes a Redis lock, opens the server engine and checkpoints to Postgres. The desktop refuses a V2 dispatch with 501 rather than creating a run nothing would advance.",
       "Keyless demo mode (`--fake`) no longer reaches a real embedding provider. It was billing real API calls on a run the product described as free.",
     ],
     known: [
@@ -60,7 +60,7 @@ export const RELEASES: Release[] = [
       "Two V1 states are recorded as unmigratable rather than repaired: evidence whose source URL was never recorded, and a plan approval for a run with no plan. Neither occurred in the restored-production run.",
       "Some V1 history cannot be recovered at all and is recorded as absent rather than filled in: superseded report drafts, whether a plan was edited, and whether a run was cancelled. V1 overwrote the first two and never recorded the third as a state.",
       "Corpus-mode research works on V2 but has no end-to-end test, because corpus mode requires a local embedder and the test environment has none.",
-      "Cancelling a run is advisory. It is recorded durably and no new work starts, but research already in flight runs to its next checkpoint.",
+      "Cancelling a run is advisory and is not recorded as durable state. No new work starts, but research already in flight runs on, and when it finishes the outcome writer overwrites the stopped session — so a stopped run can reappear as awaiting approval.",
       "Claim verification is not implemented: claims are extracted from the report's prose and carry no per-claim judgement.",
       "Claim lineage across revisions is not tracked. Nothing observes that a sentence in revision 2 is the assertion from revision 1.",
       "Project memory does not yet ingest V2 runs.",

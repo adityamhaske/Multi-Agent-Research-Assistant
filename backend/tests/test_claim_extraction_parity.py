@@ -226,17 +226,40 @@ def test_divergence_bare_sources_line_ends_the_body_only_for_the_graph():
     assert any("example.org" in c for c in metrics.claim_lines(report))
 
 
-def test_divergence_a_sentence_opening_with_the_word_sources_ends_the_graph_body():
-    """A pre-existing sharp edge in `_VSOURCES_RE`, pinned rather than silently fixed.
+def test_prose_opening_with_a_sources_word_is_a_claim_to_both():
+    """Was a pinned divergence; issue #48 fixed it, so the two now agree.
 
-    "Sources of error were considered [1]." begins with the word the pattern looks for, so
-    the fidelity pass treats it as the start of the bibliography and stops. Changing this
-    changes which claims get their markers stripped, so it is a behaviour change and does
-    not belong in a refactor milestone.
+    `_VSOURCES_RE` used to allow zero `#`, which made it match any sentence merely
+    *starting* with one of the boundary words. The fidelity pass then treated that
+    sentence as the bibliography and stopped, so it and every later claim were never
+    checked — and an unchecked claim keeps its citation markers whether or not its
+    snippets back them. The report rendered *more* verified than it was, which is the
+    inversion this project exists to refuse.
+
+    Each word is exercised: one occurrence anywhere used to disable the rest of the scan,
+    so a fix that only handled "Sources" would leave the same hole behind the other three.
     """
-    report = "# Findings\n\nSources of error were considered carefully [1].\n"
-    assert graph._cited_claims(report) == []
-    assert _judge_cited_claims(report) == ["Sources of error were considered carefully [1]."]
+    for word in ("Sources", "References", "Citations", "Bibliography"):
+        sentence = f"{word} of error were considered carefully in this analysis [1]."
+        report = f"# Findings\n\n{sentence}\n"
+        assert graph._cited_claims(report) == [sentence], word
+        assert _judge_cited_claims(report) == [sentence], word
+
+
+def test_a_sources_heading_with_trailing_words_still_ends_the_body_for_both():
+    """The fix narrows only the bare-label branch; the heading branch stays open-ended.
+
+    Requiring the *whole line* to be the label — the other candidate fix — would have
+    closed the prose hole while opening a new divergence here, since the judge's
+    `#{1,6}\\s*(word)\\b` is unanchored and would still end the body at this heading.
+    """
+    report = (
+        "# Findings\n\nA long enough sentence to count as a claim [1].\n\n"
+        "## Sources and References\n\n1. https://example.org/a-page-with-2024-in-it\n"
+    )
+    expected = ["A long enough sentence to count as a claim [1]."]
+    assert graph._cited_claims(report) == expected
+    assert _judge_cited_claims(report) == expected
 
 
 def test_divergence_conflicts_block_is_moot_in_production_ordering():

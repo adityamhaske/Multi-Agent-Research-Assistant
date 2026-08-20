@@ -105,10 +105,12 @@ jobs:
       - name: Linux build dependencies (WebKitGTK etc.)
         if: runner.os == 'Linux'
         uses: ./.github/actions/apt-install
-        # Hard ceiling over the action's own per-attempt bounds — see ci.yml. This set
-        # is the one that actually needs an index refresh (the -dev packages are not on
-        # the runner image), so it is the call site most likely to reach that stage.
-        timeout-minutes: 12
+        # Hard ceiling over the action's own per-attempt bounds — see ci.yml. This is the
+        # only call site that does real work: the WeasyPrint pair is already on the runner
+        # image, while none of these -dev packages are, so this is where both the refresh
+        # and a several-hundred-megabyte install actually happen. Sized to allow every
+        # attempt the action permits rather than to the observed happy path.
+        timeout-minutes: 35
         with:
           packages: >-
             libwebkit2gtk-4.1-dev build-essential curl wget file
