@@ -17,6 +17,12 @@ first launch — right-click the app → **Open** → **Open**. Windows `.msi`, 
 [releases page](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/latest);
 [install notes](docs/getting-started/23-desktop-app.md) cover every platform.
 
+**The desktop app runs the V1 research journey.** The V2 record — evidence, claims,
+sources, review, verifiable artifact — is a web-application feature in 2.0.0, because V2
+execution needs Redis, Postgres and the server engine. The desktop refuses a V2 dispatch
+with `501` rather than pretending; see
+[desktop support](docs/getting-started/23-desktop-app.md).
+
 ---
 
 Ask a research question. A pipeline of specialized agents searches the web, gathers

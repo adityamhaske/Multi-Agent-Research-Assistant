@@ -1,7 +1,22 @@
 # Desktop app
 
-The desktop build runs the whole product on your machine: a Tauri shell around the same
-web UI, a bundled Python engine, and SQLite. No Docker, no Postgres, no Redis, no login.
+The desktop build runs the product on your machine: a Tauri shell around the same web UI, a
+bundled Python engine, and SQLite. No Docker, no Postgres, no Redis, no login.
+
+> **Which research journey the desktop runs in 2.0.0: V1.**
+>
+> | | Research journey | V2 record (evidence, claims, sources, review, artifact) |
+> |---|---|---|
+> | Web application | V2 | Supported |
+> | Desktop application | V1 | Read and inspect only — runs cannot be executed |
+>
+> The sidecar serves the V2 routes and they answer correctly, but the desktop UI does not
+> call them and a V2 run cannot be *executed* here. `v2_execution.execute_run` acquires a
+> Redis lock, opens the server database engine and checkpoints to Postgres — none of which
+> exist on a host that is SQLite-and-keychain by design. Asked to dispatch a V2 run the
+> desktop answers **501 Not Implemented** and creates nothing, rather than persisting a run
+> no driver would advance. Making the desktop a V2 host means an in-process V2 driver with
+> its own checkpointer and no distributed lock; that is a milestone, not a patch.
 
 **Builds are unsigned.** macOS and Windows will both warn on first launch, and clearing
 that warning is a step you have to take deliberately. That is the honest state of it, and
