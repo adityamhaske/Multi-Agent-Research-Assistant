@@ -233,6 +233,66 @@ async def test_v2_cancellation_survives_a_worker_restart(tmp_path):
         assert (await _reload(db, run_id)).status == "CANCELLED"
 
 
+async def test_v2_a_later_failure_cannot_overwrite_a_cancelled_run(v2_run):
+    """The error path is a *separate* writer, and it had the same defect.
+
+    `persist_outcome`'s guard covers outcomes the adapter delivers. It does not cover a
+    crash: `execute_run`'s corpus guard and `tasks._mark_v2_failed` both write FAILED
+    directly through `record_failure`, and on a cancelled run that violates
+    `ck_run_cancelled` and raises `IntegrityError` — from `_mark_v2_failed`, whose own
+    docstring promises it never raises, so the original error is lost too.
+
+    Found live rather than by reading: cancelling a run mid-flight and letting its worker
+    hit any error produced exactly this, and the run's own error_message ended up being the
+    constraint violation.
+
+    Negative control: drop the `run.status == "CANCELLED"` branch from
+    `v2_runtime.record_failure` and this raises IntegrityError instead of asserting.
+    """
+    db, run, _ = v2_run
+    await v2_runtime.request_cancel(db, run, by=run.owner_id)
+    await db.commit()
+
+    await v2_runtime.record_failure(db, await _reload(db, run.id), "worker crashed")
+    await db.commit()
+
+    after = await _reload(db, run.id)
+    assert after.status == "CANCELLED", f"a stopped run was moved to {after.status}"
+    assert after.cancelled_at is not None
+    # The message is still worth keeping — what went wrong is knowable even when the run's
+    # fate was already decided by the user.
+    assert after.error_message == "worker crashed"
+
+
+async def test_v2_an_uncancelled_run_still_records_failure(v2_run):
+    """The control: ordinary failures must still land FAILED."""
+    db, run, _ = v2_run
+    await v2_runtime.set_status(db, run, "RUNNING")
+    await v2_runtime.record_failure(db, run, "provider quota exhausted")
+    await db.commit()
+
+    after = await _reload(db, run.id)
+    assert after.status == "FAILED"
+    assert after.error_message == "provider quota exhausted"
+
+
+async def test_v2_set_status_refuses_to_move_a_cancelled_run(v2_run):
+    """A cancelled run is terminal, and no bare status write may leave it.
+
+    The constraint already enforced this from below, but as an `IntegrityError` three layers
+    down inside whatever background task attempted it. Refusing here names the caller.
+
+    Negative control: drop the `run.status == "CANCELLED"` check from `set_status` and this
+    raises IntegrityError at the flush instead of LifecycleError.
+    """
+    db, run, _ = v2_run
+    await v2_runtime.request_cancel(db, run, by=run.owner_id)
+    await db.commit()
+
+    with pytest.raises(v2_runtime.LifecycleError, match="cancelled"):
+        await v2_runtime.set_status(db, await _reload(db, run.id), "RUNNING")
+
+
 # ── V1 server: the Celery worker's writer ──────────────────────────────────────────
 
 

@@ -385,6 +385,20 @@ async def execute_run(
                     logger.error("v2_run_not_found", run_id=run_id)
                     return
 
+                # "No new research will be started for this run" is what `POST /cancel`
+                # tells the caller, in those words. Without this it was not true: a resume
+                # dispatched after the cancel — approving the plan of a run you had just
+                # stopped — started the pipeline again, and the `set_status` below wrote
+                # RUNNING over CANCELLED, violating `ck_run_cancelled` and killing the task
+                # on an IntegrityError. Observed live before this guard existed.
+                #
+                # Returning rather than raising: the run is already in the terminal state
+                # the user asked for, nothing is wrong, and there is nothing new to publish
+                # — the stream closed when the cancel did.
+                if run.status == "CANCELLED":
+                    logger.info("v2_run_start_skipped_cancelled", run_id=run_id)
+                    return
+
                 await v2_runtime.set_status(db, run, "RUNNING")
                 await db.commit()
 
