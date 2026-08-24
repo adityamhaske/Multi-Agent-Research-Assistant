@@ -68,6 +68,16 @@ against 1.0.2 stops working. See [the V2 research model](../getting-started/24-v
   — see *Desktop support* below for what the desktop build actually runs.
 - **Keyless demo mode no longer reaches a real embedding provider.** It was billing real API
   calls on a run the product described as free.
+- **Stopping a run now sticks.** Cancellation is durable state rather than an advisory
+  event, and every writer that could move a run out of it refuses to. Previously a stopped
+  run could reappear minutes later awaiting your approval, and approving it put a report you
+  had tried to abandon into project memory. Tokens spent between the stop and the pipeline
+  noticing are still recorded, because they were really spent.
+- **A run that used scripted models says so.** `LLM_MODE=fake` — which `start.sh` selects for
+  `--fake` and silently when no provider key is configured — produced runs recorded as real
+  research: the exported bundle named models nothing had called, at a plausible cost, and the
+  standalone verifier passed it without its demo banner. What actually ran is what gets
+  recorded.
 
 ### Desktop support in 2.0.0
 
