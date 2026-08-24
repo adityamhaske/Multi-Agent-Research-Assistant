@@ -108,7 +108,15 @@ Two caveats worth knowing before you rely on a number:
 ## Stopping, archiving, deleting
 
 **Stop** a `PENDING` or `RUNNING` session and it moves to `FAILED` with "Research stopped by
-user"; the worker sees the cancellation flag and stops.
+user", and that decision is durable — it is recorded on the session, not in a cache entry
+that expires.
+
+What it does **not** do is interrupt work already in flight. The pipeline runs on to its
+next checkpoint, spending tokens after you have been told the run stopped; that spend is
+still recorded on the session, because it was really incurred. What is guaranteed is that
+the run cannot come back: when the pipeline finally delivers its outcome, the writer sees
+the stop and keeps the session terminal instead of moving it to the review gate. Before
+this was fixed, a stopped run could reappear minutes later awaiting your approval.
 
 **Archive** moves a session out of the active list. It is reversible and loses nothing —
 the archive is a destination, not a filter, so the default view never includes archived

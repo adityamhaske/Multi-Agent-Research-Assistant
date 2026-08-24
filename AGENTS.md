@@ -263,10 +263,24 @@ What was wrong is that it had leaked into the client, so the sidecar now serves 
 `isDesktop` branch was added. Prefer that shape: one product contract, different internals,
 rather than teaching the frontend about a storage decision.
 
-Two things this deliberately did *not* fix, both shared by the two hosts: cancel is
-advisory (neither host's outcome writer checks status before persisting, and the server's
-Redis `cancelled` key is read by nothing), and the desktop `.md` export still does not
-demo-stamp while the server's does.
+One thing this deliberately did *not* fix, shared by the two hosts: the desktop `.md`
+export still does not demo-stamp while the server's does.
+
+The other — cancel being advisory — is now half fixed, and the halves are worth keeping
+apart. **A cancelled run stays cancelled** (issue #54): cancellation is durable state
+(`sessions.cancelled_at`, and `research_runs.cancelled_at` on V2) and all three outcome
+writers refuse to move a cancelled row out of its terminal state, so a late outcome can no
+longer offer a stopped run's report for approval. The write-only Redis `cancelled` key is
+gone. **The run itself still does not stop** — nothing interrupts the Celery task or the
+sidecar's `asyncio.Task`, so it spends tokens to its next checkpoint, and that spend is
+recorded rather than dropped. Preemption is unbuilt on purpose: killing the task risks a
+half-written checkpoint, and the mechanism differs per host, which is exactly the
+undeclared divergence this file exists to prevent.
+
+**That rule now has three homes, not two** — `pipeline_runner::_persist_outcome`,
+`sidecar::_apply_outcome`, *and* `v2_execution::persist_outcome`. Change all three.
+`tests/test_cancellation_is_authoritative.py` pins each one against the ordered
+t0 → t1 → t2 race, with the negative controls recorded in its docstrings.
 
 The suite also pins the two traps this table already warned about in prose: every
 `RunOutcome.status` must appear in `sidecar::_apply_outcome`, and every event in

@@ -141,6 +141,39 @@ async def persist_outcome(
     or pass `saver` and let this read them through the tri-state reader. Passing neither
     means the evidence is **unknown**, and that is recorded rather than treated as zero.
     """
+    # A run the user stopped stays stopped (issue #54). Cancellation is advisory — nothing
+    # interrupts the graph — so the outcome still arrives, minutes later with a real model,
+    # and every branch below would move the run out of CANCELLED.
+    #
+    # Without this the write did not merely mis-record: `ck_run_cancelled` ties CANCELLED to
+    # `cancelled_at`, so the UPDATE violated the constraint and raised IntegrityError inside
+    # the worker's background task. The status survived (the transaction rolled back) but the
+    # spend went with it — a run cancelled after $0.50 recorded $0.00. Guarding here is what
+    # turns an accidental save-by-constraint into a decision, and keeps the money.
+    #
+    # Spend is committed because tokens burned between the stop and the pipeline noticing are
+    # real; dropping them would make usage totals lie. Nothing else is written: the run's own
+    # conclusion is not the user's decision, and the user's decision is the one that stands.
+    #
+    # Two more homes of this rule for V1 sessions — `pipeline_runner._persist_outcome` and
+    # `sidecar._apply_outcome`. Change all three.
+    if run.status == "CANCELLED":
+        await v2_runtime.record_metrics(
+            db,
+            run,
+            cost_usd=outcome.cost_usd,
+            tokens_input=outcome.tokens_input,
+            tokens_output=outcome.tokens_output,
+            elapsed_seconds=outcome.elapsed_seconds,
+        )
+        logger.info(
+            "v2_outcome_discarded_run_cancelled",
+            run_id=str(run.id),
+            outcome_status=outcome.status,
+            cost_usd=round(outcome.cost_usd, 4),
+        )
+        return PersistResult(status="CANCELLED", evidence_outcome="NOT_READ")
+
     if outcome.status == "failed":
         await v2_runtime.record_failure(db, run, outcome.error)
         return PersistResult(status="FAILED", evidence_outcome="NOT_READ")
@@ -278,6 +311,13 @@ def lifecycle_event(result: PersistResult) -> dict:
         )
     if result.status == "FAILED":
         return events.make_event("FAILED", data={"reason": "see error_message"})
+    # A cancelled run reports FAILED rather than a name of its own (issue #54). `CANCELLED`
+    # is not in `_TERMINAL_EVENTS` on either host, so inventing it here would leave the
+    # stream open on a run that will never publish again — and the fall-through below would
+    # otherwise tell the UI a run the user stopped had COMPLETED. `POST /{id}/cancel`
+    # publishes nothing itself, so this is the event that actually closes the stream.
+    if result.status == "CANCELLED":
+        return events.make_event("FAILED", data={"reason": "Research stopped by user."})
     return events.make_event(
         "COMPLETED",
         data={

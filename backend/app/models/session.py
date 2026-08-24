@@ -65,6 +65,18 @@ class Session(Base):
     # Timestamp rather than a boolean so "when did this leave the active list" is
     # answerable without a second column.
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: When the user stopped this run, or NULL if they never did (issue #54).
+    #:
+    #: Durable on purpose. Cancellation used to be advisory — a status flip plus a Redis key
+    #: with a 1h TTL that nothing ever read — so the run kept going and its outcome writer
+    #: moved the session back out of the stopped state when it finished. Both V1 outcome
+    #: writers now consult `is_cancelled` before touching status, and they can only do that
+    #: if the answer outlives a worker restart.
+    #:
+    #: A timestamp rather than a flag, matching `research_runs.cancelled_at` on the V2 side:
+    #: when a user stopped a run is worth keeping, and it tells a cancelled run apart from
+    #: one that failed on its own without adding a status to the vocabulary both hosts map.
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Which models actually produced this report (docs/12 M8). Snapshotted at run time
     # rather than read back from the user's current preference, because a preference can
@@ -121,6 +133,16 @@ class Session(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+    @property
+    def is_cancelled(self) -> bool:
+        """Whether the user stopped this run.
+
+        The one definition both V1 hosts read. `pipeline_runner._persist_outcome` and
+        `sidecar._apply_outcome` are the two homes of the outcome-writing rule, and a
+        predicate each re-derived would be a third thing to keep in step.
+        """
+        return self.cancelled_at is not None
 
     # Relationships. passive_deletes lets the DB-level ON DELETE CASCADE do the work
     # instead of the ORM loading every child row (docs/05 §5).

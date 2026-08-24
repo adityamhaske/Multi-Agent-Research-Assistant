@@ -311,6 +311,31 @@ async def _persist_outcome(
     session.total_tokens_input = outcome.tokens_input
     session.total_tokens_output = outcome.tokens_output
     session.rework_count = outcome.rework_count
+
+    # A run the user stopped stays stopped (issue #54). Cancellation does not interrupt the
+    # pipeline — it keeps going to its next checkpoint — so without this guard the outcome
+    # arriving minutes later moved the session back to AWAITING_APPROVAL or COMPLETED. The
+    # user saw a stopped run, then a live one, and approving it put a report they had tried
+    # to abandon into project memory.
+    #
+    # The spend assigned above is committed regardless: tokens burned between the stop and
+    # the pipeline noticing are real money, and dropping them would make usage totals lie.
+    # Everything that describes the run's *conclusion* is withheld — status, the reports,
+    # `sources`, and the lifecycle event — because the conclusion is not the user's decision
+    # and the decision is the one that stands.
+    #
+    # Two more homes of this rule: `desktop/sidecar.py::_apply_outcome` for the desktop's V1
+    # journey, and `v2_execution.persist_outcome` for V2 runs. Change all three.
+    if session.is_cancelled:
+        await db.commit()
+        logger.info(
+            "outcome_discarded_session_cancelled",
+            session_id=session_id,
+            outcome_status=outcome.status,
+            cost_usd=round(outcome.cost_usd, 4),
+        )
+        return
+
     session.sources = outcome.sources
 
     if outcome.status == "awaiting_plan":

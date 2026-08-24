@@ -12,6 +12,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Playwright's own output. Both are gitignored, so CI's fresh checkout never has
+    // them and this changes nothing there — it stops `npm run e2e && npm run lint`
+    // locally from reporting thousands of errors inside the report's bundled viewer
+    // JavaScript. A local check that disagrees with CI is worse than no local check,
+    // because the noise is where a real finding would have been.
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 

@@ -103,8 +103,9 @@ the configuration file.
   cancelled. V1 overwrote the first two and never recorded the third as a state.
 - Corpus-mode research works on V2 but has no end-to-end test, because corpus mode requires
   a local embedder and the test environment has none.
-- Cancelling a run is advisory. It is recorded durably and no new work is started, but
-  research already in flight runs to its next checkpoint.
+- Cancelling a run does not interrupt work already in flight; it runs to its next
+  checkpoint. The decision is durable and authoritative — a cancelled run stays cancelled
+  and cannot reappear awaiting approval — and the tokens spent after the stop are recorded.
 - Claim verification is not implemented: claims are extracted from the report's prose and
   carry no per-claim judgement. `verification_state` is `UNCHECKED` on every claim V2 writes.
 - Claim lineage across revisions is not tracked. Nothing observes that a sentence in

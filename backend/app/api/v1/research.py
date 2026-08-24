@@ -573,9 +573,13 @@ async def cancel_session(
     session_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    redis=Depends(get_redis),
 ):
-    """Stop an in-progress research run."""
+    """Stop an in-progress research run.
+
+    No Redis dependency: the only thing this route used it for was the write-only cancelled
+    key, and a route that needs Redis is a route the desktop sidecar cannot serve from a
+    bundle that excludes the driver (`test_sidecar_startup.py`).
+    """
     session = await _authorized_session(db, session_id, current_user.id)
     if session.status not in (SessionStatus.RUNNING, SessionStatus.PENDING):
         raise HTTPException(
@@ -585,6 +589,11 @@ async def cancel_session(
 
     session.status = SessionStatus.FAILED
     session.error_message = "Research stopped by user."
+    # Durable, and the reason the run cannot be un-stopped by its own outcome (issue #54).
+    # This replaces a `session:{id}:cancelled` Redis key that carried a 1h TTL and which a
+    # repository-wide search found no reader for — it never did anything, and could not have
+    # survived a worker restart if it had. `_persist_outcome` reads this instead.
+    session.cancelled_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(session)
 
@@ -594,7 +603,6 @@ async def cancel_session(
         str(session_id),
         {"type": "FAILED", "data": {"reason": "Research stopped by user."}},
     )
-    await redis.set(f"session:{session_id}:cancelled", "1", ex=3600)
 
     logger.info("research_stopped_by_user", session_id=str(session_id))
     return SessionSummary.model_validate(session)

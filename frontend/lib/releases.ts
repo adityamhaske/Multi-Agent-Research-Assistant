@@ -60,7 +60,7 @@ export const RELEASES: Release[] = [
       "Two V1 states are recorded as unmigratable rather than repaired: evidence whose source URL was never recorded, and a plan approval for a run with no plan. Neither occurred in the restored-production run.",
       "Some V1 history cannot be recovered at all and is recorded as absent rather than filled in: superseded report drafts, whether a plan was edited, and whether a run was cancelled. V1 overwrote the first two and never recorded the third as a state.",
       "Corpus-mode research works on V2 but has no end-to-end test, because corpus mode requires a local embedder and the test environment has none.",
-      "Cancelling a run is advisory and is not recorded as durable state. No new work starts, but research already in flight runs on, and when it finishes the outcome writer overwrites the stopped session — so a stopped run can reappear as awaiting approval.",
+      "Cancelling a run does not interrupt research already in flight — it runs to its next checkpoint, and the tokens it spends there are recorded rather than dropped. What the stop does guarantee is that it sticks: a cancelled run stays cancelled, and the outcome arriving afterwards can no longer overwrite it and offer the report for approval.",
       "Claim verification is not implemented: claims are extracted from the report's prose and carry no per-claim judgement.",
       "Claim lineage across revisions is not tracked. Nothing observes that a sentence in revision 2 is the assertion from revision 1.",
       "Project memory does not yet ingest V2 runs.",
