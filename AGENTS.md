@@ -263,8 +263,25 @@ What was wrong is that it had leaked into the client, so the sidecar now serves 
 `isDesktop` branch was added. Prefer that shape: one product contract, different internals,
 rather than teaching the frontend about a storage decision.
 
-One thing this deliberately did *not* fix, shared by the two hosts: the desktop `.md`
-export still does not demo-stamp while the server's does.
+Both things this deliberately did *not* fix have since been fixed, and the second one is
+worth reading before touching either host's config resolution.
+
+**The desktop `.md` export not demo-stamping was never an export bug.** Both hosts call
+`bundle.stamp_demo_md` on the export path; the desktop simply never had `session.demo` set,
+because `--fake` is a *process* flag and `demo` was a *request* flag, and nothing tied them
+together. The server had the same hole through `LLM_MODE=fake` — which `start.sh` exports
+for `--fake` and silently as a fallback when `.env` has no provider key, i.e. the commonest
+first-run setup. A run that reached no provider recorded `demo = false`, so its bundle named
+models nothing had called at a plausible cost, its `.md` came out unstamped, and the shipped
+verifier printed PASS with no banner. That is the P0 honesty class, not a cosmetic one.
+
+The rule now is **the row records what actually ran, not what was requested**, and it has
+three homes: `pipeline_runner::_run_config_for`, `v2_execution::run_config_for_run`, and
+`sidecar::_drive_session`. Each decides "scripted" from the request flag *or* the resolved
+`llm_mode`, in one branch — splitting them would let `demo` flip between a run and its
+resume, and `demo` selects the seeded content while `llm_mode` keeps the run offline.
+`tests/test_scripted_runs_are_recorded_as_demo.py` pins all three, with real-deployment
+controls so the stamp cannot become unconditional.
 
 The other — cancel being advisory — is now half fixed, and the halves are worth keeping
 apart. **A cancelled run stays cancelled** (issue #54): cancellation is durable state

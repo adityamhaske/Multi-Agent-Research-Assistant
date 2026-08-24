@@ -255,9 +255,14 @@ async def test_fake_research_gate_approve_export(sidecar):
 
     export = await sidecar.get(f"/api/v1/research/{session_id}/export.md", headers=_auth())
     assert export.status_code == 200
-    # The report body is exported verbatim, with a "Models used" footer appended after
-    # it — never merged in, since the body is what a human approved.
-    assert export.text.startswith(detail["final_report"])
+    # This sidecar is built with `fake=True`, so the run was scripted and the row records
+    # it as a demo — which means the export leads with the demo stamp. It did not used to:
+    # `--fake` left `session.demo` false, so a report produced entirely from fixtures
+    # exported with nothing to say so. The stamp coming first is the fix, not a regression.
+    assert export.text.startswith("> ## ⚠ DEMO — NOT REAL RESEARCH"), export.text[:120]
+    # The report body is still exported verbatim below the stamp, with a "Models used"
+    # footer after it — never merged in, since the body is what a human approved.
+    assert detail["final_report"] in export.text
     assert "## Models used" in export.text
 
     # Desktop PDF is WebView print-to-PDF by design (docs/13 §7): no WeasyPrint here.

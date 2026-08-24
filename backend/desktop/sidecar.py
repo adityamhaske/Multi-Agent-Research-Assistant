@@ -1060,7 +1060,16 @@ def create_sidecar_app(
         # as a demo, which is the worst of both.
         async with session_factory() as db:
             session = await _authorized_session(db, session_id, sidecar["user_id"])
-            is_demo = bool(session.demo)
+            # Third home of the server's rule (`pipeline_runner._run_config_for`, and
+            # `v2_execution.run_config_for_run` for V2): a run whose models are scripted is
+            # *recorded* as a demo run, whichever way it got there. `app.state.fake` is the
+            # whole-process `--fake` flag, and a run under it used to persist `demo = false`
+            # — so its bundle named models nothing had called and its `.md` export skipped
+            # the demo stamp. The row follows what actually ran, not what was requested.
+            is_demo = bool(session.demo) or bool(app.state.fake)
+            if is_demo and not session.demo:
+                session.demo = True
+                await db.commit()
             session_routing = session.model_routing
             # The research design gate (docs/07 §2, Phase 4). Read from the session row,
             # not from the request, because this runs again on every resume and the

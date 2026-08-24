@@ -120,9 +120,19 @@ async def run_config_for_run(db: AsyncSession, run: ResearchRun) -> RunConfig:
         "topic_seeds": tuple(run.topic_seeds or ()),
         "outline_template": run.outline_template,
     }
-    if run.demo:
-        # Scripted models and fixture retrievers for this run only — the run reaches no
-        # provider and no search API. Per run rather than per process, exactly as V1.
+    # Scripted models and fixture retrievers — the run reaches no provider and no search
+    # API. Two ways in, one meaning: the requester asked for a demo run, or the deployment
+    # is in fake mode. Second home of the rule in `pipeline_runner._run_config_for`; the
+    # desktop's is `sidecar._drive_session`. Change all three.
+    #
+    # A fake deployment reaching here unlabelled was a P0 honesty bug: the run recorded
+    # `demo = false` and the bundle named models nothing had called, at a real-looking
+    # cost, and the shipped verifier passed it without the demo banner. The row records
+    # what actually ran, not what was asked for.
+    if run.demo or base.llm_mode == "fake":
+        if not run.demo:
+            run.demo = True
+            await db.flush()
         return replace(base, llm_mode="fake", demo=True, models=routing, **overrides)
     return replace(base, models=routing, **overrides)
 
