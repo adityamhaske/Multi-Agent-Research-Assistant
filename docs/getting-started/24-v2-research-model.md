@@ -143,8 +143,10 @@ and requires no account with this project.
 
 ## Limitations, stated plainly
 
-- **Cancellation is advisory.** It is recorded durably and stops new work being started, but
-  research already in flight runs to its next checkpoint.
+- **Cancellation does not interrupt work in flight.** The decision itself is durable and
+  authoritative — a cancelled run stays cancelled, and the outcome that arrives afterwards
+  cannot move it back to the review gate — but research already running continues to its
+  next checkpoint, and the tokens it spends there are recorded rather than discarded.
 - **Claims are extracted from prose**, not emitted as structured output, and carry no
   per-claim verification. `verification_state` is `UNCHECKED` on every claim V2 writes.
 - **Claim lineage across revisions is not tracked.** Nothing observes that a sentence in

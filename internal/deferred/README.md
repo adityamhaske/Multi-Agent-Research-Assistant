@@ -10,36 +10,23 @@ stale, the issue it references is the source of truth, not the patch.
 
 | Patch | Issue | Why it is deferred |
 |---|---|---|
-| `issue-54-cancellation-durable-state.patch` | #54 | See below |
+| _(none)_ | | |
 
-## #54 — cancellation is advisory, not durable
+## Resolved
 
-**The defect is real.** "Stop research" records an intent and nothing enforces it. The run
-continues; when it finishes, the outcome writer overwrites the stopped session with
-`AWAITING_APPROVAL` or `COMPLETED`. The user is shown a stopped run, then a live one, with
-nothing explaining the transition — and approving at that point puts a report they tried to
-abandon into project memory. `AGENTS.md` already records this as a known deliberate gap on
-both hosts, including that the server's Redis `cancelled` key is read by nothing.
+**#54 — cancellation is advisory, not durable.** Shipped in V2.0.0; the patch that lived
+here has been deleted rather than left to rot beside the code that supersedes it. What
+landed is larger than what was parked: the parked patch covered the two V1 writers, and the
+V2 adapter turned out to have the same race with a worse failure — `ck_run_cancelled` made
+the late write raise `IntegrityError` inside the worker, which kept the status correct by
+accident and rolled the run's spend back to zero. The shipped fix guards all three writers,
+preserves spend on each, stops `lifecycle_event` announcing COMPLETED for a run the user
+stopped, and is pinned by `backend/tests/test_cancellation_is_authoritative.py`, which
+forces the t0 → t1 → t2 order rather than avoiding it.
 
-**Why it is not in this release.** The patch is ~123 insertions across five files and adds
-Alembic migration `0019` to the `sessions` table, changes both hosts' outcome writers, and
-touches the ORM model that the desktop's `create_all` plus startup column sync reads. That
-is a schema change and a behavioural change to the write path on the server *and* the
-desktop, and it arrived during final release hardening with no tests and no documentation.
-Landing it here would trade a documented, long-standing limitation for an undocumented,
-untested change to how every run's terminal state is written — on the two code paths this
-repository has the worst track record of keeping in step.
-
-**What finishing it requires**, so the next person does not rediscover it:
-
-1. The migration *and* the ORM model, because the desktop builds its schema from
-   `create_all` rather than from Alembic (`AGENTS.md`, "Schema → an Alembic migration for
-   Postgres *and* the ORM model").
-2. A status check in **both** outcome writers — `pipeline_runner::_persist_outcome` and
-   `sidecar::_apply_outcome` — since a fix in one is the divergence this repository keeps
-   shipping.
-3. Tests that assert a cancelled run's terminal state *survives* a completing outcome, on
-   both hosts. Negative-control them: without the guard the run must come back
-   `COMPLETED`.
-4. A decision, written down, on what a cancelled-then-completed run shows in History, and
-   whether its report is reachable at all.
+The four conditions this file recorded for finishing it were met: the migration *and* the
+ORM model (`0019_sessions_cancelled_at`, and the desktop's `_add_missing_columns` picks the
+column up from `Base.metadata` on an existing install); a guard in both V1 outcome writers;
+tests with negative controls proving each guard is load-bearing; and a written decision on
+what a cancelled-then-completed run shows — it stays `FAILED` with "Research stopped by
+user", keeps its spend, and never gains the draft report, so there is nothing to approve.

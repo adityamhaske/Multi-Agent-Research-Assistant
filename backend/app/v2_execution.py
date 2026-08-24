@@ -120,9 +120,19 @@ async def run_config_for_run(db: AsyncSession, run: ResearchRun) -> RunConfig:
         "topic_seeds": tuple(run.topic_seeds or ()),
         "outline_template": run.outline_template,
     }
-    if run.demo:
-        # Scripted models and fixture retrievers for this run only — the run reaches no
-        # provider and no search API. Per run rather than per process, exactly as V1.
+    # Scripted models and fixture retrievers — the run reaches no provider and no search
+    # API. Two ways in, one meaning: the requester asked for a demo run, or the deployment
+    # is in fake mode. Second home of the rule in `pipeline_runner._run_config_for`; the
+    # desktop's is `sidecar._drive_session`. Change all three.
+    #
+    # A fake deployment reaching here unlabelled was a P0 honesty bug: the run recorded
+    # `demo = false` and the bundle named models nothing had called, at a real-looking
+    # cost, and the shipped verifier passed it without the demo banner. The row records
+    # what actually ran, not what was asked for.
+    if run.demo or base.llm_mode == "fake":
+        if not run.demo:
+            run.demo = True
+            await db.flush()
         return replace(base, llm_mode="fake", demo=True, models=routing, **overrides)
     return replace(base, models=routing, **overrides)
 
@@ -141,6 +151,39 @@ async def persist_outcome(
     or pass `saver` and let this read them through the tri-state reader. Passing neither
     means the evidence is **unknown**, and that is recorded rather than treated as zero.
     """
+    # A run the user stopped stays stopped (issue #54). Cancellation is advisory — nothing
+    # interrupts the graph — so the outcome still arrives, minutes later with a real model,
+    # and every branch below would move the run out of CANCELLED.
+    #
+    # Without this the write did not merely mis-record: `ck_run_cancelled` ties CANCELLED to
+    # `cancelled_at`, so the UPDATE violated the constraint and raised IntegrityError inside
+    # the worker's background task. The status survived (the transaction rolled back) but the
+    # spend went with it — a run cancelled after $0.50 recorded $0.00. Guarding here is what
+    # turns an accidental save-by-constraint into a decision, and keeps the money.
+    #
+    # Spend is committed because tokens burned between the stop and the pipeline noticing are
+    # real; dropping them would make usage totals lie. Nothing else is written: the run's own
+    # conclusion is not the user's decision, and the user's decision is the one that stands.
+    #
+    # Two more homes of this rule for V1 sessions — `pipeline_runner._persist_outcome` and
+    # `sidecar._apply_outcome`. Change all three.
+    if run.status == "CANCELLED":
+        await v2_runtime.record_metrics(
+            db,
+            run,
+            cost_usd=outcome.cost_usd,
+            tokens_input=outcome.tokens_input,
+            tokens_output=outcome.tokens_output,
+            elapsed_seconds=outcome.elapsed_seconds,
+        )
+        logger.info(
+            "v2_outcome_discarded_run_cancelled",
+            run_id=str(run.id),
+            outcome_status=outcome.status,
+            cost_usd=round(outcome.cost_usd, 4),
+        )
+        return PersistResult(status="CANCELLED", evidence_outcome="NOT_READ")
+
     if outcome.status == "failed":
         await v2_runtime.record_failure(db, run, outcome.error)
         return PersistResult(status="FAILED", evidence_outcome="NOT_READ")
@@ -278,6 +321,13 @@ def lifecycle_event(result: PersistResult) -> dict:
         )
     if result.status == "FAILED":
         return events.make_event("FAILED", data={"reason": "see error_message"})
+    # A cancelled run reports FAILED rather than a name of its own (issue #54). `CANCELLED`
+    # is not in `_TERMINAL_EVENTS` on either host, so inventing it here would leave the
+    # stream open on a run that will never publish again — and the fall-through below would
+    # otherwise tell the UI a run the user stopped had COMPLETED. `POST /{id}/cancel`
+    # publishes nothing itself, so this is the event that actually closes the stream.
+    if result.status == "CANCELLED":
+        return events.make_event("FAILED", data={"reason": "Research stopped by user."})
     return events.make_event(
         "COMPLETED",
         data={
@@ -333,6 +383,20 @@ async def execute_run(
                 ).scalar_one_or_none()
                 if run is None:
                     logger.error("v2_run_not_found", run_id=run_id)
+                    return
+
+                # "No new research will be started for this run" is what `POST /cancel`
+                # tells the caller, in those words. Without this it was not true: a resume
+                # dispatched after the cancel — approving the plan of a run you had just
+                # stopped — started the pipeline again, and the `set_status` below wrote
+                # RUNNING over CANCELLED, violating `ck_run_cancelled` and killing the task
+                # on an IntegrityError. Observed live before this guard existed.
+                #
+                # Returning rather than raising: the run is already in the terminal state
+                # the user asked for, nothing is wrong, and there is nothing new to publish
+                # — the stream closed when the cancel did.
+                if run.status == "CANCELLED":
+                    logger.info("v2_run_start_skipped_cancelled", run_id=run_id)
                     return
 
                 await v2_runtime.set_status(db, run, "RUNNING")

@@ -968,6 +968,25 @@ def create_sidecar_app(
         Order matches the server: commit the row BEFORE the terminal event leaves, so a
         client that receives COMPLETED and re-fetches never sees a stale status.
         """
+        # A run the user stopped stays stopped (issue #54). Second home of the guard in
+        # `pipeline_runner._persist_outcome`; `v2_execution.persist_outcome` is the third.
+        # Cancellation is advisory on both hosts — nothing interrupts the asyncio.Task any
+        # more than it interrupts the Celery task — so the outcome still arrives, and
+        # without this it would move the session back out of its terminal state minutes
+        # after the user was told it had stopped.
+        #
+        # Spend is still recorded, for the same reason as on the server: tokens burned
+        # between the stop and the pipeline noticing are real, and dropping them would make
+        # usage totals lie. No lifecycle event is emitted — `cancel_session` already
+        # published FAILED, and a second terminal event on a closed stream says nothing.
+        if session.is_cancelled:
+            session.total_cost_usd = outcome.cost_usd
+            session.total_tokens_input = outcome.tokens_input
+            session.total_tokens_output = outcome.tokens_output
+            session.rework_count = outcome.rework_count
+            await db.commit()
+            return
+
         # Second home of the server's `pipeline_runner._persist_outcome` mapping — both
         # dict literals below have to grow every status the runner can return, or a new
         # outcome raises KeyError inside a background task and the session sits on
@@ -1041,7 +1060,16 @@ def create_sidecar_app(
         # as a demo, which is the worst of both.
         async with session_factory() as db:
             session = await _authorized_session(db, session_id, sidecar["user_id"])
-            is_demo = bool(session.demo)
+            # Third home of the server's rule (`pipeline_runner._run_config_for`, and
+            # `v2_execution.run_config_for_run` for V2): a run whose models are scripted is
+            # *recorded* as a demo run, whichever way it got there. `app.state.fake` is the
+            # whole-process `--fake` flag, and a run under it used to persist `demo = false`
+            # — so its bundle named models nothing had called and its `.md` export skipped
+            # the demo stamp. The row follows what actually ran, not what was requested.
+            is_demo = bool(session.demo) or bool(app.state.fake)
+            if is_demo and not session.demo:
+                session.demo = True
+                await db.commit()
             session_routing = session.model_routing
             # The research design gate (docs/07 §2, Phase 4). Read from the session row,
             # not from the request, because this runs again on every resume and the
@@ -1722,14 +1750,20 @@ def create_sidecar_app(
         The Stop button in `SessionView` renders for PENDING/RUNNING on both builds and had
         no route here, so on desktop it 404'd (M1).
 
-        **Parity note, deliberately not improved here.** On the server this marks the row
-        FAILED and publishes FAILED; the Redis `session:{id}:cancelled` key it also writes
-        is read by nothing, and neither host's outcome writer checks the current status
-        before persisting. So on both hosts a run that finishes after being cancelled will
-        overwrite the row — cancel is advisory, not preemptive. The sidecar could do better
-        (it owns the `asyncio.Task`) but doing so here would create a *new* undeclared
-        divergence in a milestone whose entire purpose is removing them. Matching the
-        contract is the fix; strengthening it on both hosts is separate work.
+        **Cancellation is cooperative-by-omission, and that is the honest word for it.**
+        Nothing interrupts the running work: the sidecar's `asyncio.Task` and the server's
+        Celery task both continue to their next checkpoint, spending tokens after the user
+        has been told the run stopped. What issue #54 changed is that the decision now
+        *sticks* — `cancelled_at` is durable and `_apply_outcome` refuses to move a
+        cancelled session out of its terminal state, so the run can no longer come back to
+        life minutes later and offer its report for approval.
+
+        Preemption stays unbuilt on purpose rather than by neglect. Killing the task risks a
+        half-written LangGraph checkpoint, and the sidecar could do it (it owns the Task)
+        where the server would need a different mechanism — which is exactly the undeclared
+        divergence AGENTS.md warns about. A cooperative check at node boundaries is the
+        shape that would work identically on both hosts; until it exists both hosts behave
+        the same way, and `docs/25` says so plainly.
         """
         session = await _authorized_session(db, session_id, user.id)
         if session.status not in (SessionStatus.RUNNING, SessionStatus.PENDING):
@@ -1740,6 +1774,9 @@ def create_sidecar_app(
 
         session.status = SessionStatus.FAILED
         session.error_message = "Research stopped by user."
+        # Second home of the server's line — the durable mark `_apply_outcome` reads so a
+        # late outcome cannot move this session back out of its terminal state (issue #54).
+        session.cancelled_at = datetime.now(UTC)
         await db.commit()
         await db.refresh(session)
 

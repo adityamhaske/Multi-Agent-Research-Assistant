@@ -115,15 +115,27 @@ async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
         "topic_seeds": tuple(session.topic_seeds or ()),
         "outline_template": session.outline_template,
     }
-    if session.demo:
-        # Scripted models and fixture retrievers for this run only (docs/17 §6.2). Per
-        # session rather than per process: the old `LLM_MODE=fake` switch made the whole
-        # deployment fake, so a demo and a real run could not coexist — which is exactly
-        # what a first-run experience needs, since the user demos first and then connects
-        # a key without restarting anything. `llm_mode` also gates the retrievers, so a
-        # demo run reaches no provider and no search API.
-        # `demo` picks the seeded content (docs/17 §6.1); `llm_mode` keeps the run
-        # offline. Desktop counterpart: `sidecar.sidecar_run_config`.
+    # Scripted models and fixture retrievers (docs/17 §6.2). Two ways in, one meaning:
+    # the requester asked for a demo run, or the deployment itself is in fake mode.
+    #
+    # The second used to reach here unlabelled, and that was a P0 honesty bug rather than a
+    # cosmetic one. `start.sh` exports `LLM_MODE=fake` for `--fake` *and* silently as a
+    # fallback when `.env` has no provider key, so the commonest first-run setup is a fake
+    # deployment. The row then said `demo = false` while nothing had been called, and the
+    # exported bundle recorded `google:gemini-2.5-pro` with a non-zero cost, the `.md`
+    # export skipped its demo stamp, and `verify_bundle` printed PASS with no warning. A
+    # run that reached no provider must never be able to present as one that did — see
+    # AGENTS.md, "never record a model id you did not actually call".
+    #
+    # So the row follows what actually ran, not what was requested. Deciding both ways in
+    # one branch also keeps the config stable across resumes: were the stamp applied
+    # without this, `demo` would flip False→True between a run and its resume, and `demo`
+    # selects the seeded content (docs/17 §6.1) while `llm_mode` keeps the run offline.
+    # Desktop counterpart: `sidecar._drive_session`. V2: `v2_execution.run_config_for_run`.
+    if session.demo or base.llm_mode == "fake":
+        if not session.demo:
+            session.demo = True
+            await db.commit()
         return replace(base, llm_mode="fake", demo=True, models=routing, **overrides)
 
     return replace(base, models=routing, **overrides)
@@ -311,6 +323,31 @@ async def _persist_outcome(
     session.total_tokens_input = outcome.tokens_input
     session.total_tokens_output = outcome.tokens_output
     session.rework_count = outcome.rework_count
+
+    # A run the user stopped stays stopped (issue #54). Cancellation does not interrupt the
+    # pipeline — it keeps going to its next checkpoint — so without this guard the outcome
+    # arriving minutes later moved the session back to AWAITING_APPROVAL or COMPLETED. The
+    # user saw a stopped run, then a live one, and approving it put a report they had tried
+    # to abandon into project memory.
+    #
+    # The spend assigned above is committed regardless: tokens burned between the stop and
+    # the pipeline noticing are real money, and dropping them would make usage totals lie.
+    # Everything that describes the run's *conclusion* is withheld — status, the reports,
+    # `sources`, and the lifecycle event — because the conclusion is not the user's decision
+    # and the decision is the one that stands.
+    #
+    # Two more homes of this rule: `desktop/sidecar.py::_apply_outcome` for the desktop's V1
+    # journey, and `v2_execution.persist_outcome` for V2 runs. Change all three.
+    if session.is_cancelled:
+        await db.commit()
+        logger.info(
+            "outcome_discarded_session_cancelled",
+            session_id=session_id,
+            outcome_status=outcome.status,
+            cost_usd=round(outcome.cost_usd, 4),
+        )
+        return
+
     session.sources = outcome.sources
 
     if outcome.status == "awaiting_plan":

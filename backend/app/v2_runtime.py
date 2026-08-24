@@ -109,9 +109,18 @@ async def set_status(db: AsyncSession, run: ResearchRun, status: str) -> None:
 
     `ck_run_cancelled` ties `CANCELLED` to `cancelled_at`, so cancellation has its own entry
     point (`request_cancel`) and cannot be reached by a bare status write.
+
+    It also cannot be *left* by one. A cancelled run is terminal by the user's decision, and
+    the constraint enforces that from below: any status write on a row with `cancelled_at`
+    set raises `IntegrityError` from whichever background task attempted it. Refusing here
+    turns that into a named error at the call site instead of a constraint violation three
+    layers down — the failure this replaces was a resume dispatched after a cancel writing
+    RUNNING and killing its Celery task (issue #54).
     """
     if status == "CANCELLED":
         raise LifecycleError("use request_cancel(); CANCELLED must carry cancelled_at")
+    if run.status == "CANCELLED":
+        raise LifecycleError(f"run {run.id} was cancelled; it cannot move to {status}")
     run.status = status
     await db.flush()
 
@@ -125,6 +134,24 @@ async def request_cancel(db: AsyncSession, run: ResearchRun, *, by: uuid.UUID) -
 
 
 async def record_failure(db: AsyncSession, run: ResearchRun, error: str | None) -> None:
+    """Record that the run failed — unless the user had already stopped it (issue #54).
+
+    A cancelled run keeps its status. `ck_run_cancelled` ties CANCELLED to `cancelled_at`,
+    so writing FAILED over it does not merely mis-record: it violates the constraint and
+    raises `IntegrityError` from whatever background task was unlucky enough to be holding
+    the run. Observed live — cancel a run mid-flight, let its worker hit any error, and the
+    error handler died on the constraint instead of recording the failure.
+
+    The guard lives here rather than at the call sites because this is the only function
+    that writes FAILED, and the call sites are three and growing (`persist_outcome` twice,
+    the corpus-mode guard in `execute_run`, and `tasks._mark_v2_failed`). The message is
+    still kept: what went wrong is worth knowing even when the run's fate was already
+    decided by the user.
+    """
+    if run.status == "CANCELLED":
+        run.error_message = error
+        await db.flush()
+        return
     run.status = "FAILED"
     run.error_message = error
     await db.flush()

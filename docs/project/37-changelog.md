@@ -68,6 +68,16 @@ against 1.0.2 stops working. See [the V2 research model](../getting-started/24-v
   — see *Desktop support* below for what the desktop build actually runs.
 - **Keyless demo mode no longer reaches a real embedding provider.** It was billing real API
   calls on a run the product described as free.
+- **Stopping a run now sticks.** Cancellation is durable state rather than an advisory
+  event, and every writer that could move a run out of it refuses to. Previously a stopped
+  run could reappear minutes later awaiting your approval, and approving it put a report you
+  had tried to abandon into project memory. Tokens spent between the stop and the pipeline
+  noticing are still recorded, because they were really spent.
+- **A run that used scripted models says so.** `LLM_MODE=fake` — which `start.sh` selects for
+  `--fake` and silently when no provider key is configured — produced runs recorded as real
+  research: the exported bundle named models nothing had called, at a plausible cost, and the
+  standalone verifier passed it without its demo banner. What actually ran is what gets
+  recorded.
 
 ### Desktop support in 2.0.0
 
@@ -103,8 +113,9 @@ the configuration file.
   cancelled. V1 overwrote the first two and never recorded the third as a state.
 - Corpus-mode research works on V2 but has no end-to-end test, because corpus mode requires
   a local embedder and the test environment has none.
-- Cancelling a run is advisory. It is recorded durably and no new work is started, but
-  research already in flight runs to its next checkpoint.
+- Cancelling a run does not interrupt work already in flight; it runs to its next
+  checkpoint. The decision is durable and authoritative — a cancelled run stays cancelled
+  and cannot reappear awaiting approval — and the tokens spent after the stop are recorded.
 - Claim verification is not implemented: claims are extracted from the report's prose and
   carry no per-claim judgement. `verification_state` is `UNCHECKED` on every claim V2 writes.
 - Claim lineage across revisions is not tracked. Nothing observes that a sentence in
