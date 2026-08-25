@@ -24,6 +24,8 @@ from typing import Literal
 import httpx
 import structlog
 
+from research_engine.llm_factory import map_local_host
+
 logger = structlog.get_logger()
 
 # A probe must never make the settings page feel slow to use.
@@ -111,8 +113,9 @@ def _openrouter_request(key: str) -> _ProbeRequest:
 def _custom_request(key: str, base_url: str) -> _ProbeRequest:
     # Custom endpoints are OpenAI-wire-protocol-compatible (research_engine.llm_factory
     # treats them the same way), so /models is the OpenAI-shaped convention to try.
+    dial = map_local_host(base_url)
     return _ProbeRequest(
-        url=f"{base_url.rstrip('/')}/models",
+        url=f"{dial.rstrip('/')}/models",
         headers={"Authorization": f"Bearer {key}"},
         count_of=lambda body: len(body.get("data", [])),
     )

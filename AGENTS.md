@@ -3,10 +3,9 @@
 Read this first. Package-specific traps live in [`backend/AGENTS.md`](backend/AGENTS.md)
 and [`frontend/AGENTS.md`](frontend/AGENTS.md); read the one you are about to touch.
 
-**Keep this file current.** It describes traps, not features. When a change invalidates a
-rule here, update it in the same commit — a stale rule is worse than no rule, because it
-gets trusted. Add a rule only after something has actually bitten; this is not a style
-guide.
+**Keep this file current.** It describes traps, not features. Update a rule in the same
+commit that invalidates it — a stale rule is worse than no rule, because it gets trusted.
+Add a rule only after something has actually bitten; this is not a style guide.
 
 ---
 
@@ -25,102 +24,72 @@ approved reports.
 ## The invariant everything else serves
 
 **The product claim is verifiability, so a false measurement is a P0 bug, not a cosmetic
-one.** A citation that cannot be resolved must render its ⚠ unverified chip rather than
-render clean. An eval or benchmark that could not measure something must say so — never
-print `0.0`, never record a model id you did not actually call, never score a baseline
-against placeholder text.
+one.** A citation that cannot be resolved renders its ⚠ unverified chip rather than clean.
+An eval that could not measure something must say so — never print `0.0`, never record a
+model id you did not call, never score a baseline against placeholder text.
 
-This has been violated before. In August 2026 a benchmark shipped that published all-zero
-results as findings, recorded `claude-sonnet-4-6` in every trace while calling
-`claude-3-5-sonnet-20241022`, and scored the competing baseline against the literal string
-`"Content extracted by gpt-researcher"`. If you touch `backend/evals/`, re-read
-`benchmark.py`'s `_build_judge` and `calc_support_rate` and preserve the distinction
-between *unmeasured* and *zero*.
+`evals/benchmark.py::_build_judge`/`calc_support_rate` and
+`evals/harness.py::judge_citation_support` are two homes for this rule — **change both**.
+Both exclude unjudged claims from the denominator and return `None` when nothing was
+judged, so an exhausted quota can't masquerade as a quality collapse.
 
-That fix landed in `benchmark.py` and **was never propagated to `harness.py`**, which is
-what actually produces every committed `eval-*.json`. Until M18, its
-`judge_citation_support` divided by *all* cited claims while a provider error, a partial
-model reply, and an unparseable answer each silently contributed a miss — so an exhausted
-quota was indistinguishable from a quality collapse. Both files now exclude unjudged
-claims from the denominator and return `None` when nothing was judged. They remain two
-homes for one rule: **change both.**
-
-**A committed eval result is evidence, and evidence is write-once.** `cbde168` — a
-frontend commit — overwrote `eval-2026-08-13.json`, destroying a real 10/10 `ollama` run
-and leaving the README citing numbers whose proof no longer existed. Nothing failed and
-nothing warned; the measurement was recoverable only from git history. Never modify a file
-under `backend/evals/results/`; add a new one named `eval-<date>-<routing>-run<N>.json`,
-because a date alone is not a run identity. CI enforces this (`ci.yml`, job
-`eval-artifacts`).
+**A committed eval result is evidence, and evidence is write-once.** Never modify a file
+under `backend/evals/results/`; add a new one named `eval-<date>-<routing>-run<N>.json` — a
+date alone is not a run identity (a past commit once overwrote and destroyed a real run's
+only record). CI enforces this (`ci.yml`, job `eval-artifacts`).
 
 ## Docs are the build contract
 
 `docs/` is authoritative — see [`docs/00_INDEX.md`](docs/00_INDEX.md). Code that
 contradicts the docs is wrong; docs that contradict shipped code must be fixed **in the
-same PR** that changed the behavior. Nothing aspirational: every statement describes what
-is built, or is explicitly marked `[PLANNED]`.
+same PR**. Cite the doc section in code comments when encoding a decision from it
+(`docs/13 §6`) — that's how a reader knows a line is deliberate.
 
-Cite the doc section in code comments when encoding a decision from it (`docs/13 §6`), the
-way the existing code does. That is how a reader knows a line is deliberate.
+**Documents are cited by number, and the number is stable** — hundreds of comments say
+`docs/04 §6`. Directory, filename and published URL (from `NAV_ORDER` in
+`frontend/lib/docs.ts`, keyed by slug) are free to change; renumbering is not.
 
-**Documents are cited by number, and the number is stable.** A file under `docs/` keeps its
-numeric prefix as its identity — hundreds of source comments say `docs/04 §6` — while the
-directory, the filename, and the published URL are free to change. Reading order comes from
-`NAV_ORDER` in `frontend/lib/docs.ts`, keyed by the published slug, which is the filename
-with the prefix stripped. Renumbering a document silently invalidates every comment that
-cites it; renaming or moving one does not.
+**`docs/` is the published tree** — anything filed there gets a URL at build time.
+Engineering notes, milestone plans and release checklists live in
+[`internal/`](internal/README.md), which the site never walks.
 
-**`docs/` is the published tree.** The site walks all of it at build time, so anything filed
-there gets a URL. Engineering notes, milestone plans and release checklists therefore live in
-[`internal/`](internal/README.md) instead, which the site never walks at all — still the
-strongest guarantee, because it does not depend on anyone maintaining a list.
-
-Inside `docs/`, publication is decided **per directory** by `classifyDir` in
-`frontend/lib/docs.ts`: `CATEGORY_ORDER` publishes, `UNPUBLISHED_DIRS` withholds
-(`governance/`, `plans/`, `screenshots/`), and a directory in neither **fails the build**
-with a message naming both remedies. Absence from `CATEGORY_ORDER` alone is *not* a
-guarantee — it hides a directory from the sidebar while `generateStaticParams` still
-generates its routes.
-
-This was a per-*file* denylist naming two exact paths until M0B, so a second document
-filed under `docs/plans/` was published at a URL nothing linked to. Verified, not assumed:
-a planted note under `docs/plans/` exports at `/docs/plans/<name>/index.html` on the old
-code and is absent on the new. `frontend/lib/docs.test.ts` is the regression guard, and
-CI now runs `build:pages` and greps the export for governance and planning routes.
+Publication is decided **per directory** by `classifyDir` in `frontend/lib/docs.ts`:
+`CATEGORY_ORDER` publishes, `UNPUBLISHED_DIRS` withholds (`governance/`, `plans/`,
+`screenshots/`), and a directory in neither **fails the build**. Absence from
+`CATEGORY_ORDER` alone only hides a directory from the sidebar — `generateStaticParams`
+still generates its routes (a note once filed under `docs/plans/` published at a URL
+nothing linked to). `frontend/lib/docs.test.ts` guards it; CI greps the `build:pages`
+export for governance/planning routes.
 
 ## Configuration has two paths, and they drift
 
-The same `RunConfig` is built by two independent code paths. **Change one, change both**,
-or the CLI and the server silently disagree:
+The same `RunConfig` is built by two independent code paths. **Change one, change both**:
 
 | Path | Built by | Used by |
 |---|---|---|
 | Server | `app/runtime.py` ← `app/config.py` (pydantic-settings) | API, Celery worker |
 | Local | `research_engine/local.py::run_config_from_env` ← `os.environ` | CLI, eval harness, benchmark, desktop sidecar |
 
-This has drifted twice. The local path once knew only Google/Anthropic/OpenAI keys, so
-OpenRouter was unreachable and a `custom:` route silently fell through to
-`api.openai.com`. It also defaulted `enforce_ssrf_guards` to `True`, applying the
-production guard to a laptop and rejecting every local model server.
+Has drifted twice: the local path once knew only Google/Anthropic/OpenAI keys (OpenRouter
+unreachable, `custom:` silently fell through to `api.openai.com`), and once defaulted
+`enforce_ssrf_guards` to `True`, rejecting every local model server on a laptop.
 
 **Local endpoints:** `research_engine.llm_factory.map_local_host()` is the single
 implementation that rewrites `localhost` → `host.docker.internal` inside a container. Use
-it; do not re-implement it. Three copies of this logic existed once and two were wrong.
+it — three copies of this logic existed once and two were wrong.
 
 ## The recurring bug: two hosts, one contract
 
 Server and desktop are **parallel implementations of the same contract**. Every shared
-behaviour has two homes, and the second one gets forgotten. Not hypothetical — each of
-these was found in shipped code, not imagined:
+behaviour has two homes, and the second one gets forgotten. Every row below shipped, not
+imagined.
 
-> **The frontend now has three build targets, not two.** `next.config.ts` branches on
-> `NEXT_PUBLIC_PAGES` (static export for GitHub Pages, `basePath` set), then
-> `NEXT_PUBLIC_DESKTOP` (static export for Tauri), then the standalone server image. A
-> flag read at build time collapses to dead code in the other two, which is what keeps
-> them isolated — but it also means **a branch is only exercised by the target that
-> builds it**. `npm run build`, `build:desktop` and `build:pages` are three separate
-> checks, and CI runs the first two. Anything touching `app/(site)/` or `app/layout.tsx`
-> needs all three run locally.
+The frontend has **three build targets**: `next.config.ts` branches on `NEXT_PUBLIC_PAGES`
+(static export, GitHub Pages), then `NEXT_PUBLIC_DESKTOP` (static export, Tauri), then the
+standalone server image. A branch is only exercised by the target that builds it —
+`npm run build`, `build:desktop` and `build:pages` are three separate checks; CI runs only
+the first two. Anything touching `app/(site)/` or `app/layout.tsx` needs all three run
+locally.
 
 | Behaviour | Copies | How many were wrong |
 |---|---|---|
@@ -128,7 +97,7 @@ these was found in shipped code, not imagined:
 | Request fields reaching `Session(...)` (`corpus_mode`, `demo`) | 3 | 3 |
 | Resolving `corpus_dir` | 2 | 2 — both relative, so upload and run disagreed |
 | Validating a `provider:model` route | 2 | 1 — routing accepted what pricing refused |
-| Where the bundled sidecar lives | 3 | 3 — see below |
+| Where the bundled sidecar lives | 3 | 3 |
 
 **When you change any of these, grep for the other copy before you finish:**
 
@@ -137,106 +106,67 @@ these was found in shipped code, not imagined:
 - Per-session run config → `app/workers/pipeline_runner.py` *and*
   `desktop/sidecar.py::_drive_session`
 - A new `RunOutcome.status` → `pipeline_runner::_persist_outcome` *and* **both** dict
-  literals in `sidecar::_apply_outcome` (status map and lifecycle-event map). A missing
-  key there raises inside a background task, so the session sits on RUNNING forever with
-  nothing in the log to say why
+  literals in `sidecar::_apply_outcome` (status map, lifecycle-event map) — a missing key
+  raises inside a background task, so the session sits on RUNNING forever with nothing in
+  the log to say why
 - A new pause event → the stream's stop-list in `app/api/v1/research.py` *and*
-  `sidecar::_TERMINAL_EVENTS`; a stream left open on a suspended graph waits on no one
+  `sidecar::_TERMINAL_EVENTS` — a stream left open on a suspended graph waits on no one
 - Route validation → `app/services/model_routing.py::validate` *and*
   `research_engine/llm_factory.py::validate_pricing`
 - Unmeasured-vs-zero in the support rate → `evals/harness.py::judge_citation_support`
   *and* `evals/benchmark.py::calc_support_rate`
 - Embedder locality → every `Embeddings` adapter must expose `is_local`
-  (`research_engine/embeddings.py`, `app/adapters.py`); the corpus airgap guard reads it
-  and **defaults to remote** for anything that does not declare itself
-
-**A test that stubs the thing it is testing proves nothing.** `test_corpus_egress.py`
-asserted zero network calls in corpus mode while injecting a `FakeEmbeddings` — and the
-query embedding was the only call that egressed, so the suite was green precisely because
-it had replaced the defect. When writing a test for an *absence* (no egress, no writes, no
-spend), check what the fixtures replaced: if the mechanism under test is the thing you
-mocked, the test is decorative.
-
-The second instance was worse, because the fake behaved *better* than the real thing.
-`migration/checkpoint.py` exists to keep a missing checkpoint distinct from an empty one,
-and its tests used a `FakeSaver` that raises on corruption. A real LangGraph saver does
-not: a damaged blob still deserialises — to the integer `0` — so the reader returned
-"read it, no evidence" for a checkpoint it had not read at all. The tri-state was
-reintroduced one level below where it was fixed, and only running the migration against a
-real `AsyncSqliteSaver` (M2E-2's dry run) found it. **A decode that does not raise is not
-a decode that succeeded**: check the shape you got back, not just the absence of an
-exception.
-- Schema → an Alembic migration for Postgres *and* the ORM model, which is what the
-  desktop's `create_all` plus startup column sync reads
-- Report chat → `app/api/v1/chat.py` *and* `desktop/sidecar.py`. The sidecar had **no
-  chat routes at all** for a whole release while the desktop build rendered
-  `ChatPanel.tsx` and POSTed to one — a shipped control that 404'd. Three things differ
-  between the copies and nothing else should: keys come from the keychain rather than a
-  decrypted column, there is no rate-limit dependency (it needs `get_current_user` and
-  Redis, and the desktop has neither), and the corpus is one `corpus.sqlite` for the
-  whole app rather than one file per project. **Project chat (`/threads`) is desktop-
-  absent by design** — project memory is pgvector-only
+  (`research_engine/embeddings.py`, `app/adapters.py`); the corpus airgap guard **defaults
+  to remote** for anything that does not declare itself
+- Schema → an Alembic migration for Postgres *and* the ORM model, which the desktop's
+  `create_all` plus startup column sync reads
+- Report chat → `app/api/v1/chat.py` *and* `desktop/sidecar.py` (the sidecar had no chat
+  routes at all for a whole release — a shipped control that 404'd). Three things
+  legitimately differ: keys come from the keychain not a decrypted column, no rate-limit
+  dependency (desktop has no Redis), one `corpus.sqlite` for the whole app not one per
+  project. **Project chat (`/threads`) is desktop-absent by design** — project memory is
+  pgvector-only
 - Bundle export → `app/api/v1/research.py::export_bundle_json` *and*
-  `desktop/sidecar.py::export_bundle_json`. Same failure shape as report chat, found by
-  the V1→V2 audit and fixed in M0C: the endpoint shipped in v1.0.0, the desktop host
-  served no route for it, and **no UI anywhere reached it on either host** while four
-  surfaces advertised it. Four things differ between the copies and nothing else should:
-  the checkpointer is SQLite rather than Postgres, there is no `crypto.decrypt` step, the
-  report is read directly rather than through the server-only `_report_or_404` (its
-  demo rule is reproduced inline), and `trace_available` is `True` on both.
-  **A bundle route is only correct if what it emits verifies** — the sidecar wrote no
-  `audit_log` row at either gate, so adding the route alone would have produced bundles
-  that always fail `approval_chain`. `tests/test_bundle_export_routes.py` pins the whole
-  chain, including that planted failure
+  `desktop/sidecar.py::export_bundle_json` — shipped in v1.0.0 with no desktop route, and
+  no UI anywhere reached it on either host despite four surfaces advertising it. Four
+  things legitimately differ: SQLite not Postgres, no `crypto.decrypt` step, the report is
+  read directly not through the server-only `_report_or_404`, `trace_available` is `True`
+  on both. **A bundle route is only correct if what it emits verifies** — the sidecar
+  wrote no `audit_log` row at either gate, so the route alone would have produced bundles
+  that always fail `approval_chain`; `tests/test_bundle_export_routes.py` pins the whole
+  chain
 - Sidecar location → `desktop/tauri.conf.json` (`bundle.resources`), `desktop/src/lib.rs`
   (`sidecar_command`), *and* `.github/workflows/desktop.yml` (the `shell` job must
-  `needs: sidecar` and download the artifact)
+  `needs: sidecar`). All three were wrong at once: no `resources` key so nothing was
+  copied in, `lib.rs` looked next to the executable instead, CI raced the two jobs — a
+  5 MB `.app` passed CI and died on first launch. **A desktop bundle that has not been
+  launched is not verified** — check the artifact is ~180 MB, not ~5 MB
 
-That last row is the worst case so far, because all three copies were wrong at once and
-nothing failed until someone ran the build: `tauri.conf.json` had no `resources` key, so
-the sidecar was never copied in; `lib.rs` looked for it next to the executable, which is
-not where `resources` puts it; and the CI `shell` job raced `sidecar` instead of depending
-on it, so even a correct config would have bundled nothing. The result was a 5 MB `.app`
-that passed CI, uploaded cleanly, and died on first launch. **A desktop bundle that has
-not been launched is not verified** — check the artifact is ~180 MB, not ~5 MB.
+Prefer extracting shared logic into one function over keeping two copies in step by
+discipline — `map_local_host` is the worked example of doing that after the fact.
 
-The failure mode is always the same: the server path is exercised constantly, the desktop
-path only at release time, so a divergence ships. Prefer extracting the shared logic into
-one function over keeping two copies in step by discipline — `map_local_host` is the
-worked example of doing that after the fact.
-
-**A route that exists on both hosts can still be desktop-only broken, and parity will not
-see it.** Every divergence above was a *missing* route; this one is not. The sidecar's V2
-routes import their handlers from `app.api.v1.v2_runs` rather than restating them, so
-registration is identical on both hosts and `test_host_parity` is satisfied — while every
-V2 route on the packaged app answered 500, in three separate layers:
+**A route that exists on both hosts can still be desktop-only broken, and parity won't see
+it.** The sidecar's V2 routes import their handlers from `app.api.v1.v2_runs` rather than
+restating them, so registration matched on both hosts while every V2 route on the packaged
+app 500'd, in three layers that only bite the desktop:
 
 | Layer | Why it only bit the desktop |
 |---|---|
-| `app.config` builds `Settings` at import, requiring `database_url`/`jwt_secret_key` | A dev shell and CI both export them; an installed app exports neither |
-| `app.db.redis` imported `redis` at module scope | `research-sidecar.spec` **excludes** `redis` — the desktop speaks SQLite only — so this is a `ModuleNotFoundError` in the bundle and fine from source |
-| `create_run` imports `app.workers.tasks` when `dispatch` is set | Same: `celery` is excluded, and this host has no broker or worker either way |
+| `app.config` builds `Settings` at import, requiring `database_url`/`jwt_secret_key` | An installed app exports neither |
+| `app.db.redis` imports `redis` at module scope | `research-sidecar.spec` excludes `redis` — `ModuleNotFoundError` in the bundle only |
+| `create_run` imports `app.workers.tasks` when `dispatch` is set | `celery` is excluded too, and this host has no broker either way |
 
-Three rules come out of it. **Anything the desktop imports at *request* time must also fit
-in the bundle** — `test_sidecar_startup.py` reads the spec's own `excludes` list and
-asserts the V2 import tree touches none of it, after building the app the way the launcher
-does, because the host's own configuration decides which drivers load.
-**`test_sidecar_startup.py`'s existing assertions cover startup only**, which is precisely
-why they were green: the V2 handlers are imported when the first V2 request arrives.
-And **V2 execution is server-only** — `v2_execution.execute_run` takes a Redis lock, opens
-the server engine and checkpoints to Postgres — so the desktop refuses `dispatch` with a
-501 rather than creating a run nothing will ever advance. Wiring an in-process V2 driver is
-the fix; widening the bundle is not. The desktop journey is V1 today (`DESKTOP_UI_CALLS`
-lists no V2 path), which is the only reason this was latent rather than a shipped 500.
+**Anything the desktop imports at request time must also fit in the bundle** —
+`test_sidecar_startup.py` asserts the V2 import tree touches none of the spec's excludes,
+built the way the launcher does (its prior assertions covered startup only, which is why
+they stayed green). **V2 execution is server-only** (`v2_execution.execute_run` takes a
+Redis lock, checkpoints to Postgres) — desktop refuses `dispatch` with a 501 rather than
+creating a run nothing advances. The same packaged-app run found the behavioural twin:
+`POST /projects` on a duplicate name threw an unhandled `IntegrityError` on desktop where
+the server returned 409 — **parity checks registration; only a test that calls the route
+checks behaviour.**
 
-The same packaged-app run turned up the behavioural twin: `POST /projects` answered a
-duplicate name with an unhandled `IntegrityError` while the server returned 409 with the
-offending name. Route parity held throughout — **parity checks registration; only a test
-that calls the route checks behaviour.**
-
-**`tests/test_host_parity.py` is now the enforcement.** Added in M1, before any extraction,
-because a refactor without a contract test just moves the drift. It holds four tables and
-fails if any of them rots:
+**`tests/test_host_parity.py` is the enforcement**, holding four tables:
 
 | Table | Means |
 |---|---|
@@ -245,63 +175,44 @@ fails if any of them rots:
 | `DESKTOP_UI_CALLS` | Every path the desktop build actually calls — the sidecar must serve all of them |
 | `KNOWN_DESKTOP_GAPS` | Paths the UI calls and the sidecar does **not** serve, i.e. controls that 404 today |
 
-A route on one host and not the other must appear in one of them or the suite fails; an
-entry that no longer describes reality also fails, so the lists cannot become a description
-of the past.
+A route on one host and not the other must appear in one of the four or the suite fails;
+an entry that no longer describes reality also fails.
 
-**`KNOWN_DESKTOP_GAPS` is empty and must stay empty.** M1 found six live 404s — the Stop
-button, four per-project `corpus` paths, and Settings' usage panel — and M1.5 closed all of
-them plus a seventh M1 had misfiled (the corpus document *download* path, listed as an
-intentional difference on the mistaken belief the UI did not call it; `documentUrl()` builds
-it for both the Corpus page and the report preview). An entry in that table is a control
-that ships broken.
+**`KNOWN_DESKTOP_GAPS` is empty and must stay empty** — an entry there is a control that
+ships broken. The corpus fix is the pattern to copy: desktop's one `corpus.sqlite` for the
+whole app vs. the server's one-per-project is a real infra difference that stays, but it
+had leaked into the client — the sidecar now serves the **per-project path as the
+canonical contract** and resolves it to its own flat store internally, with no `isDesktop`
+branch in the frontend. Prefer that shape: one product contract, different internals.
 
-The corpus fix is the pattern to copy. The desktop keeps one `corpus.sqlite` for the whole
-app while the server scopes one per project — a real infrastructure difference that stays.
-What was wrong is that it had leaked into the client, so the sidecar now serves the
-**per-project path as the canonical contract** and resolves it to its own flat store. No
-`isDesktop` branch was added. Prefer that shape: one product contract, different internals,
-rather than teaching the frontend about a storage decision.
+**The row records what actually ran, not what was requested.** "Scripted"/`demo` must be
+decided from the request flag *or* the resolved `llm_mode`, in one branch, in all three
+homes: `pipeline_runner::_run_config_for`, `v2_execution::run_config_for_run`,
+`sidecar::_drive_session`. (`--fake` is a process flag, `demo` a request flag; a run that
+silently fell back to `LLM_MODE=fake` — the common first-run-with-no-key case — used to
+record `demo=false`, so its bundle named models nothing had called and its `.md` came out
+unstamped with no warning. That's the P0 honesty class, not cosmetic.)
+`tests/test_scripted_runs_are_recorded_as_demo.py` pins all three.
 
-Both things this deliberately did *not* fix have since been fixed, and the second one is
-worth reading before touching either host's config resolution.
+**A cancelled run stays cancelled** (issue #54) — durable state
+(`sessions.cancelled_at`/`research_runs.cancelled_at`), and all three outcome writers
+refuse to move a cancelled row out of its terminal state: `pipeline_runner::_persist_outcome`,
+`sidecar::_apply_outcome`, `v2_execution::persist_outcome`. Change all three.
+`tests/test_cancellation_is_authoritative.py` pins the ordered t0→t1→t2 race. **The run
+itself still does not stop** — nothing interrupts the Celery task or the sidecar's
+`asyncio.Task`, so it spends tokens to its next checkpoint, and that spend is recorded, not
+dropped. Preemption is unbuilt on purpose (a killed task risks a half-written checkpoint,
+and the mechanism differs per host).
 
-**The desktop `.md` export not demo-stamping was never an export bug.** Both hosts call
-`bundle.stamp_demo_md` on the export path; the desktop simply never had `session.demo` set,
-because `--fake` is a *process* flag and `demo` was a *request* flag, and nothing tied them
-together. The server had the same hole through `LLM_MODE=fake` — which `start.sh` exports
-for `--fake` and silently as a fallback when `.env` has no provider key, i.e. the commonest
-first-run setup. A run that reached no provider recorded `demo = false`, so its bundle named
-models nothing had called at a plausible cost, its `.md` came out unstamped, and the shipped
-verifier printed PASS with no banner. That is the P0 honesty class, not a cosmetic one.
-
-The rule now is **the row records what actually ran, not what was requested**, and it has
-three homes: `pipeline_runner::_run_config_for`, `v2_execution::run_config_for_run`, and
-`sidecar::_drive_session`. Each decides "scripted" from the request flag *or* the resolved
-`llm_mode`, in one branch — splitting them would let `demo` flip between a run and its
-resume, and `demo` selects the seeded content while `llm_mode` keeps the run offline.
-`tests/test_scripted_runs_are_recorded_as_demo.py` pins all three, with real-deployment
-controls so the stamp cannot become unconditional.
-
-The other — cancel being advisory — is now half fixed, and the halves are worth keeping
-apart. **A cancelled run stays cancelled** (issue #54): cancellation is durable state
-(`sessions.cancelled_at`, and `research_runs.cancelled_at` on V2) and all three outcome
-writers refuse to move a cancelled row out of its terminal state, so a late outcome can no
-longer offer a stopped run's report for approval. The write-only Redis `cancelled` key is
-gone. **The run itself still does not stop** — nothing interrupts the Celery task or the
-sidecar's `asyncio.Task`, so it spends tokens to its next checkpoint, and that spend is
-recorded rather than dropped. Preemption is unbuilt on purpose: killing the task risks a
-half-written checkpoint, and the mechanism differs per host, which is exactly the
-undeclared divergence this file exists to prevent.
-
-**That rule now has three homes, not two** — `pipeline_runner::_persist_outcome`,
-`sidecar::_apply_outcome`, *and* `v2_execution::persist_outcome`. Change all three.
-`tests/test_cancellation_is_authoritative.py` pins each one against the ordered
-t0 → t1 → t2 race, with the negative controls recorded in its docstrings.
-
-The suite also pins the two traps this table already warned about in prose: every
-`RunOutcome.status` must appear in `sidecar::_apply_outcome`, and every event in
-`sidecar::_TERMINAL_EVENTS` must appear in the server's stream stop-list.
+**A test that stubs the thing it is testing proves nothing.** `test_corpus_egress.py`
+asserted zero network calls in corpus mode while injecting a `FakeEmbeddings` — the query
+embedding was the only call that egressed, so the suite was green because it had replaced
+the defect. **A decode that does not raise is not a decode that succeeded**:
+`migration/checkpoint.py` exists to keep a missing checkpoint distinct from an empty one,
+but its tests' `FakeSaver` raises on corruption where a real LangGraph saver's damaged blob
+deserialises to the integer `0` — "read it, no evidence" for a checkpoint never actually
+read. When testing an *absence* (no egress, no writes, no spend), check what the fixtures
+replaced; check the shape you got back, not just the absence of an exception.
 
 ## Provider and cost rules
 
@@ -312,103 +223,83 @@ The suite also pins the two traps this table already warned about in prose: ever
   the UI does not mean a run was free. Cap spend at the provider.
 - **Two human gates, one thread.** `plan_gate_node` and `hitl_gate_node` both call
   `interrupt()` on the same LangGraph thread, so which one fired must be *read* off
-  `result["__interrupt__"][0].value["type"]`, never assumed — `runner._outcome` does
-  this. `resume()` therefore takes exactly one of `approved=` or `plan=` and raises on
-  both/neither: there is no safe default, since `approved=True` would approve a draft
-  that does not exist yet and `False` would count a phantom rework.
+  `result["__interrupt__"][0].value["type"]`, never assumed — `runner._outcome` does this.
+  `resume()` takes exactly one of `approved=` or `plan=` and raises on both/neither: there
+  is no safe default, since `approved=True` would approve a draft that does not exist yet.
 - **`skip_plan_gate` has three defaults, and they disagree on purpose.**
-  `RunConfig.skip_plan_gate` is `True` — the CLI and the eval harness cannot render or
-  resume a second interrupt, so an unattended run must never stop at one.
-  `ResearchStartRequest.skip_plan_gate` is also `True`, so a script POSTing an
-  un-updated body keeps today's journey. `Session.skip_plan_gate`'s column default is
-  `False`, but both start endpoints always set it explicitly, so it is only reached by a
-  row created outside them. The gate is the product default via the *run form*, which
-  sends `false`. If you "simplify" these to agree, you break one of the three
-  populations.
-
-**Every run limit is `0 = unlimited`, and `0` is the default** — cost, wallclock, and
-  `max_input_tokens`. The token ceiling used to be a hardcoded `1_000_000` inside
-  `graph._over_budget`, unreachable from any config; since the dollar cap is inert on
-  `openrouter`/`custom`, it was the only guard that could fire, and a real run died at
-  1,003,721 input tokens with no way to raise it. **The rule has two homes** —
-  `graph._over_budget` *and* `graph._BudgetGuard.exceeded`; a zero limit reads as "already
-  exceeded" to a naive `>=`, which skips every task at zero spend. Change both.
-- A guard that fires must say which one, and by how much. `failer_node` reports the breach
-  reason; a bare "budget or loop limit exceeded" made a user read the source to learn
-  which of three numbers had been crossed.
-- Router aliases (`auto/*`) are **not** pinned models: they resolve differently per call
-  and the alias can disagree with what served the request. Never treat one as a disclosed
-  model — record what actually answered.
+  `RunConfig.skip_plan_gate` and `ResearchStartRequest.skip_plan_gate` are both `True` —
+  the CLI/eval harness can't render a second interrupt, and an un-updated script should
+  keep today's journey. `Session.skip_plan_gate`'s column default is `False`, reached only
+  by a row created outside the start endpoints, which always set it explicitly. The gate is
+  the product default via the run form, which sends `false`. Do not "simplify" these to
+  agree — each default serves a different population.
+- **Every run limit is `0 = unlimited`, and `0` is the default** — cost, wallclock, and
+  `max_input_tokens`. **The rule has two homes** — `graph._over_budget` *and*
+  `graph._BudgetGuard.exceeded`; a zero limit reads as "already exceeded" to a naive `>=`,
+  which skips every task at zero spend. Change both.
+- A guard that fires must say which one, and by how much — `failer_node` reports the
+  breach reason; a bare "budget or loop limit exceeded" forces a source read to learn
+  which of three numbers was crossed.
+- Router aliases (`auto/*`) are **not** pinned models — they resolve differently per call.
+  Never treat one as a disclosed model; record what actually answered.
 
 ## The V2 native runtime
 
 New runs persist through `app/v2_runtime.py`; migrated runs go through `migration/engine.py`.
-Both write the same tables, and the rules below hold for both — a native run must not be able
-to record something a migrated one is refused.
+Both write the same tables, and the rules below hold for both.
 
-- **The lifecycle is host-agnostic and lives in one file.** `app/v2_runtime.py` has no FastAPI,
-  no auth and no Redis, because the server router *and* the desktop sidecar both call it. The
-  V2 routes were added to both hosts in the same commit, and `test_host_parity` caught them
-  before they landed — which is the third time that harness has paid for itself.
+- **The lifecycle is host-agnostic and lives in one file.** `app/v2_runtime.py` has no
+  FastAPI, no auth and no Redis, because the server router *and* the desktop sidecar both
+  call it. `test_host_parity` caught the V2 routes before they landed on only one host.
 - **`app/v2_execution.py` is the only bridge from the engine to V2.** It calls
-  `research_engine.runner.run`/`.resume` with the same ports and the same `RunConfig` the V1
-  worker uses — nothing in `research_engine/` knows V2 exists, and it must stay that way.
-  `persist_outcome` is the seam: pure over (db, run, outcome, state), so the integration test
-  drives the real graph and then calls it directly.
-- **Evidence comes from the checkpoint, not from `RunOutcome`.** The outcome carries the
-  report, the numbered sources and the metrics; evidence and contradictions have always lived
-  in the LangGraph state, which is why the V1 bundle route reads them there too. The adapter
-  reads the final state once, through the tri-state reader, and after that the `evidence`
-  table is authoritative.
-- **`agent_logs.session_id` has no foreign key.** It is polymorphic across `sessions.id` and
-  `research_runs.id`, because an FK can only point at one of them — and before `0018` a
-  V2-native run could not write the trace its bundle's `trace_available` claims. Deletion is
-  cascaded by the ORM relationship on `Session`, not by the database.
-- **`app/v2_bundle.py` is the one bundle assembler.** `migration/bundle_equivalence` delegates
-  to it. If they ever diverge, "the migration produces the same bundle the product does" stops
-  being a measurement and becomes a coincidence.
+  `research_engine.runner.run`/`.resume` with the same ports and `RunConfig` the V1 worker
+  uses — nothing in `research_engine/` knows V2 exists. `persist_outcome` is the seam: pure
+  over (db, run, outcome, state).
+- **Evidence comes from the checkpoint, not from `RunOutcome`.** Evidence and
+  contradictions live in the LangGraph state, which is why the V1 bundle route reads them
+  there too. The adapter reads the final state once, through the tri-state reader; after
+  that the `evidence` table is authoritative.
+- **`agent_logs.session_id` has no foreign key** — polymorphic across `sessions.id` and
+  `research_runs.id`, since an FK can only point at one. Deletion is cascaded by the ORM
+  relationship on `Session`, not by the database.
+- **`app/v2_bundle.py` is the one bundle assembler.** `migration/bundle_equivalence`
+  delegates to it — if they diverge, "the migration produces the same bundle" stops being
+  a measurement and becomes a coincidence.
 - **Artifact authorization goes through `app/authorization.py`.** Never re-derive
   `gate == 'REPORT' and decision == 'APPROVED'` at a call site.
-- **`migration_ledger` is a model, not a tool artifact.** It lives in `app/models/` because the
-  product reads it: `v2_bundle` consults `evidence_outcome` before claiming a run gathered no
-  evidence. `migration/ledger.py` re-exports the names.
+- **`migration_ledger` is a model, not a tool artifact** — `v2_bundle` consults
+  `evidence_outcome` before claiming a run gathered no evidence. `migration/ledger.py`
+  re-exports the names.
 
-**Never run a planted-failure sweep and a validation run at the same time.** The sweeps mutate
-source files in place and restore them afterwards; a dry run executed in that window measures
-planted code. Worse, a sweep killed by a timeout leaves the plant *active* — an F4 plant
-(`sequence=1`) survived a killed background sweep and produced two convincing-looking
-"dialect divergences" that were entirely fictional. Run sweeps in the foreground, one at a
-time, and `grep -rn PLANT` before trusting any number.
+**Never run a planted-failure sweep and a validation run at the same time** — sweeps mutate
+source files in place and restore them after; one killed by a timeout leaves the plant
+*active* and can produce entirely fictional findings. Run sweeps in the foreground, one at
+a time, and `grep -rn PLANT` before trusting any number.
 
 ## The V1 → V2 migration
 
-`backend/migration/` is a tool, not a service. Three rules it has already cost something to
-learn (`internal/V2_Migration_Validation_M2E3.md`):
+`backend/migration/` is a tool, not a service.
 
-- **Never read checkpoints through `app.services.checkpoints.get_thread_state`.** It returns
-  `snapshot.values if snapshot else {}`, so "no checkpoint" and "empty checkpoint" are the
-  same value. The migration has its own tri-state reader; the production helper stays as it
-  is, because changing it would alter V1 semantics.
+- **Never read checkpoints through `app.services.checkpoints.get_thread_state`** — it
+  returns `snapshot.values if snapshot else {}`, so "no checkpoint" and "empty checkpoint"
+  collapse to the same value. The migration has its own tri-state reader; the production
+  helper stays as-is, since changing it would alter V1 semantics.
 - **`EMPTY`, `CHECKPOINT_MISSING` and `READ_FAILURE` all produce a V2 run with zero
-  evidence.** Nothing in the V2 domain tables distinguishes them — only `migration_ledger`
-  does. That is why the ledger outlives the migration, and why "0 evidence" read from V2
-  alone is not a measured fact.
-- **Artifact authorization is enforced four times, and all four must move together.** Only
-  an APPROVED **REPORT** review may authorize a `ResearchArtifact`. The database says so
-  (`fk_artifact_review → reviews(id, decision, gate)` plus `ck_artifact_gate`), `app/authorization.py`
-  says so, the bundle assembler says so, and `verify_bundle` says so. The serialization layer
-  is the one that looks redundant and is not: the verifier's load-bearing check is
-  `action == "approved"`, and it rejects `plan_approved` only because V1 uses a distinct
-  string — so an assembler that mapped every APPROVED review to `"approved"` would authorize
-  a plan approval in a JSON file no constraint reaches. Relaxing `reviews.revision_id`
-  without the gate column would have opened exactly that hole.
-- **The CLI never reads `DATABASE_URL`.** `--database-url` is required, writing additionally
-  needs `--confirm-database NAME` matching the DSN, and the dry-run tool refuses any target
-  whose `sessions` table is not empty. A tool that defaults to the operator's environment is
-  one sourced shell away from migrating production.
+  evidence**, and nothing in the V2 domain tables distinguishes them — only
+  `migration_ledger` does. "0 evidence" read from V2 alone is not a measured fact.
+- **Artifact authorization is enforced four times, and all four must move together**: the
+  database (`fk_artifact_review` + `ck_artifact_gate`), `app/authorization.py`, the bundle
+  assembler, and `verify_bundle`. The serialization layer looks redundant and isn't — the
+  verifier's load-bearing check is `action == "approved"`, rejecting `plan_approved` only
+  because V1 uses a distinct string, so an assembler mapping every APPROVED review to
+  `"approved"` would authorize a plan approval no constraint reaches.
+- **The CLI never reads `DATABASE_URL`.** `--database-url` is required, writing needs
+  `--confirm-database NAME` matching the DSN, and the dry-run tool refuses any target whose
+  `sessions` table is not empty. A tool defaulting to the operator's environment is one
+  sourced shell away from migrating production.
 
-Do not load a list of ORM rows and then roll back inside the loop: the rollback expires
-*every* object in the identity map, including the ones not processed yet, so the next
+Do not load a list of ORM rows and then roll back inside the loop — the rollback expires
+*every* object in the identity map, including ones not yet processed, so the next
 iteration dies on attribute access outside the greenlet. Read ids, then re-read each row
 inside its own attempt.
 
@@ -416,48 +307,37 @@ inside its own attempt.
 
 - No `print` in application code — `structlog.get_logger()`, correlation bound to
   `session_id` (see `backend/AGENTS.md`).
-- A caught provider error must surface its message. `graph.py::_structured` swallowing an
-  exception into `None` once produced "planner: could not produce a valid task list" for
-  what was actually an exhausted quota, sending debugging in the wrong direction for days.
+- A caught provider error must surface its message. `graph.py::_structured` once swallowed
+  an exception into `None`, producing "planner: could not produce a valid task list" for
+  what was actually an exhausted quota.
 
 ## Comments explain intent, not syntax
 
-Every file in this repository — `graph.py`, `v2_runtime.py`, `authorization.py`,
-`dryrun.py`, `RunWorkspace.tsx`, the Dockerfiles, the regression tests — is held to the
-same standard: a comment earns its place by telling a competent engineer something the
-code cannot tell them by itself. That bar is deliberately high. Most lines need nothing;
-the ones that encode a decision, an invariant, or a scar need real prose.
+Every file here is held to the same standard: a comment earns its place by telling a
+competent engineer something the code cannot tell them by itself. Most lines need nothing.
 
 **A comment must explain at least one of:** what a non-obvious function/section is
 responsible for; why it exists rather than a simpler alternative; an architectural
-invariant it protects (a project-isolation boundary, a two-hosts-one-contract rule, an
-unmeasured-vs-zero distinction); a failure-handling decision (why an error is swallowed,
-retried, or propagated); a security or isolation constraint; a performance or
-compatibility constraint; a domain-semantics distinction the type system doesn't carry
-(retrieved ≠ cited, UNCHECKED ≠ ATTESTED); or an assumption the code relies on that isn't
-visible at the call site.
+invariant it protects; a failure-handling decision; a security or isolation constraint; a
+performance/compatibility constraint; a domain-semantics distinction the type system
+doesn't carry (retrieved ≠ cited, UNCHECKED ≠ ATTESTED); or an assumption the code relies
+on that isn't visible at the call site.
 
-**Forbidden:** narrating syntax (`# loop over users`, `# increment counter`); a comment
-on every line to raise a coverage number; restating the function name in prose; an
-invented historical justification ("fixes bug #123") that stops being useful the moment
-the ticket closes — write the durable invariant instead, the way `map_local_host`
-explains *why* the container/host rewrite is needed rather than which PR added it; and a
-comment that describes behavior the code next to it no longer has. A stale comment is
-worse than none, because it is trusted.
+**Forbidden:** narrating syntax; a comment on every line to raise a coverage number;
+restating the function name in prose; an invented historical justification ("fixes bug
+#123") that stops being useful the moment the ticket closes — write the durable invariant
+instead; a comment describing behavior the code next to it no longer has. A stale comment
+is worse than none, because it is trusted.
 
-**When you change behavior, update the comment describing it in the same change.** A
-comment is a claim about the code; if the code changes and the comment doesn't, the claim
-becomes false and the next reader is misled with confidence. This applies to docstrings
-and to the prose in this file and in `backend/AGENTS.md` / `frontend/AGENTS.md` equally —
-see the standing instruction at the top of this file.
+**When you change behavior, update the comment in the same change** — a comment is a claim
+about the code, and an unupdated one misleads the next reader with confidence. This applies
+equally to this file and `backend/AGENTS.md`/`frontend/AGENTS.md`.
 
 **Before adding a comment, ask whether the code already says it.** This repository's
-existing density is high on purpose (`research_engine/graph.py` and `app/v2_runtime.py`
-are the reference examples — read one before writing prose elsewhere in the codebase),
-so the marginal comment usually needs to work harder to justify itself, not less. If a
-review pass turns up a function that already explains itself through its name, its types,
-and one clear surrounding comment, adding a second one restating the same thing is noise,
-not thoroughness.
+density is high on purpose (`research_engine/graph.py`, `app/v2_runtime.py` are the
+reference examples), so a marginal comment needs to work harder to justify itself. A
+function that already explains itself through its name, types, and one clear surrounding
+comment needs no second one.
 
 ## What CI actually enforces
 
@@ -468,141 +348,94 @@ cd backend && ruff check app/ research_engine/ tests/ evals/ && ruff format --ch
 cd frontend && npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-Note the backend lint path **includes `evals/`** and excludes `desktop/`, `alembic/`, and
-repo-root scripts. A lint-clean `app/` is not a green build.
+Backend lint **includes `evals/`** and excludes `desktop/`, `alembic/`, and repo-root
+scripts. A lint-clean `app/` is not a green build.
 
-The frontend job also runs four bespoke greps that fail the build (see
-`.github/workflows/ci.yml`): no raw-HTML React escape hatches, no hardcoded hex colors,
-no hardcoded backend URLs, and no web-storage access without an inline
-`ci-allow-web-storage: <reason>` marker.
+Frontend CI also runs four bespoke greps (`.github/workflows/ci.yml`): no raw-HTML React
+escape hatches, no hardcoded hex colors, no hardcoded backend URLs, no web-storage access
+without an inline `ci-allow-web-storage: <reason>` marker.
 
-**Those greps are GNU grep, and your shell's `grep` may not be.** On a machine where
-`grep` resolves to `ugrep` — a shell function, an alias, a Homebrew shim — it can report
-*no match where CI finds one*. A whole session's worth of "all four greps clean" was
-wrong for exactly this reason while `main` sat red. Verify with `/usr/bin/grep`, running
-the commands from `ci.yml` verbatim.
+- **Those greps are GNU grep, and your shell's `grep` may not be.** On a machine where
+  `grep` resolves to `ugrep` — alias, shim, shell function — it can report *no match where
+  CI finds one*. Verify with `/usr/bin/grep`, running the `ci.yml` commands verbatim.
+- **The guards cannot tell a use from a mention** — a *comment* naming a banned token fails
+  the build as surely as calling one (`main` was red for a fortnight over prose explaining
+  which APIs are banned). Describe the rule without writing the names.
+- A raw control character in a source file compounds this: GNU grep prints
+  `Binary file … matches` instead of the offending line, hiding which line was wrong.
+  Encode it as an escaped four-character sequence in source, not as a literal embedded byte.
+- **Not every red `main` is a red commit.** `backend/requirements.txt` floats C extensions
+  (`lxml>=5.2`) with no system `libxml2` on Windows; if pip picks a version with no Windows
+  wheel yet, the source build dies naming a missing compiler header — that reads like a
+  toolchain break but is a packaging race that resolves itself once the wheel lands.
+  **Before believing a Windows-only dependency failure, check whether the same job passed
+  on the PR head** — a pass there and a failure here is the environment, not the diff. That
+  is the one case worth a single re-run; a second failure is real.
 
-**The guards cannot tell a use from a mention.** They are plain greps over source, so a
-*comment* naming a banned token fails the build as surely as calling one. `main` was red
-for a fortnight because `DocumentPreview.tsx` explained, in prose, which two APIs are
-banned. Describe the rule without writing the names; that file now says so in place.
+**Every apt install goes through `.github/actions/apt-install`.** A raw `apt-get`
+reintroduces the hang it exists to bound — the same install once sat in three workflow
+files and wedged five jobs simultaneously (one for 90 minutes) while others ran it in
+seconds; a stalled mirror connection never returns, and the job burns its whole timeout
+naming nothing. The action tries, in order: skip if `dpkg -s` says the packages are already
+there (measured: true for the WeasyPrint pair on `ubuntu-latest`, clearing in under a
+second with no network touched); install from the image's existing index; only then
+refresh, bounded and retried, repointed at `archive.ubuntu.com`. It never changes *which*
+packages are installed.
 
-A raw control character in a source file compounds this: GNU grep prints
-`Binary file … matches` instead of the offending line, so the failure names the file and
-hides the reason. Prefer a `\u0000` escape sequence over an embedded NUL byte.
-
-**Not every red `main` is a red commit.** `Sidecar (windows-latest)` installs
-`backend/requirements.txt`, which floats several C extensions (`lxml>=5.2` among them),
-and Windows is the only runner with no system `libxml2` — so if pip ever picks a version
-whose Windows wheel is not on the index yet, it falls back to a source build and the job
-dies on `fatal error C1083: Cannot open include file: 'libxml/xmlversion.h'`. That names a
-compiler, so it reads like a toolchain break; it is a packaging race, and it resolves
-itself when the wheel lands. This happened on 2026-08-19: the identical tree passed at
-04:02, three merges went red at 05:00–05:02, and a re-run at 06:26 installed cleanly with
-nothing changed. **Before believing a Windows-only dependency failure, check whether the
-same job passed on the PR head** — the merge commits and their heads are the same content,
-so a pass there and a failure here is the environment, not the diff. That is the one case
-worth a single re-run; a second failure is real.
-
-**Every apt install goes through `.github/actions/apt-install`.** Adding a raw `apt-get`
-back reintroduces the hang it exists to bound: the same two-line install sat in `ci.yml` twice and `desktop.yml` once,
-and on the same day it wedged five jobs — one for ninety minutes — while other jobs ran
-it in six seconds. A stalled mirror connection never returns, so the job burns its whole
-timeout and the log ends mid-step naming nothing.
-
-**`apt-get update` is the operation that fails, and it is usually unnecessary.** It
-contacts every source for every index, so a single wedged entry stalls the whole command
-even while the host serving the package answers normally — measured: an update fetched
-three InRelease files from `archive.ubuntu.com` and then sat 140s on the rest until the
-bound killed it. So the action tries, in order: skip entirely if `dpkg -s` says the
-packages are already there; install from the index the image already ships; and only then
-refresh, bounded, retried, and repointed at `archive.ubuntu.com`. It deliberately does not
-change *which* packages are installed.
-
-Measured once that landed: on `ubuntu-latest` the WeasyPrint pair is **already present**,
-so `backend` and `golden-e2e` now clear the step in under a second having touched no
-network at all. The step that had been risking a ninety-minute hang was doing nothing on
-those two jobs. Keep it anyway — the packages are there because of what the image happens
-to ship, and images change; the fast path is what makes that safe in both directions.
-
-**The Playwright browser is the other unbounded fetch, and it is cached now.** It is the
-largest download in CI — ~184 MB of Chrome from `cdn.playwright.dev` — and on the same day
-two consecutive runners wedged on it, the second for 3h40m against a normal 17s, on course
-to burn the whole six-hour job timeout. `golden-e2e` now restores `~/.cache/ms-playwright`
-keyed on the resolved `@playwright/test` version, and the install step carries a
-`timeout-minutes`. The rule the two cases share: **an unbounded download does not fail, it
-hangs**, and a hung job names nothing in its log. Bound every network step that can stall,
-and do not fetch what you can cache.
-
-**`--with-deps` was hiding a raw `apt-get` from all of that**, which is how the rule above
-was true of the workflow files and false of what actually ran. The flag shells out to apt
-internally, so the browser step's ten-minute budget was covering a CDN download *and* an
-unbounded package install; when the apt half wedged — same runner pool, same window as the
-Tauri shell job — the step burned the whole budget and reported nothing. `golden-e2e` now
-installs the libraries through the composite action and runs `playwright install chromium`
-without the flag, so each bound guards one thing. The package list comes from
-`npx playwright install-deps --dry-run chromium`; a stale list costs a browser that fails
-to launch naming the missing library, which is the failure you want.
+**The Playwright browser is the other unbounded fetch, and it is cached now** — ~184 MB of
+Chrome from `cdn.playwright.dev` once wedged a runner for 3h40m against a normal 17s.
+`golden-e2e` restores `~/.cache/ms-playwright` keyed on the resolved `@playwright/test`
+version, and the install step carries a `timeout-minutes`. **`--with-deps` was hiding a raw
+`apt-get` inside that same step** — it shells out to apt internally, so the fetch's budget
+was covering a CDN download *and* an unbounded package install. `golden-e2e` now installs
+libraries through the composite action and runs `playwright install chromium` without the
+flag, so each bound guards one thing; the package list comes from
+`npx playwright install-deps --dry-run chromium`.
 
 **Size a bound against what it guards, not against the happy path.** The apt action's
-per-attempt timeout has now been sized wrongly twice, in opposite directions. First 180s,
-taken from the *install* duration (~6-80s), which killed an `apt-get update` that was still
-actively downloading — a full refresh pulls every index for main/restricted/universe/
-multiverse across two suites and legitimately runs for minutes. Then 300s, taken from that
-refresh, which killed the *install* on the Tauri `shell` job: the WebKitGTK/GTK dev chain is
-~150 packages and several hundred megabytes, and the attempt died mid-download on package 93
-having made steady progress the whole time. It is now **900s** per attempt.
+per-attempt timeout is now **900s** — a full index refresh legitimately runs minutes, and
+the WebKitGTK/GTK dev chain (~150 packages) can die mid-download well past 180–300s of
+steady progress. The step's own `timeout-minutes` must be sized from `attempts ×
+(update + install)`, not guessed — a 12-minute cap once burned attempt 1 plus the start of
+attempt 2 and reported only "step timed out," naming neither stage and making the retry
+dead code. Both ceilings are **35 minutes** now. A bound meant to catch a dead connection
+must sit above the slowest *working* case; there is an order of magnitude of headroom
+between a working install and the 90-minute stalls it guards against.
 
-Two lessons, and the second is the one that keeps being missed. A bound meant to catch a
-dead connection must sit above the slowest *working* case, not near the typical one — the
-stalls it guards against run to ninety minutes against a six-hour job timeout, so there is an
-order of magnitude of headroom to spend and no prize for spending none of it. And **the
-step's `timeout-minutes` must be sized from the action's own worst case**, `attempts x
-(update + install)`: at 12 minutes the shell job burned attempt 1 plus the start of attempt
-2's refresh and then reported only that the step timed out, which names neither stage and
-makes the retry dead code. Both ceilings are 35 minutes now.
-
-The tell that a bound is too tight rather than a mirror being dead: **the job passes on the
-commit before and fails on this one with no relevant diff.** A real hang is reproducible and
-names nothing; a bound straddling the working case alternates. Neither is a flake to re-run
-away — the first is an outage, the second is a number to fix.
+**The tell that a bound is too tight rather than a mirror being dead:** the job passes on
+the commit before and fails on this one with no relevant diff. A real hang is reproducible
+and names nothing; a bound straddling the working case alternates. Neither is a flake to
+re-run away — the first is an outage, the second is a number to fix.
 
 ## A release is not finished until the website says so
 
-The public site (`frontend/app/(site)/`, published to GitHub Pages) is **generated from
-the app**, so it cannot drift about *how the product works* — the docs it renders are
-`docs/`, the comparison is `lib/comparison.ts`. But three things on it are hand-written
-and go stale silently, because nothing fails when they do:
+The public site (`frontend/app/(site)/`, GitHub Pages) is **generated from the app** — the
+docs it renders are `docs/`, the comparison is `lib/comparison.ts` — so it cannot drift
+about *how the product works*. Three things are hand-written and go stale silently:
 
 | After tagging a release | Update | Why it rots |
 |---|---|---|
-| Always | `frontend/lib/releases.ts` | The releases page and its "what improved" list. The download button reads `latestRelease()` for its version, so a missing entry also means the button offers the *previous* installer. |
-| Always | `README.md` download badge | Bump the version in **both** the badge label and the href; it once pointed at v1.0.1 while v1.0.2 was current. |
+| Always | `frontend/lib/releases.ts` | The releases page and "what improved" list. The download button reads `latestRelease()`, so a missing entry offers the *previous* installer. |
+| Always | `README.md` download badge | Bump **both** the badge label and the href; it once pointed at v1.0.1 while v1.0.2 was current. |
 | When behaviour changed | `README.md` pipeline diagram, `lib/comparison.ts` | The diagram claimed one human gate for weeks after the design gate shipped. |
 
-The predecessor of this site was one hand-maintained `site/index.html`. It described a
-product that no longer existed, and nobody noticed, because updating it was a separate
-act of memory from changing the code. That is the failure this section exists to prevent
-— **the generated pages are safe; the hand-written data next to them is not.**
-
-Check every page after a deploy, not just the one you changed: `/`, `/why`, `/docs`,
-`/releases`, `/download`. They share a layout and a nav, so a change to either breaks all
-five at once.
+**The generated pages are safe; the hand-written data next to them is not.** Check every
+page after a deploy, not just the one you changed: `/`, `/why`, `/docs`, `/releases`,
+`/download` — they share a layout and nav, so a change to either breaks all five.
 
 **Pages-specific traps, all of which have bitten:**
 
 - The site is served from `/<repo>/`, not a domain root. `basePath` covers `<Link>` and
-  Next's own assets but **not** `metadata.icons` — the favicon shipped pointing at the
-  domain root and 404'd while the file itself served fine one level down.
-- `build` and `deploy` are separate jobs in `pages.yml`. In one job, re-running after a
-  failed deploy re-uploads the artifact and `deploy-pages` refuses with
-  `Artifact count is 2` — so the retry for a transient outage is itself guaranteed to
-  fail. Pages returned 503 for three deploys straight the day that was found.
-- `.nojekyll` is mandatory. Pages runs Jekyll by default and silently drops every path
-  beginning with an underscore, which is all of `_next/`.
-- `build:pages` must **not** run `prepare-session-routes`: it recreates
-  `app/(app)/session`, whose web variant has no `generateStaticParams` and fails the
-  export outright.
+  Next's own assets but **not** `metadata.icons` — the favicon 404'd at the domain root
+  while the file served fine one level down.
+- `build` and `deploy` are separate jobs in `pages.yml`. Re-running after a failed deploy
+  re-uploads the artifact and `deploy-pages` refuses with `Artifact count is 2` — the retry
+  for a transient outage is itself guaranteed to fail.
+- `.nojekyll` is mandatory — Pages runs Jekyll by default and silently drops every path
+  starting with an underscore, which is all of `_next/`.
+- `build:pages` must **not** run `prepare-session-routes` — it recreates
+  `app/(app)/session`, whose web variant has no `generateStaticParams` and fails the export
+  outright.
 
 ## Local development
 
@@ -615,14 +448,12 @@ five at once.
 - Postgres must be a **pgvector** image — migration 0006 enables the extension and 0007
   creates a vector column, so stock Postgres fails `alembic upgrade head` outright.
 - Research and chat rate limits default to **0, which means unlimited**
-  (`research_rate_limit_per_hour` / `chat_rate_limit_per_hour` in `app/config.py`). They
-  were once a hardcoded 5/hour that applied even to a free local model; if you set a
-  non-zero value, note it is enforced before model routing is consulted.
+  (`research_rate_limit_per_hour` / `chat_rate_limit_per_hour` in `app/config.py`). If you
+  set a non-zero value, it is enforced before model routing is consulted.
 
 ## Skills worth reaching for
 
-All of these are already available in this environment — nothing to install. Listed
-because a skill nobody remembers exists is the same as one that does not.
+All of these are already available in this environment — nothing to install.
 
 | Working on | Skill |
 |---|---|
@@ -648,7 +479,6 @@ Runtime artifacts must not be committed. `data/corpus/*.sqlite`, `__pycache__`, 
 untrack a file that is already tracked. `corpus_dir` defaults to the **relative** path
 `data/corpus`, so running from the repo root and from `backend/` creates two different
 corpus roots.
-
 
 ## Project Governance
 
