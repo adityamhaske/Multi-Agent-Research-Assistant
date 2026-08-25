@@ -49,9 +49,9 @@ export function ActiveResearchList({
         >
           Active research
         </h2>
-        <div className="space-y-2">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="card h-16 animate-pulse" aria-hidden />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="card h-24 animate-pulse" aria-hidden />
           ))}
           <span className="sr-only">Loading this project&apos;s research…</span>
         </div>
@@ -184,7 +184,7 @@ export function ActiveResearchList({
                   ({waiting.length})
                 </span>
               </div>
-              <ul className="space-y-2.5">
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {waiting.map((r) => (
                   <li key={r.id}>
                     <RunCard run={r} />
@@ -205,7 +205,7 @@ export function ActiveResearchList({
                   ({inProgress.length})
                 </span>
               </div>
-              <ul className="space-y-2.5">
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {inProgress.map((r) => (
                   <li key={r.id}>
                     <RunCard run={r} />
@@ -226,7 +226,7 @@ export function ActiveResearchList({
                   ({finished.length})
                 </span>
               </div>
-              <ul className="space-y-2.5">
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {finishedShown.map((r) => (
                   <li key={r.id}>
                     <RunCard run={r} />
@@ -251,7 +251,7 @@ export function ActiveResearchList({
               <h3 className="font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-wider text-text-muted">
                 Other
               </h3>
-              <ul className="space-y-2.5">
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {other.map((r) => (
                   <li key={r.id}>
                     <RunCard run={r} />

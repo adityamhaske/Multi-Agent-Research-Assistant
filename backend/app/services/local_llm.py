@@ -62,6 +62,15 @@ _SMALL_WORDS = ("mini", "small", "tiny")
 _EMBEDDING_HINTS = ("embed", "bge-", "gte-", "minilm")
 
 
+# Models known not to support tool calling in Ollama.
+_NO_TOOL_HINTS = ("deepseek-r1", "deepseek-coder", "phi3:mini", "tinyllama")
+
+
+def _supports_tools(name: str) -> bool:
+    lowered = name.lower()
+    return not any(hint in lowered for hint in _NO_TOOL_HINTS)
+
+
 @dataclass
 class LocalModel:
     """One model installed on the local server."""
@@ -75,6 +84,8 @@ class LocalModel:
     likely_underpowered: bool = False
     # True for embedding models — usable for retrieval, never for an agent role.
     is_embedding: bool = False
+    # True if the model supports tool calling (required for Executor role).
+    supports_tools: bool = True
     # Parsed parameter count in billions, when the tag states one.
     params_b: float | None = None
 
@@ -237,6 +248,7 @@ async def probe(base_url: str | None = None) -> LocalLLMStatus:
                 size_bytes=entry.get("size"),
                 route=route,
                 in_catalog=in_catalog,
+                supports_tools=_supports_tools(name),
                 # An embedding model is not "underpowered" for chat — it cannot chat.
                 likely_underpowered=(not embedding and _is_underpowered(name)),
                 is_embedding=embedding,

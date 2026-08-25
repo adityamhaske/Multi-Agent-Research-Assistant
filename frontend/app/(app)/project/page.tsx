@@ -112,9 +112,6 @@ export default function ProjectPage() {
             <Link href="/chat" className="btn btn-secondary h-8 px-2.5 text-xs">
               Chat
             </Link>
-            <Link href="/research" className="btn btn-primary h-8 px-3 text-xs">
-              + New research
-            </Link>
           </div>
         </div>
 

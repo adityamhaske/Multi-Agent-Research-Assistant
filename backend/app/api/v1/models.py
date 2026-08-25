@@ -145,7 +145,9 @@ async def _ollama_presets_from_installed() -> dict[str, dict[str, str]] | None:
         status_ = await local_llm.probe()
     except Exception:  # noqa: BLE001 — a catalog request must not fail on a dead probe
         return None
-    chat_models = [m for m in status_.models if not m.is_embedding]
+    chat_models = [
+        m for m in status_.models if not m.is_embedding and getattr(m, "supports_tools", True)
+    ]
     if not chat_models:
         return None
 

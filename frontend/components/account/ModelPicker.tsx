@@ -76,7 +76,9 @@ export function ModelPicker() {
   const current = draft ?? catalog?.effective_routing ?? null;
 
   const customModels = useMemo(() => {
-    const models = customStatus.data?.models ?? [];
+    const models = (customStatus.data?.models ?? []).filter(
+      (m) => !m.toLowerCase().includes("deepseek-r1"),
+    );
     const reachable = Boolean(customStatus.data?.reachable);
     const list: ModelInfo[] = models.map((m) => ({
       route: `custom:${m}`,
@@ -295,21 +297,23 @@ export function ModelPicker() {
                         key={providerKey}
                         label={PROVIDER_NAMES[providerKey] ?? providerKey}
                       >
-                        {models.map((m) => (
-                          <option
-                            key={m.route}
-                            value={m.route}
-                            // Unavailable models stay visible but unselectable: seeing the
-                            // option is what tells you adding a key is worth it.
-                            disabled={
-                              !m.available ||
-                              (m.provider !== "custom" && m.input_per_mtok === null)
-                            }
-                          >
-                            {m.display_name} — {formatPrice(m)}
-                            {m.available ? "" : " (needs a key)"}
-                          </option>
-                        ))}
+                        {models.map((m) => {
+                          const disabled =
+                            !m.available ||
+                            (m.provider !== "custom" && m.input_per_mtok === null) ||
+                            (role === "executor" && !m.supports_tools);
+                          return (
+                            <option
+                              key={m.route}
+                              value={m.route}
+                              disabled={disabled}
+                            >
+                              {m.display_name} — {formatPrice(m)}
+                              {!m.available ? " (needs a key)" : ""}
+                              {role === "executor" && !m.supports_tools ? " (no tool support)" : ""}
+                            </option>
+                          );
+                        })}
                       </optgroup>
                     ))}
                   </select>

@@ -127,7 +127,18 @@ async def probe(base_url: str | None = None) -> CustomEndpointStatus:
         )
 
     models = sorted(
-        {str(e["id"]) for e in entries if isinstance(e, dict) and e.get("id")},
+        {
+            str(e["id"])
+            for e in entries
+            if isinstance(e, dict)
+            and e.get("id")
+            and "deepseek-r1" not in str(e.get("id", "")).lower()
+            and (
+                e.get("capabilities", {}).get("tool_calling", True)
+                if isinstance(e.get("capabilities"), dict)
+                else True
+            )
+        },
     )
     return CustomEndpointStatus(
         configured_base_url=configured,

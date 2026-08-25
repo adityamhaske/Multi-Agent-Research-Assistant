@@ -32,6 +32,8 @@ export type StageState =
 
 export interface Stage {
   id: string;
+  agentName: string;
+  actionLabel: string;
   label: string;
   state: StageState;
   /** A fact about this stage, or null. Never a guess. */
@@ -39,11 +41,31 @@ export interface Stage {
 }
 
 /** The four engine agents, in pipeline order, with the words a reader recognises. */
-const AGENT_STAGES: { id: string; label: string }[] = [
-  { id: "planner", label: "Planning the research" },
-  { id: "executor", label: "Searching sources and gathering evidence" },
-  { id: "critic", label: "Checking the evidence" },
-  { id: "synthesizer", label: "Drafting the report" },
+const AGENT_STAGES: { id: string; agentName: string; actionLabel: string; label: string }[] = [
+  {
+    id: "planner",
+    agentName: "Planner",
+    actionLabel: "Planning the research",
+    label: "Planner: Planning the research",
+  },
+  {
+    id: "executor",
+    agentName: "Executor",
+    actionLabel: "Searching sources and gathering evidence",
+    label: "Executor: Searching sources and gathering evidence",
+  },
+  {
+    id: "critic",
+    agentName: "Critic",
+    actionLabel: "Checking the evidence",
+    label: "Critic: Checking the evidence",
+  },
+  {
+    id: "synthesizer",
+    agentName: "Synthesizer",
+    actionLabel: "Drafting the report",
+    label: "Synthesizer: Drafting the report",
+  },
 ];
 
 export interface ProgressInput {
@@ -107,7 +129,9 @@ export function deriveStages({ status, events, planGate, planDecided }: Progress
     if (i === 0 && planGate) {
       stages.push({
         id: "plan-gate",
-        label: "Your plan review",
+        agentName: "Plan review",
+        actionLabel: "Your plan review",
+        label: "Plan review: Your plan review",
         state: atPlanGate
           ? "waiting"
           : planDecided || agentsDone || order >= 1
@@ -122,7 +146,9 @@ export function deriveStages({ status, events, planGate, planDecided }: Progress
 
   stages.push({
     id: "review",
-    label: "Your review",
+    agentName: "Final review",
+    actionLabel: "Your review",
+    label: "Final review: Your review",
     state: completed ? "done" : atReview ? "waiting" : ended ? "stopped" : "pending",
     detail: atReview ? "Approve the draft to create a verifiable artifact" : null,
   });
