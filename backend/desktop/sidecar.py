@@ -110,7 +110,7 @@ from app.schemas.research import (
     SessionListResponse,
     SessionSummary,
 )
-from app.services import chat_scope, local_llm, provider_health, usage
+from app.services import chat_scope, custom_endpoint, local_llm, provider_health, usage
 from app.services.sse import SSE_HEADERS
 from research_engine import bundle, catalog, citation_rate, outlines, prompts
 from research_engine.corpus import CorpusStore
@@ -120,6 +120,7 @@ from research_engine.events import make_event
 from research_engine.graph import build_graph
 from research_engine.llm_factory import get_llm, text_of
 from research_engine.local import SqliteCache, load_env_file
+from research_engine.routing_rules import validate as validate_routing_rule
 from research_engine.runconfig import (
     DEFAULT_MODELS,
     ROLES,
@@ -329,34 +330,14 @@ def _routing_path(data_dir: str | Path) -> Path:
     return Path(data_dir) / "routing.json"
 
 
-def validate_routing(routing: dict) -> dict[str, str]:
-    if not isinstance(routing, dict):
-        raise ValueError("Model routing must be an object keyed by agent role.")
-    unknown_roles = sorted(set(routing) - set(ROLES))
-    if unknown_roles:
-        raise ValueError(f"Unknown agent role(s): {unknown_roles}. Valid roles: {list(ROLES)}.")
-    missing_roles = sorted(set(ROLES) - set(routing))
-    if missing_roles:
-        raise ValueError(f"Every role needs a model. Missing: {missing_roles}.")
-    cleaned: dict[str, str] = {}
-    for role, route in routing.items():
-        if not isinstance(route, str) or ":" not in route:
-            raise ValueError(f"{role}: expected a 'provider:model' string, got {route!r}.")
-        provider, _, model_id = route.partition(":")
-        if provider not in catalog.KNOWN_PROVIDERS:
-            raise ValueError(
-                f"{role}: unknown provider '{provider}'. Known: {', '.join(catalog.KNOWN_PROVIDERS)}."
-            )
-        spec = catalog.get(model_id)
-        if spec is None:
-            raise ValueError(f"{role}: '{model_id}' is not in the model catalog.")
-        if not spec.priced:
-            raise ValueError(
-                f"{role}: '{model_id}' has no configured price, so spending on it could "
-                "not be capped. Add its price to the catalog before routing to it."
-            )
-        cleaned[role] = spec.route
-    return cleaned
+#: The server's rule, not a copy of it. This host used to restate the check and the
+#: restatement went stale: it demanded catalog membership for every id, so a `custom:`
+#: gateway route was unselectable here and the only local routes that validated were
+#: family names like `ollama:deepseek-r1` — which Ollama 404s without a `:latest` tag.
+#: `routing_rules` needs only the catalog and the role list, so it runs on this host
+#: unchanged; the `app.config` dependency that forced the split belongs to
+#: `available_providers`/`deployment_default`, which stay server-only.
+validate_routing = validate_routing_rule
 
 
 def stored_routing(data_dir: str | Path) -> dict[str, str] | None:
@@ -2118,6 +2099,25 @@ def create_sidecar_app(
             "error": status_.error,
             "hint": status_.hint,
             "install_state": status_.install_state,
+        }
+
+    @api.get("/models/custom/status")
+    async def custom_status():
+        """Contract copy of the server's `GET /models/custom/status`.
+
+        Restated rather than imported because every route in this host is — the server
+        handler carries `Depends(get_current_user)`, which needs the JWT stack this host
+        does not have. The *probe* underneath is shared, so the two hosts cannot disagree
+        about what the endpoint serves; only the auth wrapper differs, which is the one
+        difference this host is allowed to have.
+        """
+        status_ = await custom_endpoint.probe()
+        return {
+            "configured_base_url": status_.configured_base_url,
+            "reachable": status_.reachable,
+            "models": status_.models,
+            "error": status_.error,
+            "hint": status_.hint,
         }
 
     @api.post("/models/local/start")

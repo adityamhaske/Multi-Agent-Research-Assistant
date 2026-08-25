@@ -58,6 +58,7 @@ from app.schemas.v2 import (  # noqa: F401  (re-export)
     PlanReviewRequest,
     ReportReviewRequest,
 )
+from app.services import model_routing
 from app.services.sse import SSE_HEADERS
 from app.v2_dispatch import RunDispatcher, get_run_dispatcher
 from research_engine.bundle import render_model_attribution_md, stamp_demo_md
@@ -367,6 +368,18 @@ async def create_run(
     if body.depth not in RESEARCH_DEPTHS:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown depth.")
 
+    # Refused here rather than repaired: a routing that survives `validate` is startable,
+    # so a run cannot die halfway through on a model that was never routable. Stamping the
+    # snapshot at creation is what makes the choice durable — `run_config_for_run` treats a
+    # present `model_routing` as authoritative, so every role, every resume and the report's
+    # own model attribution read the models this request named.
+    routing = None
+    if body.model_routing is not None:
+        try:
+            routing = model_routing.validate(body.model_routing)
+        except model_routing.InvalidRouting as exc:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
     run = await v2_runtime.create_run(
         db,
         owner_id=current_user.id,
@@ -377,6 +390,7 @@ async def create_run(
         skip_plan_gate=body.skip_plan_gate,
         topic_seeds=body.topic_seeds,
         outline_template=body.outline_template,
+        model_routing=routing,
     )
     # Committed BEFORE dispatch: a worker that picks the message up first and cannot find
     # the row would fail a run that was about to exist.
@@ -473,6 +487,12 @@ async def submit_plan_review(
     )
     if plan is None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="This run has no plan to review.")
+    # `None` means "unedited, use the proposal" — not the same as `[]`, which is a reviewer
+    # who excluded everything and gets the 422 below.
+    proposed = plan.tasks or []
+    tasks = body.tasks if body.tasks is not None else proposed
+    kept = [t for t in tasks if t.get("include", True)]
+
     # Refused before the decision is recorded, not after: an approval that selects nothing
     # authorizes a run that can only produce an evidence-free report, and a recorded
     # APPROVED review is evidence in its own right.
@@ -482,13 +502,25 @@ async def submit_plan_review(
     # approved, searched nothing, and still reached the report gate with eleven claims and
     # zero evidence. One rule, one wording, both paths — the desktop host imports this same
     # handler, so it is fixed there by construction (AGENTS.md, "two hosts, one contract").
-    if body.decision == "APPROVED" and not [
-        t for t in (plan.tasks or []) if t.get("include", True)
-    ]:
+    if body.decision == "APPROVED" and not kept:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Keep at least one task — a plan with nothing in it researches nothing.",
         )
+
+    # An edit becomes its own plan version rather than overwriting the proposal, so the
+    # design a run actually executed stays readable next to what the model suggested —
+    # `origin` is what tells those two apart, and V1 could never distinguish them. The
+    # review is then recorded against the version it approved, not the one it replaced.
+    if body.decision == "APPROVED" and body.tasks is not None and kept != proposed:
+        plan = await v2_runtime.record_plan(
+            db,
+            run,
+            tasks=kept,
+            outline_sections=plan.outline_sections,
+            origin="HUMAN_EDITED",
+        )
+
     review = await v2_runtime.record_plan_review(
         db, run, plan, reviewer_id=current_user.id, decision=body.decision, feedback=body.feedback
     )
@@ -505,10 +537,13 @@ async def submit_plan_review(
     # `runner.resume(plan=…)` the V1 path uses, so research the user already paid for is
     # not re-run.
     if body.decision == "APPROVED" and body.dispatch:
+        # `kept`, not `plan.tasks`: the executor is handed exactly what was approved. The
+        # graph filters `include: false` again at the gate, but relying on that would mean
+        # the resume payload and the recorded plan disagreed about what the run is doing.
         await dispatcher.resume_plan(
             str(run.id),
             str(current_user.id),
-            {"tasks": plan.tasks, "sections": plan.outline_sections},
+            {"tasks": kept, "sections": plan.outline_sections},
         )
     return {"review_id": str(review.id), "gate": "PLAN", "decision": review.decision}
 

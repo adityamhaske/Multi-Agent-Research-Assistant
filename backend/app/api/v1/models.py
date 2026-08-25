@@ -22,7 +22,7 @@ from app.config import settings
 from app.dependencies import get_current_user, get_db
 from app.models.user import User
 from app.schemas.auth import ConnectionVerdict
-from app.services import crypto, local_llm, model_routing, provider_health
+from app.services import crypto, custom_endpoint, local_llm, model_routing, provider_health
 from research_engine import catalog
 from research_engine.runconfig import ROLES
 
@@ -77,6 +77,23 @@ class LocalLLMStatusResponse(BaseModel):
     # "Not detected" used to conflate two states with different fixes (docs/07 §2,
     # Phase 2b): install vs. start.
     install_state: Literal["running", "installed_not_running", "not_installed"]
+
+
+class CustomEndpointStatusResponse(BaseModel):
+    """What the configured OpenAI-compatible endpoint says it can serve.
+
+    `models` is a bare list of ids rather than `ModelInfo`, and deliberately so: this
+    provider has no catalog entry, so there is no price, context window or capability flag
+    to report. Dressing the ids up in the same shape as catalogued models would invent
+    fields whose only honest value is null — and a `0.0` price here would silently read as
+    "free" for a gateway that bills.
+    """
+
+    configured_base_url: str
+    reachable: bool
+    models: list[str]
+    error: str | None
+    hint: str | None
 
 
 class ReadinessResponse(BaseModel):
@@ -271,6 +288,25 @@ async def local_llm_status(_current_user: User = Depends(get_current_user)):
         error=status_.error,
         hint=status_.hint,
         install_state=status_.install_state,
+    )
+
+
+@router.get("/custom/status", response_model=CustomEndpointStatusResponse)
+async def custom_endpoint_status(_current_user: User = Depends(get_current_user)):
+    """Ask the configured custom endpoint what it serves (see `services/custom_endpoint`).
+
+    Split from `GET /models` for the same reason `/local/status` is: this does live I/O
+    against an address that can legitimately be down, and the catalog must stay instant and
+    always renderable. Both probes answer the same question for the two providers whose
+    model lists this codebase cannot know — the endpoint owns them, not the catalog.
+    """
+    status_ = await custom_endpoint.probe()
+    return CustomEndpointStatusResponse(
+        configured_base_url=status_.configured_base_url,
+        reachable=status_.reachable,
+        models=status_.models,
+        error=status_.error,
+        hint=status_.hint,
     )
 
 

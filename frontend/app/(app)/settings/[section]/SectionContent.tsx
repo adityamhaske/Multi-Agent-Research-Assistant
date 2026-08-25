@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { ConnectionStatus } from "@/components/account/ConnectionStatus";
 import { DesktopKeysCard } from "@/components/account/DesktopKeysCard";
 import { LocalLLMCard } from "@/components/account/LocalLLMCard";
+import { CustomEndpointCard } from "@/components/account/CustomEndpointCard";
 import { ModelPicker } from "@/components/account/ModelPicker";
 import { Field, Section } from "@/components/account/Section";
 import { ResetToDefault } from "@/components/settings/ResetToDefault";
@@ -56,6 +57,9 @@ function UsageStat({ label, sub, window: w }: { label: string; sub: string; wind
 function ModelsSection() {
   return (
     <>
+      {/* Ordered the way the run form resolves a backend: custom endpoint, then local,
+          then the catalogued API providers in the picker. */}
+      <CustomEndpointCard />
       <LocalLLMCard />
       <ModelPicker />
     </>

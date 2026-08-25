@@ -9,6 +9,7 @@ import type {
   ChatMessage,
   ChatThread,
   ConnectionVerdict,
+  CustomEndpointStatus,
   DesktopKeys,
   LocalLLMStatus,
   MemoryStatus,
@@ -499,6 +500,24 @@ export function useModelCatalog() {
     queryKey: queryKeys.models,
     queryFn: () => apiFetch<ModelCatalog>("/models"),
     staleTime: 60_000,
+  });
+}
+
+/**
+ * Live probe of the configured custom OpenAI-compatible endpoint.
+ *
+ * Split from `useModelCatalog` for the reason `useLocalLLMStatus` is: real network I/O
+ * against an address that can legitimately be down, while the catalog must stay instant.
+ * `enabled` is off until something actually needs the list — a gateway can advertise
+ * thousands of ids, and there is no reason to fetch them for a form nobody has opened.
+ */
+export function useCustomEndpointStatus(enabled = true) {
+  return useQuery({
+    queryKey: [...queryKeys.models, "custom-endpoint"] as const,
+    queryFn: () => apiFetch<CustomEndpointStatus>("/models/custom/status"),
+    enabled,
+    retry: false, // "nothing answered there" is an answer, not a failure
+    staleTime: 30_000,
   });
 }
 

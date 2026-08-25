@@ -371,6 +371,22 @@ export interface LocalLLMStatus {
   install_state: LocalLLMInstallState;
 }
 
+/**
+ * What the configured OpenAI-compatible endpoint (OmniRoute, LiteLLM, a gateway) serves.
+ *
+ * Bare ids, not `ModelInfo`: this provider has no catalog entry, so there is no price,
+ * context window or capability flag to report. Giving it the catalogued shape would invent
+ * fields whose only honest value is null — and a `0` price would read as "free" for a
+ * gateway that bills.
+ */
+export interface CustomEndpointStatus {
+  configured_base_url: string;
+  reachable: boolean;
+  models: string[];
+  error: string | null;
+  hint: string | null;
+}
+
 /** One line of Ollama's streaming pull response (docs/07 §2, Phase 2b). */
 export interface PullProgress {
   status: string;

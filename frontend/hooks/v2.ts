@@ -5,7 +5,14 @@ import { useEffect, useState } from "react";
 
 import { apiFetch } from "@/lib/api";
 import { isDesktop, streamUrl } from "@/lib/desktop";
-import type { AgentEvent, V2RunGraph, V2RunSummary, V2Verification } from "@/lib/types";
+import type {
+  AgentEvent,
+  ModelRouting,
+  PlanTask,
+  V2RunGraph,
+  V2RunSummary,
+  V2Verification,
+} from "@/lib/types";
 
 /**
  * Data access for the V2 research workspace.
@@ -76,6 +83,9 @@ export function useStartV2Research() {
       depth?: string;
       corpus_mode?: boolean;
       skip_plan_gate?: boolean;
+      /** One `provider:model` per role. Omitted entirely to use saved settings — an
+       *  explicit `null` would be a routing the server then has to interpret. */
+      model_routing?: ModelRouting;
     }) => apiFetch<{ run_id: string; status: string }>("/v2/runs", { method: "POST", body }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["v2-runs"] }),
   });
@@ -100,7 +110,13 @@ export function useV2ReportReview(runId: string) {
 export function useV2PlanReview(runId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { decision: string; feedback?: string | null }) =>
+    mutationFn: (body: {
+      decision: string;
+      feedback?: string | null;
+      /** The reviewer's edited tasks. Omitted means "unedited, use the proposal" —
+       *  which is not the same as an empty list, and the server refuses that. */
+      tasks?: PlanTask[];
+    }) =>
       apiFetch<{ review_id: string; decision: string }>(`/v2/runs/${runId}/plan-review`, {
         method: "POST",
         body,

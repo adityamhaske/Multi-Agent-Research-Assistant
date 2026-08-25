@@ -25,6 +25,7 @@ from app.api.v1.v2_runs import router as v2_router
 from app.db.base import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
+from research_engine.runconfig import ROLES
 from tests.migration_support import open_db
 from tests.test_v2_native_lifecycle import DRAFT, EVIDENCE, drive_lifecycle
 
@@ -444,3 +445,139 @@ async def test_requesting_rework_on_an_empty_plan_is_still_allowed(api):
         f"/api/v1/v2/runs/{run.id}/plan-review", json={"decision": "REWORK_REQUESTED"}
     )
     assert resp.status_code == 201
+
+
+async def test_a_reviewer_can_repair_an_all_excluded_plan_by_editing_it(api):
+    """The remedy for the run that searched nothing, exercised through the contract.
+
+    The planner proposed both subtopics excluded. The reviewer re-selects one and
+    approves; the run proceeds on exactly that one. Before this, the request body carried
+    no task list at all, so the only possible outcomes were "approve what the planner
+    proposed" or "ask for a rework".
+    """
+    run = await _plan_with_nothing_selected(
+        api,
+        tasks=[
+            {"id": 1, "query": "brand equity", "include": False},
+            {"id": 2, "query": "csat metrics", "include": False},
+        ],
+    )
+    resp = await api["client"].post(
+        f"/api/v1/v2/runs/{run.id}/plan-review",
+        json={
+            "decision": "APPROVED",
+            "dispatch": False,
+            "tasks": [
+                {"id": 1, "query": "brand equity", "include": True},
+                {"id": 2, "query": "csat metrics", "include": False},
+            ],
+        },
+    )
+    assert resp.status_code == 201, resp.text
+
+    payload = (await api["client"].get(f"/api/v1/v2/runs/{run.id}")).json()
+    plans = payload["plans"]
+    # The proposal is kept and the edit appended, so what the model suggested and what a
+    # human approved stay distinguishable — `origin` is the only thing that says which.
+    assert len(plans) == 2
+    assert plans[0]["origin"] == "MODEL_PROPOSED"
+    assert plans[-1]["origin"] == "HUMAN_EDITED"
+    assert [t["query"] for t in plans[-1]["tasks"]] == ["brand equity"]
+
+
+async def test_editing_a_plan_down_to_nothing_is_still_refused(api):
+    """The edit path cannot be used to get around the guard the proposal path enforces."""
+    run = await _plan_with_nothing_selected(api, tasks=[{"id": 1, "query": "a", "include": True}])
+    resp = await api["client"].post(
+        f"/api/v1/v2/runs/{run.id}/plan-review",
+        json={
+            "decision": "APPROVED",
+            "tasks": [{"id": 1, "query": "a", "include": False}],
+        },
+    )
+    assert resp.status_code == 422
+    assert "at least one task" in resp.json()["detail"]
+
+
+async def test_an_unedited_approval_records_no_second_plan_version(api):
+    """`None` tasks means "unedited". A version per approval would be noise, and would
+    relabel the planner's own proposal as a human edit."""
+    run = await _plan_with_nothing_selected(api, tasks=[{"id": 1, "query": "a", "include": True}])
+    resp = await api["client"].post(
+        f"/api/v1/v2/runs/{run.id}/plan-review",
+        json={"decision": "APPROVED", "dispatch": False},
+    )
+    assert resp.status_code == 201
+
+    plans = (await api["client"].get(f"/api/v1/v2/runs/{run.id}")).json()["plans"]
+    assert len(plans) == 1
+    assert plans[0]["origin"] == "MODEL_PROPOSED"
+
+
+async def test_a_run_records_the_routing_it_was_started_with(api):
+    """A per-run model choice has to be durable to be a choice at all.
+
+    `run_config_for_run` treats a stamped `model_routing` as authoritative, so this one
+    value is what every role, every resume, the export's attribution and the bundle read.
+    """
+    routing = {role: "custom:auto/best-fast" for role in ROLES}
+    resp = await api["client"].post(
+        "/api/v1/v2/runs",
+        json={
+            "project_id": str(api["project_id"]),
+            "question": "Does RAG help?",
+            "model_routing": routing,
+            "dispatch": False,
+        },
+    )
+    assert resp.status_code == 201, resp.text
+
+    payload = (await api["client"].get(f"/api/v1/v2/runs/{resp.json()['run_id']}")).json()
+    assert payload["run"]["model_routing"] == routing
+
+
+async def test_a_local_model_route_survives_with_its_tag(api):
+    """The desktop's own picker offers installed tags, and `qwen2.5:7b` is one id."""
+    routing = {role: "ollama:qwen2.5:7b" for role in ROLES}
+    resp = await api["client"].post(
+        "/api/v1/v2/runs",
+        json={
+            "project_id": str(api["project_id"]),
+            "question": "q",
+            "model_routing": routing,
+            "dispatch": False,
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    payload = (await api["client"].get(f"/api/v1/v2/runs/{resp.json()['run_id']}")).json()
+    assert payload["run"]["model_routing"]["planner"] == "ollama:qwen2.5:7b"
+
+
+async def test_an_unroutable_model_is_refused_before_the_run_exists(api):
+    """Rejected at the door rather than inside the worker minutes later."""
+    resp = await api["client"].post(
+        "/api/v1/v2/runs",
+        json={
+            "project_id": str(api["project_id"]),
+            "question": "q",
+            "model_routing": {role: "google:no-such-model" for role in ROLES},
+            "dispatch": False,
+        },
+    )
+    assert resp.status_code == 422
+    assert "catalog" in resp.json()["detail"]
+
+
+async def test_omitting_routing_leaves_the_run_on_saved_settings(api):
+    """Negative control: the default path must not start stamping a routing.
+
+    A caller that does not care is resolved at execution time (run → user → deployment),
+    and stamping something here would freeze today's default onto tomorrow's run.
+    """
+    resp = await api["client"].post(
+        "/api/v1/v2/runs",
+        json={"project_id": str(api["project_id"]), "question": "q", "dispatch": False},
+    )
+    assert resp.status_code == 201
+    payload = (await api["client"].get(f"/api/v1/v2/runs/{resp.json()['run_id']}")).json()
+    assert payload["run"]["model_routing"] is None

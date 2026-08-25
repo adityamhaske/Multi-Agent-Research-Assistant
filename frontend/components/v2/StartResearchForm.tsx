@@ -4,7 +4,21 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { useActiveProject } from "@/components/ActiveProject";
-import { useCorpusStatus } from "@/hooks/queries";
+import {
+  defaultKind,
+  isUnpricedRoute,
+  PROVIDER_LABEL,
+  ProviderPicker,
+  routeForKind,
+  routingFor,
+  type ProviderKind,
+} from "@/components/research/ProviderPicker";
+import {
+  useCorpusStatus,
+  useCustomEndpointStatus,
+  useLocalLLMStatus,
+  useModelCatalog,
+} from "@/hooks/queries";
 import { useStartV2Research } from "@/hooks/v2";
 import { ApiError } from "@/lib/api";
 import type { ResearchDepth } from "@/lib/types";
@@ -23,9 +37,16 @@ import type { ResearchDepth } from "@/lib/types";
  * in the product that could not reach them.
  *
  * **Only fields the endpoint accepts appear here.** `POST /v2/runs` takes `project_id`,
- * `question`, `depth`, `corpus_mode` and `skip_plan_gate`; it does not take `demo` or a
- * model routing, so neither is offered. A control that posts a field the server drops is
+ * `question`, `depth`, `corpus_mode`, `skip_plan_gate` and `model_routing`. It does not
+ * take `demo`, so that is not offered — a control that posts a field the server drops is
  * worse than a missing one.
+ *
+ * **The model is chosen here because the alternative was choosing it invisibly.** Routing
+ * lived only in Settings, and a saved preference outranks the deployment's own
+ * configuration, so a machine whose `.env` routed through a gateway still ran on whatever
+ * was picked once in Settings — with nothing on this page saying so. The picker shows the
+ * *resolved* route even when you change nothing, which is the only version of "use my
+ * settings" a person can actually consent to.
  */
 
 /** The API accepts 1–2000. Ten is this form's own floor: a three-word question produces a
@@ -73,9 +94,23 @@ export function StartResearchForm({
   // would silently inherit the script default and quietly drop the gate.
   const [planGate, setPlanGate] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  // `null` until the probes answer, so the default lands once rather than flipping under
+  // the cursor. `picked` is the user's own choice and always wins after that.
+  const [picked, setPicked] = useState<ProviderKind | null>(null);
 
   const start = useStartV2Research();
   const corpus = useCorpusStatus(corpusMode ? activeId : null);
+  const catalog = useModelCatalog();
+  const customEndpoint = useCustomEndpointStatus();
+  const localLLM = useLocalLLMStatus();
+
+  // Custom endpoint first, then local, then API — whichever is actually reachable. A
+  // *selection* default, resolved before the run starts and shown on the button; nothing
+  // switches provider mid-run.
+  const kind = picked ?? defaultKind(catalog.data, customEndpoint.data, localLLM.data);
+  const chosenRoute = kind
+    ? routeForKind(kind, catalog.data, customEndpoint.data, localLLM.data)
+    : null;
 
   const trimmed = question.trim();
   const tooShort = trimmed.length > 0 && trimmed.length < MIN_QUERY;
@@ -89,6 +124,9 @@ export function StartResearchForm({
   const overrides = [
     corpusMode ? "Corpus only" : null,
     planGate ? null : "No plan review",
+    // A chosen model is a departure from the default and has to survive the disclosure
+    // being closed — the whole point of this control is that routing stops being silent.
+    kind && kind !== "custom" ? PROVIDER_LABEL[kind] : null,
   ].filter(Boolean);
 
   const submit = (e: React.FormEvent) => {
@@ -107,6 +145,13 @@ export function StartResearchForm({
         depth,
         corpus_mode: corpusMode,
         skip_plan_gate: !planGate,
+        // Omitted, not null, when nothing was chosen: the field's absence is what means
+        // "resolve it from my settings", and sending an empty map would fail validation
+        // for missing roles.
+        // Sent whenever a backend resolved to a real route, so the run records the models
+        // it was started on rather than re-resolving them later from settings that may
+        // have changed. Omitted only when nothing is configured at all.
+        ...(chosenRoute ? { model_routing: routingFor(chosenRoute) } : {}),
       },
       { onSuccess: (r) => onStarted(r.run_id) },
     );
@@ -166,6 +211,30 @@ export function StartResearchForm({
                   : planGate
                     ? `Saved to ${active?.name}. The run pauses for your plan review before searching, and again for your report review.`
                     : `Saved to ${active?.name}. The run pauses for your review before anything is finalised.`}
+          </p>
+          {/* The models this run will actually use, stated before it starts and whether or
+              not anything was chosen. Routing resolves user → deployment behind the
+              scenes, and until it was shown here the first place it became visible was the
+              finished report's attribution — after the run had already spent. */}
+          <p className="max-w-sm font-mono text-[length:var(--text-micro)] text-text-muted">
+            {kind === null ? (
+              "Models: resolving…"
+            ) : (
+              <>
+                Models:{" "}
+                <span className="text-text-secondary">
+                  {chosenRoute ?? `${PROVIDER_LABEL[kind]} — not configured`}
+                </span>
+                {isUnpricedRoute(chosenRoute) && (
+                  // The cap is computed from catalog prices, which this provider has none
+                  // of, so a run on it reports $0.00 whatever it cost. Said here rather
+                  // than left for the run to display an unmeasured zero as a total.
+                  <span className="block text-text-muted">
+                    Cost is not measurable for this provider — cap spend at the provider.
+                  </span>
+                )}
+              </>
+            )}
           </p>
         </div>
 
@@ -235,6 +304,12 @@ export function StartResearchForm({
 
       {showAdvanced && (
         <div id="run-options" className="space-y-3 border-t border-border pt-5">
+          <ProviderPicker
+            value={kind ?? "custom"}
+            onChange={setPicked}
+            disabled={start.isPending}
+          />
+
           <label className="flex cursor-pointer items-start gap-3 border border-border bg-bg-surface p-3">
             <input
               type="checkbox"

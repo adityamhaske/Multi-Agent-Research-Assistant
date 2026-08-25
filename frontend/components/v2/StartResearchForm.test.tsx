@@ -28,6 +28,25 @@ vi.mock("@/hooks/v2", () => ({
 
 vi.mock("@/hooks/queries", () => ({
   useCorpusStatus: () => ({ data: undefined }),
+  // The form reads the catalog to show which models the run will actually use. Resolved
+  // to one route for every role, which is what the picker can represent as a single model.
+  useModelCatalog: () => ({
+    data: {
+      available_providers: ["custom", "ollama"],
+      models: [],
+      effective_routing: {
+        planner: "custom:auto/best-fast",
+        executor: "custom:auto/best-fast",
+        critic: "custom:auto/best-fast",
+        synthesizer: "custom:auto/best-fast",
+        chat: "custom:auto/best-fast",
+      },
+    },
+    isLoading: false,
+    isError: false,
+  }),
+  useCustomEndpointStatus: () => ({ data: undefined, isLoading: false }),
+  useLocalLLMStatus: () => ({ data: undefined, isLoading: false }),
 }));
 
 vi.mock("@/components/ActiveProject", () => ({

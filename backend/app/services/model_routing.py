@@ -15,73 +15,17 @@ from __future__ import annotations
 
 from app.config import settings
 from app.models.user import User
-from research_engine import catalog
-from research_engine.runconfig import ROLES
 
-
-class InvalidRouting(ValueError):
-    """A routing map that must not be persisted."""
-
-
-# Providers whose model ids are defined by the endpoint rather than by our catalog:
-# Ollama serves the tags the user pulled, and a custom proxy or OpenRouter fronts a
-# catalogue that changes without us. Validating these against `catalog` would reject
-# every legitimate local tag, so they are checked for shape only.
-_ENDPOINT_DEFINED_PROVIDERS = ("ollama", "custom", "openrouter")
-
-
-def validate(routing: dict) -> dict[str, str]:
-    """Normalize and check a user-supplied routing map.
-
-    Rejects rather than silently repairs: a routing that survives this function is
-    guaranteed startable, so a run can't fail halfway through on a model that was never
-    routable. In particular an unpriced model is refused here, because accepting it would
-    disable the per-session budget guard for that role.
-    """
-    if not isinstance(routing, dict):
-        raise InvalidRouting("Model routing must be an object keyed by agent role.")
-
-    unknown_roles = sorted(set(routing) - set(ROLES))
-    if unknown_roles:
-        raise InvalidRouting(f"Unknown agent role(s): {unknown_roles}. Valid roles: {list(ROLES)}.")
-    missing_roles = sorted(set(ROLES) - set(routing))
-    if missing_roles:
-        raise InvalidRouting(f"Every role needs a model. Missing: {missing_roles}.")
-
-    cleaned: dict[str, str] = {}
-    for role, route in routing.items():
-        if not isinstance(route, str) or ":" not in route:
-            raise InvalidRouting(f"{role}: expected a 'provider:model' string, got {route!r}.")
-        provider, _, model_id = route.partition(":")
-        if provider not in catalog.KNOWN_PROVIDERS:
-            raise InvalidRouting(
-                f"{role}: unknown provider '{provider}'. "
-                f"Known: {', '.join(catalog.KNOWN_PROVIDERS)}."
-            )
-        if provider in _ENDPOINT_DEFINED_PROVIDERS:
-            # These providers' model ids belong to the endpoint, not to us. Ollama serves
-            # whatever tags the user pulled; a local proxy or OpenRouter exposes thousands
-            # that change without us. Demanding catalog membership here left the only
-            # selectable local routes as *family* names (`ollama:deepseek-r1`), which
-            # Ollama 404s unless a `:latest` tag happens to exist — and made an OmniRoute
-            # or OpenRouter setup unselectable in the UI entirely.
-            #
-            # Kept verbatim rather than canonicalised, because the exact tag is the thing
-            # that resolves. Spend on these is not catalog-priced, so the per-session cap
-            # does not bind — the same gap `validate_pricing()` already accepts for them,
-            # documented in AGENTS.md.
-            cleaned[role] = route
-            continue
-        spec = catalog.get(model_id)
-        if spec is None:
-            raise InvalidRouting(f"{role}: '{model_id}' is not in the model catalog.")
-        if not spec.priced:
-            raise InvalidRouting(
-                f"{role}: '{model_id}' has no configured price, so spending on it could "
-                "not be capped. Add its price to the catalog before routing to it."
-            )
-        cleaned[role] = spec.route  # canonical form, so stored values stay comparable
-    return cleaned
+# The rule itself lives in the engine so the desktop host can apply the identical one —
+# `sidecar.validate_routing` had its own copy, which never learned to accept
+# endpoint-defined providers and so rejected every OmniRoute and tagged-Ollama route on
+# the packaged app. Re-exported here because this is where the server's call sites have
+# always referred to it.
+from research_engine.routing_rules import (  # noqa: F401  (re-export)
+    ENDPOINT_DEFINED_PROVIDERS,
+    InvalidRouting,
+    validate,
+)
 
 
 def available_providers(user: User) -> list[str]:
@@ -101,9 +45,21 @@ def available_providers(user: User) -> list[str]:
         ("google", settings.google_api_key),
         ("anthropic", settings.anthropic_api_key),
         ("openai", settings.openai_api_key),
+        ("openrouter", settings.openrouter_api_key),
     ):
         if server_key:
             usable.add(provider)
+
+    # A custom OpenAI-compatible endpoint is configured by its URL rather than by a key —
+    # a local proxy commonly needs no key at all — so its presence is what makes it usable.
+    #
+    # Neither this provider nor `openrouter` has catalog entries, because their model lists
+    # belong to the endpoint and change without us. That is exactly why they have to be
+    # named here: a deployment whose whole routing is `custom:` (the shipped `.env` does
+    # this) otherwise reports no custom provider available and the picker cannot offer the
+    # models the run will actually use.
+    if settings.custom_base_url:
+        usable.add("custom")
 
     return sorted(usable)
 

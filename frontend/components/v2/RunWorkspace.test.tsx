@@ -467,6 +467,90 @@ describe("Plan gate", () => {
     expect(screen.getByRole("button", { name: "Request changes" })).not.toBeDisabled();
   });
 
+  /** A plan parked at the gate whose tasks are all excluded — the shape that broke. */
+  const allExcluded = () =>
+    graph({
+      run: { ...graph().run, status: "AWAITING_PLAN" },
+      plans: [
+        {
+          id: "pl1",
+          version: 1,
+          tasks: [
+            { id: 1, query: "brand equity", rationale: "", subtopics: [], include: false, source_hint: "" },
+            { id: 2, query: "csat metrics", rationale: "", subtopics: [], include: false, source_hint: "" },
+          ],
+          outline_sections: [],
+          origin: "MODEL_PROPOSED",
+          approved_at: null,
+        },
+      ],
+      revisions: [],
+      claims: [],
+      claim_evidence_links: [],
+    });
+
+  it("repairs an all-excluded plan with Select all and approves the edit", async () => {
+    // End to end through the control a reviewer actually has: before this panel had
+    // checkboxes at all, the only options were "approve what searches nothing" or
+    // "request changes".
+    view(allExcluded());
+    expect(screen.getByRole("button", { name: "Approve plan" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect(screen.getByRole("button", { name: "Approve plan" })).not.toBeDisabled();
+
+    planMutate.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Approve plan" }));
+    await waitFor(() => expect(planMutate).toHaveBeenCalled());
+
+    const body = planMutate.mock.calls.at(-1)![0];
+    expect(body.decision).toBe("APPROVED");
+    // The edit travels with the decision — an approval that did not carry it would
+    // approve the proposal the server already has, which selects nothing.
+    expect(body.tasks.every((t: { include: boolean }) => t.include)).toBe(true);
+    expect(body.tasks.map((t: { query: string }) => t.query)).toEqual([
+      "brand equity",
+      "csat metrics",
+    ]);
+  });
+
+  it("lets a reviewer keep one subtopic and drop the other", async () => {
+    view(allExcluded());
+    fireEvent.click(screen.getByRole("checkbox", { name: /research “brand equity”/i }));
+
+    planMutate.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Approve plan" }));
+    await waitFor(() => expect(planMutate).toHaveBeenCalled());
+
+    const body = planMutate.mock.calls.at(-1)![0];
+    expect(body.tasks.filter((t: { include: boolean }) => t.include)).toHaveLength(1);
+    expect(body.tasks.find((t: { include: boolean }) => t.include).query).toBe("brand equity");
+  });
+
+  it("blocks approval again once Clear all empties the plan", () => {
+    view(awaitingPlan());
+    expect(screen.getByRole("button", { name: "Approve plan" })).not.toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(screen.getByRole("button", { name: "Approve plan" })).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/every research area is excluded/i);
+  });
+
+  it("offers no plan editing once the gate has closed", () => {
+    // The record of what a run researched must not be editable after the fact.
+    view(
+      graph({
+        run: { ...graph().run, status: "RUNNING" },
+        plans: allExcluded().plans,
+        revisions: [],
+        claims: [],
+        claim_evidence_links: [],
+      }),
+    );
+    expect(screen.queryByRole("button", { name: "Select all" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /research “/i })).not.toBeInTheDocument();
+  });
+
   it("sends requested changes with the feedback typed", async () => {
     view(awaitingPlan());
     fireEvent.change(screen.getByLabelText("Changes to request"), {
