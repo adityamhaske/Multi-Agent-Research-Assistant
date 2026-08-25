@@ -473,6 +473,22 @@ async def submit_plan_review(
     )
     if plan is None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="This run has no plan to review.")
+    # Refused before the decision is recorded, not after: an approval that selects nothing
+    # authorizes a run that can only produce an evidence-free report, and a recorded
+    # APPROVED review is evidence in its own right.
+    #
+    # V1's gate (`research.submit_plan`) has always enforced this; V2 shipped without it,
+    # which is how a run whose four subtopics were *all* proposed `include: false` was
+    # approved, searched nothing, and still reached the report gate with eleven claims and
+    # zero evidence. One rule, one wording, both paths — the desktop host imports this same
+    # handler, so it is fixed there by construction (AGENTS.md, "two hosts, one contract").
+    if body.decision == "APPROVED" and not [
+        t for t in (plan.tasks or []) if t.get("include", True)
+    ]:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Keep at least one task — a plan with nothing in it researches nothing.",
+        )
     review = await v2_runtime.record_plan_review(
         db, run, plan, reviewer_id=current_user.id, decision=body.decision, feedback=body.feedback
     )

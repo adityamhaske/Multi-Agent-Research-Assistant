@@ -129,6 +129,12 @@ def test_routing_retries_only_while_a_task_has_retries_left():
         "started_at": time.time(),
         "tasks": [{"id": 1}, {"id": 2}],
         "verdicts": {"1": {"passed": True}, "2": {"passed": False}},
+        # Task 1 passed, which the critic only does once that task's evidence satisfied
+        # it — so a state with a passing verdict and an empty `evidence` list is not one
+        # the real graph can reach. Modelled explicitly because `route_after_critic` now
+        # fails closed on zero evidence, and a stub that omitted this would be asserting
+        # the *guard's* behaviour while claiming to test retry routing.
+        "evidence": [{"source_url": "https://example.com/1", "snippet": "gathered"}],
     }
 
     # Task 2 failed once — max_critic_loops defaults to 2, so it gets another round.
@@ -147,5 +153,6 @@ def test_routing_detects_then_synthesizes_when_every_task_passed():
         "tasks": [{"id": 1}, {"id": 2}],
         "verdicts": {"1": {"passed": True}, "2": {"passed": True}},
         "retries": {},
+        "evidence": [{"source_url": "https://example.com/1", "snippet": "gathered"}],
     }
     assert graph_mod.route_after_critic(state) == "contradiction_detector"

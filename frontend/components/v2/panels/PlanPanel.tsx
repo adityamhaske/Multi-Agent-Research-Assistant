@@ -60,6 +60,21 @@ export function PlanPanel({ graph }: { graph: V2RunGraph }) {
   const open = graph.run.status === "AWAITING_PLAN" && !decision;
   const tasks = plan.tasks.map(asTask);
   const sections = plan.outline_sections.map(asSection);
+
+  // A planner may propose a task already excluded, and one actually proposed *every* task
+  // that way (run 63091d21): this panel counted the raw list, announced "4 research
+  // areas", and the reviewer approved a plan that searched nothing. The count has to be
+  // what will be researched, not what was written down — the panel is the only place a
+  // V2 reviewer sees the plan, and it renders no per-task control to correct it with.
+  //
+  // Absent means selected, because that is how the backend reads it
+  // (`t.get("include", True)`); migrated V1 plans carry no flag at all, and a UI that
+  // treated absent as excluded would report every one of them as researching nothing.
+  const isSelected = (t: PlanTask | { id: number; query: string }) =>
+    (t as PlanTask).include !== false;
+  const selected = tasks.filter(isSelected);
+  const excludedCount = tasks.length - selected.length;
+  const noneSelected = tasks.length > 0 && selected.length === 0;
   const origin =
     plan.origin === "MODEL_PROPOSED"
       ? "proposed by the planner"
@@ -82,14 +97,35 @@ export function PlanPanel({ graph }: { graph: V2RunGraph }) {
             <>
               The planner broke your question into{" "}
               <strong className="text-text-primary">
-                {tasks.length} research area{tasks.length === 1 ? "" : "s"}
+                {selected.length} research area{selected.length === 1 ? "" : "s"}
               </strong>
+              {excludedCount > 0 && (
+                <>
+                  {" "}
+                  and excluded {excludedCount} more
+                </>
+              )}
               . {open ? "Review them before any searching starts." : "Research ran against them."}
             </>
           ) : (
             "The planner recorded no research areas for this run."
           )}
         </p>
+
+        {/* Only while a decision is pending. On a run that already ran, the per-task
+            "excluded" labels and the count above are the honest record; telling a reader
+            what "approving would do" about a gate that closed weeks ago is noise. */}
+        {noneSelected && open && (
+          <p
+            role="alert"
+            className="mt-3 border border-danger-line bg-danger-soft p-3 text-xs leading-relaxed text-text-primary"
+          >
+            <strong className="text-danger">Every research area is excluded.</strong> Approving
+            this plan would search nothing, and a report produced with no evidence can only be
+            written from the model&apos;s own memory — so the server refuses the approval. Use
+            “Request changes” to have the plan proposed again.
+          </p>
+        )}
         <p className="mt-2 font-mono text-[length:var(--text-micro)] text-text-muted">
           Version {plan.version} · {origin}
           {plan.approved_at && " · approved"}
@@ -101,13 +137,25 @@ export function PlanPanel({ graph }: { graph: V2RunGraph }) {
         <ol className="mt-2 space-y-2">
           {tasks.map((t, i) => {
             const full = t as PlanTask;
+            const included = isSelected(t);
             return (
-              <li key={i} className="border border-border p-2.5">
+              <li
+                key={i}
+                className={`border border-border p-2.5 ${included ? "" : "opacity-60"}`}
+              >
                 <div className="flex items-baseline gap-2">
                   <span className="shrink-0 font-mono text-[length:var(--text-micro)] text-text-muted">
                     {i + 1}
                   </span>
                   <span className="min-w-0 break-words text-sm text-text-primary">{t.query}</span>
+                  {/* Labelled, not just dimmed: "excluded" is the whole difference between
+                      a plan that researches this and one that does not, and opacity alone
+                      carries nothing to a screen reader or a low-contrast display. */}
+                  {!included && (
+                    <span className="shrink-0 font-mono text-[length:var(--text-micro)] uppercase tracking-wider text-danger">
+                      excluded
+                    </span>
+                  )}
                 </div>
                 {full.rationale && (
                   <p className="mt-1 pl-5 text-xs leading-relaxed text-text-secondary">
@@ -170,7 +218,10 @@ export function PlanPanel({ graph }: { graph: V2RunGraph }) {
             <button
               type="button"
               className="btn btn-primary"
-              disabled={review.isPending}
+              // Disabled rather than left to fail: the server refuses this approval with a
+              // 422, and a button that always errors is a worse answer than one that says
+              // it cannot be used. The server check is still the authority.
+              disabled={review.isPending || noneSelected}
               onClick={() => review.mutate({ decision: "APPROVED" })}
             >
               {review.isPending && <span className="spinner" />}

@@ -1192,6 +1192,14 @@ def plan_gate_node(state: AgentState) -> dict:
 
 
 def route_after_plan_gate(state: AgentState) -> str:
+    # An approved plan with every subtopic excluded researches nothing, and a run that
+    # researched nothing must not reach the synthesizer: with no evidence in hand it
+    # writes the report out of the model's own memory and the repair pass then decorates
+    # it with markers that resolve to nothing. `submit_plan_review` rejects this at the
+    # API first; this is the guard for a resume that reaches the graph another way — a
+    # checkpoint written before that check existed, or a caller that bypassed the route.
+    if not state.get("tasks"):
+        return "failer"
     return "executor"
 
 
@@ -1229,6 +1237,7 @@ def failer_node(state: AgentState) -> dict:
     return {
         "error": state.get("error")
         or _over_budget(state)
+        or _no_research_reason(state)
         or "retry limit reached: every task exhausted its critic rounds"
     }
 
@@ -1265,8 +1274,40 @@ def _over_budget(state: AgentState) -> str | None:
     return None
 
 
+def _no_research_reason(state: AgentState) -> str | None:
+    """Why this run cannot honestly produce a report, if it cannot.
+
+    Two failures, deliberately worded apart because the remedy differs: a plan with
+    nothing selected never searched, while a plan that searched and found nothing did.
+    Collapsing them into one message would send a user to check their search providers
+    when what actually happened is that they unchecked every subtopic.
+
+    This is the *reason* half of the guards in `route_after_plan_gate`,
+    `route_after_planner` and `route_after_critic`; the routers decide, and a router
+    cannot write state, so the text is recomputed here from the same state they read.
+    """
+    if not state.get("tasks"):
+        return (
+            "no research tasks were selected — every subtopic was excluded at the design "
+            "gate, so nothing was searched. Start a new run and keep at least one subtopic."
+        )
+    if not state.get("evidence"):
+        return (
+            "no evidence was gathered — every research task finished without returning "
+            "anything citable, so there is nothing a report could be built from. Check "
+            "that a search provider is reachable, then retry."
+        )
+    return None
+
+
 def route_after_planner(state: AgentState) -> str:
     if state.get("error"):
+        return "failer"
+    # A planner that produced no tasks has nothing to gate and nothing to execute. Failing
+    # here rather than at the gate keeps the two "nothing to research" paths — a planner
+    # that proposed nothing, and a reviewer who excluded everything — reporting the same
+    # way, instead of the skip-gate path sliding through to an evidence-free report.
+    if not state.get("tasks"):
         return "failer"
     # Opt-out, not opt-in (docs/07 §2, Phase 4) — the extra pause is the default.
     if get_run_config().skip_plan_gate:
@@ -1285,6 +1326,12 @@ def route_after_critic(state: AgentState) -> str:
         return "failer"
     if _pending(state, get_run_config().max_critic_loops):
         return "executor"
+    # Every task is done and none of them yielded anything citable. Stopping here is the
+    # difference between "we could not answer this" and a fluent report sourced from the
+    # synthesizer's training data — the latter is what the citation-repair pass turns into
+    # an artifact that *looks* verified while resolving to nothing.
+    if not state.get("evidence"):
+        return "failer"
     return "contradiction_detector"
 
 
@@ -1315,7 +1362,9 @@ def build_graph(checkpointer):
         route_after_planner,
         {"executor": "executor", "plan_gate": "plan_gate", "failer": "failer"},
     )
-    g.add_conditional_edges("plan_gate", route_after_plan_gate, {"executor": "executor"})
+    g.add_conditional_edges(
+        "plan_gate", route_after_plan_gate, {"executor": "executor", "failer": "failer"}
+    )
     g.add_edge("executor", "critic")
     g.add_conditional_edges(
         "critic",

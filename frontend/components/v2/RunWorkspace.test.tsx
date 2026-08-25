@@ -361,9 +361,13 @@ describe("Plan gate", () => {
             {
               id: 1,
               query: "survey memory architectures",
+              // Selected, because these cases are about a *normal* plan reaching the gate.
+              // This read `include: false` while nothing in the panel looked at the flag;
+              // once the panel started honouring it, the fixture was describing a plan
+              // that researches nothing — the one state the gate now refuses.
+              include: true,
               rationale: "",
               subtopics: [],
-              include: false,
               source_hint: "",
             },
           ],
@@ -396,6 +400,71 @@ describe("Plan gate", () => {
     view(awaitingPlan());
     fireEvent.click(screen.getByRole("button", { name: "Approve plan" }));
     await waitFor(() => expect(planMutate).toHaveBeenCalledWith({ decision: "APPROVED" }));
+  });
+
+  it("refuses a plan whose every research area is excluded", () => {
+    // Run 63091d21: a local planner proposed all four tasks `include: false`. This panel
+    // renders no per-task control, counted the raw list, and told the reviewer their
+    // question had been broken into four research areas — so they approved a plan that
+    // searched nothing and still produced an eleven-claim report citing nothing.
+    view(
+      graph({
+        run: { ...graph().run, status: "AWAITING_PLAN" },
+        plans: [
+          {
+            id: "pl1",
+            version: 1,
+            tasks: [
+              { id: 1, query: "brand equity", rationale: "", subtopics: [], include: false, source_hint: "" },
+              { id: 2, query: "csat metrics", rationale: "", subtopics: [], include: false, source_hint: "" },
+            ],
+            outline_sections: [],
+            origin: "MODEL_PROPOSED",
+            approved_at: null,
+          },
+        ],
+        revisions: [],
+        claims: [],
+        claim_evidence_links: [],
+      }),
+    );
+
+    expect(screen.getByRole("button", { name: "Approve plan" })).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/every research area is excluded/i);
+    // Each one is labelled, not merely dimmed — the count alone would not say which.
+    expect(screen.getAllByText("excluded")).toHaveLength(2);
+
+    // Cleared first: this spy is module-level and still holds the approval the previous
+    // case sent, so asserting on it raw would measure that test, not this one.
+    planMutate.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Approve plan" }));
+    expect(planMutate).not.toHaveBeenCalled();
+  });
+
+  it("still offers Request changes when nothing is selected", () => {
+    // The only way out of a bad plan. Blocking this too would trap the run: the reviewer
+    // could neither approve it nor ask the planner to try again.
+    view(
+      graph({
+        run: { ...graph().run, status: "AWAITING_PLAN" },
+        plans: [
+          {
+            id: "pl1",
+            version: 1,
+            tasks: [
+              { id: 1, query: "q", rationale: "", subtopics: [], include: false, source_hint: "" },
+            ],
+            outline_sections: [],
+            origin: "MODEL_PROPOSED",
+            approved_at: null,
+          },
+        ],
+        revisions: [],
+        claims: [],
+        claim_evidence_links: [],
+      }),
+    );
+    expect(screen.getByRole("button", { name: "Request changes" })).not.toBeDisabled();
   });
 
   it("sends requested changes with the feedback typed", async () => {

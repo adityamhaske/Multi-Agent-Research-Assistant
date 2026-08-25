@@ -351,3 +351,96 @@ async def test_requesting_plan_changes_does_not_start_research(api):
     )
     payload = (await api["client"].get(f"/api/v1/v2/runs/{run.id}")).json()
     assert payload["run"]["status"] == "AWAITING_PLAN"
+
+
+async def _plan_with_nothing_selected(api, *, tasks):
+    """A run parked at the design gate whose proposed plan selects `tasks`."""
+    run = await v2_runtime.create_run(
+        api["db"],
+        owner_id=api["user_id"],
+        project_id=api["project_id"],
+        question="q",
+        skip_plan_gate=False,
+    )
+    await v2_runtime.record_plan(
+        api["db"], run, tasks=tasks, outline_sections=[], origin="MODEL_PROPOSED"
+    )
+    await v2_runtime.set_status(api["db"], run, "AWAITING_PLAN")
+    await api["db"].commit()
+    return run
+
+
+async def test_approving_a_plan_with_every_task_excluded_is_refused(api):
+    """The hole that produced an eleven-claim report with zero evidence (run 63091d21).
+
+    A local planner proposed four subtopics and marked every one `include: false`. V1's
+    gate has always rejected this; V2 had no such check, so the approval was recorded, the
+    graph filtered the task list to `[]`, nothing was searched, and the synthesizer wrote
+    the report from its own training data with repaired citations pointing at nothing.
+
+    Refused *before* the review row is written, because a recorded APPROVED review is
+    itself evidence — the run must be left exactly as it was, still awaiting a real
+    decision.
+    """
+    run = await _plan_with_nothing_selected(
+        api,
+        tasks=[
+            {"id": 1, "query": "brand equity definition", "include": False},
+            {"id": 2, "query": "customer satisfaction metrics", "include": False},
+        ],
+    )
+
+    resp = await api["client"].post(
+        f"/api/v1/v2/runs/{run.id}/plan-review", json={"decision": "APPROVED", "dispatch": True}
+    )
+    assert resp.status_code == 422
+    assert "at least one task" in resp.json()["detail"]
+
+    payload = (await api["client"].get(f"/api/v1/v2/runs/{run.id}")).json()
+    assert payload["run"]["status"] == "AWAITING_PLAN", "a refused approval must not start the run"
+    assert payload["reviews"] == [], "a refused approval must not be recorded as a decision"
+
+
+async def test_approving_a_plan_that_kept_one_task_is_still_allowed(api):
+    """Negative control: the guard must reject *nothing selected*, not every plan.
+
+    `dispatch: False` keeps this off the broker — what is under test is the validation,
+    not the resume.
+    """
+    run = await _plan_with_nothing_selected(
+        api,
+        tasks=[
+            {"id": 1, "query": "kept", "include": True},
+            {"id": 2, "query": "dropped", "include": False},
+        ],
+    )
+    resp = await api["client"].post(
+        f"/api/v1/v2/runs/{run.id}/plan-review", json={"decision": "APPROVED", "dispatch": False}
+    )
+    assert resp.status_code == 201
+
+
+async def test_a_task_with_no_include_key_still_counts_as_selected(api):
+    """`include` defaults to True in the schema, and the guard must read it the same way.
+
+    Every V1-era and migrated plan omits the key entirely; treating absent as excluded
+    would refuse approval on plans that are perfectly valid.
+    """
+    run = await _plan_with_nothing_selected(api, tasks=[{"id": 1, "query": "no include key"}])
+    resp = await api["client"].post(
+        f"/api/v1/v2/runs/{run.id}/plan-review", json={"decision": "APPROVED", "dispatch": False}
+    )
+    assert resp.status_code == 201
+
+
+async def test_requesting_rework_on_an_empty_plan_is_still_allowed(api):
+    """Asking for changes is the *correct* response to a plan that selects nothing.
+
+    The guard is on APPROVED only. Blocking rework here would trap the run: the reviewer
+    could neither approve it nor ask the planner to try again.
+    """
+    run = await _plan_with_nothing_selected(api, tasks=[{"id": 1, "query": "a", "include": False}])
+    resp = await api["client"].post(
+        f"/api/v1/v2/runs/{run.id}/plan-review", json={"decision": "REWORK_REQUESTED"}
+    )
+    assert resp.status_code == 201

@@ -61,6 +61,14 @@ export function PlanGate({ session }: { session: SessionDetail }) {
   const patchTask = (index: number, patch: Partial<PlanTask>) =>
     setTasks(tasks.map((t, i) => (i === index ? { ...t, ...patch } : t)));
 
+  // A planner is free to propose every subtopic pre-excluded, and a local model actually
+  // did: all four arrived `include: false`, the plan was approved as-is, and the run
+  // searched nothing while still producing a report. Re-checking them one at a time is
+  // the only remedy this screen offered. There is deliberately no "clear all" beside it —
+  // that would be a one-click route into the exact state the gate exists to refuse.
+  const allIncluded = tasks.length > 0 && included.length === tasks.length;
+  const selectAll = () => setTasks(tasks.map((t) => ({ ...t, include: true })));
+
   const move = (index: number, delta: number) => {
     const target = index + delta;
     if (target < 0 || target >= tasks.length) return;
@@ -113,14 +121,24 @@ export function PlanGate({ session }: { session: SessionDetail }) {
       <div className="min-w-0 space-y-6">
         {/* Subtopics */}
         <section aria-labelledby="plan-heading" className="card p-6">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="plan-heading" className="font-serif text-lg font-bold text-text-primary">
               Research plan
             </h2>
-            <p className="text-xs text-text-muted">
-              Each of these becomes one round of search. Nothing has been spent yet.
-            </p>
+            {tasks.length > 0 && !allIncluded && (
+              <button
+                type="button"
+                onClick={selectAll}
+                disabled={busy}
+                className="btn btn-secondary px-2 py-1 text-xs"
+              >
+                Select all {tasks.length}
+              </button>
+            )}
           </div>
+          <p className="mt-1 text-xs text-text-muted">
+            Each of these becomes one round of search. Nothing has been spent yet.
+          </p>
 
           <ol className="mt-4 space-y-3">
             {tasks.map((task, i) => (
@@ -323,7 +341,8 @@ export function PlanGate({ session }: { session: SessionDetail }) {
 
           {included.length === 0 && (
             <p role="alert" className="text-xs" style={{ color: "var(--danger)" }}>
-              Keep at least one subtopic — a plan with nothing in it researches nothing.
+              Keep at least one subtopic — a plan with nothing in it researches nothing. Use
+              “Select all” above to restore them.
             </p>
           )}
           {emptyQuery && (
