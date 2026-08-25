@@ -60,7 +60,26 @@ export function ConnectionStatus({
     );
   }
 
-  if (!verdict) return null;
+  // A key saved in an earlier page load carries no verdict — `PUT /me/api-key` returns
+  // one, but that result lives only in the mutation's local state, gone on reload, and
+  // the health query starts disabled so a settings-page visit alone never spends a
+  // provider call. Returning null here used to hide the retest button along with the
+  // status it triggers, so a stored key had no way to ever be checked again short of
+  // replacing it — the exact "is this thing even working?" question the button exists
+  // to answer. Render the trigger on its own; only the status line needs a verdict.
+  if (!verdict) {
+    if (!onRetest) return null;
+    return (
+      <button
+        type="button"
+        onClick={onRetest}
+        disabled={retesting}
+        className="font-mono text-xs text-accent hover:underline disabled:opacity-50"
+      >
+        {retesting ? "Testing…" : "Test connection"}
+      </button>
+    );
+  }
 
   return (
     <div className="space-y-1">

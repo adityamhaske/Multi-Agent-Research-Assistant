@@ -5,33 +5,18 @@ import Link from "next/link";
 import { useState, type JSX } from "react";
 import toast from "react-hot-toast";
 
-import { ConnectionStatus } from "@/components/account/ConnectionStatus";
+import { ApiKeyCard } from "@/components/account/ApiKeyCard";
 import { DesktopKeysCard } from "@/components/account/DesktopKeysCard";
 import { LocalLLMCard } from "@/components/account/LocalLLMCard";
 import { CustomEndpointCard } from "@/components/account/CustomEndpointCard";
 import { ModelPicker } from "@/components/account/ModelPicker";
 import { Field, Section } from "@/components/account/Section";
 import { ResetToDefault } from "@/components/settings/ResetToDefault";
-import {
-  useDeleteApiKey,
-  useMe,
-  useProviderHealth,
-  useSetApiKey,
-  useUpdateProfile,
-  useUsage,
-} from "@/hooks/queries";
+import { useMe, useUpdateProfile, useUsage } from "@/hooks/queries";
 import { ApiError } from "@/lib/api";
 import { isDesktop } from "@/lib/desktop";
 import { formatCost, formatNumber } from "@/lib/format";
-import type { ApiKeyProvider, UsageWindow } from "@/lib/types";
-
-const PROVIDERS: { value: ApiKeyProvider; label: string; help: string; url: string }[] = [
-  { value: "anthropic", label: "Anthropic (Claude)", help: "sk-ant-…", url: "https://console.anthropic.com/settings/keys" },
-  { value: "google", label: "Google (Gemini)", help: "From Google AI Studio", url: "https://aistudio.google.com/apikey" },
-  { value: "openai", label: "OpenAI", help: "sk-…", url: "https://platform.openai.com/api-keys" },
-  { value: "openrouter", label: "OpenRouter", help: "sk-or-…", url: "https://openrouter.ai/keys" },
-  { value: "custom", label: "Custom Endpoint", help: "API Key / Bearer Token", url: "#" },
-];
+import type { UsageWindow } from "@/lib/types";
 
 const EMPTY: UsageWindow = { tokens_input: 0, tokens_output: 0, tokens_total: 0, cost_usd: 0, sessions: 0 };
 
@@ -67,151 +52,13 @@ function ModelsSection() {
 }
 
 // ─── Connections ─────────────────────────────────────────────────────────────────
-
-function WebConnectionsSection() {
-  const { data: user, isLoading } = useMe();
-  const setApiKey = useSetApiKey();
-  const deleteApiKey = useDeleteApiKey();
-  const [provider, setProvider] = useState<ApiKeyProvider>("anthropic");
-  const [keyInput, setKeyInput] = useState("");
-  const [baseUrlInput, setBaseUrlInput] = useState("");
-  const providerHealth = useProviderHealth(user?.api_key_provider ?? null, false);
-
-  if (isLoading || !user) {
-    return <div className="card h-64 animate-pulse" aria-hidden />;
-  }
-
-  const selected = PROVIDERS.find((p) => p.value === provider)!;
-  const activeProvider = user.api_key_provider
-    ? PROVIDERS.find((p) => p.value === user.api_key_provider)
-    : null;
-
-  const saveKey = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const key = keyInput.trim();
-    const base_url = baseUrlInput.trim();
-    if (key.length < 8) return toast.error("That key looks too short.");
-    try {
-      await setApiKey.mutateAsync({
-        provider,
-        api_key: key,
-        ...(provider === "custom" && base_url ? { api_base_url: base_url } : {}),
-      });
-      setKeyInput("");
-      toast.success("Key saved. Your research now runs on your account.");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not save the key.");
-    }
-  };
-
-  const removeKey = async () => {
-    try {
-      await deleteApiKey.mutateAsync();
-      toast.success("Key removed.");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not remove the key.");
-    }
-  };
-
-  return (
-    <form onSubmit={saveKey}>
-      <Section
-        title="API key"
-        description="Bring your own key and research runs on your provider account instead of this server's. It's encrypted before storage and never shown again."
-        footer={
-          <>
-            <span className="font-mono text-xs text-text-muted">Only the last 4 characters are ever displayed.</span>
-            <button type="submit" disabled={setApiKey.isPending || keyInput.trim().length < 8} className="btn btn-primary">
-              {setApiKey.isPending && <span className="spinner" />}
-              {user.api_key_provider ? "Replace key" : "Save key"}
-            </button>
-          </>
-        }
-      >
-        {activeProvider ? (
-          <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border border-border bg-bg-surface px-4 py-3">
-            <div className="min-w-0 text-[0.8125rem]">
-              <span className="font-medium text-text-primary">{activeProvider.label}</span>{" "}
-              <span className="font-mono text-text-muted">{user.api_key_hint}</span>
-              <div className="mt-2">
-                <ConnectionStatus
-                  verdict={providerHealth.data ?? setApiKey.data?.connection_verdict ?? null}
-                  loading={providerHealth.isFetching}
-                  retesting={providerHealth.isFetching}
-                  onRetest={() => providerHealth.refetch()}
-                />
-              </div>
-            </div>
-            <button type="button" onClick={removeKey} disabled={deleteApiKey.isPending} className="btn btn-danger shrink-0">
-              {deleteApiKey.isPending && <span className="spinner" />}
-              Remove
-            </button>
-          </div>
-        ) : (
-          <p className="mb-5 border border-border bg-bg-surface px-4 py-3 font-mono text-xs text-text-secondary">
-            No key stored — research runs on this deployment&apos;s shared key, subject to your monthly limit.
-          </p>
-        )}
-
-        <div className="grid gap-4 sm:grid-cols-[13rem_1fr]">
-          <Field label="Provider" htmlFor="provider">
-            <select id="provider" value={provider} onChange={(e) => setProvider(e.target.value as ApiKeyProvider)} className="input-base">
-              {PROVIDERS.map((p) => (
-                <option key={p.value} value={p.value}>{p.label}</option>
-              ))}
-            </select>
-          </Field>
-          <Field
-            label={user.api_key_provider ? "Replace with a new key" : "Paste your key"}
-            htmlFor="apikey"
-            hint={
-              provider === "custom" ? (
-                <>The bearer token for the endpoint.</>
-              ) : (
-                <>Get one from{" "}
-                  <a href={selected.url} target="_blank" rel="noopener noreferrer" className="font-medium text-accent hover:underline">
-                    {selected.label}
-                  </a>.
-                </>
-              )
-            }
-          >
-            <input
-              id="apikey"
-              type="password"
-              autoComplete="off"
-              spellCheck={false}
-              value={keyInput}
-              onChange={(e) => setKeyInput(e.target.value)}
-              placeholder={selected.help}
-              className="input-base font-mono"
-            />
-          </Field>
-        </div>
-
-        {provider === "custom" && (
-          <div className="mt-4">
-            <Field label="Base URL" htmlFor="baseurl" hint="Used when selecting a 'custom:...' model route.">
-              <input
-                id="baseurl"
-                type="url"
-                autoComplete="off"
-                spellCheck={false}
-                value={baseUrlInput}
-                onChange={(e) => setBaseUrlInput(e.target.value)}
-                placeholder="https://api.together.xyz/v1"
-                className="input-base w-full max-w-md font-mono"
-              />
-            </Field>
-          </div>
-        )}
-      </Section>
-    </form>
-  );
-}
+//
+// The card itself lives in components/account/ApiKeyCard.tsx so it can be unit-tested
+// — app/** is outside vitest's include glob, the same reason the Overview page's logic
+// lives in lib/ rather than in app/(app)/project/.
 
 function ConnectionsSection() {
-  return isDesktop ? <DesktopKeysCard /> : <WebConnectionsSection />;
+  return isDesktop ? <DesktopKeysCard /> : <ApiKeyCard />;
 }
 
 // ─── Research ────────────────────────────────────────────────────────────────────
@@ -484,11 +331,225 @@ function AdvancedSection() {
   );
 }
 
+// ─── Search Providers ─────────────────────────────────────────────────────────────
+
+function SearchProvidersSection() {
+  const { data: user, isLoading } = useMe();
+  const updateProfile = useUpdateProfile();
+
+  const [tavilyInput, setTavilyInput] = useState<string | null>(null);
+  const [braveInput, setBraveInput] = useState<string | null>(null);
+
+  if (isLoading || !user) return <div className="card h-64 animate-pulse" aria-hidden />;
+
+  const savedTavily = user.preferences.tavily_api_key ?? "";
+  const savedBrave = user.preferences.brave_api_key ?? "";
+
+  const tavilyValue = tavilyInput !== null ? tavilyInput : savedTavily;
+  const braveValue = braveInput !== null ? braveInput : savedBrave;
+
+  const tavilyDirty = tavilyInput !== null && tavilyInput !== savedTavily;
+  const braveDirty = braveInput !== null && braveInput !== savedBrave;
+
+  const saveTavily = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateProfile.mutateAsync({
+        preferences: {
+          tavily_api_key: tavilyValue.trim() || null,
+        },
+      });
+      setTavilyInput(null);
+      toast.success(tavilyValue.trim() ? "Tavily API key saved." : "Tavily API key removed.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not update Tavily key.");
+    }
+  };
+
+  const saveBrave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateProfile.mutateAsync({
+        preferences: {
+          brave_api_key: braveValue.trim() || null,
+        },
+      });
+      setBraveInput(null);
+      toast.success(braveValue.trim() ? "Brave API key saved." : "Brave API key removed.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not update Brave key.");
+    }
+  };
+
+  const hasTavily = Boolean(savedTavily);
+  const hasBrave = Boolean(savedBrave);
+
+  return (
+    <>
+      {/* Chain Overview */}
+      <Section
+        title="Web Search Pipeline"
+        description="The research engine uses an ordered fallback chain for live web queries. First responsive search engine wins."
+      >
+        <div className="border border-border bg-bg-surface p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-xs font-mono">
+            <div className="flex items-center gap-2">
+              <span className={`inline-block h-2 w-2 rounded-full ${hasTavily ? "bg-success" : "bg-text-muted"}`} />
+              <span className="font-semibold text-text-primary">1. Tavily</span>
+              <span className="text-text-muted">({hasTavily ? "Active" : "Not configured"})</span>
+            </div>
+            <span className="text-text-muted hidden sm:inline">→</span>
+            <div className="flex items-center gap-2">
+              <span className={`inline-block h-2 w-2 rounded-full ${hasBrave ? "bg-success" : "bg-text-muted"}`} />
+              <span className="font-semibold text-text-primary">2. Brave Search</span>
+              <span className="text-text-muted">({hasBrave ? "Active" : "Not configured"})</span>
+            </div>
+            <span className="text-text-muted hidden sm:inline">→</span>
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-full bg-success" />
+              <span className="font-semibold text-text-primary">3. DuckDuckGo</span>
+              <span className="text-success font-medium">(Always Ready)</span>
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* Tavily */}
+      <form onSubmit={saveTavily}>
+        <Section
+          title="Tavily Search"
+          description="AI-native search engine designed specifically for research agents. Provides real-time clean content snippets."
+          footer={
+            <>
+              <span className="font-mono text-xs text-text-muted">
+                Get a key at{" "}
+                <a href="https://app.tavily.com" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                  app.tavily.com
+                </a>
+              </span>
+              <div className="flex items-center gap-2">
+                {hasTavily && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTavilyInput("");
+                      updateProfile.mutate({ preferences: { tavily_api_key: null } });
+                      toast.success("Tavily key removed.");
+                    }}
+                    className="btn btn-ghost"
+                  >
+                    Remove key
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={!tavilyDirty || updateProfile.isPending}
+                  className="btn btn-primary"
+                >
+                  {updateProfile.isPending && <span className="spinner" />}
+                  Save key
+                </button>
+              </div>
+            </>
+          }
+        >
+          <Field
+            label="Tavily API Key"
+            htmlFor="tavily-key"
+            hint="Starts with tvly-... Key is stored with your account preferences."
+          >
+            <input
+              id="tavily-key"
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              value={tavilyValue}
+              onChange={(e) => setTavilyInput(e.target.value)}
+              placeholder={hasTavily ? "••••••••••••••••" : "tvly-..."}
+              className="input-base w-full font-mono text-sm"
+            />
+          </Field>
+        </Section>
+      </form>
+
+      {/* Brave Search */}
+      <form onSubmit={saveBrave}>
+        <Section
+          title="Brave Search API"
+          description="Independent, privacy-first web search index. High-volume coverage."
+          footer={
+            <>
+              <span className="font-mono text-xs text-text-muted">
+                Get a key at{" "}
+                <a href="https://brave.com/search/api/" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                  brave.com/search/api
+                </a>
+              </span>
+              <div className="flex items-center gap-2">
+                {hasBrave && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBraveInput("");
+                      updateProfile.mutate({ preferences: { brave_api_key: null } });
+                      toast.success("Brave key removed.");
+                    }}
+                    className="btn btn-ghost"
+                  >
+                    Remove key
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={!braveDirty || updateProfile.isPending}
+                  className="btn btn-primary"
+                >
+                  {updateProfile.isPending && <span className="spinner" />}
+                  Save key
+                </button>
+              </div>
+            </>
+          }
+        >
+          <Field
+            label="Brave Search API Key"
+            htmlFor="brave-key"
+            hint="Subscription token from the Brave Search API developer console."
+          >
+            <input
+              id="brave-key"
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              value={braveValue}
+              onChange={(e) => setBraveInput(e.target.value)}
+              placeholder={hasBrave ? "••••••••••••••••" : "BSA-..."}
+              className="input-base w-full font-mono text-sm"
+            />
+          </Field>
+        </Section>
+      </form>
+
+      {/* DuckDuckGo */}
+      <Section
+        title="DuckDuckGo (Zero-Config Fallback)"
+        description="Built-in, keyless fallback search. Runs automatically when no API keys are provided or when providers encounter rate limits."
+      >
+        <div className="flex items-center gap-2 border border-border bg-bg-surface px-4 py-3 font-mono text-xs text-text-secondary">
+          <span className="inline-block h-2 w-2 rounded-full bg-success" />
+          <span>Active — No API key or credit card required.</span>
+        </div>
+      </Section>
+    </>
+  );
+}
+
 // ─── Router ──────────────────────────────────────────────────────────────────────
 
 const SECTIONS: Record<string, () => JSX.Element> = {
   models: ModelsSection,
   connections: ConnectionsSection,
+  search: SearchProvidersSection,
   research: ResearchSection,
   corpus: CorpusSection,
   exports: ExportsSection,

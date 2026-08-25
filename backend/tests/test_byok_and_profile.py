@@ -6,14 +6,24 @@ plaintext, one user's key never leaks into another's run, and an undecryptable
 key degrades to the server key instead of crashing the pipeline.
 """
 
+import uuid
+
 import pytest
+from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
 
-from app.schemas.auth import ApiKeyRequest, ProfileUpdate, UsageWindow
+from app.schemas.auth import ApiKeyLabelRequest, ApiKeyRequest, ProfileUpdate, UsageWindow
 from app.services import crypto
 from research_engine import llm_factory
 
 KEY = "AIzaSyEXAMPLEuserkey1234567890abcd"
+CUSTOM_KEY = "sk-example-custom-endpoint-key-0001"
+PASSWORD = "Str0ng-P@ssw0rd-For-Tests!"
+
+# No `pytestmark = pytest.mark.asyncio` here: pyproject.toml sets `asyncio_mode =
+# "auto"`, so the marker is unnecessary — and this file, unlike test_auth_rate_limit.py,
+# mixes sync schema tests with the async route tests below, where an unconditional
+# module-level marker would misapply to every sync `def test_...` and warn.
 
 
 # ── Encryption ───────────────────────────────────────────────────────────────
@@ -139,3 +149,128 @@ def test_auth_service_exposes_public_revoke_all():
     from app.services import auth_service
 
     assert callable(auth_service.revoke_all_for_user)
+
+
+# ── Connection nickname (rename) ─────────────────────────────────────────────
+#
+# `PATCH /me/api-key/label` route-level behaviour, driven through the real app the
+# way test_auth_rate_limit.py does, not through the schema alone — the guard that
+# matters ("nothing to rename yet") lives in the route, not in ApiKeyLabelRequest.
+
+
+def test_label_request_blank_clears_to_none():
+    assert ApiKeyLabelRequest(label="  ").label is None
+    assert ApiKeyLabelRequest(label="OmniRoute").label == "OmniRoute"
+
+
+def test_label_request_rejects_overlong_label():
+    with pytest.raises(ValidationError):
+        ApiKeyLabelRequest(label="x" * 61)
+
+
+@pytest.fixture
+async def client(db):  # noqa: ARG001 - ordering dependency, see test_auth_rate_limit.py
+    from app.main import app
+
+    async with app.router.lifespan_context(app):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as c:
+            yield c
+
+
+async def _registered_client(client: AsyncClient) -> AsyncClient:
+    """A client authenticated as a fresh user.
+
+    Registration is deliberately neutral (no account-enumeration signal) and does not
+    set a session cookie — login is a separate call, same as a real sign-up flow.
+
+    A distinct `x-forwarded-for` per call, the same device test_auth_rate_limit.py
+    uses (`_fresh_ip`) — without it every registration in this module shares one
+    IP and the suite trips its own `REGISTER_IP` cap (issue #51) well before five
+    tests have run.
+    """
+    ip = f"203.0.113.{uuid.uuid4().int % 254 + 1}-{uuid.uuid4().hex[:8]}"
+    email = f"{uuid.uuid4().hex}@example.com"
+    resp = await client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": PASSWORD},
+        headers={"x-forwarded-for": ip},
+    )
+    assert resp.status_code == 201, resp.text
+    login = await client.post("/api/v1/auth/login", json={"email": email, "password": PASSWORD})
+    assert login.status_code == 200, login.text
+    return client
+
+
+async def _save_custom_key(client: AsyncClient) -> None:
+    # provider="custom" with no base_url makes provider_health.probe return early
+    # (`"A base URL is required"`) without an outbound request — the label routes
+    # under test never touch it, but PUT /me/api-key always probes on save.
+    resp = await client.put(
+        "/api/v1/auth/me/api-key",
+        json={"provider": "custom", "api_key": CUSTOM_KEY},
+    )
+    assert resp.status_code == 200, resp.text
+
+
+async def test_rename_requires_an_active_key(client: AsyncClient):
+    await _registered_client(client)
+    resp = await client.patch("/api/v1/auth/me/api-key/label", json={"label": "OmniRoute"})
+    assert resp.status_code == 404
+    assert "connection" in resp.json()["detail"].lower()
+
+
+async def test_rename_sets_the_label_without_touching_the_key(client: AsyncClient):
+    await _registered_client(client)
+    await _save_custom_key(client)
+
+    resp = await client.patch("/api/v1/auth/me/api-key/label", json={"label": "OmniRoute"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["api_key_label"] == "OmniRoute"
+    # Renaming must not disturb what it did not touch.
+    assert body["api_key_provider"] == "custom"
+    assert body["api_key_hint"] is not None
+
+    me = await client.get("/api/v1/auth/me")
+    assert me.json()["api_key_label"] == "OmniRoute"
+
+
+async def test_rename_blank_reverts_to_the_catalog_label(client: AsyncClient):
+    await _registered_client(client)
+    await _save_custom_key(client)
+    await client.patch("/api/v1/auth/me/api-key/label", json={"label": "OmniRoute"})
+
+    resp = await client.patch("/api/v1/auth/me/api-key/label", json={"label": "  "})
+    assert resp.status_code == 200
+    assert resp.json()["api_key_label"] is None
+
+
+async def test_replacing_the_key_preserves_the_label(client: AsyncClient):
+    """A nickname describes which gateway this is, not which token is on file — a
+    key rotation must not silently blank a name the user already chose."""
+    await _registered_client(client)
+    await _save_custom_key(client)
+    await client.patch("/api/v1/auth/me/api-key/label", json={"label": "OmniRoute"})
+
+    resp = await client.put(
+        "/api/v1/auth/me/api-key",
+        json={"provider": "custom", "api_key": CUSTOM_KEY + "-rotated"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["api_key_label"] == "OmniRoute"
+
+
+async def test_deleting_the_key_clears_the_label(client: AsyncClient):
+    await _registered_client(client)
+    await _save_custom_key(client)
+    await client.patch("/api/v1/auth/me/api-key/label", json={"label": "OmniRoute"})
+
+    resp = await client.delete("/api/v1/auth/me/api-key")
+    assert resp.status_code == 200
+    assert resp.json()["api_key_label"] is None
+
+    # And the row is now clean, so renaming again is refused for the same reason a
+    # never-configured account is refused.
+    again = await client.patch("/api/v1/auth/me/api-key/label", json={"label": "New"})
+    assert again.status_code == 404

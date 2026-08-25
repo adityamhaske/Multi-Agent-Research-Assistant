@@ -32,6 +32,13 @@ class User(Base):
     api_key_base_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     api_key_hint: Mapped[str | None] = mapped_column(String(16), nullable=True)
     api_key_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # User-chosen display name for the active connection ("OmniRoute", "Work vLLM") —
+    # distinct from `api_key_provider`, which is the fixed catalog label ("Custom
+    # Endpoint") and stays the same across every gateway a user ever points it at.
+    # NULL means "show the catalog label", the default every account had before this
+    # column existed. Cleared alongside the key in `delete_api_key` — a nickname
+    # describes a connection that no longer exists once the key is gone.
+    api_key_label: Mapped[str | None] = mapped_column(String(60), nullable=True)
 
     # ── Usage limit ────────────────────────────────────────────────────────────
     # Rolling-month ceiling on total tokens. 0 = unlimited (the default for

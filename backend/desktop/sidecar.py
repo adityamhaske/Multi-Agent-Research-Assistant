@@ -1072,7 +1072,13 @@ def create_sidecar_app(
             prefs = (local_user.preferences if local_user else None) or {}
             preference_overrides = {
                 k: prefs[k]
-                for k in ("retrieval_k", "min_sources_per_task", "snippet_max_chars")
+                for k in (
+                    "retrieval_k",
+                    "min_sources_per_task",
+                    "snippet_max_chars",
+                    "tavily_api_key",
+                    "brave_api_key",
+                )
                 if prefs.get(k) is not None
             }
 

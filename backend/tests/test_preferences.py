@@ -28,9 +28,17 @@ def test_runconfig_defaults_reproduce_todays_behaviour():
 
 def test_preference_overrides_only_include_set_fields():
     class _FakeUser:
-        preferences = {"retrieval_k": 8}
+        preferences = {
+            "retrieval_k": 8,
+            "tavily_api_key": "tvly-test",
+            "brave_api_key": "BSA-test",
+        }
 
-    assert _preference_overrides(_FakeUser()) == {"retrieval_k": 8}
+    assert _preference_overrides(_FakeUser()) == {
+        "retrieval_k": 8,
+        "tavily_api_key": "tvly-test",
+        "brave_api_key": "BSA-test",
+    }
 
 
 def test_preference_overrides_empty_for_a_user_with_none_set():

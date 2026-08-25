@@ -72,7 +72,13 @@ async def _user_provider_keys(db, user_id: str) -> dict[str, str]:
 #: Preference keys that map 1:1 onto a `RunConfig` field of the same name (docs/07 §2,
 #: Phase 3). `None`/absent means "use the deployment default" — the class default
 #: already is that default, so an unset preference contributes nothing to `replace()`.
-_PREFERENCE_FIELDS = ("retrieval_k", "min_sources_per_task", "snippet_max_chars")
+_PREFERENCE_FIELDS = (
+    "retrieval_k",
+    "min_sources_per_task",
+    "snippet_max_chars",
+    "tavily_api_key",
+    "brave_api_key",
+)
 
 
 def _preference_overrides(user: User | None) -> dict:

@@ -21,6 +21,7 @@ from app.db.redis import get_redis
 from app.dependencies import get_client_ip, get_current_user
 from app.models.user import User
 from app.schemas.auth import (
+    ApiKeyLabelRequest,
     ApiKeyRequest,
     ConnectionVerdict,
     LoginRequest,
@@ -291,10 +292,33 @@ async def delete_api_key(
     current_user.api_key_provider = None
     current_user.api_key_base_url = None
     current_user.api_key_hint = None
+    current_user.api_key_label = None
     current_user.api_key_set_at = None
     await db.commit()
     await db.refresh(current_user)
     logger.info("api_key_removed", user_id=str(current_user.id))
+    return UserResponse.model_validate(current_user)
+
+
+@router.patch("/me/api-key/label", response_model=UserResponse)
+async def rename_api_key(
+    payload: ApiKeyLabelRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Give the active BYOK connection a display name ("OmniRoute", "Work vLLM").
+
+    Independent of `PUT /me/api-key`: a nickname describes which gateway this is,
+    which does not change just because the key or base URL is rotated, so renaming
+    must not force the key to be re-entered and must not re-probe the provider — it
+    only touches the label column.
+    """
+    if not current_user.api_key_provider:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No connection to rename.")
+    current_user.api_key_label = payload.label
+    await db.commit()
+    await db.refresh(current_user)
+    logger.info("api_key_renamed", user_id=str(current_user.id))
     return UserResponse.model_validate(current_user)
 
 

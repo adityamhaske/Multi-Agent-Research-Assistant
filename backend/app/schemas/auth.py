@@ -49,6 +49,8 @@ class UserPreferences(BaseModel):
     min_sources_per_task: int | None = Field(default=None, ge=0, le=20)
     snippet_max_chars: int | None = Field(default=None, ge=100, le=500)
     density: Literal["comfortable", "compact"] | None = None
+    tavily_api_key: str | None = Field(default=None, max_length=200)
+    brave_api_key: str | None = Field(default=None, max_length=200)
 
 
 class UserResponse(BaseModel):
@@ -66,6 +68,7 @@ class UserResponse(BaseModel):
     api_key_provider: str | None = None
     api_key_base_url: str | None = None
     api_key_hint: str | None = None
+    api_key_label: str | None = None
     api_key_set_at: datetime | None = None
     # Set only by `PUT /me/api-key` — saving a key tests it in the same request, so the
     # UI never shows a stale "connected" for a key nobody has actually probed since it
@@ -125,6 +128,23 @@ class ApiKeyRequest(BaseModel):
     provider: Literal["google", "anthropic", "openai", "openrouter", "custom"]
     api_key: str = Field(min_length=8, max_length=500)
     api_base_url: AnyHttpUrl | None = Field(default=None)
+
+
+class ApiKeyLabelRequest(BaseModel):
+    """Rename the active BYOK connection. Separate from `ApiKeyRequest` on purpose —
+    a nickname does not require re-proving the key, and saving one must not re-probe
+    the provider (docs/07 §2, Phase 2a's probe is a "test", not a rename)."""
+
+    model_config = {"str_strip_whitespace": True}
+
+    # Blank clears the nickname back to the catalog label ("Custom Endpoint"), the
+    # same convention `ProfileUpdate.avatar_url` uses for "unset this".
+    label: str | None = Field(default=None, max_length=60)
+
+    @field_validator("label")
+    @classmethod
+    def blank_clears(cls, v: str | None) -> str | None:
+        return v or None
 
 
 class UsageWindow(BaseModel):

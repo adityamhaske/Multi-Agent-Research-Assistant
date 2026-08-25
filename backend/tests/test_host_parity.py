@@ -96,6 +96,10 @@ INTENTIONAL_SERVER_ONLY: dict[str, str] = {
     "POST /auth/me/password": "no password to change",
     "PUT /auth/me/api-key": "keys are keychain-backed — PUT /desktop/keys/{provider}",
     "DELETE /auth/me/api-key": "keys are keychain-backed — DELETE /desktop/keys/{provider}",
+    # A nickname for the server's single active-connection row. Desktop keeps one keychain
+    # entry per provider already labeled by provider name, not one active connection to
+    # disambiguate, so there is nothing here for a sidecar route to rename yet.
+    "PATCH /auth/me/api-key/label": "no active-connection concept on desktop — keys are per-provider",
     # Project memory is pgvector-only, stated as a known gap in the v1.0.0 release notes
     # and handled in the UI: `project/page.tsx` branches on `isDesktop` and explains it,
     # and SideNav hides Chat entirely on desktop.

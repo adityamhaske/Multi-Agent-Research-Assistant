@@ -15,6 +15,7 @@ import { isDesktop } from "@/lib/desktop";
 const SECTIONS: { slug: string; label: string }[] = [
   { slug: "models", label: "Models" },
   { slug: "connections", label: "Connections" },
+  { slug: "search", label: "Search Providers" },
   { slug: "research", label: "Research" },
   { slug: "corpus", label: "Corpus" },
   { slug: "exports", label: "Exports" },

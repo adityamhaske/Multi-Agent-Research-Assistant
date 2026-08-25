@@ -69,6 +69,8 @@ export interface UserPreferences {
   min_sources_per_task?: number | null;
   snippet_max_chars?: number | null;
   density?: "comfortable" | "compact" | null;
+  tavily_api_key?: string | null;
+  brave_api_key?: string | null;
 }
 
 export interface User {
@@ -83,6 +85,10 @@ export interface User {
   // BYOK status — the key itself is never sent to the client.
   api_key_provider: ApiKeyProvider | null;
   api_key_hint: string | null;
+  // User-chosen nickname for the active connection ("OmniRoute"); null shows the
+  // catalog label ("Custom Endpoint") instead. Set via PATCH /me/api-key/label,
+  // independent of the key itself.
+  api_key_label: string | null;
   api_key_set_at: string | null;
   // Set only by the response to PUT /me/api-key — saving a key tests it in the same
   // request. `null`/absent everywhere else this type is used.

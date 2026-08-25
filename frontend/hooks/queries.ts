@@ -125,6 +125,20 @@ export function useDeleteApiKey() {
 }
 
 /**
+ * Nickname the active BYOK connection ("OmniRoute", "Work vLLM"). Deliberately
+ * separate from `useSetApiKey` — a nickname does not require re-pasting the key, and
+ * unlike saving, this never re-probes the provider (`PATCH /me/api-key/label`).
+ */
+export function useSetApiKeyLabel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (label: string) =>
+      apiFetch<User>("/auth/me/api-key/label", { method: "PATCH", body: { label } }),
+    onSuccess: (user) => qc.setQueryData(queryKeys.me, user),
+  });
+}
+
+/**
  * Probe a key BEFORE it is stored (docs/07 §2, Phase 2a) — the picker's "test
  * connection" action, separate from saving. Same request/response shape on both
  * hosts: `POST /models/providers/test`.

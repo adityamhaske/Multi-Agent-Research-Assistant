@@ -6,9 +6,16 @@ import { SectionContent } from "./SectionContent";
 // section UI lives in the client component this renders.
 export function generateStaticParams() {
   // A fixed, known set — unlike `/session/[sessionId]`'s unbounded ids.
-  return ["models", "connections", "research", "corpus", "exports", "appearance", "advanced"].map(
-    (section) => ({ section }),
-  );
+  return [
+    "models",
+    "connections",
+    "search",
+    "research",
+    "corpus",
+    "exports",
+    "appearance",
+    "advanced",
+  ].map((section) => ({ section }));
 }
 
 export default async function SettingsSectionPage({
