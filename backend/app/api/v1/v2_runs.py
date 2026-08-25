@@ -59,6 +59,7 @@ from app.schemas.v2 import (  # noqa: F401  (re-export)
     ReportReviewRequest,
 )
 from app.services.sse import SSE_HEADERS
+from app.v2_dispatch import RunDispatcher, get_run_dispatcher
 from research_engine.bundle import render_model_attribution_md
 
 router = APIRouter(prefix="/v2/runs", tags=["v2"])
@@ -348,6 +349,7 @@ async def create_run(
     body: CreateRunRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    dispatcher: RunDispatcher = Depends(get_run_dispatcher),
 ):
     """Open a V2-native run.
 
@@ -381,9 +383,7 @@ async def create_run(
     await db.commit()
 
     if body.dispatch:
-        from app.workers.tasks import run_v2_pipeline
-
-        run_v2_pipeline.delay(str(run.id), str(current_user.id))
+        await dispatcher.start(str(run.id), str(current_user.id))
     return {"run_id": str(run.id), "status": run.status, "dispatched": body.dispatch}
 
 
@@ -456,6 +456,7 @@ async def submit_plan_review(
     body: PlanReviewRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    dispatcher: RunDispatcher = Depends(get_run_dispatcher),
 ):
     """A decision about the latest plan version. It authorizes no artifact, ever."""
     run = await _run_or_404(db, run_id, current_user.id)
@@ -488,9 +489,7 @@ async def submit_plan_review(
     # `runner.resume(plan=…)` the V1 path uses, so research the user already paid for is
     # not re-run.
     if body.decision == "APPROVED" and body.dispatch:
-        from app.workers.tasks import resume_v2_plan_gate
-
-        resume_v2_plan_gate.delay(
+        await dispatcher.resume_plan(
             str(run.id),
             str(current_user.id),
             {"tasks": plan.tasks, "sections": plan.outline_sections},
@@ -504,6 +503,7 @@ async def submit_report_review(
     body: ReportReviewRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    dispatcher: RunDispatcher = Depends(get_run_dispatcher),
 ):
     """A decision about a revision. On APPROVED, the artifact is frozen in the same
     transaction — so an approval that cannot produce a verifiable artifact is not recorded
@@ -534,12 +534,10 @@ async def submit_report_review(
             run.status = "RUNNING"
         await db.commit()
         if body.decision == "REWORK_REQUESTED" and body.dispatch:
-            from app.workers.tasks import resume_v2_pipeline
-
             # `route_after_gate` sends a rejected draft back to the SYNTHESIZER, not the
             # executor — the same evidence, resynthesized — so the next revision costs one
             # synthesis rather than a whole run.
-            resume_v2_pipeline.delay(str(run.id), str(current_user.id), False, body.feedback)
+            await dispatcher.rework(str(run.id), str(current_user.id), body.feedback)
     except v2_runtime.LifecycleError as exc:
         await db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc

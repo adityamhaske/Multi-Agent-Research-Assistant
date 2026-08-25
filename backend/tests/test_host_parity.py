@@ -239,6 +239,23 @@ DESKTOP_UI_CALLS: dict[str, str] = {
     "GET /models/local/status": "LocalLLMCard",
     "POST /models/local/pull": "LocalLLMCard",
     "POST /models/providers/test": "connection test",
+    # The research workspace. This block was missing while the desktop build was already
+    # shipping `/research` and `/research/run` — the sidebar's primary control points at
+    # the first — so the table said the desktop journey was V1 long after it had stopped
+    # being. That omission is what let `POST /v2/runs` answer 501 to the packaged app's
+    # Start research button without any test objecting: parity only checks what this
+    # table claims the client calls.
+    "POST /v2/runs": "StartResearchForm — Start research",
+    "GET /v2/runs": "Research page, Overview — the run list",
+    "GET /v2/runs/{run_id}": "RunWorkspace — the aggregate graph",
+    "GET /v2/runs/{run_id}/stream": "RunWorkspace — live events (SSE)",
+    "POST /v2/runs/{run_id}/plan-review": "PlanPanel — approve or edit the design",
+    "POST /v2/runs/{run_id}/report-review": "ReviewPanel — approve or request rework",
+    "POST /v2/runs/{run_id}/cancel": "RunWorkspace — the Stop button",
+    "GET /v2/runs/{run_id}/verification": "ArtifactPanel — the standalone verifier",
+    "GET /v2/runs/{run_id}/bundle.json": "ArtifactPanel — the verifiable bundle",
+    "GET /v2/runs/{run_id}/export.md": "ReportPanel",
+    "GET /v2/runs/{run_id}/export.pdf": "ReportPanel (501 on desktop, handled)",
 }
 
 #: Paths the desktop UI calls that the sidecar does **not** serve — controls that 404.

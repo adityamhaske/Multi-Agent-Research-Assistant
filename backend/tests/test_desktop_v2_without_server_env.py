@@ -129,44 +129,129 @@ def test_a_v2_route_answers_without_server_configuration(path, expected, probe_r
     assert status == expected, f"{path} -> {status}, expected {expected}. Body: {body}"
 
 
-def test_asking_the_desktop_host_to_execute_a_v2_run_is_refused_not_crashed():
-    """Dispatch is the one V2 capability this host does not have, and it must say so.
+def _drive(fake_app_dir, *, skip_plan_gate: bool):
+    """Create a scripted run on the desktop host and drive it through its gates.
 
-    `v2_execution.execute_run` takes a Redis lock, opens the server engine and checkpoints
-    to Postgres; on the server, `dispatch` enqueues a Celery task. The desktop has none of
-    those, and `research-sidecar.spec` excludes `celery` — so the packaged app answered
-    this with `ModuleNotFoundError: No module named 'celery'` behind a 500.
-
-    501 rather than 500 because the distinction is the product's own: a capability the host
-    lacks is a documented answer, a crash is a defect. Asserted before the row is created,
-    so a refused dispatch also leaves nothing behind for a driver that will never come.
+    Returns the run's terminal projection. Scripted (`fake=True`) throughout: this is the
+    offline verification path, so it must work with no provider, no key and no network.
     """
     import asyncio
-    import tempfile
 
     import httpx
 
     from desktop.sidecar import create_sidecar_app
 
-    async def go(tmp) -> tuple[int, int]:
+    async def poll(client, head, run_id, wanted, *, timeout=60.0):
+        """Wait for the in-process driver to reach a status.
+
+        The driver is an `asyncio.Task` on this same loop, so yielding is what lets it run;
+        a bare sleep-free loop would spin without ever handing it control.
+        """
+        deadline = asyncio.get_running_loop().time() + timeout
+        last = None
+        while asyncio.get_running_loop().time() < deadline:
+            r = await client.get(f"/api/v1/v2/runs/{run_id}", headers=head)
+            last = r.json()["run"]["status"] if r.status_code == 200 else f"HTTP {r.status_code}"
+            if last in wanted:
+                return last
+            await asyncio.sleep(0.05)
+        raise AssertionError(f"run never reached {wanted}; last status was {last!r}")
+
+    async def go(tmp):
         app = create_sidecar_app(data_dir=tmp, token="tok", fake=True)
         async with app.router.lifespan_context(app):
             transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
             async with httpx.AsyncClient(transport=transport, base_url="http://127.0.0.1:9") as c:
                 head = {"Authorization": "Bearer tok"}
-                proj = await c.post("/api/v1/projects", json={"name": "p"}, headers=head)
-                pid = proj.json()["id"]
-                body = {"question": "q", "depth": "fast", "project_id": pid}
-                dispatched = await c.post(
-                    "/api/v1/v2/runs", json={**body, "dispatch": True}, headers=head
-                )
+                pid = (await c.post("/api/v1/projects", json={"name": "p"}, headers=head)).json()[
+                    "id"
+                ]
                 created = await c.post(
-                    "/api/v1/v2/runs", json={**body, "dispatch": False}, headers=head
+                    "/api/v1/v2/runs",
+                    json={
+                        "question": "What is retrieval-augmented generation?",
+                        "depth": "fast",
+                        "project_id": pid,
+                        "skip_plan_gate": skip_plan_gate,
+                        "dispatch": True,
+                    },
+                    headers=head,
                 )
-                return dispatched.status_code, created.status_code
+                assert created.status_code == 201, (
+                    f"create failed: {created.status_code} {created.text[:300]}"
+                )
+                run_id = created.json()["run_id"]
+
+                if not skip_plan_gate:
+                    await poll(c, head, run_id, {"AWAITING_PLAN"})
+                    approved = await c.post(
+                        f"/api/v1/v2/runs/{run_id}/plan-review",
+                        json={"decision": "APPROVED"},
+                        headers=head,
+                    )
+                    assert approved.status_code == 201, approved.text[:300]
+
+                await poll(c, head, run_id, {"AWAITING_REVIEW"})
+                approved = await c.post(
+                    f"/api/v1/v2/runs/{run_id}/report-review",
+                    json={"decision": "APPROVED"},
+                    headers=head,
+                )
+                assert approved.status_code == 201, approved.text[:300]
+
+                final = (await c.get(f"/api/v1/v2/runs/{run_id}", headers=head)).json()
+                exports = {}
+                for suffix in ("export.md", "bundle.json"):
+                    r = await c.get(f"/api/v1/v2/runs/{run_id}/{suffix}", headers=head)
+                    exports[suffix] = (r.status_code, r.text)
+                return final, exports
+
+    return asyncio.run(go(fake_app_dir))
+
+
+def test_the_desktop_host_starts_and_completes_a_research_run_in_process():
+    """The packaged app's primary control has to work on the host that ships it.
+
+    This previously asserted the opposite — that dispatch answered 501 — because executing a
+    run meant Redis, Postgres and a Celery worker the desktop has none of. That made
+    "Start research", the one action the product is named after, a button that could not
+    work in the packaged app; the desktop UI calls `POST /v2/runs` and always has.
+
+    The fix is a different *mechanism*, not a different contract: the same engine, the same
+    shared handlers, driven by an asyncio task against this host's SQLite saver. So the
+    assertion is the whole journey rather than a status code — created, driven to the review
+    gate, approved, completed, with an artifact and a bundle at the end.
+    """
+    import tempfile
 
     with tempfile.TemporaryDirectory() as tmp:
-        refused, created = asyncio.run(go(tmp))
+        final, exports = _drive(tmp, skip_plan_gate=True)
 
-    assert refused == 501, f"dispatch should be refused as unimplemented, got {refused}"
-    assert created == 201, f"creating a run without dispatch should still work, got {created}"
+    assert final["run"]["status"] == "COMPLETED", final["run"]
+    # An approval that produced no artifact is not an approval this product recognises.
+    assert final["artifact"] is not None, "approval recorded no artifact"
+    # Scripted models mean the row must say so, whatever the request asked for — the
+    # fourth home of that rule now that the desktop drives research runs too.
+    assert final["run"]["demo"] is True, "a scripted run must be recorded as a demo run"
+
+    md_status, md_body = exports["export.md"]
+    assert md_status == 200, f"markdown export failed: {md_status}"
+    bundle_status, bundle_body = exports["bundle.json"]
+    assert bundle_status == 200, f"bundle export failed: {bundle_status}"
+    assert bundle_body.strip(), "bundle export was empty"
+
+
+def test_the_desktop_host_pauses_at_the_design_gate_and_resumes_after_approval():
+    """Both gates, not just the last one.
+
+    The plan gate resumes through a different dispatcher operation than a fresh start, and
+    a driver that wires only the start path leaves a run suspended forever with the UI
+    showing "Running" — the failure this exercises rather than reasons about.
+    """
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        final, _ = _drive(tmp, skip_plan_gate=False)
+
+    assert final["run"]["status"] == "COMPLETED", final["run"]
+    assert final["artifact"] is not None

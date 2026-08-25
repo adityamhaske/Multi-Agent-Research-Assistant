@@ -127,7 +127,12 @@ from research_engine.runconfig import (
     reset_run_config,
     set_run_config,
 )
+# `resume`/`run` are also bound under aliases: in `_drive_run`, `run` is the ResearchRun
+# row, and letting the row shadow the engine entry point would be a silent bug rather than
+# a name error.
 from research_engine.runner import RunOutcome, resume, run
+from research_engine.runner import resume as resume_run
+from research_engine.runner import run as run_pipeline
 
 logger = structlog.get_logger()
 
@@ -1165,6 +1170,164 @@ def create_sidecar_app(
         async with session_factory() as db:
             session = await _authorized_session(db, session_id, sidecar["user_id"])
             await _apply_outcome(db, session, outcome)
+
+    # ── Research runs, driven in this process ─────────────────────────────────────
+    #
+    # The desktop's answer to `app/v2_execution.py::execute_run`, which is server-only:
+    # it takes a Redis lock, opens the server engine and checkpoints to Postgres, none of
+    # which exist here. Everything *above* that function in `v2_execution` is host-free and
+    # is imported rather than restated — `persist_outcome` writes the domain rows and
+    # `lifecycle_event` names the terminal event, so a desktop run and a server run cannot
+    # record different things about the same outcome.
+    #
+    # Only the mechanism differs: an asyncio task instead of a Celery message, this host's
+    # SQLite saver instead of the Postgres one, and the desktop's own `RunConfig` builder
+    # instead of the server settings. Same shape as `_drive_session` above, which is the
+    # long-standing precedent for exactly this substitution.
+
+    #: Guards against two drivers on one run. Celery can redeliver a message, which is why
+    #: the server takes a Redis lock; a single-process host cannot, but a user double-
+    #: clicking Approve can still land two coroutines on one run, and the second would
+    #: resume a graph the first is already advancing.
+    _runs_in_flight: set[str] = set()
+
+    async def _drive_run(
+        run_id: uuid.UUID,
+        *,
+        resume: tuple[bool, str | None] | None = None,
+        plan: dict | None = None,
+    ) -> None:
+        """Run or resume one research run in-process — the desktop's worker."""
+        from app import v2_execution, v2_runtime
+        from app.models.research import ResearchRun
+
+        key = str(run_id)
+        if key in _runs_in_flight:
+            logger.warning("sidecar_run_already_in_flight", run_id=key)
+            return
+        _runs_in_flight.add(key)
+        try:
+            sidecar = app.state.sidecar
+            sink = PersistingSink(sidecar["bus"], session_factory)
+
+            async with session_factory() as db:
+                run = await db.get(ResearchRun, run_id)
+                if run is None or run.owner_id != sidecar["user_id"]:
+                    logger.error("sidecar_run_not_found", run_id=key)
+                    return
+                # "No new research will be started for this run" has to stay true across a
+                # resume dispatched after a cancel; the server guards the same way, and
+                # without it the status write violates `ck_run_cancelled`.
+                if run.status == "CANCELLED":
+                    logger.info("sidecar_run_start_skipped_cancelled", run_id=key)
+                    return
+
+                # Fourth home of "the row records what actually ran, not what was
+                # requested" (AGENTS.md): `pipeline_runner._run_config_for`,
+                # `v2_execution.run_config_for_run`, `sidecar._drive_session`, and here.
+                # A run under the process-wide `--fake` flag must persist `demo = true`, or
+                # its bundle names models nothing called and its export skips the stamp.
+                is_demo = bool(run.demo) or bool(app.state.fake)
+                if is_demo and not run.demo:
+                    run.demo = True
+                overrides = {
+                    "skip_plan_gate": bool(run.skip_plan_gate),
+                    "topic_seeds": tuple(run.topic_seeds or ()),
+                    "outline_template": run.outline_template,
+                }
+                question, depth = run.question, run.depth
+                run_routing = run.model_routing
+                await v2_runtime.set_status(db, run, "RUNNING")
+                await db.commit()
+
+            try:
+                config = sidecar_run_config(
+                    fake=app.state.fake or is_demo,
+                    demo=is_demo,
+                    data_dir=app.state.data_dir,
+                    session_routing=run_routing,
+                )
+                config = replace(config, **overrides)
+            except RuntimeError as e:
+                async with session_factory() as db:
+                    run = await db.get(ResearchRun, run_id)
+                    await v2_runtime.record_failure(db, run, str(e)[:500])
+                    await db.commit()
+                await sink(key, make_event("FAILED", message=str(e)))
+                return
+
+            # Snapshot what this run actually dialled, before the graph starts — the same
+            # reason `_drive_session` does it: without it every desktop run's bundle
+            # reports a null routing for a decision that was really made.
+            if run_routing != config.models:
+                async with session_factory() as db:
+                    run = await db.get(ResearchRun, run_id)
+                    run.model_routing = dict(config.models)
+                    await db.commit()
+
+            ports = {
+                "event_sink": sink,
+                "cache": sidecar["cache"],
+                "run_config": config,
+                "corpus": sidecar["corpus"],
+            }
+            try:
+                if plan is not None:
+                    outcome = await resume_run(
+                        checkpointer=sidecar["saver"], session_id=key, plan=plan, **ports
+                    )
+                elif resume is None:
+                    outcome = await run_pipeline(
+                        checkpointer=sidecar["saver"],
+                        session_id=key,
+                        user_id="local",
+                        query=question,
+                        depth=depth,
+                        **ports,
+                    )
+                else:
+                    approved, feedback = resume
+                    outcome = await resume_run(
+                        checkpointer=sidecar["saver"],
+                        session_id=key,
+                        approved=approved,
+                        feedback=feedback,
+                        **ports,
+                    )
+            except Exception as e:  # noqa: BLE001 — a crashed run must surface as FAILED
+                logger.exception("sidecar_v2_run_crashed", run_id=key)
+                outcome = RunOutcome(status="failed", error=str(e)[:500])
+
+            async with session_factory() as db:
+                run = await db.get(ResearchRun, run_id)
+                result = await v2_execution.persist_outcome(
+                    db, run, outcome, saver=sidecar["saver"]
+                )
+                # Persist, commit, then publish — a client acting on COMPLETED must never
+                # re-read a status that has not caught up.
+                await db.commit()
+            await sink(key, v2_execution.lifecycle_event(result))
+        finally:
+            _runs_in_flight.discard(key)
+
+    class _SidecarDispatcher:
+        """`RunDispatcher` for this host: an asyncio task instead of a broker message.
+
+        The handlers in `app/api/v1/v2_runs.py` are shared verbatim; only this is swapped,
+        so the ordering rules they encode — commit before dispatch, RUNNING in the same
+        transaction as the decision — hold identically on both hosts.
+        """
+
+        async def start(self, run_id: str, user_id: str) -> None:
+            asyncio.create_task(_drive_run(uuid.UUID(run_id)))
+
+        async def resume_plan(self, run_id: str, user_id: str, plan: dict) -> None:
+            asyncio.create_task(_drive_run(uuid.UUID(run_id), plan=plan))
+
+        async def rework(self, run_id: str, user_id: str, feedback: str | None) -> None:
+            asyncio.create_task(_drive_run(uuid.UUID(run_id), resume=(False, feedback)))
+
+    _dispatcher = _SidecarDispatcher()
 
     @api.post("/research", response_model=ResearchStartResponse, status_code=202)
     async def start_research(
@@ -2343,29 +2506,17 @@ def create_sidecar_app(
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        # Creating the run is host-agnostic; *executing* it is not. `v2_execution.execute_run`
-        # takes a Redis lock, opens the server engine and checkpoints to Postgres — none of
-        # which exist here — and on the server `dispatch` means enqueuing a Celery task this
-        # host has no broker or worker for. Answering up front, before the row exists, beats
-        # both alternatives: a 500 from the absent `celery` import (what this did), or a run
-        # persisted in a state nothing will ever advance. Same shape as `export.pdf` below,
-        # for the same reason — a capability this host genuinely lacks says so.
+        # This used to answer 501: executing a run meant `v2_execution.execute_run`, which
+        # takes a Redis lock and checkpoints to Postgres, or a Celery task this host has no
+        # broker for. That made the packaged app's primary control — Start research — a
+        # button that could not work, because the desktop UI does call this path.
         #
-        # The desktop journey is V1 (`DESKTOP_UI_CALLS` in tests/test_host_parity.py lists no
-        # V2 path), so nothing in the shipped UI reaches this; it is the local API contract
-        # that has to stay honest. Wiring an in-process V2 driver is the fix, not a wider
-        # bundle.
-        if body.dispatch:
-            raise HTTPException(
-                status.HTTP_501_NOT_IMPLEMENTED,
-                detail=(
-                    "V2 run execution is server-only. This host can create and inspect V2 "
-                    "runs but cannot drive one; post with dispatch=false, or use the server."
-                ),
-            )
+        # The fix is the in-process driver, not a wider bundle: `_dispatcher` runs the same
+        # engine against this host's SQLite saver. The handler below is the server's, byte
+        # for byte, so the ordering rules it encodes are not restated here.
         from app.api.v1.v2_runs import create_run
 
-        return await create_run(body, db, user)
+        return await create_run(body, db, user, dispatcher=_dispatcher)
 
     @api.get("/v2/runs")
     async def v2_list_runs(
@@ -2397,7 +2548,7 @@ def create_sidecar_app(
     ):
         from app.api.v1.v2_runs import submit_plan_review
 
-        return await submit_plan_review(run_id, body, db, user)
+        return await submit_plan_review(run_id, body, db, user, dispatcher=_dispatcher)
 
     @api.post("/v2/runs/{run_id}/report-review", status_code=201)
     async def v2_submit_report_review(
@@ -2408,7 +2559,7 @@ def create_sidecar_app(
     ):
         from app.api.v1.v2_runs import submit_report_review
 
-        return await submit_report_review(run_id, body, db, user)
+        return await submit_report_review(run_id, body, db, user, dispatcher=_dispatcher)
 
     @api.get("/v2/runs/{run_id}/stream")
     async def v2_stream_run(
