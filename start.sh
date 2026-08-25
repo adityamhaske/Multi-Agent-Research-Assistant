@@ -117,7 +117,7 @@ fi
 # ── Port check ────────────────────────────────────────────────────────────────
 if lsof -nP -iTCP:"$FRONTEND_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
   # Ours already? Then this is just a restart.
-  if docker compose -f "$COMPOSE_FILE" ps --status running 2>/dev/null | grep -q frontend; then
+  if [ -n "$(docker compose -f "$COMPOSE_FILE" ps -q frontend 2>/dev/null || true)" ]; then
     say "${DIM}Port ${FRONTEND_PORT} is in use by this project — restarting it.${RESET}"
   else
     die "Port ${FRONTEND_PORT} is already in use by something else.
