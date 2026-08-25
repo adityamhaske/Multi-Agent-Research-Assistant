@@ -234,8 +234,17 @@ for (const theme of ["light", "dark"]) {
     process.stdout.write(`${theme} ${name}\n`);
     await page.goto(`${BASE}${url}`, { waitUntil: "domcontentloaded" }).catch(() => {});
     await shot(page, name, theme);
-    if (name === "run-review" || name === "research" || name === "history") {
+    // `project` is in this set because Overview's health strip is the page's one
+    // multi-column layout, and a three-column grid is exactly the thing that survives a
+    // desktop screenshot and breaks on a laptop.
+    if (
+      name === "run-review" ||
+      name === "research" ||
+      name === "history" ||
+      name === "project"
+    ) {
       await shot(page, name, theme, "mobile");
+      if (name === "project") await shot(page, name, theme, "tablet");
     }
   }
 

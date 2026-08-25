@@ -35,7 +35,11 @@ export function RunCard({ run, showProject }: { run: V2RunSummary; showProject?:
       }
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="min-w-0 break-words text-sm leading-relaxed text-text-primary">
+        {/* Clamped rather than left to grow: an unclamped question is what turned three
+            long-running runs into a page-length stack of text on Overview, Research and
+            History alike. The full question is still one click away — every row is a link
+            to the run. */}
+        <p className="min-w-0 line-clamp-2 break-words text-sm leading-relaxed text-text-primary">
           {run.question}
         </p>
         <span

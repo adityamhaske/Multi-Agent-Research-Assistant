@@ -2,41 +2,48 @@
 
 import Link from "next/link";
 
-import { ProjectResearch } from "@/components/v2/ProjectResearch";
-
 import { useActiveProject } from "@/components/ActiveProject";
+import { FirstRunNotice } from "@/components/FirstRunNotice";
 import { RelativeTime } from "@/components/RelativeTime";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import {
-  useCorpusDocuments,
-  useCorpusStatus,
-  useMemoryStatus,
-  useModelRouting,
-  useSessions,
-} from "@/hooks/queries";
-import { isDesktop, sessionHref } from "@/lib/desktop";
-import { formatCost } from "@/lib/format";
+import { ActiveResearchList } from "@/components/v2/ActiveResearchList";
+import { AttentionCard } from "@/components/v2/AttentionCard";
+import { EmptyProjectWelcome } from "@/components/v2/EmptyProjectWelcome";
+import { ProjectHealth } from "@/components/v2/ProjectHealth";
+import { ProjectRuntime } from "@/components/v2/ProjectRuntime";
+import { useCorpusStatus, useSessions } from "@/hooks/queries";
+import { useV2Runs } from "@/hooks/v2";
+import { sessionHref } from "@/lib/desktop";
+import { isProjectEmpty } from "@/lib/projectEmptiness";
+import { pickPriorityRun } from "@/lib/runPriority";
+import { v2StatusMeta } from "@/lib/v2Status";
 
 /**
- * The project workspace hub (docs/07 §2, Phase 6; req 9).
+ * Overview: the project's home (docs/07 §2, Phase 6; req 9).
  *
- * A project used to be a filter applied to four unrelated pages: you could scope History
- * to it, scope Corpus to it, scope Chat to it, and never see the project itself. This is
- * the view where those are one thing — recent runs, what the corpus holds, what memory
- * knows, and which models this project's research is dialling.
+ * Answers four questions, in this order, because they are asked in this order: what needs
+ * me now, what is running or done, what does this project actually know, and how do I
+ * start or resume work. Everything below the header exists to answer one of those and
+ * nothing is here that doesn't.
  *
- * Every panel states its own emptiness rather than rendering a zero. "0 documents"
- * and "we could not read the corpus" look identical as a number, and only one of them is
- * the user's to fix — the same unmeasured-vs-zero rule the rest of the product runs on.
+ * `useV2Runs` is called once, here, and its result threaded down to `AttentionCard`,
+ * `ActiveResearchList` and `ProjectHealth` as props rather than let each component fetch
+ * its own copy. Not a performance concern — React Query would dedupe an identical second
+ * call for free — but a correctness one: which run gets promoted to Attention, which runs
+ * the list must exclude, and which runs the spend figure covers are one decision, and
+ * computing it in three files is exactly the "two homes for one contract" drift AGENTS.md
+ * warns about.
+ *
+ * The run list's *measurement state* is threaded with it, deliberately. Passing
+ * `data ?? []` would hand every consumer a plausible empty list built from a request that
+ * failed, and `[].reduce` renders as `$0.00` — a number that looks measured and is not.
  */
 export default function ProjectPage() {
   const { activeId, active } = useActiveProject();
   const sessions = useSessions(1, 5, false, activeId);
   const corpus = useCorpusStatus(activeId);
-  const documents = useCorpusDocuments(activeId);
-  const memory = useMemoryStatus(activeId ?? undefined);
-  const routing = useModelRouting();
+  const runsQuery = useV2Runs(activeId);
 
   if (!activeId || !active) {
     return (
@@ -47,53 +54,116 @@ export default function ProjectPage() {
     );
   }
 
-  const runs = sessions.data?.sessions ?? [];
-  const spend = runs.reduce((total, s) => total + (s.total_cost_usd || 0), 0);
+  const runs = runsQuery.data ?? [];
+  const waiting = runs
+    .filter((r) => v2StatusMeta(r.status).needsYou)
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  const priorityRun = pickPriorityRun(waiting);
+
+  const legacySessions = sessions.data?.sessions ?? [];
+
+  // A first-time project: no V2 research, no legacy sessions, no corpus. The rule for what
+  // counts as "empty" rather than "not read yet" lives in `lib/projectEmptiness.ts` — see
+  // there for why an errored source is not a zero. While it resolves, the sections below
+  // render their own per-section loading state rather than one page-wide gate.
+  const emptyProject = isProjectEmpty([
+    {
+      isLoading: runsQuery.isLoading,
+      isError: runsQuery.isError,
+      data: runsQuery.data,
+      count: runs.length,
+    },
+    {
+      isLoading: sessions.isLoading,
+      isError: sessions.isError,
+      data: sessions.data,
+      count: sessions.data?.total ?? 0,
+    },
+    {
+      isLoading: corpus.isLoading,
+      isError: corpus.isError,
+      data: corpus.data,
+      count: corpus.data?.documents ?? 0,
+    },
+  ]);
 
   return (
     <div className="space-y-8" key={activeId}>
-      <header>
-        <h1 className="font-serif text-2xl font-bold tracking-tight text-text-primary">
-          {active.name}
-        </h1>
-        {active.description && (
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-text-secondary">
-            {active.description}
-          </p>
-        )}
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-text-primary">
+            {active.name}
+          </h1>
+          {active.description && (
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-text-secondary">
+              {active.description}
+            </p>
+          )}
+        </div>
+        <Link href="/research" className="btn btn-primary shrink-0">
+          New research
+        </Link>
       </header>
 
-      {/* V2 research comes first: it is how research is done now, and the V1 list below is
-          labelled as the legacy record rather than left to look like a second, unexplained
-          history of the same project. */}
-      <ProjectResearch projectId={activeId} />
+      {/* Above everything else: someone with no model configured needs to see the next
+          step before anything on this page can do anything. */}
+      <FirstRunNotice />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Legacy V1 sessions */}
-        <section aria-labelledby="runs" className="card lg:col-span-2">
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 id="runs" className="font-serif text-base font-bold text-text-primary">
-              Legacy sessions
-            </h2>
-            <Link href="/history" className="font-mono text-xs text-accent hover:underline">
-              All runs →
-            </Link>
-          </div>
+      {emptyProject ? (
+        <EmptyProjectWelcome projectName={active.name} />
+      ) : (
+        <>
+          {priorityRun && <AttentionCard run={priorityRun} waitingCount={waiting.length} />}
 
-          {sessions.isLoading ? (
-            <div className="h-24 animate-pulse bg-bg-elevated" aria-hidden />
-          ) : sessions.isError ? (
-            <p className="text-sm text-text-secondary">
-              Couldn&apos;t load this project&apos;s runs.
+          <ActiveResearchList
+            runs={runs}
+            excludeId={priorityRun?.id ?? null}
+            isLoading={runsQuery.isLoading}
+            isError={runsQuery.isError}
+            onRetry={runsQuery.refetch}
+          />
+
+          <ProjectHealth
+            projectId={activeId}
+            runs={runsQuery.data}
+            runsLoading={runsQuery.isLoading}
+            runsError={runsQuery.isError}
+          />
+        </>
+      )}
+
+      <ProjectRuntime />
+
+      {/* Legacy V1 sessions: kept reachable, deliberately quiet, and absent entirely when
+          there are none — an empty collapsed section is still a section nobody needed. */}
+      {legacySessions.length > 0 && (
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 font-mono text-xs text-text-muted transition-colors hover:text-text-primary [&::-webkit-details-marker]:hidden">
+            {/* A ▸/▾ pair swapped by `group-open:`, not one static glyph. A frozen arrow is
+                worse than no arrow: once expanded it states the opposite of the real state,
+                and it is the only cue a sighted user has left after the native marker is
+                suppressed. */}
+            <span aria-hidden className="inline-block w-2 text-center group-open:hidden">
+              ▸
+            </span>
+            <span aria-hidden className="hidden w-2 text-center group-open:inline-block">
+              ▾
+            </span>
+            <span className="uppercase tracking-wider">Legacy sessions</span>
+          </summary>
+          <div className="mt-3 border-t border-border pt-3">
+            {/* A real heading, so this section is reachable by heading navigation — the
+                primary way a screen-reader user skims. The visible label lives in the
+                summary; this is the same words at the level the outline needs, kept
+                off-screen rather than duplicated visually. */}
+            <h2 className="sr-only">Legacy sessions</h2>
+            <p className="mb-3 text-xs leading-relaxed text-text-muted">
+              From the earlier research form. Still here and still openable — new research
+              runs through the flow above instead.
             </p>
-          ) : runs.length === 0 ? (
-            <p className="text-sm text-text-secondary">
-              No legacy sessions in this project.
-            </p>
-          ) : (
             <ul className="divide-y divide-border">
-              {runs.map((s) => (
-                <li key={s.session_id} className="flex items-center justify-between gap-3 py-2.5">
+              {legacySessions.map((s) => (
+                <li key={s.session_id} className="flex items-center justify-between gap-3 py-2">
                   <Link
                     href={sessionHref(s.session_id)}
                     className="min-w-0 flex-1 truncate text-sm text-text-primary hover:text-accent"
@@ -109,147 +179,15 @@ export default function ProjectPage() {
                 </li>
               ))}
             </ul>
-          )}
-        </section>
-
-        {/* Spend across the runs actually listed. Deliberately not "project total": these
-            are the five most recent, and labelling a partial sum as a total would be a
-            number that reads as a measurement it is not. */}
-        <section aria-labelledby="spend" className="card">
-          <h2 id="spend" className="mb-3 font-serif text-base font-bold text-text-primary">
-            These runs
-          </h2>
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-text-muted">Shown</dt>
-              <dd className="font-mono tabular-nums text-text-primary">{runs.length}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-text-muted">Their cost</dt>
-              <dd className="font-mono tabular-nums text-text-primary">{formatCost(spend)}</dd>
-            </div>
-          </dl>
-          <p className="mt-2 text-xs leading-snug text-text-muted">
-            The five most recent runs, not the project total — a partial sum labelled as a
-            total is a number that lies.
-          </p>
-        </section>
-
-        {/* Corpus */}
-        <section aria-labelledby="corpus" className="card">
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 id="corpus" className="font-serif text-base font-bold text-text-primary">
-              Corpus
-            </h2>
-            <Link href="/corpus" className="font-mono text-xs text-accent hover:underline">
-              Manage →
+            <Link
+              href="/history"
+              className="mt-3 inline-block font-mono text-xs text-accent hover:underline"
+            >
+              All legacy sessions →
             </Link>
           </div>
-          {corpus.isLoading ? (
-            <div className="h-12 animate-pulse bg-bg-elevated" aria-hidden />
-          ) : corpus.isError ? (
-            <p className="text-sm text-text-secondary">Couldn&apos;t read the corpus.</p>
-          ) : (
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-text-muted">Documents</dt>
-                <dd className="font-mono tabular-nums text-text-primary">
-                  {corpus.data?.documents ?? 0}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-text-muted">Chunks</dt>
-                <dd className="font-mono tabular-nums text-text-primary">
-                  {corpus.data?.chunks ?? 0}
-                </dd>
-              </div>
-            </dl>
-          )}
-          {documents.data && documents.data.length > 0 && (
-            <ul className="mt-3 space-y-1 border-t border-border pt-3">
-              {documents.data.slice(0, 4).map((d) => (
-                <li key={d.id} className="truncate font-mono text-xs text-text-muted">
-                  {d.filename}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/* What this project knows. Absent on desktop, and said so rather than shown
-            empty — project memory is pgvector-only (backend/desktop/sidecar.py). */}
-        <section aria-labelledby="memory" className="card">
-          <h2 id="memory" className="mb-3 font-serif text-base font-bold text-text-primary">
-            What this project knows
-          </h2>
-          {isDesktop ? (
-            <p className="text-sm leading-relaxed text-text-secondary">
-              Project memory needs a Postgres with pgvector, so it isn&apos;t part of the
-              desktop app. Your reports and corpus are all here — only cross-report recall
-              is missing.
-            </p>
-          ) : memory.isLoading ? (
-            <div className="h-12 animate-pulse bg-bg-elevated" aria-hidden />
-          ) : memory.isError || !memory.data ? (
-            <p className="text-sm text-text-secondary">Couldn&apos;t read memory status.</p>
-          ) : (
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-text-muted">Approved reports</dt>
-                <dd className="font-mono tabular-nums text-text-primary">
-                  {memory.data.approved_reports}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-text-muted">Indexed</dt>
-                <dd className="font-mono tabular-nums text-text-primary">
-                  {memory.data.indexed_reports}
-                </dd>
-              </div>
-              {memory.data.pending_reports > 0 && (
-                <p className="pt-1 text-xs leading-snug" style={{ color: "var(--warning)" }}>
-                  {memory.data.pending_reports} approved report
-                  {memory.data.pending_reports === 1 ? "" : "s"} not yet indexed — follow-ups
-                  can&apos;t draw on them until they are.
-                </p>
-              )}
-            </dl>
-          )}
-        </section>
-
-        {/* Agents. The same truthful attribution the report carries, one level up. */}
-        <section aria-labelledby="agents" className="card lg:col-span-3">
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 id="agents" className="font-serif text-base font-bold text-text-primary">
-              Agents this project runs on
-            </h2>
-            <Link href="/settings/models" className="font-mono text-xs text-accent hover:underline">
-              Change →
-            </Link>
-          </div>
-          {routing.isLoading ? (
-            <div className="h-10 animate-pulse bg-bg-elevated" aria-hidden />
-          ) : routing.data?.routing ? (
-            <dl className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              {Object.entries(routing.data.routing as Record<string, string>).map(([role, route]) => (
-                <div key={role}>
-                  <dt className="font-mono text-[0.6875rem] uppercase tracking-wider text-text-muted">
-                    {role}
-                  </dt>
-                  <dd className="truncate font-mono text-xs text-text-primary" title={route}>
-                    {route}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          ) : (
-            // Never a guessed default: an unresolved routing reads as unresolved.
-            <p className="text-sm text-text-secondary">
-              No model routing resolved yet — it is recorded per run, on the run.
-            </p>
-          )}
-        </section>
-      </div>
+        </details>
+      )}
     </div>
   );
 }
