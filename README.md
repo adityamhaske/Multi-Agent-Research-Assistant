@@ -3,6 +3,8 @@
 > A self-hostable, bring-your-own-key research assistant with an auditable
 > human-in-the-loop approval gate and verifiable per-claim citations.
 
+[![Website](https://img.shields.io/badge/Website-Live-2563eb?logo=google-chrome&logoColor=white)](https://adityamhaske.github.io/Multi-Agent-Research-Assistant/)
+[![Documentation](https://img.shields.io/badge/Docs-Live-4f46e5?logo=readme&logoColor=white)](https://adityamhaske.github.io/Multi-Agent-Research-Assistant/docs/)
 [![CI](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml)
 [![citation support](https://img.shields.io/badge/citation%20support-90%25%20(interim)-red)](backend/evals/results/eval-2026-08-13-ollama-run7.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -11,32 +13,13 @@
      Bump the version in BOTH the badge label and the href when cutting a release. -->
 [![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon%20·%20.dmg-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/download/v2.0.0/Research.Assistant_2.0.0_aarch64.dmg)
 
-Apple Silicon only (81 MB, installs to ~182 MB). The app is unsigned, so macOS blocks it on
-first launch — right-click the app → **Open** → **Open**. Windows `.msi`, Linux `.deb` and
-`.AppImage` are on the
-[releases page](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/latest);
-[install notes](docs/getting-started/23-desktop-app.md) cover every platform.
-
-**The desktop app runs the V1 research journey.** The V2 record — evidence, claims,
-sources, review, verifiable artifact — is a web-application feature in 2.0.0, because V2
-execution needs Redis, Postgres and the server engine. The desktop refuses a V2 dispatch
-with `501` rather than pretending; see
-[desktop support](docs/getting-started/23-desktop-app.md).
+Apple Silicon macOS DMG available directly (81 MB, installs to ~182 MB; right-click → **Open** on first launch). Windows `.msi`, Linux `.deb` and `.AppImage` packages are available on the [releases page](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/latest). See [desktop app notes](docs/getting-started/23-desktop-app.md) for platform installation guides.
 
 ---
 
-Ask a research question. A pipeline of specialized agents searches the web, gathers
-evidence with sources, drafts a cited report, and **pauses for your approval** before
-finalizing.
+Ask a research question. A pipeline of specialized agents searches the web and your uploaded documents, gathers evidence with sources, drafts a cited report, and **pauses for your approval** before finalizing.
 
-> **V2 — research that can show its work.** A run is no longer a report with citations
-> attached to it. The evidence, the sources, the claims, the links between them, the
-> conflicting sources and your review decision are all structured records you can inspect,
-> and the report is a rendering of *them*. Three distinctions are enforced everywhere and
-> never blurred: **retrieved is not verified**, **retrieved is not cited**, and **a citation
-> marker is not evidence**. Approving a report freezes an artifact that a stranger can check
-> offline with the verifier in this repository — no network, no model, no account.
-> See [the V2 research model](docs/getting-started/24-v2-research-model.md).
+> **Research that shows its work.** The evidence, sources, claims, claim-evidence links, conflicting sources, and your review decisions are all structured records you can inspect, and the report is a rendering of them. Three distinctions are enforced everywhere and never blurred: **retrieved is not verified**, **retrieved is not cited**, and **a citation marker is not evidence**. Approving a report freezes an artifact that anyone can check offline with the verifier in this repository — no network, no model, no account required. See [the research model](docs/getting-started/24-v2-research-model.md).
 
 Approve it, or send it back with feedback. Completed reports support grounded follow-up
 chat and export as `.md`, `.pdf`, or a hash-verifiable `.bundle.json` that a third party
@@ -89,7 +72,7 @@ and retries.
 
 ## Self-host — one command
 
-Prerequisites: Docker with Compose v2.
+Prerequisites: Docker and Docker Compose.
 
 ```bash
 ./start.sh
@@ -112,7 +95,7 @@ cp .env.example .env
 docker compose -f docker-compose.full.yml up --build
 ```
 
-Open **http://localhost:3031** → register → ask a question → watch the pipeline → approve
+Open **<http://localhost:3031>** → register → ask a question → watch the pipeline → approve
 → read the cited report.
 
 The API container runs `alembic upgrade head` before serving, and the worker and frontend
@@ -176,7 +159,7 @@ Every variable is documented in [`.env.example`](.env.example) and validated at 
 the app refuses to boot with a placeholder or short `JWT_SECRET_KEY`.
 
 | Variable | Required | Notes |
-|---|---|---|
+| --- | --- | --- |
 | `JWT_SECRET_KEY` | ✅ | ≥ 32 random chars (`openssl rand -hex 32`) |
 | `DATABASE_URL`, `REDIS_URL` | ✅ | Set for you by the full-stack compose |
 | `MODEL_PLANNER` … `MODEL_CHAT` | ⚪ | `provider:model` per agent role |
@@ -200,7 +183,7 @@ Latest real-model run:
 10 queries across 8 domains.
 
 | Metric | Result |
-|---|---|
+| --- | --- |
 | Reports completed | **10 / 10** |
 | Citation support rate | **90%** — cited sentences whose snippets actually support them |
 | Citation resolution rate | **95%** — inline `[n]` markers pointing at a real source |
@@ -245,7 +228,7 @@ or in this repository under [`docs/`](docs/00_INDEX.md).
 [Configuration](docs/getting-started/21-configuration.md)
 
 | | |
-|---|---|
+| --- | --- |
 | **Using it** | [Running research](docs/user-guide/25-running-research.md) · [Review & approval](docs/user-guide/26-review-and-approval.md) · [Citations](docs/user-guide/27-citations.md) · [Projects & memory](docs/user-guide/28-projects-and-memory.md) · [Exports](docs/user-guide/29-exports.md) |
 | **How it works** | [System architecture](docs/architecture/02-system-architecture.md) · [Agent architecture](docs/architecture/04-agent-architecture.md) · [Data model](docs/architecture/05-data-model.md) · [Local & self-hosted](docs/architecture/13-local-and-self-hosted.md) · [Security](docs/architecture/06-security.md) |
 | **Running it** | [Docker](docs/deployment/09-docker.md) · [Production](docs/deployment/30-production.md) · [Operations](docs/deployment/31-operations.md) |

@@ -1,31 +1,64 @@
-# Node
+# Node & Frontend
 node_modules/
 .next/
 out/
 build/
 dist/
+.turbo/
+.parcel-cache/
+.eslintcache
+.stylelintcache
 
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.Python
 .venv/
 venv/
 env/
 .pytest_cache/
-# Build residue from `pip wheel ./backend/research_engine`
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage/
+htmlcov/
+
+# Python packaging & build artifacts
 *.egg-info/
 backend/research_engine/build/
-# Env
+backend/build/
+backend/dist/
+
+# Rust / Cargo / Desktop
+target/
+desktop/target/
+desktop/gen/schemas/
+
+# Testing & E2E artifacts
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+.uiqa/
+
+# Env & Secrets
 .env
 .env.*
 !.env.example
 
-# IDEs and OS
+# IDEs, OS, and Editors
 .vscode/
 .idea/
 .DS_Store
+._*
+Thumbs.db
+*.swp
+*.swo
+*~
 
-# Logs
+# Logs & Databases
 logs/
 *.log
 data/
@@ -41,7 +74,6 @@ internal/04_Interview_Defense.md
 # ignored — a plan is a design artifact worth reviewing alongside the diff.
 .claude/settings.local.json
 
-
 # Scratch space for positioning notes, drafts, and ideas that are not yet decisions.
 # Deliberately ignored, unlike `.claude/plans/` — a plan is a design artifact reviewed
 # alongside its diff, whereas these are thinking-in-progress with no build contract.
@@ -50,3 +82,4 @@ future-plans/
 # Editor/agent tool directories. Per-tool config, not project code.
 .qoder/
 .codex/
+
