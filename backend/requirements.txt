@@ -33,7 +33,7 @@ psycopg[binary]>=3.3.4
 langchain-core>=1.5.5
 langchain-google-genai>=2.0
 # BYOK providers — enabled for Anthropic routing (MODEL_*=anthropic:...).
-langchain-anthropic>=1.5.6
+langchain-anthropic>=1.6.1
 # Required, not optional: OpenAI, OpenRouter, and Ollama all speak the OpenAI wire
 # protocol, so this one client covers three providers — including Ollama, which is the
 # offline/local-model story (docs/12 M8, docs/13 §6/§8).
