@@ -63,7 +63,7 @@ cryptography>=43.0
 keyring>=25.7.0
 
 # Observability
-structlog>=24.4
+structlog>=26.1.0
 
 # Export: Markdown → HTML (python-markdown) → PDF (WeasyPrint)
 markdown>=3.10.3
