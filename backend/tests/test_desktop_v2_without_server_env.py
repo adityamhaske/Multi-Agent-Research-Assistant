@@ -255,3 +255,117 @@ def test_the_desktop_host_pauses_at_the_design_gate_and_resumes_after_approval()
 
     assert final["run"]["status"] == "COMPLETED", final["run"]
     assert final["artifact"] is not None
+
+
+# The child that proves the export path survives the bundle's own exclude list.
+#
+# `_drive` above runs from a source checkout, where `celery` and `redis` are installed, so
+# it cannot see a function-level import of a server-only module — and one shipped: the
+# Markdown export reached `_DEMO_STAMP` through `app.api.v1.research`, which imports
+# `app.workers.tasks` at module scope, so every `.md` export on the packaged app answered
+# 500 with `ModuleNotFoundError: No module named 'celery'`. It was unreachable until the
+# desktop could complete a run, which is exactly how a latent break ships.
+#
+# `test_lazy_v2_imports_pull_in_no_excluded_package` walks *module-level* imports and is
+# blind to this by construction. Blocking the packages and then exercising the route is
+# what closes that gap without building a 1.7 GB bundle to do it.
+_BLOCKED_CHILD = """
+import asyncio, importlib.abc, importlib.machinery, json, sys, tempfile
+
+BLOCKED = __BLOCKED__
+
+
+class _Blocker(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname.split(".")[0] in BLOCKED:
+            raise ModuleNotFoundError("No module named " + repr(fullname))
+        return None
+
+
+sys.meta_path.insert(0, _Blocker())
+sys.path.insert(0, __BACKEND__)
+
+import httpx
+from desktop.sidecar import create_sidecar_app
+
+TOKEN = "blocked-probe"
+
+
+async def poll(c, head, run_id, wanted, timeout=90.0):
+    deadline = asyncio.get_running_loop().time() + timeout
+    last = None
+    while asyncio.get_running_loop().time() < deadline:
+        r = await c.get("/api/v1/v2/runs/" + run_id, headers=head)
+        last = r.json()["run"]["status"] if r.status_code == 200 else "HTTP %d" % r.status_code
+        if last in wanted:
+            return last
+        await asyncio.sleep(0.05)
+    raise AssertionError("never reached %r, last=%r" % (wanted, last))
+
+
+async def main():
+    app = create_sidecar_app(data_dir=tempfile.mkdtemp(), token=TOKEN, fake=True)
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        async with httpx.AsyncClient(transport=transport, base_url="http://127.0.0.1:9") as c:
+            head = {"Authorization": "Bearer " + TOKEN}
+            pid = (await c.post("/api/v1/projects", json={"name": "p"}, headers=head)).json()["id"]
+            created = await c.post(
+                "/api/v1/v2/runs",
+                json={"question": "q about RAG", "depth": "fast", "project_id": pid,
+                      "skip_plan_gate": True, "dispatch": True},
+                headers=head,
+            )
+            run_id = created.json()["run_id"]
+            await poll(c, head, run_id, {"AWAITING_REVIEW"})
+            await c.post("/api/v1/v2/runs/" + run_id + "/report-review",
+                         json={"decision": "APPROVED"}, headers=head)
+            out = {"create": created.status_code}
+            for suffix in ("export.md", "bundle.json"):
+                r = await c.get("/api/v1/v2/runs/" + run_id + "/" + suffix, headers=head)
+                out[suffix] = [r.status_code, r.text[:300]]
+            print(json.dumps(out))
+
+
+asyncio.run(main())
+"""
+
+
+def test_the_export_path_works_with_the_bundle_s_excluded_packages_unavailable():
+    """A desktop export must not import a package the bundle refuses to ship.
+
+    The spec excludes celery/redis/asyncpg because this host speaks SQLite and drives its
+    own runs. Anything the sidecar imports *at request time* has to fit inside that, and a
+    function-level import is the shape that escapes every static check.
+    """
+    # Read from the spec itself, via the module that already parses it — a second copy
+    # of the exclude list is a second thing to forget. WeasyPrint is left available:
+    # its own guard covers it, and PDF export is a documented 501 on this host anyway.
+    from tests.test_sidecar_startup import _spec_excludes
+
+    blocked = [n for n in _spec_excludes() if n != "weasyprint"]
+    script = _BLOCKED_CHILD.replace("__BACKEND__", repr(str(BACKEND))).replace(
+        "__BLOCKED__", repr(set(blocked))
+    )
+    env = {k: v for k, v in os.environ.items() if k not in ("DATABASE_URL", "JWT_SECRET_KEY")}
+    proc = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=str(BACKEND),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    assert proc.returncode == 0, (
+        f"child failed:\nstdout={proc.stdout}\nstderr={proc.stderr[-3000:]}"
+    )
+    out = json.loads(proc.stdout.strip().splitlines()[-1])
+
+    assert out["create"] == 201, out
+    md_status, md_body = out["export.md"]
+    assert md_status == 200, (
+        f"Markdown export answered {md_status} with the bundle's excluded packages "
+        f"unavailable — this is what the packaged app does. Body: {md_body}"
+    )
+    bundle_status, _ = out["bundle.json"]
+    assert bundle_status == 200, f"bundle export answered {bundle_status}"

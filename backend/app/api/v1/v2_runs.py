@@ -60,7 +60,7 @@ from app.schemas.v2 import (  # noqa: F401  (re-export)
 )
 from app.services.sse import SSE_HEADERS
 from app.v2_dispatch import RunDispatcher, get_run_dispatcher
-from research_engine.bundle import render_model_attribution_md
+from research_engine.bundle import render_model_attribution_md, stamp_demo_md
 
 router = APIRouter(prefix="/v2/runs", tags=["v2"])
 
@@ -784,14 +784,17 @@ def _demo_stamped(run: ResearchRun, report: str) -> str:
     for a reason that has nothing to do with the artifact's integrity. The bundle carries
     `demo` as a hash-covered field instead.
     """
-    if not run.demo:
-        return report
-    # Imported here, not at module scope: `app/api/v1/research.py` pulls in
-    # `app.services.export`, and the desktop sidecar's import tree must stay free of
-    # WeasyPrint (`test_sidecar_import_tree_excludes_weasyprint`, docs/13 §7).
-    from app.api.v1.research import _DEMO_STAMP
-
-    return f"{_DEMO_STAMP}{report}"
+    # Straight to the engine's own stamper, which is where this rule lives for both hosts
+    # (`tests/test_demo_stamp_parity.py`). This used to reach it through
+    # `app.api.v1.research._DEMO_STAMP`, a one-line alias of the same constant — and
+    # deferring that import to call time did not make it safe, it only moved the cost to
+    # the first export: `app/api/v1/research.py` imports `app.workers.tasks` at module
+    # scope, so on the packaged desktop app this raised
+    # `ModuleNotFoundError: No module named 'celery'` and every Markdown export answered
+    # 500. It was unreachable until the desktop could complete a run, which is the kind of
+    # latent break that ships. `research_engine` imports no host packages at all, so there
+    # is nothing to defer.
+    return stamp_demo_md(report, demo=bool(run.demo))
 
 
 # ── Cancel ────────────────────────────────────────────────────────────────────────

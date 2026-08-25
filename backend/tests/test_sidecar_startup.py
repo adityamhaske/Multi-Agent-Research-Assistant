@@ -125,7 +125,12 @@ def test_v2_request_models_have_exactly_one_home():
 #: Imported by the sidecar's V2 routes at *request* time rather than at startup, which is
 #: why the startup assertions above never saw them. `create_sidecar_app` imports each
 #: handler inside the route body so the module stays out of the launch path.
-LAZY_REQUEST_IMPORTS = ("app.api.v1.v2_runs",)
+#: Modules the sidecar imports when a request arrives rather than at startup, so the
+#: guard below can walk them. `app.v2_execution` joined the list when the desktop gained an
+#: in-process run driver: `_drive_run` imports it per run for `persist_outcome` and
+#: `lifecycle_event`, and it reaches `app.runtime` → `app.config` → `app.db.base`, which is
+#: precisely the chain that decides whether a server-only driver gets pulled in.
+LAZY_REQUEST_IMPORTS = ("app.api.v1.v2_runs", "app.v2_execution", "app.v2_dispatch")
 
 
 def _spec_excludes() -> list[str]:
