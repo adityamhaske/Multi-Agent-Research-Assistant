@@ -89,15 +89,15 @@ function StageRow({ stage }: { stage: Stage }) {
   const color = STAGE_COLOR[stage.id] ?? "var(--text-muted)";
   const dim = stage.state === "pending" || stage.state === "stopped";
   return (
-    <li className="flex items-start gap-2.5 py-1">
-      <span className="mt-1 flex h-3 w-3 shrink-0 items-center justify-center">
+    <li className="flex items-start gap-2.5 py-1.5">
+      <span className="mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center">
         <Marker state={stage.state} color={color} />
       </span>
       <span className="min-w-0">
         <span
           className={`block text-[0.8125rem] ${
             dim ? "text-text-muted" : "text-text-primary"
-          } ${stage.state === "active" || stage.state === "waiting" ? "font-medium" : ""}`}
+          } ${stage.state === "active" || stage.state === "waiting" ? "font-semibold" : ""}`}
         >
           {stage.label}
         </span>
@@ -136,26 +136,28 @@ export function RunProgress({
   const lastMessage = [...events].reverse().find((e) => e.message)?.message ?? null;
 
   return (
-    <section aria-labelledby="run-progress" className="card">
-      <h2
-        id="run-progress"
-        className="font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-wider text-text-muted"
-      >
-        Progress
-      </h2>
-      <ol className="mt-2">
+    <section aria-labelledby="run-progress" className="card space-y-3">
+      <div className="flex items-center justify-between border-b border-border pb-2.5">
+        <h2
+          id="run-progress"
+          className="font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-wider text-text-muted"
+        >
+          Progress
+        </h2>
+      </div>
+      <ol className="divide-y divide-border/20">
         {stages.map((s) => (
           <StageRow key={s.id} stage={s} />
         ))}
       </ol>
 
       {lastMessage && (
-        <p className="mt-3 border-t border-border pt-2 text-xs text-text-secondary">
-          <span className="font-mono text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted">
-            Latest{" "}
+        <div className="bg-bg-elevated p-2.5 text-xs text-text-secondary">
+          <span className="font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-wider text-text-muted">
+            Latest:{" "}
           </span>
           {lastMessage}
-        </p>
+        </div>
       )}
 
       {degraded && (

@@ -167,93 +167,164 @@ function RunHeader({ graph, live }: { graph: V2RunGraph; live: boolean }) {
   const totals = runTotals(graph);
   const inActiveProject = active?.id === graph.run.project_id;
 
+  const isFailed = graph.run.status === "FAILED";
+  const isCancelled = graph.run.status === "CANCELLED";
+
   return (
-    <header className="space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-mono text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted">
-            {/* A run belongs to a project, and a link opened from elsewhere can be a run in
-                a project that is not the one selected. Saying which is the difference
-                between "why is my corpus not here" and an answered question. */}
-            {inActiveProject && active ? (
-              <>Research in {active.name}</>
-            ) : (
-              <>Research in another project</>
-            )}
-          </p>
-          <h1 className="mt-1 break-words font-serif text-xl font-bold tracking-tight text-text-primary">
-            {graph.run.question}
-          </h1>
+    <header className="card space-y-4">
+      {/* 1. Context Eyebrow & Actions Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="badge-frame uppercase tracking-wider">
+            {inActiveProject && active ? active.name : "Research"}
+          </span>
+          <span className="font-mono text-[length:var(--text-micro)] text-text-muted">
+            {new Date(graph.run.created_at).toLocaleString()}
+          </span>
         </div>
-        {live && <CancelButton runId={graph.run.id} />}
+        <div className="flex items-center gap-2">
+          {live && <CancelButton runId={graph.run.id} />}
+          {(isFailed || isCancelled) && (
+            <Link
+              href={`/research?q=${encodeURIComponent(graph.run.question)}`}
+              className="btn btn-secondary text-xs"
+            >
+              Ask again
+            </Link>
+          )}
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <RunStatusBadge status={graph.run.status} />
-        {graph.run.demo && (
-          <span
-            className="badge font-mono text-[length:var(--text-micro)] font-semibold"
-            style={{
-              color: "var(--warning)",
-              backgroundColor: "var(--warning-soft)",
-              borderColor: "var(--warning-line)",
-            }}
-            title="Scripted models and fixture sources. Shows the whole pipeline without calling a provider — not real research."
-          >
-            Demo run
-          </span>
-        )}
-        {graph.run.corpus_mode && (
-          <span
-            className="badge border-border font-mono text-[length:var(--text-micro)] text-text-secondary"
-            title="No web search. Evidence comes only from this project's uploaded documents."
-          >
-            Corpus only
-          </span>
-        )}
-        <span className="font-mono text-[length:var(--text-micro)] text-text-muted">
-          {graph.run.depth} · {formatCost(graph.run.cost_usd)} ·{" "}
-          {new Date(graph.run.created_at).toLocaleString()}
-        </span>
+      {/* 2. Research Question in a prominent typography container */}
+      <div>
+        <h1 className="break-words font-serif text-xl font-bold tracking-tight text-text-primary sm:text-2xl leading-snug">
+          {graph.run.question}
+        </h1>
       </div>
 
-      <p className="text-sm leading-relaxed text-text-secondary">
-        {meta.sentence}
-        {graph.run.status === "FAILED" && (
-          <span className="mt-1 block text-danger">
-            {graph.run.error_message ?? "No reason was recorded."}
+      {/* 3. Run Properties & Status Strip */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-bg-elevated p-2.5 sm:px-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <RunStatusBadge status={graph.run.status} />
+          {graph.run.demo && (
+            <span
+              className="badge font-mono text-[length:var(--text-micro)] font-semibold"
+              style={{
+                color: "var(--warning)",
+                backgroundColor: "var(--warning-soft)",
+                borderColor: "var(--warning-line)",
+              }}
+              title="Scripted models and fixture sources. Shows the whole pipeline without calling a provider — not real research."
+            >
+              Demo run
+            </span>
+          )}
+          {graph.run.corpus_mode && (
+            <span
+              className="badge border-border font-mono text-[length:var(--text-micro)] text-text-secondary"
+              title="No web search. Evidence comes only from this project's uploaded documents."
+            >
+              Corpus only
+            </span>
+          )}
+          <span className="inline-flex items-center gap-1.5 font-mono text-[length:var(--text-micro)] text-text-muted">
+            <span className="capitalize">{graph.run.depth}</span>
+            <span>·</span>
+            <span>{formatCost(graph.run.cost_usd)}</span>
+            {graph.run.elapsed_seconds ? (
+              <>
+                <span>·</span>
+                <span>{Math.round(graph.run.elapsed_seconds)}s</span>
+              </>
+            ) : null}
           </span>
-        )}
-      </p>
+        </div>
 
-      {/* A dead end needs a way out. Re-running is not automatic — the reason may be a
-          quota or a key, and silently spending again on a run that just failed is not
-          this page's decision to make — so it seeds the form and leaves the button to
-          the person. */}
-      {(graph.run.status === "FAILED" || graph.run.status === "CANCELLED") && (
-        <Link
-          href={`/research?q=${encodeURIComponent(graph.run.question)}`}
-          className="btn btn-secondary self-start"
-        >
-          Ask this question again
-        </Link>
+        {/* Status explanation phrase */}
+        <p className="text-xs text-text-secondary">
+          {meta.sentence}
+        </p>
+      </div>
+
+      {/* Error Callout if Failed */}
+      {isFailed && graph.run.error_message && (
+        <div className="border border-danger-line bg-danger-soft p-3 text-xs text-danger">
+          <span className="font-semibold">Failure reason: </span>
+          {graph.run.error_message}
+        </div>
       )}
 
-      {/* The chain, in one line, once there is one to summarise. Deliberately absent while
-          a run is still gathering: a count that is still moving reads as a result. */}
+      {/* 4. Evidence Chain Summary Grid (Academic 4-column KPI stats) */}
       {!live && totals.latest && (
-        <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-xs text-text-secondary">
-          <span>
-            {totals.claims.length} claim{totals.claims.length === 1 ? "" : "s"}
-          </span>
-          <span>{totals.evidence} evidence</span>
-          <span>
-            {totals.citedSources} cited / {totals.uncitedSources} retrieved-only sources
-          </span>
-          <span className={totals.contradictions ? "text-warning" : undefined}>
-            {totals.contradictions} conflicting pair
-            {totals.contradictions === 1 ? "" : "s"}
-          </span>
+        <div className="border-t border-border pt-3">
+          <p className="mb-2 font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-wider text-text-muted">
+            Evidence Chain Overview
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="border border-border bg-bg-surface p-2.5">
+              <dt className="text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted">
+                Claims
+              </dt>
+              <dd className="mt-1 flex items-baseline gap-1.5 font-mono">
+                <span className="text-lg font-bold text-text-primary">
+                  {totals.claims.length}
+                </span>
+                <span className="text-xs text-text-secondary">
+                  ({totals.supported} supported)
+                </span>
+              </dd>
+            </div>
+
+            <div className="border border-border bg-bg-surface p-2.5">
+              <dt className="text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted">
+                Evidence
+              </dt>
+              <dd className="mt-1 flex items-baseline gap-1.5 font-mono">
+                <span className="text-lg font-bold text-text-primary">
+                  {totals.evidence}
+                </span>
+                <span className="text-xs text-text-secondary">snippets</span>
+              </dd>
+            </div>
+
+            <div className="border border-border bg-bg-surface p-2.5">
+              <dt className="text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted">
+                Sources
+              </dt>
+              <dd className="mt-1 flex items-baseline gap-1.5 font-mono">
+                <span className="text-lg font-bold text-text-primary">
+                  {totals.citedSources}
+                </span>
+                <span className="text-xs text-text-secondary">
+                  cited ({totals.uncitedSources} uncited)
+                </span>
+              </dd>
+            </div>
+
+            <div
+              className={`border p-2.5 ${
+                totals.contradictions
+                  ? "border-warning-line bg-warning-soft text-warning"
+                  : "border-border bg-bg-surface"
+              }`}
+            >
+              <dt className="text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted">
+                Contradictions
+              </dt>
+              <dd className="mt-1 flex items-baseline gap-1.5 font-mono">
+                <span
+                  className={`text-lg font-bold ${
+                    totals.contradictions ? "text-warning" : "text-text-primary"
+                  }`}
+                >
+                  {totals.contradictions}
+                </span>
+                <span className="text-xs text-text-secondary">
+                  conflicting pair{totals.contradictions === 1 ? "" : "s"}
+                </span>
+              </dd>
+            </div>
+          </div>
         </div>
       )}
     </header>
