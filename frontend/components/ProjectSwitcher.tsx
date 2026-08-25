@@ -105,32 +105,23 @@ export function ProjectSwitcher({ collapsed = false, menuDirection = "up" }: Pro
         aria-haspopup="listbox"
         aria-expanded={open}
         title={collapsed ? `Project: ${activeProject?.name ?? "None"}` : undefined}
-        className={`group flex w-full items-center border border-border bg-bg-surface text-text-primary transition-all duration-150 hover:border-border hover:bg-bg-elevated ${
+        className={`group flex w-full items-center border bg-bg-surface text-text-primary transition-all duration-150 ${
           collapsed
-            ? "h-9 w-9 justify-center mx-auto p-0"
-            : "h-9 justify-between px-2.5 text-left text-xs"
-        } ${open ? "border-accent ring-1 ring-accent" : ""}`}
+            ? "h-9 w-9 justify-center mx-auto p-0 border-border hover:border-text-secondary"
+            : "h-9 justify-between px-2.5 text-left text-xs border-border hover:border-text-secondary hover:bg-bg-elevated"
+        } ${open ? "border-accent ring-1 ring-accent bg-bg-elevated" : ""}`}
       >
         {collapsed ? (
-          <div className="flex h-6 w-6 items-center justify-center border border-border bg-accent-muted text-accent font-mono font-semibold text-[0.6875rem]">
+          <div className="flex h-6 w-6 items-center justify-center border border-border bg-accent-muted text-accent font-mono font-bold text-[0.6875rem]">
             {activeProject ? activeProject.name.charAt(0).toUpperCase() : "P"}
           </div>
         ) : (
           <>
             <div className="flex min-w-0 items-center gap-2">
-              <svg
-                aria-hidden
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4 w-4 shrink-0 text-accent"
-              >
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-              </svg>
-              <span className="truncate font-medium">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center border border-border bg-accent-muted text-accent font-mono font-bold text-[0.625rem]">
+                {activeProject ? activeProject.name.charAt(0).toUpperCase() : "P"}
+              </span>
+              <span className="truncate font-semibold text-text-primary text-[0.8125rem]">
                 {activeProject ? activeProject.name : "Select Project"}
               </span>
             </div>
@@ -139,7 +130,7 @@ export function ProjectSwitcher({ collapsed = false, menuDirection = "up" }: Pro
               viewBox="0 0 20 20"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.75"
+              strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
               className={`h-3.5 w-3.5 shrink-0 text-text-muted transition-transform duration-200 group-hover:text-text-primary ${
@@ -156,35 +147,35 @@ export function ProjectSwitcher({ collapsed = false, menuDirection = "up" }: Pro
         <div
           role="listbox"
           aria-label="Projects"
-          className={`menu-surface animate-fade-in absolute z-50 w-64 ${
+          className={`menu-surface animate-fade-in absolute z-50 w-72 shadow-xl ${
             collapsed
               ? menuDirection === "down"
-                ? "left-full top-0 ml-3 origin-top-left"
-                : "left-full bottom-0 ml-3 origin-bottom-left"
+                ? "left-full top-0 ml-2 origin-top-left"
+                : "left-full bottom-0 ml-2 origin-bottom-left"
               : menuDirection === "down"
-                ? "top-full left-0 mt-2 origin-top-left"
-                : "bottom-full left-0 mb-2 origin-bottom-left"
+                ? "top-full left-0 mt-1.5 origin-top-left"
+                : "bottom-full left-0 mb-1.5 origin-bottom-left"
           }`}
         >
-          <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-            <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-bg-elevated/40">
+            <span className="font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-wider text-text-muted">
               Projects ({projects.length})
             </span>
             {!creating && (
               <button
                 type="button"
                 onClick={() => setCreating(true)}
-                className="font-mono text-[0.75rem] font-medium text-accent hover:underline flex items-center gap-1"
+                className="font-mono text-[0.6875rem] font-semibold text-accent hover:underline flex items-center gap-1"
               >
-                <span>+ New</span>
+                <span>+ New project</span>
               </button>
             )}
           </div>
 
           {/* Project List */}
-          <div className="max-h-48 overflow-y-auto py-1">
+          <div className="max-h-56 overflow-y-auto py-1 divide-y divide-border/10">
             {projects.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-text-muted text-center">
+              <div className="px-3 py-4 text-xs text-text-muted text-center">
                 No projects created yet
               </div>
             ) : (
@@ -200,32 +191,29 @@ export function ProjectSwitcher({ collapsed = false, menuDirection = "up" }: Pro
                       setActiveId(p.id);
                       setOpen(false);
                     }}
-                    className={`flex w-full items-center justify-between px-2.5 py-1.5 text-xs text-left transition-colors ${
+                    className={`flex w-full items-center justify-between px-3 py-2 text-xs text-left transition-colors ${
                       isSelected
-                        ? "bg-accent-muted font-semibold text-accent"
+                        ? "bg-accent-muted/70 font-semibold text-accent"
                         : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary"
                     }`}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <svg
-                        aria-hidden
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.75"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className={`h-3.5 w-3.5 shrink-0 ${isSelected ? "text-accent" : "text-text-muted"}`}
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center border font-mono font-bold text-[0.625rem] ${
+                          isSelected
+                            ? "border-accent bg-accent text-accent-contrast"
+                            : "border-border bg-bg-elevated text-text-secondary"
+                        }`}
                       >
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                      </svg>
-                      <span className="truncate">{p.name}</span>
+                        {p.name.charAt(0).toUpperCase()}
+                      </span>
+                      <span className="truncate text-[0.8125rem]">{p.name}</span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
                       {Boolean(p.session_count) && (
-                        <span className="border border-border bg-bg-elevated px-1.5 py-0.2 font-mono text-[0.625rem] text-text-muted font-normal">
-                          {p.session_count}
+                        <span className="border border-border bg-bg-surface px-1.5 py-0.5 font-mono text-[0.625rem] text-text-muted font-normal">
+                          {p.session_count} {p.session_count === 1 ? "run" : "runs"}
                         </span>
                       )}
                       {isSelected && (
@@ -234,7 +222,7 @@ export function ProjectSwitcher({ collapsed = false, menuDirection = "up" }: Pro
                           viewBox="0 0 20 20"
                           fill="none"
                           stroke="currentColor"
-                          strokeWidth="2"
+                          strokeWidth="2.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           className="h-3.5 w-3.5 text-accent"
@@ -251,36 +239,39 @@ export function ProjectSwitcher({ collapsed = false, menuDirection = "up" }: Pro
 
           {/* New Project Form */}
           {creating ? (
-            <form onSubmit={submitCreate} className="p-2 border-t border-border/70 bg-bg-elevated/30">
+            <form onSubmit={submitCreate} className="p-3 border-t border-border bg-bg-elevated">
+              <label className="block font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-wider text-text-muted mb-1">
+                Project Name
+              </label>
               <input
                 ref={inputRef}
                 value={name}
                 onChange={(e) => setName(e.target.value.slice(0, 120))}
-                placeholder="Project name..."
-                className="input-base h-7 w-full text-xs mb-2 py-1 px-2"
+                placeholder="e.g. mRNA Epigenetics..."
+                className="input-base h-8 w-full text-xs mb-2 py-1 px-2"
               />
-              <div className="flex items-center justify-end gap-1.5">
+              <div className="flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     setCreating(false);
                     setName("");
                   }}
-                  className="px-2 py-1 text-[0.6875rem] text-text-muted hover:text-text-secondary"
+                  className="px-2 py-1 text-xs text-text-muted hover:text-text-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={create.isPending || !name.trim()}
-                  className="btn btn-primary h-7 px-2 text-[0.6875rem]"
+                  className="btn btn-primary h-7 px-3 text-xs"
                 >
-                  {create.isPending ? "Creating…" : "Create"}
+                  {create.isPending ? "Creating…" : "Create Project"}
                 </button>
               </div>
             </form>
           ) : (
-            <div className="p-1 border-t border-border/70">
+            <div className="p-1 border-t border-border bg-bg-elevated/20">
               <button
                 type="button"
                 onClick={() => setCreating(true)}
@@ -291,10 +282,10 @@ export function ProjectSwitcher({ collapsed = false, menuDirection = "up" }: Pro
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="1.75"
+                  strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="h-3.5 w-3.5"
+                  className="h-3.5 w-3.5 text-accent"
                 >
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />

@@ -15,6 +15,7 @@ import { ProjectRuntime } from "@/components/v2/ProjectRuntime";
 import { useCorpusStatus, useSessions } from "@/hooks/queries";
 import { useV2Runs } from "@/hooks/v2";
 import { sessionHref } from "@/lib/desktop";
+import { formatCost } from "@/lib/format";
 import { isProjectEmpty } from "@/lib/projectEmptiness";
 import { pickPriorityRun } from "@/lib/runPriority";
 import { v2StatusMeta } from "@/lib/v2Status";
@@ -55,6 +56,7 @@ export default function ProjectPage() {
   }
 
   const runs = runsQuery.data ?? [];
+  const spend = runs.reduce((total, r) => total + (r.cost_usd || 0), 0);
   const waiting = runs
     .filter((r) => v2StatusMeta(r.status).needsYou)
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -89,20 +91,87 @@ export default function ProjectPage() {
 
   return (
     <div className="space-y-8" key={activeId}>
-      <header className="flex flex-wrap items-start justify-between gap-4">
+      {/* Top Academic Project Hero Card */}
+      <header className="card space-y-4 p-5 sm:p-6">
+        {/* Eyebrow & Actions Header */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+          <div className="flex items-center gap-2">
+            <span className="badge-frame">
+              <span className="status-marker bg-success" />
+              PROJECT WORKSPACE
+            </span>
+            <span className="font-mono text-[length:var(--text-micro)] text-text-muted">
+              {runs.length} {runs.length === 1 ? "research run" : "research runs"}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link href="/corpus" className="btn btn-secondary h-8 px-2.5 text-xs">
+              Corpus
+            </Link>
+            <Link href="/chat" className="btn btn-secondary h-8 px-2.5 text-xs">
+              Chat
+            </Link>
+            <Link href="/research" className="btn btn-primary h-8 px-3 text-xs">
+              + New research
+            </Link>
+          </div>
+        </div>
+
+        {/* Project Title & Description */}
         <div>
-          <h1 className="font-serif text-2xl font-bold tracking-tight text-text-primary">
+          <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-text-primary">
             {active.name}
           </h1>
-          {active.description && (
-            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-text-secondary">
+          {active.description ? (
+            <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-text-secondary">
               {active.description}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-text-muted">
+              Grounded multi-agent research workspace with cited evidence and human verification gates.
             </p>
           )}
         </div>
-        <Link href="/research" className="btn btn-primary shrink-0">
-          New research
-        </Link>
+
+        {/* Quick Project KPI Strip */}
+        <div className="grid grid-cols-2 gap-2 border-t border-border/40 pt-3 sm:grid-cols-4">
+          <div className="bg-bg-elevated p-2.5">
+            <div className="font-mono text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted">
+              Total Runs
+            </div>
+            <div className="mt-0.5 font-mono text-lg font-bold text-text-primary">
+              {runsQuery.isLoading ? "…" : runs.length}
+            </div>
+          </div>
+
+          <div className="bg-bg-elevated p-2.5">
+            <div className="font-mono text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted">
+              Waiting On You
+            </div>
+            <div className={`mt-0.5 font-mono text-lg font-bold ${waiting.length > 0 ? "text-warning" : "text-text-primary"}`}>
+              {runsQuery.isLoading ? "…" : waiting.length}
+            </div>
+          </div>
+
+          <div className="bg-bg-elevated p-2.5">
+            <div className="font-mono text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted">
+              Corpus Documents
+            </div>
+            <div className="mt-0.5 font-mono text-lg font-bold text-text-primary">
+              {corpus.isLoading ? "…" : (corpus.data?.documents ?? 0)}
+            </div>
+          </div>
+
+          <div className="bg-bg-elevated p-2.5">
+            <div className="font-mono text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted">
+              Recent Spend
+            </div>
+            <div className="mt-0.5 font-mono text-lg font-bold text-text-primary">
+              {runsQuery.isLoading ? "…" : formatCost(spend)}
+            </div>
+          </div>
+        </div>
       </header>
 
       {/* Above everything else: someone with no model configured needs to see the next

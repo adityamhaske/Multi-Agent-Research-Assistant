@@ -21,29 +21,54 @@ import type { V2RunSummary } from "@/lib/types";
 export function RunCard({ run, showProject }: { run: V2RunSummary; showProject?: string | null }) {
   const meta = v2StatusMeta(run.status);
 
+  // Status-colored left border accent
+  let borderLeftColor = "transparent";
+  if (meta.needsYou) {
+    borderLeftColor = "var(--warning)";
+  } else if (run.status === "FAILED" || run.status === "CANCELLED") {
+    borderLeftColor = "var(--danger)";
+  } else if (run.status === "COMPLETED") {
+    borderLeftColor = "var(--success)";
+  } else if (run.status === "RUNNING" || run.status === "PENDING") {
+    borderLeftColor = "var(--info)";
+  }
+
   return (
     <Link
       href={`/research/run?id=${run.id}`}
-      className="card card-interactive block hover:border-accent"
-      // A left rule rather than a filled panel. Filling the card worked for one row and
-      // turned a list of five pending reviews into a solid block of amber, which stops
-      // distinguishing anything — the emphasis has to survive repetition.
-      style={
-        meta.needsYou
-          ? { borderLeft: "3px solid var(--warning)", paddingLeft: "calc(var(--card-pad) - 2px)" }
-          : undefined
-      }
+      className="card card-interactive block group p-4 hover:border-text-secondary transition-all"
+      style={{
+        borderLeft: `3px solid ${borderLeftColor}`,
+        paddingLeft: "calc(var(--card-pad, 1rem) - 2px)",
+      }}
     >
-      <div className="flex items-start justify-between gap-3">
-        {/* Clamped rather than left to grow: an unclamped question is what turned three
-            long-running runs into a page-length stack of text on Overview, Research and
-            History alike. The full question is still one click away — every row is a link
-            to the run. */}
-        <p className="min-w-0 line-clamp-2 break-words text-sm leading-relaxed text-text-primary">
-          {run.question}
-        </p>
+      {/* Top Context & Status Row */}
+      <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-2 mb-2.5">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-[length:var(--text-micro)] text-text-muted">
+          <RelativeTime iso={run.created_at} />
+          <span>·</span>
+          <span className="capitalize">{run.depth}</span>
+          <span>·</span>
+          <span className="font-semibold text-text-secondary">{formatCost(run.cost_usd)}</span>
+          {showProject && (
+            <>
+              <span>·</span>
+              <span className="text-text-secondary">{showProject}</span>
+            </>
+          )}
+          {run.demo && (
+            <span
+              className="border border-warning-line bg-warning-soft px-1.5 py-0.2 font-semibold text-warning"
+              title="Scripted models and fixture sources."
+            >
+              demo
+            </span>
+          )}
+        </div>
+
+        {/* Status Badge */}
         <span
-          className="badge shrink-0 border-border font-mono text-[length:var(--text-micro)] text-text-secondary"
+          className="badge shrink-0 border-border bg-bg-elevated font-mono text-[length:var(--text-micro)] font-medium text-text-primary"
           title={meta.sentence}
         >
           <span
@@ -55,30 +80,37 @@ export function RunCard({ run, showProject }: { run: V2RunSummary; showProject?:
         </span>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[length:var(--text-micro)] text-text-muted">
-        <RelativeTime iso={run.created_at} />
-        <span>{run.depth}</span>
-        <span>{formatCost(run.cost_usd)}</span>
-        {showProject && <span>{showProject}</span>}
-        {run.demo && (
-          <span style={{ color: "var(--warning)" }} title="Scripted models and fixture sources.">
-            demo
-          </span>
-        )}
-        {run.has_artifact ? (
-          <span style={{ color: "var(--success)" }}>✓ verified artifact</span>
-        ) : (
-          <span title="An artifact exists only once a person approves the report.">
-            no artifact yet
-          </span>
-        )}
-        {/* `null` means unmeasured and must never render as 0%. */}
+      {/* Research Question */}
+      <p className="min-w-0 line-clamp-2 break-words text-[0.9375rem] font-medium leading-snug text-text-primary group-hover:text-accent transition-colors">
+        {run.question}
+      </p>
+
+      {/* Bottom Telemetry & Artifact Status Bar */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/30 pt-2.5 text-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          {run.has_artifact ? (
+            <span className="inline-flex items-center gap-1 font-mono text-[length:var(--text-micro)] font-semibold text-success bg-success-soft border border-success-line px-2 py-0.5">
+              ✓ verified artifact
+            </span>
+          ) : (
+            <span
+              className="font-mono text-[length:var(--text-micro)] text-text-muted bg-bg-elevated px-2 py-0.5"
+              title="An artifact exists only once a person approves the report."
+            >
+              no artifact yet
+            </span>
+          )}
+        </div>
+
+        {/* Citation Resolution Pill */}
         {run.citation_resolution_rate !== null && (
           <span
+            className={`font-mono text-[length:var(--text-micro)] px-2 py-0.5 ${
+              run.citation_resolution_rate < 1
+                ? "border border-warning-line bg-warning-soft text-warning font-semibold"
+                : "bg-bg-elevated text-text-secondary"
+            }`}
             title="Share of this report's citation markers that resolve to a real source."
-            style={
-              run.citation_resolution_rate < 1 ? { color: "var(--warning)" } : undefined
-            }
           >
             {Math.round(run.citation_resolution_rate * 100)}% citations resolve
           </span>

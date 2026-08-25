@@ -110,15 +110,22 @@ export function ActiveResearchList({
   const other = visible.filter((r) => !isWaiting(r) && !isInProgress(r) && !isFinished(r)).sort(newestFirst);
 
   return (
-    <section aria-labelledby="active-research" className="space-y-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2
-          id="active-research"
-          className="font-serif text-lg font-bold tracking-tight text-text-primary"
-        >
-          Active research
-        </h2>
-        <Link href="/research" className="font-mono text-xs text-accent hover:underline">
+    <section aria-labelledby="active-research" className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+        <div className="flex items-center gap-3">
+          <h2
+            id="active-research"
+            className="font-serif text-xl font-bold tracking-tight text-text-primary"
+          >
+            Active research
+          </h2>
+          {visible.length > 0 && (
+            <span className="badge-frame">
+              {visible.length} {visible.length === 1 ? "run" : "runs"}
+            </span>
+          )}
+        </div>
+        <Link href="/research" className="btn btn-primary h-8 px-3 text-xs">
           + New research
         </Link>
       </div>
@@ -126,11 +133,11 @@ export function ActiveResearchList({
       {isError && (
         <p
           role="status"
-          className="border px-3 py-2 text-xs leading-relaxed text-text-secondary"
+          className="border px-3.5 py-2.5 text-xs leading-relaxed text-text-secondary"
           style={{ borderColor: "var(--warning-line)", backgroundColor: "var(--warning-soft)" }}
         >
           Couldn&apos;t refresh this list, so it may be out of date.{" "}
-          <button type="button" onClick={onRetry} className="text-accent hover:underline">
+          <button type="button" onClick={onRetry} className="font-semibold text-accent hover:underline">
             Try again
           </button>
         </p>
@@ -150,28 +157,34 @@ export function ActiveResearchList({
             title="No research yet"
             description="Ask your first question above. Every run appears here with its state and, once approved, a verifiable artifact."
             action={
-              <Link href="/research" className="text-sm text-accent hover:underline">
+              <Link href="/research" className="btn btn-secondary text-xs">
                 Ask a question
               </Link>
             }
           />
         )
       ) : (
-        <>
+        <div className="space-y-6">
           {waiting.length > 0 && (
-            <div>
+            <div className="space-y-2.5">
               {/* `tabIndex={-1}` because this is the AttentionCard's in-page link target.
                   A non-focusable fragment target scrolls the viewport but does not reliably
                   move keyboard focus (Safari in particular), so the next Tab returns the
                   reader to where they started and AT gives no sign they arrived. */}
-              <h3
-                id="waiting-on-you"
-                tabIndex={-1}
-                className="mb-2 scroll-mt-4 text-xs font-medium text-text-muted"
-              >
-                Waiting on you
-              </h3>
-              <ul className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 bg-warning shrink-0" aria-hidden />
+                <h3
+                  id="waiting-on-you"
+                  tabIndex={-1}
+                  className="scroll-mt-4 font-mono text-[length:var(--text-micro)] font-bold uppercase tracking-wider text-warning"
+                >
+                  Waiting on you
+                </h3>
+                <span className="font-mono text-[length:var(--text-micro)] text-text-muted font-normal">
+                  ({waiting.length})
+                </span>
+              </div>
+              <ul className="space-y-2.5">
                 {waiting.map((r) => (
                   <li key={r.id}>
                     <RunCard run={r} />
@@ -182,9 +195,17 @@ export function ActiveResearchList({
           )}
 
           {inProgress.length > 0 && (
-            <div>
-              <h3 className="mb-2 text-xs font-medium text-text-muted">In progress</h3>
-              <ul className="space-y-2">
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 bg-info animate-pulse shrink-0" aria-hidden />
+                <h3 className="font-mono text-[length:var(--text-micro)] font-bold uppercase tracking-wider text-info">
+                  In progress
+                </h3>
+                <span className="font-mono text-[length:var(--text-micro)] text-text-muted font-normal">
+                  ({inProgress.length})
+                </span>
+              </div>
+              <ul className="space-y-2.5">
                 {inProgress.map((r) => (
                   <li key={r.id}>
                     <RunCard run={r} />
@@ -195,9 +216,17 @@ export function ActiveResearchList({
           )}
 
           {finishedShown.length > 0 && (
-            <div>
-              <h3 className="mb-2 text-xs font-medium text-text-muted">Recently finished</h3>
-              <ul className="space-y-2">
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 bg-text-muted shrink-0" aria-hidden />
+                <h3 className="font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-wider text-text-muted">
+                  Recently finished
+                </h3>
+                <span className="font-mono text-[length:var(--text-micro)] text-text-muted font-normal">
+                  ({finished.length})
+                </span>
+              </div>
+              <ul className="space-y-2.5">
                 {finishedShown.map((r) => (
                   <li key={r.id}>
                     <RunCard run={r} />
@@ -205,20 +234,24 @@ export function ActiveResearchList({
                 ))}
               </ul>
               {finishedMore > 0 && (
-                <Link
-                  href="/history"
-                  className="mt-2 inline-block font-mono text-xs text-accent hover:underline"
-                >
-                  +{finishedMore} more in History →
-                </Link>
+                <div className="pt-1">
+                  <Link
+                    href="/history"
+                    className="inline-flex items-center gap-1 font-mono text-xs text-accent hover:underline"
+                  >
+                    +{finishedMore} more in History →
+                  </Link>
+                </div>
               )}
             </div>
           )}
 
           {other.length > 0 && (
-            <div>
-              <h3 className="mb-2 text-xs font-medium text-text-muted">Other</h3>
-              <ul className="space-y-2">
+            <div className="space-y-2.5">
+              <h3 className="font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-wider text-text-muted">
+                Other
+              </h3>
+              <ul className="space-y-2.5">
                 {other.map((r) => (
                   <li key={r.id}>
                     <RunCard run={r} />
@@ -227,7 +260,7 @@ export function ActiveResearchList({
               </ul>
             </div>
           )}
-        </>
+        </div>
       )}
     </section>
   );
