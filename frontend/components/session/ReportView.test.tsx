@@ -23,6 +23,29 @@ vi.mock("react-hot-toast", () => ({
   default: { success: vi.fn(), error: vi.fn() },
 }));
 
+/**
+ * Host switch for the export tests.
+ *
+ * These exports must work on the packaged desktop app, where the sidecar lives on another
+ * origin and authenticates with a per-launch bearer token — a relative path with
+ * `credentials: "include"` reaches nothing there. This component built exactly that request
+ * by hand, so every export control in the packaged app failed; it now goes through
+ * `lib/download.ts`, the one helper that knows both hosts.
+ */
+let desktopMode = false;
+
+vi.mock("@/lib/desktop", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/desktop")>();
+  return {
+    ...actual,
+    get isDesktop() {
+      return desktopMode;
+    },
+    apiBase: () => (desktopMode ? "http://127.0.0.1:8765/api/v1" : "/api/v1"),
+    authHeaders: () => (desktopMode ? { Authorization: "Bearer local-token" } : {}),
+  };
+});
+
 // ChatPanel opens an EventSource and does its own fetching; it is not under test here.
 vi.mock("./ChatPanel", () => ({
   ChatPanel: () => <div data-testid="chat-panel" />,
@@ -64,6 +87,7 @@ let clicked: HTMLAnchorElement | null = null;
 
 beforeEach(() => {
   clicked = null;
+  desktopMode = false;
   // jsdom has no download behaviour; capture the anchor the component builds instead.
   // The component appends the anchor to the body before clicking it, so reading it back
   // from the DOM avoids aliasing `this` out of the mock (which eslint rejects).
@@ -101,9 +125,59 @@ describe("export controls", () => {
 
     await waitFor(() => expect(fetch).toHaveBeenCalled());
     const [url, init] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+    // The path comes from `apiBase()`, not a literal — same result on the web host, but
+    // now resolved per host rather than assumed.
     expect(url).toBe(`/api/v1/research/${SESSION.session_id}/export.bundle.json`);
-    // Same-origin with the httpOnly cookie — the app never holds a token to send.
+    // Same-origin with the httpOnly cookie — the web app never holds a token to send.
     expect(init).toMatchObject({ credentials: "include" });
+  });
+
+  it.each([
+    [".md", "export.md"],
+    ["PDF", "export.pdf"],
+    [".bundle.json", "export.bundle.json"],
+  ])(
+    "sends %s through the desktop-aware transport, with a bearer token and no cookies",
+    async (button, suffix) => {
+      desktopMode = true;
+      render(<ReportView session={SESSION} />);
+      await userEvent.click(screen.getByRole("button", { name: button }));
+
+      await waitFor(() => expect(fetch).toHaveBeenCalled());
+      const [url, init] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+      // Absolute sidecar origin: a relative path resolves against the Tauri asset scheme
+      // and reaches no server at all, which is what "Network error during export." was.
+      expect(url).toBe(`http://127.0.0.1:8765/api/v1/research/${SESSION.session_id}/${suffix}`);
+      expect(init).toMatchObject({
+        credentials: "omit",
+        headers: { Authorization: "Bearer local-token" },
+      });
+    },
+  );
+
+  it("never sends a cookie-only export request on the desktop host", async () => {
+    // The specific defect: `credentials: "include"` with no Authorization header. The
+    // sidecar has no cookie for it, so this shape is always a 401 there.
+    desktopMode = true;
+    render(<ReportView session={SESSION} />);
+    await userEvent.click(screen.getByRole("button", { name: ".bundle.json" }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    for (const [, init] of (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls) {
+      expect(init?.credentials).not.toBe("include");
+      expect(init?.headers).toHaveProperty("Authorization");
+    }
+  });
+
+  it("keeps the token out of the URL, where it would land in logs and history", async () => {
+    desktopMode = true;
+    render(<ReportView session={SESSION} />);
+    await userEvent.click(screen.getByRole("button", { name: ".bundle.json" }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const [url] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(String(url)).not.toContain("local-token");
+    expect(String(url)).not.toContain("access_token");
   });
 
   it("saves the bundle under a name the verifier is documented against", async () => {

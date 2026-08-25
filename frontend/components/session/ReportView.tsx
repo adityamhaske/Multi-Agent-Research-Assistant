@@ -3,7 +3,9 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 
+import { ApiError } from "@/lib/api";
 import { Report, SourcesPanel } from "@/lib/citations";
+import { downloadExport } from "@/lib/download";
 import { formatCost, formatDuration, formatNumber } from "@/lib/format";
 import type { SessionDetail } from "@/lib/types";
 
@@ -69,38 +71,38 @@ export function ReportView({ session }: { session: SessionDetail }) {
   };
 
   // Server-rendered export (docs/05 §3, docs/07 §3): .md is the raw report; .pdf is
-  // WeasyPrint; .bundle.json is the hash-verifiable artifact. Fetched same-origin so the
-  // httpOnly cookie authenticates; a 501 (PDF libs missing) or 400 (bundle requires a
-  // COMPLETED session) surfaces as a toast rather than a broken download.
+  // WeasyPrint; .bundle.json is the hash-verifiable artifact. A 501 (PDF libs missing) or
+  // 400 (bundle requires a COMPLETED session) surfaces as a toast rather than a broken
+  // download.
   //
+  // Routed through `downloadExport`, which is the *only* place that knows how to reach the
+  // API on both hosts. This function used to build its own `fetch` with a hardcoded
+  // `/api/v1` path and `credentials: "include"`, which is a web-only request in all three
+  // respects: the packaged desktop app talks to a sidecar on another origin and
+  // authenticates with a per-launch bearer token, so every export control in the packaged
+  // app failed with "Network error during export." The newer export UIs already went
+  // through the helper — this was the forgotten copy, which is the failure mode
+  // AGENTS.md names as the recurring one.
+  //
+  // The path carries no `/api/v1` prefix: `apiBase()` supplies it, and it differs per host.
   // The URL suffix and the saved filename share one string, which is why `bundle.json`
-  // works unmodified: the route is `export.bundle.json` and the file lands as
+  // works unmodified — the route is `export.bundle.json` and the file lands as
   // `research-<id>.bundle.json`.
   const download = async (format: ExportFormat) => {
     setExporting(format);
     try {
-      const res = await fetch(`/api/v1/research/${session.session_id}/export.${format}`, {
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const detail = await res.json().catch(() => null);
-        toast.error(
-          (detail as { detail?: string } | null)?.detail ??
-            (format === "pdf" ? "PDF export is unavailable." : "Export failed."),
-        );
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `research-${session.session_id.slice(0, 8)}.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      toast.error("Network error during export.");
+      await downloadExport(
+        `/research/${session.session_id}/export.${format}`,
+        `research-${session.session_id.slice(0, 8)}.${format}`,
+      );
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError
+          ? err.message
+          : format === "pdf"
+            ? "PDF export is unavailable."
+            : "Export failed.",
+      );
     } finally {
       setExporting(null);
     }
