@@ -3,7 +3,12 @@
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
-import { useModelCatalog, useResetModelRouting, useSetModelRouting } from "@/hooks/queries";
+import {
+  useCustomEndpointStatus,
+  useModelCatalog,
+  useResetModelRouting,
+  useSetModelRouting,
+} from "@/hooks/queries";
 import type { AgentRole, ModelInfo, ModelRouting } from "@/lib/types";
 
 import { Section } from "./Section";
@@ -35,7 +40,17 @@ const PRESET_COPY: Record<string, string> = {
   best: "Highest quality, highest cost.",
 };
 
+const PROVIDER_NAMES: Record<string, string> = {
+  custom: "Custom Endpoint (OpenAI-compatible)",
+  google: "Google Gemini",
+  anthropic: "Anthropic Claude",
+  openai: "OpenAI",
+  openrouter: "OpenRouter",
+  ollama: "Local (Ollama)",
+};
+
 function formatPrice(model: ModelInfo): string {
+  if (model.provider === "custom") return "custom endpoint";
   if (model.input_per_mtok === null || model.output_per_mtok === null) return "price not set";
   if (model.input_per_mtok === 0 && model.output_per_mtok === 0) return "free — runs locally";
   return `$${model.input_per_mtok}/$${model.output_per_mtok} per 1M`;
@@ -51,18 +66,78 @@ function relativeCost(routing: ModelRouting, byRoute: Map<string, ModelInfo>): n
 
 export function ModelPicker() {
   const { data: catalog, isLoading } = useModelCatalog();
+  const customStatus = useCustomEndpointStatus();
   const setRouting = useSetModelRouting();
   const resetRouting = useResetModelRouting();
 
   const [customizing, setCustomizing] = useState(false);
   const [draft, setDraft] = useState<ModelRouting | null>(null);
 
-  const byRoute = useMemo(
-    () => new Map((catalog?.models ?? []).map((m) => [m.route, m])),
-    [catalog],
+  const current = draft ?? catalog?.effective_routing ?? null;
+
+  const customModels = useMemo(() => {
+    const models = customStatus.data?.models ?? [];
+    const reachable = Boolean(customStatus.data?.reachable);
+    const list: ModelInfo[] = models.map((m) => ({
+      route: `custom:${m}`,
+      provider: "custom",
+      model_id: m,
+      display_name: m,
+      input_per_mtok: null,
+      output_per_mtok: null,
+      context_window: null,
+      max_output_tokens: null,
+      supports_tools: true,
+      supports_structured_output: true,
+      notes: "Served by your configured custom OpenAI-compatible endpoint.",
+      available: reachable,
+    }));
+
+    // Ensure any currently active custom: route is present even if unadvertised
+    if (current) {
+      for (const route of Object.values(current)) {
+        if (route.startsWith("custom:") && !list.some((m) => m.route === route)) {
+          const id = route.slice("custom:".length);
+          list.push({
+            route,
+            provider: "custom",
+            model_id: id,
+            display_name: id,
+            input_per_mtok: null,
+            output_per_mtok: null,
+            context_window: null,
+            max_output_tokens: null,
+            supports_tools: true,
+            supports_structured_output: true,
+            notes: "Served by your configured custom OpenAI-compatible endpoint.",
+            available: reachable,
+          });
+        }
+      }
+    }
+
+    return list;
+  }, [customStatus.data, current]);
+
+  const allModels = useMemo(
+    () => [...customModels, ...(catalog?.models ?? [])],
+    [customModels, catalog?.models],
   );
 
-  const current = draft ?? catalog?.effective_routing ?? null;
+  const byRoute = useMemo(
+    () => new Map(allModels.map((m) => [m.route, m])),
+    [allModels],
+  );
+
+  const groupedModels = useMemo(() => {
+    const groups: Record<string, ModelInfo[]> = {};
+    for (const m of allModels) {
+      const p = m.provider;
+      if (!groups[p]) groups[p] = [];
+      groups[p].push(m);
+    }
+    return groups;
+  }, [allModels]);
 
   if (isLoading || !catalog || !current) {
     return (
@@ -215,17 +290,27 @@ export function ModelPicker() {
                     disabled={busy}
                     onChange={(e) => applyRouting({ ...current, [role]: e.target.value })}
                   >
-                    {catalog.models.map((m) => (
-                      <option
-                        key={m.route}
-                        value={m.route}
-                        // Unavailable models stay visible but unselectable: seeing the
-                        // option is what tells you adding a key is worth it.
-                        disabled={!m.available || m.input_per_mtok === null}
+                    {Object.entries(groupedModels).map(([providerKey, models]) => (
+                      <optgroup
+                        key={providerKey}
+                        label={PROVIDER_NAMES[providerKey] ?? providerKey}
                       >
-                        {m.display_name} — {formatPrice(m)}
-                        {m.available ? "" : " (needs a key)"}
-                      </option>
+                        {models.map((m) => (
+                          <option
+                            key={m.route}
+                            value={m.route}
+                            // Unavailable models stay visible but unselectable: seeing the
+                            // option is what tells you adding a key is worth it.
+                            disabled={
+                              !m.available ||
+                              (m.provider !== "custom" && m.input_per_mtok === null)
+                            }
+                          >
+                            {m.display_name} — {formatPrice(m)}
+                            {m.available ? "" : " (needs a key)"}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                   {selected?.notes && (
