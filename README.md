@@ -9,7 +9,7 @@
 
 <!-- Direct link to the release asset — this downloads the file, no landing page.
      Bump the version in BOTH the badge label and the href when cutting a release. -->
-[![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon%20·%20.dmg-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/download/v1.0.2/Research.Assistant_1.0.2_aarch64.dmg)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon%20·%20.dmg-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/download/v2.0.0/Research.Assistant_2.0.0_aarch64.dmg)
 
 Apple Silicon only (81 MB, installs to ~182 MB). The app is unsigned, so macOS blocks it on
 first launch — right-click the app → **Open** → **Open**. Windows `.msi`, Linux `.deb` and
