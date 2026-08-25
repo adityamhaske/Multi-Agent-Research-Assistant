@@ -34,8 +34,7 @@ export interface Release {
 export const RELEASES: Release[] = [
   {
     version: "v2.0.0",
-    date: "",
-    unreleased: true,
+    date: "2026-08-25",
     headline:
       "Research becomes a structured record: evidence, claims, sources, conflicts, a human decision, and an artifact anyone can verify offline.",
     improved: [
