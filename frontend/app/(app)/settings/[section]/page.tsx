@@ -11,8 +11,6 @@ export function generateStaticParams() {
     "connections",
     "search",
     "research",
-    "corpus",
-    "exports",
     "appearance",
     "advanced",
   ].map((section) => ({ section }));

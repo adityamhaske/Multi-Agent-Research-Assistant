@@ -17,8 +17,6 @@ const SECTIONS: { slug: string; label: string }[] = [
   { slug: "connections", label: "Connections" },
   { slug: "search", label: "Search Providers" },
   { slug: "research", label: "Research" },
-  { slug: "corpus", label: "Corpus" },
-  { slug: "exports", label: "Exports" },
   { slug: "appearance", label: "Appearance" },
   { slug: "advanced", label: "Advanced" },
 ];

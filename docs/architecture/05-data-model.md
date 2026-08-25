@@ -29,6 +29,7 @@ users
 | `api_key_provider` | varchar(20) NULL | `google` \| `anthropic` \| `openai` \| `openrouter` \| `custom` |
 | `api_key_base_url` | text NULL | Only for `custom` |
 | `api_key_hint` | varchar(16) NULL | Display-only tail, e.g. `…aB3d` |
+| `api_key_label` | varchar(60) NULL | User-chosen nickname for the active connection, e.g. `OmniRoute`. NULL shows the catalog label instead. Set independently of the key via `PATCH /me/api-key/label` — renaming never re-probes the provider |
 | `api_key_set_at` | timestamptz NULL | |
 | `monthly_token_limit` | integer NOT NULL default 0 | **0 = unlimited** |
 | `model_routing` | JSONB NULL | Per-role `provider:model`. NULL = use the deployment default |

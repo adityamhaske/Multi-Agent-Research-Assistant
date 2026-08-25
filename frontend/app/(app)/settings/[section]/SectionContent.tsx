@@ -171,31 +171,6 @@ function ResearchSection() {
   );
 }
 
-// ─── Corpus / Exports (light — no dedicated settings exist yet) ───────────────────
-
-function CorpusSection() {
-  return (
-    <Section title="Corpus" description="Manage the documents research can cite and, in airgapped mode, must cite exclusively.">
-      <p className="text-sm text-text-secondary">
-        Upload, remove, and inspect documents from the{" "}
-        <Link href="/corpus" className="text-accent hover:underline">Corpus</Link> page — restricting a run to
-        it is a per-run choice on the research form, not a global setting.
-      </p>
-    </Section>
-  );
-}
-
-function ExportsSection() {
-  return (
-    <Section title="Exports" description="What a downloaded report carries.">
-      <p className="text-sm text-text-secondary">
-        Every export (.md, PDF, .bundle.json) includes the full citation table and, once
-        resolved, the per-role model breakdown automatically — nothing to configure yet.
-        Export a report from its own page once research completes.
-      </p>
-    </Section>
-  );
-}
 
 // ─── Appearance ──────────────────────────────────────────────────────────────────
 
@@ -551,8 +526,6 @@ const SECTIONS: Record<string, () => JSX.Element> = {
   connections: ConnectionsSection,
   search: SearchProvidersSection,
   research: ResearchSection,
-  corpus: CorpusSection,
-  exports: ExportsSection,
   appearance: AppearanceSection,
   advanced: AdvancedSection,
 };

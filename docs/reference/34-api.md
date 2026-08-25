@@ -57,7 +57,7 @@ Revokes the refresh token server-side and clears both cookies.
 ### `GET /auth/me`
 
 The current user. Never includes the stored provider key — only its provider, an
-`api_key_hint` like `…aB3d`, and when it was set.
+`api_key_hint` like `…aB3d`, an optional `api_key_label` nickname, and when it was set.
 
 ```json
 {
@@ -65,7 +65,7 @@ The current user. Never includes the stored provider key — only its provider, 
   "created_at": "...", "display_name": null, "avatar_url": null,
   "monthly_token_limit": 0,
   "api_key_provider": null, "api_key_base_url": null,
-  "api_key_hint": null, "api_key_set_at": null,
+  "api_key_hint": null, "api_key_label": null, "api_key_set_at": null,
   "connection_verdict": null,
   "preferences": { "retrieval_k": null, "min_sources_per_task": null,
                    "snippet_max_chars": null, "density": null }
@@ -108,7 +108,22 @@ before storage.
 
 ### `DELETE /auth/me/api-key`
 
-Removes the stored key; the deployment's server key applies again.
+Removes the stored key; the deployment's server key applies again. Also clears
+`api_key_label` — a nickname describes a connection that no longer exists once the key
+is gone.
+
+### `PATCH /auth/me/api-key/label`
+
+```json
+{ "label": "OmniRoute" }
+```
+
+Renames the active connection. `404` if no key is stored — there is nothing to name.
+Deliberately separate from `PUT /me/api-key`: a nickname does not require re-proving
+the key, so this never re-probes the provider and never touches `connection_verdict`.
+A blank `label` clears the nickname back to the provider's catalog name. Web only —
+the desktop app keeps one keychain entry per provider rather than a single named
+connection to disambiguate.
 
 ### `GET /auth/me/usage`
 
