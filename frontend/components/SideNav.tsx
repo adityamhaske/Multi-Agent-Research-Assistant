@@ -73,7 +73,7 @@ export function SideNav({ user }: { user?: User }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const renderNavContent = (isMobile = false) => (
-    <div className="flex h-full flex-col justify-between p-3">
+    <div className="flex h-full flex-col justify-between p-3 overflow-y-auto">
       {/* Top Section: Brand + Actions + Nav Items */}
       <div className="space-y-4">
         {/* Brand Header */}
@@ -224,7 +224,7 @@ export function SideNav({ user }: { user?: User }) {
   return (
     <>
       {/* Mobile Top Bar */}
-      <header className="md:hidden shrink-0 flex h-14 items-center justify-between border-b border-border bg-bg-base/90 px-4 backdrop-blur-md z-30">
+      <header className="md:hidden shrink-0 flex h-14 items-center justify-between border-b border-border bg-bg-base/90 px-4 backdrop-blur-md z-30 sticky top-0">
         <Link href="/research" className="flex items-center gap-2 font-bold text-text-primary">
           <BrandLogo className="h-6 w-6" />
           <span className="text-sm font-semibold tracking-tight">Research Assistant</span>
@@ -241,7 +241,7 @@ export function SideNav({ user }: { user?: User }) {
 
       {/* Desktop Sidebar (Left Rail / Fixed Width) */}
       <aside
-        className={`hidden md:flex flex-col shrink-0 border-r border-border bg-bg-surface transition-all duration-200 z-20 ${
+        className={`hidden md:flex flex-col shrink-0 border-r border-border bg-bg-surface sticky top-0 h-screen transition-all duration-200 z-20 ${
           collapsed ? "w-16" : "w-60"
         }`}
       >

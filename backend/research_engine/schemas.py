@@ -78,11 +78,32 @@ class PlannerOutput(BaseModel):
 
 class EvidenceChunk(BaseModel):
     task_id: int = 0
-    source_url: str
+    source_url: str = ""
     source_title: str = ""
     snippet: str = Field("", max_length=500, description="Verbatim supporting text")
     key_fact: str = Field("", description="The claim this snippet supports")
     retrieved_at: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_aliases(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "source_url" not in data:
+                for k in ("url", "link", "source"):
+                    if k in data and isinstance(data[k], str):
+                        data["source_url"] = data[k]
+                        break
+            if "key_fact" not in data:
+                for k in ("fact", "claim", "title"):
+                    if k in data and isinstance(data[k], str):
+                        data["key_fact"] = data[k]
+                        break
+            if "snippet" not in data:
+                for k in ("quote", "text", "content"):
+                    if k in data and isinstance(data[k], str):
+                        data["snippet"] = data[k]
+                        break
+        return data
 
 
 class ExecutorOutput(BaseModel):

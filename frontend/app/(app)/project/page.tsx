@@ -11,7 +11,6 @@ import { ActiveResearchList } from "@/components/v2/ActiveResearchList";
 import { AttentionCard } from "@/components/v2/AttentionCard";
 import { EmptyProjectWelcome } from "@/components/v2/EmptyProjectWelcome";
 import { ProjectHealth } from "@/components/v2/ProjectHealth";
-import { ProjectRuntime } from "@/components/v2/ProjectRuntime";
 import { useCorpusStatus, useSessions } from "@/hooks/queries";
 import { useV2Runs } from "@/hooks/v2";
 import { sessionHref } from "@/lib/desktop";
@@ -197,8 +196,6 @@ export default function ProjectPage() {
           />
         </>
       )}
-
-      <ProjectRuntime />
 
       {/* Legacy V1 sessions: kept reachable, deliberately quiet, and absent entirely when
           there are none — an empty collapsed section is still a section nobody needed. */}

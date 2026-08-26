@@ -51,10 +51,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       // Applied on the shell rather than <html> because the tokens are inherited and
       // this is the outermost element the client actually owns (docs/07 §2, Phase 7).
       data-density={user?.preferences?.density ?? "comfortable"}
-      className="flex h-screen flex-col md:flex-row overflow-hidden bg-bg-base"
+      className="flex min-h-screen flex-col md:flex-row bg-bg-base"
     >
       <SideNav user={user} />
-      <main className="flex-1 overflow-y-auto w-full">
+      <main className="flex-1 w-full min-w-0">
         <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8">
           {children}
         </div>

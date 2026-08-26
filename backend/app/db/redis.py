@@ -43,7 +43,9 @@ async def init_redis_pool() -> None:
 async def close_redis_pool() -> None:
     global _redis_pool
     if _redis_pool:
-        await _redis_pool.aclose()
+        pool = _redis_pool
+        _redis_pool = None
+        await pool.aclose()
         logger.info("redis_close", message="Redis connection pool closed")
 
 

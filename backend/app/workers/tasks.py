@@ -167,7 +167,7 @@ async def _mark_v2_failed(run_id: str, error: str) -> None:
     from sqlalchemy import select
 
     from app import v2_runtime
-    from app.db.base import AsyncSessionLocal
+    from app.db.base import AsyncSessionLocal, engine
     from app.db.redis import close_redis_pool, init_redis_pool, publish_event
     from app.models.research import ResearchRun
 
@@ -188,3 +188,4 @@ async def _mark_v2_failed(run_id: str, error: str) -> None:
         await publish_event(run_id, {"type": "FAILED", "data": {"reason": error[:500]}})
     finally:
         await close_redis_pool()
+        await engine.dispose()

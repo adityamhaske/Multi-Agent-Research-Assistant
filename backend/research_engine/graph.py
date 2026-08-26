@@ -24,12 +24,13 @@ import json
 import re
 import time
 from contextvars import ContextVar
+from typing import Any
 
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from research_engine import claims, contradictions, outlines, prompts
 from research_engine.events import emit
@@ -137,6 +138,22 @@ async def _structured(role: str, messages: list, schema):
     cost = estimate_cost(raw, role) if raw is not None else 0.0
     i, o = token_counts(raw) if raw is not None else (0, 0)
     parsed = None if result.get("parsing_error") else result.get("parsed")
+    if parsed is None and raw is not None and getattr(raw, "content", None):
+        content = raw.content
+        if isinstance(content, str) and content.strip():
+            cleaned = content.strip()
+            if cleaned.startswith("```"):
+                cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+                cleaned = re.sub(r"\s*```$", "", cleaned)
+            try:
+                parsed = schema.model_validate_json(cleaned)
+            except Exception:
+                match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+                if match:
+                    try:
+                        parsed = schema.model_validate_json(match.group(0))
+                    except Exception:
+                        pass
     return parsed, cost, i, o
 
 
@@ -291,7 +308,14 @@ def _norm_text(text: str) -> str:
 
 
 def _norm_url(url: str) -> str:
-    return (url or "").strip().rstrip("/").lower()
+    u = (url or "").strip().rstrip("/").lower()
+    if u.startswith("https://"):
+        u = u[8:]
+    elif u.startswith("http://"):
+        u = u[7:]
+    if u.startswith("www."):
+        u = u[4:]
+    return u.rstrip("/")
 
 
 def record_tool_output(seen: dict[str, str], tool_name: str, observation) -> None:
@@ -334,12 +358,30 @@ def verify_evidence_snippets(evidence: list[dict], seen: dict[str, str]) -> list
     of displaying an invented one. Returns the chunks that failed, for logging.
     """
     fabricated: list[dict] = []
+    norm_seen = {_norm_url(k): (k, v) for k, v in seen.items()}
+
     for chunk in evidence:
         snippet = chunk.get("snippet") or ""
         if not snippet.strip():
             continue
-        haystack = seen.get(_norm_url(chunk.get("source_url", "")), "")
-        if _norm_text(snippet) not in _norm_text(haystack):
+        norm_chunk_url = _norm_url(chunk.get("source_url", ""))
+        haystack = ""
+        if norm_chunk_url in norm_seen:
+            haystack = norm_seen[norm_chunk_url][1]
+
+        norm_snip = _norm_text(snippet)
+        if norm_snip in _norm_text(haystack):
+            continue
+
+        # If not found in the specified URL, check if the quote was present in any other fetched URL
+        found_in_other = False
+        for original_url, text in seen.items():
+            if norm_snip in _norm_text(text):
+                chunk["source_url"] = original_url
+                found_in_other = True
+                break
+
+        if not found_in_other:
             chunk["snippet"] = ""
             chunk["snippet_unverified"] = True
             fabricated.append(chunk)
@@ -371,14 +413,50 @@ class submit_evidence(BaseModel):
 
     evidence: list[EvidenceChunk] = Field(default_factory=list, description="List of cited facts")
 
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_payload(cls, data: Any) -> Any:
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except Exception:
+                return {"evidence": []}
+        if isinstance(data, list):
+            return {"evidence": data}
+        if isinstance(data, dict):
+            raw = data.get("evidence")
+            if isinstance(raw, str):
+                try:
+                    data["evidence"] = json.loads(raw)
+                except Exception:
+                    data["evidence"] = []
+        return data
 
-def _parse_submission(args: dict) -> list[dict]:
+
+def _parse_submission(args: Any) -> list[dict]:
     """Validate one `submit_evidence` payload into evidence dicts. Raises on rejection.
 
     Truncate to the configured cap before validation (docs/07 §2, Phase 3) — this can only
     tighten `EvidenceChunk.snippet`'s own max_length=500, never loosen it, since the
     config's default (500) equals that ceiling and nothing here raises it.
     """
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except Exception:
+            args = {}
+    if isinstance(args, list):
+        args = {"evidence": args}
+    elif not isinstance(args, dict):
+        args = {}
+
+    raw_evidence = args.get("evidence")
+    if isinstance(raw_evidence, str):
+        try:
+            args["evidence"] = json.loads(raw_evidence)
+        except Exception:
+            args["evidence"] = []
+
     snip_cap = get_run_config().snippet_max_chars
     for item in args.get("evidence", []) or []:
         if isinstance(item, dict) and isinstance(item.get("snippet"), str):
