@@ -20,7 +20,7 @@ interface Streaming {
 function UserBubble({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[85%] whitespace-pre-wrap border border-accent bg-accent-muted px-3.5 py-2 text-sm text-text-primary">
+      <div className="max-w-[85%] whitespace-pre-wrap border border-accent/60 bg-accent-muted/70 px-4 py-2.5 text-sm text-text-primary shadow-xs">
         {text}
       </div>
     </div>
@@ -36,15 +36,15 @@ function AssistantBubble({
 }) {
   return (
     <div className="flex justify-start">
-      <div className="max-w-[85%] border border-border bg-bg-surface px-3.5 py-2 text-sm">
+      <div className="max-w-[85%] border border-border bg-bg-surface px-4 py-3 text-sm shadow-xs">
         {text ? (
           <MemoryAnswer markdown={text} citations={citations} />
         ) : (
-          <span className="inline-flex gap-1.5 py-1" aria-label="Assistant is typing">
+          <span className="inline-flex items-center gap-1.5 py-1" aria-label="Assistant is typing">
             {[0, 1, 2].map((i) => (
               <span
                 key={i}
-                className="h-1.5 w-1.5 bg-accent"
+                className="h-1.5 w-1.5 rounded-full bg-accent"
                 style={{ animation: `pulse 1s ease-in-out ${i * 0.15}s infinite` }}
               />
             ))}
@@ -183,24 +183,33 @@ export function ProjectChatPanel({ threadId }: { threadId: string }) {
   const messages = history ?? [];
 
   return (
-    <div className="card flex h-full min-h-[32rem] flex-col p-0">
-      <div className="border-b border-border px-4 py-2.5">
-        <h3 className="font-serif text-sm font-bold text-text-primary">Ask This Project</h3>
-        <p className="text-xs text-text-muted">
-          Answers come only from reports you approved here, and cite them.
-        </p>
+    <div className="card flex h-full min-h-[34rem] flex-col border border-border bg-bg-surface p-0 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-bg-elevated/40 px-4 py-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="font-serif text-sm font-bold text-text-primary">Ask This Project</h3>
+            <span className="border border-success-line bg-success-soft px-1.5 py-0.2 font-mono text-[length:var(--text-micro)] font-semibold text-success">
+              Grounded in approved reports
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs text-text-muted">
+            Answers cite verified claims from approved research in this project.
+          </p>
+        </div>
       </div>
 
       <div
         ref={scrollRef}
-        className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3"
+        className="min-h-0 flex-1 space-y-3.5 overflow-y-auto p-4"
         aria-live="polite"
         aria-label="Chat transcript"
       >
         {messages.length === 0 && !streaming && (
-          <p className="text-sm text-text-muted">
-            No messages yet. Try &ldquo;What have we established so far?&rdquo;
-          </p>
+          <div className="my-auto flex h-full min-h-[14rem] flex-col items-center justify-center p-6 text-center">
+            <div className="border border-border bg-bg-elevated/50 px-4 py-3 text-xs text-text-secondary">
+              <span className="font-semibold text-text-primary">Ready for inquiry:</span> Try asking &ldquo;What have we established so far?&rdquo; or a specific question regarding approved findings.
+            </div>
+          </div>
         )}
         {messages.map((m) =>
           m.role === "user" ? (
@@ -217,14 +226,14 @@ export function ProjectChatPanel({ threadId }: { threadId: string }) {
         )}
       </div>
 
-      <div className="space-y-2 border-t border-border p-3">
+      <div className="space-y-2.5 border-t border-border bg-bg-elevated/30 p-3 sm:p-4">
         <ScopeSelector
           value={scope}
           onChange={setScope}
           surface="project"
           disabled={Boolean(streaming)}
         />
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-2.5">
           <textarea
             rows={1}
             value={input}
@@ -232,11 +241,11 @@ export function ProjectChatPanel({ threadId }: { threadId: string }) {
             onKeyDown={onKeyDown}
             disabled={Boolean(streaming)}
             placeholder={streaming ? "Waiting for the response…" : "Ask about this project…"}
-            className="textarea-base max-h-32 min-h-[2.5rem] flex-1 text-sm"
+            className="textarea-base max-h-32 min-h-[2.75rem] flex-1 border border-border bg-bg-surface p-2.5 text-sm transition-colors focus:border-accent"
             aria-label="Chat message"
           />
           {streaming ? (
-            <button type="button" onClick={stop} className="btn btn-secondary">
+            <button type="button" onClick={stop} className="btn btn-secondary px-4 py-2.5 font-medium">
               Stop
             </button>
           ) : (
@@ -244,7 +253,7 @@ export function ProjectChatPanel({ threadId }: { threadId: string }) {
               type="button"
               onClick={() => void send()}
               disabled={!input.trim()}
-              className="btn btn-primary"
+              className="btn btn-primary px-4 py-2.5 font-medium"
             >
               Send
             </button>

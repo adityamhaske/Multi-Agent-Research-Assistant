@@ -20,8 +20,8 @@ function ProjectThreads({ projectId }: { projectId: string }) {
   const [thread, setThread] = useState<ChatThread | null>(null);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[16rem_1fr]">
-      <div className="h-[32rem] lg:h-auto">
+    <div className="grid gap-5 lg:grid-cols-[18rem_1fr]">
+      <div className="h-[34rem] lg:h-auto">
         <ThreadList
           projectId={projectId}
           activeThreadId={thread?.id ?? null}
@@ -31,11 +31,18 @@ function ProjectThreads({ projectId }: { projectId: string }) {
       {thread ? (
         <ProjectChatPanel key={thread.id} threadId={thread.id} />
       ) : (
-        <div className="card flex min-h-[32rem] items-center justify-center text-center">
-          <p className="max-w-sm text-sm text-text-muted">
-            Pick a chat, or start a new one. Answers cite the approved reports they came
-            from, so you can check every claim against the research behind it.
-          </p>
+        <div className="card flex min-h-[34rem] flex-col items-center justify-center border border-border bg-bg-surface p-8 text-center shadow-sm">
+          <div className="mx-auto max-w-sm space-y-2">
+            <div className="mx-auto flex h-10 w-10 items-center justify-center border border-border bg-bg-elevated font-serif font-bold text-accent">
+              💬
+            </div>
+            <h3 className="font-serif text-base font-bold text-text-primary">
+              Select or Start a Chat
+            </h3>
+            <p className="text-xs leading-relaxed text-text-muted">
+              Pick a conversation from the sidebar or start a new one. Answers cite the approved research reports in this project so every statement remains verifiable.
+            </p>
+          </div>
         </div>
       )}
     </div>
@@ -54,9 +61,9 @@ export default function ChatPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="card h-24 animate-pulse" aria-hidden />
-        <div className="card h-96 animate-pulse" aria-hidden />
+      <div className="space-y-6">
+        <div className="card h-28 animate-pulse border border-border" aria-hidden />
+        <div className="card h-96 animate-pulse border border-border" aria-hidden />
         <span className="sr-only">Loading chat…</span>
       </div>
     );
@@ -64,8 +71,8 @@ export default function ChatPage() {
 
   if (!activeId) {
     return (
-      <div className="card text-center">
-        <p className="text-sm text-text-secondary">
+      <div className="card border border-border bg-bg-surface p-8 text-center shadow-sm">
+        <p className="text-sm font-medium text-text-secondary">
           Create a project first — chat answers from the research approved inside one.
         </p>
       </div>
@@ -73,15 +80,15 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold text-text-primary">
-          {active?.name ?? "Project"} chat
+    <div className="space-y-6">
+      <section aria-labelledby="chat-heading">
+        <h1 id="chat-heading" className="mb-1 font-serif text-2xl font-bold tracking-tight text-text-primary">
+          {active?.name ?? "Project"} Chat
         </h1>
-        <p className="mt-0.5 text-sm text-text-muted">
-          Grounded in every report you approved in this project.
+        <p className="max-w-2xl text-sm leading-relaxed text-text-muted">
+          Ask questions grounded in the research reports approved in this project.
         </p>
-      </div>
+      </section>
 
       <MemoryStatusCard projectId={activeId} />
 

@@ -206,7 +206,7 @@ export default function CorpusPage() {
   const doneCount = queue.filter((q) => q.state === "done").length;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <section aria-labelledby="corpus-management">
         <h1
           id="corpus-management"
@@ -214,14 +214,15 @@ export default function CorpusPage() {
         >
           Corpus Management
         </h1>
-        <p className="mb-5 max-w-2xl text-sm leading-relaxed text-text-muted">
-          Upload documents to restrict research to an airgapped local corpus. Saved to{" "}
-          <strong className="text-text-secondary">{active?.name}</strong>. Every approved
-          report in this project is saved here too, marked{" "}
-          <span className="font-mono text-[0.6875rem] uppercase tracking-wider">Generated</span>{" "}
-          — never used as evidence for the next report.
+        <p className="mb-6 max-w-2xl text-sm leading-relaxed text-text-muted">
+          Upload documents to restrict research to an airgapped local corpus. Scoped to{" "}
+          <strong className="font-semibold text-text-primary">{active?.name}</strong>. Approved
+          reports in this project are automatically saved here too and marked{" "}
+          <span className="border border-border bg-bg-elevated px-1.5 py-0.2 font-mono text-[0.6875rem] font-semibold uppercase tracking-wider text-text-secondary">Generated</span>{" "}
+          so they are never recycled as evidence for subsequent questions.
         </p>
 
+        {/* 1. Drag & Drop Upload Zone */}
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -229,23 +230,33 @@ export default function CorpusPage() {
           }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
-          className="mb-8 border border-dashed p-6 text-center transition-colors"
+          className="mb-8 border-2 border-dashed p-8 text-center transition-all shadow-xs"
           style={{
             borderColor: dragging ? "var(--accent)" : "var(--border)",
             backgroundColor: dragging
-              ? "color-mix(in srgb, var(--accent) 6%, var(--bg-surface))"
+              ? "color-mix(in srgb, var(--accent) 8%, var(--bg-surface))"
               : "var(--bg-surface)",
           }}
         >
-          <p className="text-sm font-medium text-text-primary">Drop files or folders here</p>
-          <p className="mt-1 font-mono text-xs text-text-muted">
-            {ACCEPTED.join(" · ")} — up to {formatBytes(MAX_BYTES)} each
+          <div className="mx-auto flex h-11 w-11 items-center justify-center border border-border bg-bg-elevated text-lg text-accent">
+            📄
+          </div>
+          <p className="mt-3 text-sm font-semibold text-text-primary">
+            Drag & drop files or folders here to ingest
           </p>
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 font-mono text-[length:var(--text-micro)] text-text-muted">
+            {ACCEPTED.map((ext) => (
+              <span key={ext} className="border border-border bg-bg-elevated px-1.5 py-0.5">
+                {ext}
+              </span>
+            ))}
+            <span className="ml-1 text-text-muted">· up to {formatBytes(MAX_BYTES)} each</span>
+          </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
             <button
               type="button"
-              className="btn btn-primary"
+              className="btn btn-primary px-4 py-2 text-xs font-medium"
               disabled={busy}
               onClick={() => fileInput.current?.click()}
             >
@@ -254,7 +265,7 @@ export default function CorpusPage() {
             </button>
             <button
               type="button"
-              className="btn btn-secondary"
+              className="btn btn-secondary px-4 py-2 text-xs font-medium"
               disabled={busy}
               onClick={() => folderInput.current?.click()}
             >
@@ -282,23 +293,24 @@ export default function CorpusPage() {
           />
         </div>
 
+        {/* 2. Upload Queue */}
         {queue.length > 0 && (
-          <div className="mb-8 border border-border bg-bg-surface">
-            <div className="flex items-center justify-between border-b border-border px-3 py-2">
-              <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted">
-                Upload queue ({doneCount}/{queue.length})
+          <div className="mb-8 border border-border bg-bg-surface shadow-xs">
+            <div className="flex items-center justify-between border-b border-border bg-bg-elevated/40 px-3.5 py-2.5">
+              <span className="font-mono text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                Upload queue ({doneCount}/{queue.length} completed)
               </span>
               {!busy && (
                 <button
                   type="button"
                   onClick={() => setQueue([])}
-                  className="font-mono text-[0.6875rem] text-text-muted hover:text-text-primary"
+                  className="font-mono text-xs text-text-muted transition-colors hover:text-text-primary"
                 >
-                  Clear
+                  Clear queue
                 </button>
               )}
             </div>
-            <ul className="max-h-56 divide-y divide-border overflow-y-auto">
+            <ul className="max-h-60 divide-y divide-border overflow-y-auto">
               {queue.map((item) => (
                 <QueueRow key={item.key} item={item} />
               ))}
@@ -316,45 +328,53 @@ export default function CorpusPage() {
           />
         )}
 
-        <div className="grid gap-6 md:grid-cols-3">
-          <div className="space-y-4 md:col-span-2">
-            <h2 className="font-serif text-lg font-bold text-text-primary">
-              Documents{docs?.length ? ` (${docs.length})` : ""}
-            </h2>
+        {/* 3. Main Split Grid (Documents & Stats) */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="space-y-4 lg:col-span-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="font-serif text-lg font-bold tracking-tight text-text-primary">
+                Documents
+              </h2>
+              {docs && docs.length > 0 && (
+                <span className="border border-border bg-bg-elevated px-2 py-0.5 font-mono text-xs text-text-muted">
+                  {docs.length} {docs.length === 1 ? "document" : "documents"}
+                </span>
+              )}
+            </div>
+
             {docsLoading ? (
-              <div className="h-20 animate-pulse border border-border bg-bg-elevated" />
+              <div className="h-28 animate-pulse border border-border bg-bg-elevated" />
             ) : docs && docs.length > 0 ? (
-              <ul className="divide-y divide-border border border-border bg-bg-surface">
+              <ul className="divide-y divide-border border border-border bg-bg-surface shadow-xs">
                 {docs.map((doc) => {
                   const size = formatBytes(doc.size_bytes);
                   return (
                     <li
                       key={doc.id}
-                      className="flex items-center justify-between gap-3 p-4 hover:bg-bg-elevated"
+                      className="group flex items-center justify-between gap-3 p-4 transition-colors hover:bg-bg-elevated/60"
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="truncate font-serif text-sm font-semibold text-text-primary">
+                          <span className="font-mono text-xs text-text-muted" aria-hidden>
+                            📄
+                          </span>
+                          <p className="truncate font-serif text-sm font-semibold text-text-primary group-hover:text-accent">
                             {doc.filename}
                           </p>
                           {doc.origin === "generated" && <GeneratedBadge className="shrink-0" />}
                         </div>
-                        <p className="font-mono text-xs text-text-muted">
-                          {doc.chunks} chunks
-                          {size ? ` · ${size}` : ""}
-                          {doc.created_at ? ` · ${new Date(doc.created_at).toLocaleString()}` : ""}
-                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-xs text-text-muted">
+                          <span>{doc.chunks} chunks</span>
+                          {size && <span>· {size}</span>}
+                          {doc.created_at && <span>· {new Date(doc.created_at).toLocaleDateString()}</span>}
+                        </div>
                       </div>
-                      <div className="flex shrink-0 items-center gap-1">
+                      <div className="flex shrink-0 items-center gap-1.5">
                         {doc.downloadable ? (
-                          // Preview in place; the drawer offers Download for anyone who
-                          // wants the file itself. "Open" used to mean "download and
-                          // switch application", which is the moment a reader stops
-                          // checking sources (docs/07 §2, Phase 6).
                           <button
                             type="button"
                             onClick={() => setPreview({ id: doc.id, filename: doc.filename })}
-                            className="border border-transparent px-2 py-0.5 font-mono text-xs font-medium text-accent hover:border-accent/30"
+                            className="btn btn-secondary px-2.5 py-1 font-mono text-xs font-medium text-accent hover:border-accent"
                           >
                             Preview
                           </button>
@@ -369,7 +389,7 @@ export default function CorpusPage() {
                         <button
                           onClick={() => handleDelete(doc.id, doc.filename)}
                           disabled={del.isPending}
-                          className="border border-transparent px-2 py-0.5 font-mono text-xs font-medium text-danger hover:border-danger/30"
+                          className="px-2 py-1 font-mono text-xs font-medium text-text-muted transition-colors hover:text-danger"
                         >
                           Delete
                         </button>
@@ -379,29 +399,34 @@ export default function CorpusPage() {
                 })}
               </ul>
             ) : (
-              <div className="border border-dashed border-border bg-bg-surface p-8 text-center text-sm text-text-muted">
-                No documents uploaded yet.
+              <div className="border border-dashed border-border bg-bg-surface p-10 text-center shadow-xs">
+                <p className="text-sm font-medium text-text-secondary">No documents uploaded yet</p>
+                <p className="mt-1 text-xs text-text-muted">
+                  Drag files into the dropzone above or click &ldquo;Choose files&rdquo; to build your corpus.
+                </p>
               </div>
             )}
           </div>
 
+          {/* Right Sidebar: Corpus Stats & Privacy */}
           <div className="space-y-4">
-            {/* Was "Telemetry Status" — this is corpus stats, not telemetry (docs/07 §2). */}
-            <h2 className="font-serif text-lg font-bold text-text-primary">Corpus Stats</h2>
-            <div className="space-y-4 border border-border bg-bg-surface p-5">
-              <div>
+            <h2 className="font-serif text-lg font-bold tracking-tight text-text-primary">
+              Corpus Stats
+            </h2>
+            <div className="card space-y-4 border border-border bg-bg-surface p-5 shadow-xs">
+              <div className="border-b border-border/60 pb-3">
                 <div className="font-mono text-xs uppercase tracking-wider text-text-muted">
                   Total Documents
                 </div>
-                <div className="mt-0.5 font-mono text-2xl font-semibold tabular-nums">
+                <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-text-primary">
                   {status?.documents || 0}
                 </div>
               </div>
-              <div>
+              <div className="border-b border-border/60 pb-3">
                 <div className="font-mono text-xs uppercase tracking-wider text-text-muted">
                   Total Chunks
                 </div>
-                <div className="mt-0.5 font-mono text-2xl font-semibold tabular-nums">
+                <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-text-primary">
                   {status?.chunks || 0}
                 </div>
               </div>
@@ -409,9 +434,19 @@ export default function CorpusPage() {
                 <div className="font-mono text-xs uppercase tracking-wider text-text-muted">
                   Embedding Model
                 </div>
-                <div className="mt-1 truncate font-mono text-sm font-medium text-accent">
+                <div className="mt-1.5 truncate border border-border bg-bg-elevated px-2 py-1 font-mono text-xs font-semibold text-accent">
                   {status?.current_model || "None"}
                 </div>
+              </div>
+
+              <div className="border-t border-border/60 pt-3">
+                <div className="flex items-center gap-1.5 text-xs text-text-muted font-mono">
+                  <span className="h-2 w-2 rounded-full bg-success" aria-hidden />
+                  Airgapped Local Storage
+                </div>
+                <p className="mt-1 text-[length:var(--text-micro)] text-text-muted leading-relaxed">
+                  Documents are embedded and stored locally in this project&apos;s corpus database.
+                </p>
               </div>
             </div>
           </div>
