@@ -579,6 +579,46 @@ async def test_a_run_whose_evidence_was_read_still_bundles(db, owner):
     assert manifest is not None, f"a readable run was refused: {reason}"
 
 
+async def test_approving_a_report_measures_its_citation_resolution(db, owner):
+    """The product's headline number, taken at the moment the report becomes final.
+
+    It was never taken at all. The engine measures it on its own `completed` outcome, and a
+    run never reaches one — approving at the report gate finalizes the run in the domain
+    instead of resuming the graph — so `citation_resolution_rate` was NULL on every run the
+    product produced, while History offered a filter on it and every run card displayed it.
+    """
+    state = await drive_lifecycle(db, owner, approve=True)
+    run = state["run"]
+
+    rate = await run_lifecycle.measure_citation_resolution(db, run, state["revision_2"])
+    await db.commit()
+
+    assert rate is not None, "a report with resolvable markers must produce a number"
+    assert 0.0 <= rate <= 1.0
+    assert run.citation_resolution_rate is not None
+    assert float(run.citation_resolution_rate) == pytest.approx(rate)
+
+
+async def test_a_report_that_cites_nothing_stays_unmeasured_rather_than_zero(db, owner):
+    """`None` and `0.0` are opposite findings and must never collapse.
+
+    No markers at all means nothing was measured. Every marker broken means everything was
+    measured and everything failed. Recording the first as `0.0` is the exact
+    unmeasured-as-zero failure this product exists to refuse.
+    """
+    run = await run_lifecycle.create_run(
+        db, owner_id=owner["user_id"], project_id=owner["project_id"], question=QUESTION
+    )
+    result = await run_lifecycle.record_revision(
+        db, run, report_markdown="# Findings\n\nA report that cites nothing at all.\n"
+    )
+    await db.commit()
+
+    rate = await run_lifecycle.measure_citation_resolution(db, run, result.revision)
+    assert rate is None
+    assert run.citation_resolution_rate is None, "unmeasured must stay NULL, never 0"
+
+
 async def test_the_citation_resolution_rate_stays_null_until_measured(db, owner):
     run = await run_lifecycle.create_run(
         db, owner_id=owner["user_id"], project_id=owner["project_id"], question=QUESTION

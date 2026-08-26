@@ -365,6 +365,38 @@ async def test_deleting_a_run_takes_its_memory_with_it(db):
     assert set(survivors) == {keep.id}, "the deleted run's chunks outlived it"
 
 
+async def test_memory_status_counts_memory_and_not_the_corpus(db):
+    """Two stores, two cards, two numbers. Blending them overstated what memory knows.
+
+    `indexed_reports` and `chunk_count` were briefly `max(memory, corpus)`, so a project
+    with an uploaded corpus and an empty memory reported reports as indexed that retrieval
+    could not reach. The corpus is a different store with its own card and its own counts;
+    reporting it here answered a question nobody asked with a number that was not true of
+    the thing being described.
+    """
+    user = await make_user(db)
+    project = await make_project(db, user, "Energy")
+    session = await make_session(db, project, user, prompt="solar", final_report=SOLAR_REPORT)
+    embedder = StubEmbeddings()
+
+    empty = await memory.status(db, project_id=project.id, current_model=embedder.model_id)
+    assert empty.approved_reports == 1, "the report is approved"
+    assert empty.indexed_reports == 0, "and nothing has indexed it yet"
+    assert empty.chunk_count == 0
+    assert empty.pending_reports == 1, "which is exactly what pending means"
+
+    await memory.ingest_session(db, session, embedder)
+    after = await memory.status(db, project_id=project.id, current_model=embedder.model_id)
+
+    indexed = (
+        await db.execute(select(func.count(func.distinct(MemoryChunk.source_report_id))))
+    ).scalar_one()
+    chunks = (await db.execute(select(func.count()).select_from(MemoryChunk))).scalar_one()
+    assert after.indexed_reports == indexed == 1
+    assert after.chunk_count == chunks
+    assert after.pending_reports == 0
+
+
 async def test_the_retrieval_ceiling_admits_a_genuine_match(db):
     """The ceiling is a measurement claim, and a tightened guess reads as "no memory".
 

@@ -44,6 +44,7 @@ from app.models.research import Contradiction, Evidence, ResearchPlan, ResearchR
 from app.models.review import AuditEvent, ResearchArtifact, Review
 from app.models.revision import Claim, ClaimEvidenceLink, Revision
 from app.services import memory
+from research_engine import citation_rate
 from research_engine import claims as claim_rules
 from research_engine.graph import _norm_url
 
@@ -649,6 +650,43 @@ async def _audit(db: AsyncSession, run: ResearchRun, actor_id, action: str) -> N
             metadata_json={"native": True},
         )
     )
+
+
+async def measure_citation_resolution(
+    db: AsyncSession, run: ResearchRun, revision: Revision
+) -> float | None:
+    """How much of the approved report's citation apparatus resolves. NULL when unmeasured.
+
+    Measured here because *here* is when the report becomes final. The engine measures it
+    on its own `completed` outcome, and a run never reaches one: approving at the report
+    gate finalizes the run in the domain rather than resuming the graph, so nothing was
+    ever computing this — `citation_resolution_rate` was NULL on every run the product
+    produced, while History offered a filter on it and the run card displayed it.
+
+    The rule itself is not restated: `research_engine.citation_rate` is the one definition
+    the benchmark, the eval judge and this all read, so the number a user sees and the
+    number a published measurement quotes cannot drift.
+
+    NULL survives as NULL. A report that cites nothing has nothing to resolve, which is a
+    different finding from a report whose every marker is broken — the distinction this
+    product exists to keep.
+    """
+    numbered = (
+        (
+            await db.execute(
+                select(Source).where(Source.run_id == run.id, Source.citation_index.is_not(None))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    rate = citation_rate.resolution_rate(
+        revision.report_markdown, [{"index": s.citation_index} for s in numbered]
+    )
+    if rate is not None:
+        run.citation_resolution_rate = rate
+        await db.flush()
+    return rate
 
 
 # ── 9. Artifact ───────────────────────────────────────────────────────────────────

@@ -587,6 +587,9 @@ async def submit_report_review(
         artifact_id = None
         if body.decision == "APPROVED":
             run.status = "COMPLETED"
+            # Measured before the artifact is frozen, and in the same transaction as the
+            # approval: it is a statement about the exact bytes this reviewer approved.
+            await run_lifecycle.measure_citation_resolution(db, run, revision)
             artifact = await run_lifecycle.create_artifact(db, run)
             artifact_id = str(artifact.id)
         elif body.decision == "REWORK_REQUESTED":

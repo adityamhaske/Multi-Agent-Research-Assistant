@@ -101,3 +101,55 @@ def test_overlap_keeps_a_straddling_claim_whole():
     text = "filler sentence here. " * 60 + claim + " more filler. " * 60
     chunks = chunk_report(text)
     assert any(claim in chunk for chunk in chunks)
+
+
+# ── A heading with no blank line after it is still a section ───────────────────────
+
+
+REPORT_WITHOUT_BLANK_LINES = """# Retrieval-augmented generation versus fine-tuning
+
+## Summary
+Retrieval-augmented generation and fine-tuning address different problems: fine-tuning
+adapts a model's parameters, while retrieval supplies facts at inference time [1].
+
+## Findings
+Large pre-trained language models store factual knowledge in their parameters, and that
+knowledge is expensive to update because updating it means training again [1]. Retrieval
+sidesteps the problem by fetching the fact at answer time, which also makes the answer
+attributable to a document a reader can open [2].
+
+## Limitations
+This is a short section, deliberately.
+"""
+
+
+def test_a_section_whose_heading_has_no_blank_line_after_it_is_not_discarded():
+    """The bug that made project memory unreachable, and raised nothing while doing it.
+
+    Markdown does not require a blank line after a heading and this product's own
+    synthesizer does not emit one, so `## Summary\\nRetrieval-augmented…` arrived as one
+    block. `_HEADING_RE.match` accepted it — the block *starts* with a heading — and the
+    caller kept only `splitlines()[0]`, dropping the prose. Every section of every report
+    took that branch, `flush()` then discarded the headings-only chunk, and `chunk_report`
+    returned `[]` for a 1,600-character report.
+
+    Nothing failed. Ingestion logged "report produced no chunks" and moved on, so approved
+    reports were never indexed and project chat had nothing to retrieve.
+    """
+    chunks = chunk_report(REPORT_WITHOUT_BLANK_LINES)
+
+    assert chunks, "a report with real prose must produce at least one chunk"
+    body = "\n".join(chunks)
+    assert "adapts a model's parameters" in body, "the Summary prose was dropped"
+    assert "expensive to update" in body, "the Findings prose was dropped"
+    assert "deliberately" in body, "the Limitations prose was dropped"
+
+
+def test_a_heading_only_report_still_produces_nothing():
+    """The guard that was doing the right thing stays: headings alone are not a chunk.
+
+    A retrieval hit that is only headings matches a topical query and then contributes
+    nothing to the answer, so it must not be stored — the fix above must not turn every
+    table of contents into an indexed chunk.
+    """
+    assert chunk_report("# Title\n\n## One\n\n## Two\n\n### Three\n") == []

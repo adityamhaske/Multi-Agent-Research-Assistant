@@ -36,6 +36,21 @@ Four measurements that were wrong, a feature that was inert, and one product ins
   checkpoint could not be decoded produced a bundle that numbered every `[n]` against
   nothing and asserted a quality nobody observed. The fact now lives on the run itself and
   one rule covers every run.
+- **No approved report could ever be indexed, because the chunker discarded every
+  section.** Markdown does not require a blank line after a heading and this product's own
+  synthesizer does not emit one, so `## Summary` and the prose beneath it arrived as one
+  block that the splitter treated as *a heading* — keeping the first line and dropping the
+  paragraph. Every section took that branch, and a 1,600-character report chunked to
+  nothing. Nothing raised: ingestion logged "report produced no chunks" and moved on. This
+  is what made project memory unreachable in practice even where it was wired up.
+- **The memory card counted the corpus as memory.** `indexed_reports` and `chunk_count`
+  were `max(memory, corpus)`, so a project with uploaded documents reported reports as
+  indexed that retrieval could not reach. Two stores, two cards, two numbers.
+- **The verified-citation rate was never measured on a research run.** The engine measures
+  it on its own `completed` outcome and a run never reaches one — approving at the report
+  gate finalizes the run in the domain rather than resuming the graph — so the number was
+  NULL on every run ever produced, while History offered a filter on it and every run card
+  displayed it. It is now measured at approval, from the exact bytes the reviewer approved.
 - **The standalone verifier crashed on Windows.** Every check passed and then printing the
   result raised `UnicodeEncodeError`, because a Windows console is cp1252 and `✓` is not in
   cp1252 — a traceback where the word PASS should have been. This is the one program here a

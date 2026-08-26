@@ -65,8 +65,35 @@ def _normalise(text: str) -> str:
 
 
 def _blocks(text: str) -> list[str]:
-    """Paragraph-ish blocks, split on blank lines."""
-    return [block.strip() for block in re.split(r"\n\s*\n", text) if block.strip()]
+    """Paragraph-ish blocks: split on blank lines, then peel headings off their bodies.
+
+    The second half is load-bearing and was missing. Markdown does not require a blank
+    line after a heading, and this product's own synthesizer does not emit one — so
+    `## Summary\nRetrieval-augmented generation…` arrived as a *single* block that
+    `_HEADING_RE.match` accepted, because the block merely *starts* with a heading. The
+    caller then kept `block.splitlines()[0]` as the heading and dropped everything after
+    it. A whole report of such sections chunked to nothing at all: the text was silently
+    discarded, project memory stayed empty, and no error was raised anywhere.
+
+    So a heading line is always its own block, and the prose under it is always another.
+    """
+    out: list[str] = []
+    for block in re.split(r"\n\s*\n", text):
+        block = block.strip()
+        if not block:
+            continue
+        run: list[str] = []
+        for line in block.splitlines():
+            if _HEADING_RE.match(line):
+                if run:
+                    out.append("\n".join(run).strip())
+                    run = []
+                out.append(line.strip())
+            else:
+                run.append(line)
+        if run and "\n".join(run).strip():
+            out.append("\n".join(run).strip())
+    return out
 
 
 def _split_long(block: str, limit: int) -> list[str]:

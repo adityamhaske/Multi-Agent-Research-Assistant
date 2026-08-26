@@ -21,7 +21,6 @@ instruction is not a security control and is not treated as one (docs/06 §4).
 
 from __future__ import annotations
 
-import sqlite3
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -319,13 +318,6 @@ class MemoryStatus:
 
 async def status(db: AsyncSession, *, project_id: uuid.UUID, current_model: str) -> MemoryStatus:
     """Make memory legible rather than magic: what is indexed, and what is still pending."""
-    # Imported here, not at module scope. `app.config` builds its Settings on import and
-    # demands `database_url`/`jwt_secret_key`, which a packaged desktop app exports
-    # neither of — and this module is now in `run_lifecycle`'s import tree, which the
-    # sidecar loads at startup. Only `status` needs the corpus path, and `status` is a
-    # server route.
-    from app.config import settings
-
     norm_pid = uuid.UUID(str(project_id))
     by_model = (
         await db.execute(
@@ -361,62 +353,25 @@ async def status(db: AsyncSession, *, project_id: uuid.UUID, current_model: str)
     pg_chunks = sum(chunks for _, chunks, _, _ in by_model)
     pg_indexed = sum(reports for model, _, reports, _ in by_model if model == current_model)
 
-    corpus_file = settings.corpus_path / f"corpus_{norm_pid}.sqlite"
-    sqlite_generated = 0
-    sqlite_chunks = 0
-    sqlite_model = current_model
-    sqlite_latest_ts = None
-    if corpus_file.exists():
-        try:
-            with sqlite3.connect(corpus_file) as conn:
-                sqlite_generated = conn.execute(
-                    "SELECT count(*) FROM corpus_documents WHERE origin = 'generated'"
-                ).fetchone()[0]
-                chunk_row = conn.execute(
-                    "SELECT count(*) FROM corpus_chunks WHERE embedding_model = ?",
-                    (current_model,),
-                ).fetchone()
-                if chunk_row and chunk_row[0] > 0:
-                    sqlite_chunks = chunk_row[0]
-                else:
-                    any_chunk_row = conn.execute(
-                        "SELECT count(*), embedding_model FROM corpus_chunks GROUP BY embedding_model"
-                    ).fetchone()
-                    if any_chunk_row:
-                        sqlite_chunks = any_chunk_row[0]
-                        sqlite_model = any_chunk_row[1] or current_model
-                doc_row = conn.execute("SELECT max(ingested_at) FROM corpus_documents").fetchone()
-                if doc_row and doc_row[0]:
-                    try:
-                        sqlite_latest_ts = datetime.fromisoformat(doc_row[0])
-                    except Exception:
-                        pass
-        except Exception as e:
-            logger.warning("corpus_status_read_failed", project_id=str(project_id), error=str(e))
-
-    total_indexed = max(pg_indexed, sqlite_generated)
-    total_chunks = max(pg_chunks, sqlite_chunks)
-    pending = max(approved - total_indexed, 0)
+    # These numbers describe **project memory**, and nothing else. They were briefly
+    # `max(memory, corpus)`, which made the card read "2 reports indexed" while the memory
+    # table held one — the corpus is a different store with a different purpose and its own
+    # card, and blending the two reported a coverage the retrieval this card describes did
+    # not have. That is the unmeasured-as-measured failure, in the surface whose whole job
+    # is to say what memory knows.
+    pending = max(approved - pg_indexed, 0)
 
     models_list = [
         {"embedding_model": model, "chunks": chunks, "reports": reports}
         for model, chunks, reports, _ in sorted(by_model, key=lambda row: row[0])
     ]
-    if not models_list and sqlite_chunks > 0:
-        models_list = [
-            {"embedding_model": sqlite_model, "chunks": sqlite_chunks, "reports": sqlite_generated}
-        ]
 
-    pg_latest = max((ts for *_, ts in by_model if ts), default=None)
-    latest_ingest = pg_latest or sqlite_latest_ts
-
+    latest_ingest = max((ts for *_, ts in by_model if ts), default=None)
     stale = sorted({model for model, *_ in by_model if model != current_model})
-    if not by_model and sqlite_chunks > 0 and sqlite_model != current_model:
-        stale = [sqlite_model]
 
     return MemoryStatus(
-        chunk_count=total_chunks,
-        indexed_reports=total_indexed,
+        chunk_count=pg_chunks,
+        indexed_reports=pg_indexed,
         approved_reports=approved,
         pending_reports=pending,
         current_model=current_model,
