@@ -1,10 +1,9 @@
 """
-Shared scaffolding for the M2E migration tests. **Not a test module.**
+A disposable SQLite database and a fake checkpoint saver. **Not a test module.**
 
-Everything here builds a *disposable* SQLite database and a fake checkpoint saver. No
-function in this file reads `DATABASE_URL`, opens a Postgres connection, or writes anything
-outside the pytest `tmp_path` it is handed — which is the property that lets the migration
-dry-run be exercised without going anywhere near production.
+No function here reads `DATABASE_URL`, opens a Postgres connection, or writes anything
+outside the pytest `tmp_path` it is handed — which is what lets the run lifecycle, the
+authorization rules and the cancellation race be exercised without a database service.
 """
 
 from __future__ import annotations

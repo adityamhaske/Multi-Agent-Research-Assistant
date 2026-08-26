@@ -33,7 +33,7 @@ from app.models.revision import Claim, ClaimEvidenceLink, Revision
 from app.models.user import User
 from research_engine import runner, verify_bundle
 from research_engine.runconfig import RunConfig
-from tests.migration_support import open_db
+from tests.sqlite_support import open_db
 
 QUESTION = "What did recent work find about retrieval-augmented generation?"
 
@@ -125,6 +125,7 @@ async def test_a_real_run_reaches_a_verifiable_artifact(db, owner, saver):
     # The engine actually ran: it produced a report and gathered evidence, and the adapter
     # read that evidence out of the checkpoint rather than out of the outcome.
     assert result.evidence_outcome == "READ", result
+    assert state["run"].evidence_outcome == "READ", "the tri-state is stored, not just returned"
     assert result.evidence_count > 0, "the real graph gathered no evidence"
     assert result.source_count > 0
     assert result.revision_version == 1
@@ -494,10 +495,12 @@ async def test_an_unreadable_checkpoint_is_not_persisted_as_no_evidence(db, owne
     assert result.evidence_outcome == "CHECKPOINT_MISSING"
     assert result.evidence_count == 0
     assert await _count(db, Evidence, run_id=run2.id) == 0
-    # A revision is still written — the report exists — but it cites nothing, and the
-    # verifier says so rather than the domain pretending the evidence was empty.
-    manifest = await v2_bundle.assemble(db, run2.id)
-    assert manifest is None or not verify_bundle.verify(manifest).passed
+    # And it is on the row, not only in the return value: the bundle assembler is a
+    # different request from this one and has nothing but the run to ask.
+    assert run2.evidence_outcome == "CHECKPOINT_MISSING"
+    # A revision is still written — the report exists — but the bundle is refused outright
+    # rather than exporting an evidence list nobody read.
+    assert await v2_bundle.assemble(db, run2.id) is None
 
 
 async def test_the_lifecycle_event_uses_the_existing_vocabulary(db, owner, saver):

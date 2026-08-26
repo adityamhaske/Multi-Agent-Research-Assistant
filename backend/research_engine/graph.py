@@ -554,6 +554,19 @@ async def _forced_submit(
     i_tot = o_tot = 0
     evidence: list[dict] = []
 
+    async def charge(delta: float, di: int, do: int) -> None:
+        """Bill one call, once. The guard takes the delta, never the running total.
+
+        Both mechanisms can run, so charging an accumulator would bill the first attempt
+        again on the second — a spend the run never made, reported as one it did. That is
+        the same honesty class as recording a model that was not called.
+        """
+        nonlocal cost, i_tot, o_tot
+        cost += delta
+        i_tot += di
+        o_tot += do
+        await guard.add(delta)
+
     for mechanism in ("tool_choice", "structured"):
         if guard.exceeded():
             break
@@ -566,10 +579,7 @@ async def _forced_submit(
                     [submit_evidence], tool_choice="submit_evidence"
                 )
                 resp = await model.ainvoke(messages)
-                cost += estimate_cost(resp, "executor")
-                di, do = token_counts(resp)
-                i_tot += di
-                o_tot += do
+                await charge(estimate_cost(resp, "executor"), *token_counts(resp))
                 calls = [
                     c
                     for c in (getattr(resp, "tool_calls", None) or [])
@@ -588,9 +598,7 @@ async def _forced_submit(
                 evidence = _parse_submission(calls[0]["args"])
             else:
                 parsed, c, di, do = await _structured("executor", messages, ExecutorOutput)
-                cost += c
-                i_tot += di
-                o_tot += do
+                await charge(c, di, do)
                 if parsed is None:
                     logger.warning(
                         "forced_submit_returned_nothing",
@@ -614,8 +622,6 @@ async def _forced_submit(
                 error=str(e)[:400],
             )
             continue
-        finally:
-            await guard.add(cost)
 
         if evidence:
             await emit(

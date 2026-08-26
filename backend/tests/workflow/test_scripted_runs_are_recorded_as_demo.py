@@ -50,7 +50,7 @@ from app.models.session import Session as SessionRow
 from app.models.user import User
 from app.runtime import run_config_from_settings
 from desktop.sidecar import create_sidecar_app
-from tests.migration_support import open_db
+from tests.sqlite_support import open_db
 
 TOKEN = "test-demo-token"
 

@@ -40,9 +40,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import authorization
 from app.models.agent_log import AgentLog
+from app.models.memory_chunk import MemoryChunk
 from app.models.research import Contradiction, Evidence, ResearchPlan, ResearchRun, Source
 from app.models.review import AuditEvent, ResearchArtifact, Review
 from app.models.revision import Claim, ClaimEvidenceLink, Revision
+from app.services import memory
 from research_engine import claims as claim_rules
 from research_engine.graph import _norm_url
 
@@ -722,10 +724,10 @@ async def delete_run(db: AsyncSession, run: ResearchRun) -> None:
     """Permanently delete a run and all associated relational records.
 
     Refuses active / non-terminal runs (PENDING, RUNNING, AWAITING_PLAN, AWAITING_REVIEW)
-    with LifecycleError. Reviews and artifacts associated with the run are deleted in the
-    same transaction, AgentLogs (which have no FK) are deleted, and the run itself is
-    deleted, cascading its plans, sources, evidence, revisions, claims, annotations,
-    links, and contradictions.
+    with LifecycleError. Reviews and artifacts are deleted in the same transaction; the two
+    polymorphic tables — agent logs and project-memory chunks — carry no foreign key and so
+    are deleted explicitly; and the run itself is deleted, cascading its plans, sources,
+    evidence, revisions, claims, annotations, links, and contradictions.
     """
     if run.status in ("PENDING", "RUNNING", "AWAITING_PLAN", "AWAITING_REVIEW"):
         raise LifecycleError(
@@ -734,6 +736,13 @@ async def delete_run(db: AsyncSession, run: ResearchRun) -> None:
 
     # 1. Delete polymorphic AgentLogs
     await db.execute(delete(AgentLog).where(AgentLog.session_id == run.id))
+
+    # 1b. And its project-memory chunks, which are polymorphic for the same reason and so
+    # carry no cascade either. A deleted run whose text stays retrievable would let project
+    # chat quote a report that no longer exists. Guarded because this function runs on both
+    # hosts and the desktop one has no memory table to delete from.
+    if memory.is_available(db):
+        await db.execute(delete(MemoryChunk).where(MemoryChunk.source_report_id == run.id))
 
     # 2. Delete ResearchArtifact for this run
     await db.execute(delete(ResearchArtifact).where(ResearchArtifact.run_id == run.id))

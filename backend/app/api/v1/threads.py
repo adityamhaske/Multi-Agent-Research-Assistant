@@ -211,17 +211,20 @@ def _grounding(retrieved: list[memory.Retrieved]) -> tuple[str, list[dict]]:
     citations: list[dict] = []
     for index, hit in enumerate(retrieved, start=1):
         marker = f"R{index}"
-        report_title = hit.session.prompt
+        report = hit.report
         blocks.append(
-            f"[{marker}] From the approved report {report_title!r} "
-            f"({hit.session.created_at:%Y-%m-%d}):\n{hit.chunk.text}"
+            f"[{marker}] From the approved report {report.title!r} "
+            f"({report.created_at:%Y-%m-%d}):\n{hit.chunk.text}"
         )
         citations.append(
             {
                 "marker": marker,
-                "session_id": str(hit.session.id),
-                "title": report_title,
-                "created_at": hit.session.created_at.isoformat(),
+                # `report_id`, not `session_id`: memory indexes reports from either run
+                # table, and naming the field after one of them made the payload claim an
+                # identity half of it does not have.
+                "report_id": str(report.id),
+                "title": report.title,
+                "created_at": report.created_at.isoformat(),
                 "excerpt": hit.chunk.text,
             }
         )

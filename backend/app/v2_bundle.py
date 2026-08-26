@@ -1,24 +1,19 @@
 """
-The V2 bundle: assembling the verifiable artifact from the V2 domain tables.
+Assembling the verifiable artifact from the research domain tables.
 
-One home, two callers. `app.v2_runtime.create_artifact` freezes this into a
-`ResearchArtifact` for a **native** run; `migration.bundle_equivalence` assembles it for a
-**migrated** run to compare against what V1 would have exported. Extracted from
-`migration/` when the native runtime arrived, because a bundle assembler that lives inside
-the migration tool is the second-home shape this repository keeps paying for.
-
-The manifest format is unchanged — `research_engine.bundle` is still the schema and
-`research_engine.verify_bundle` is still the checker, both untouched — so a V2-native
-artifact verifies with the same standalone script a V1 one does.
+One home: `app.run_lifecycle.create_artifact` freezes this into a `ResearchArtifact`.
+`research_engine.bundle` is the schema and `research_engine.verify_bundle` is the checker,
+both untouched — so an artifact this produces verifies with the same standalone script a
+reader can run without the product.
 
 Two refusals are load-bearing:
 
-* **A run whose evidence the migration could not read produces no bundle.** The ledger read
-  contract (M2F Amendment §9.2, invariant I10): absence of a ledger row means the run is
-  V2-native and its evidence rows *are* the record, so zero is a measured zero; a ledger row
-  saying the checkpoint was unreadable means the count is unknown, and a bundle asserting
-  zero evidence there would be a false measurement.
-* **A PLAN approval never serializes as `"approved"`.** `verify_bundle` treats that string
+* **A run whose evidence was never read produces no bundle.** `research_runs.evidence_outcome`
+  says whether the graph's evidence was actually recovered from its checkpoint. `READ` means
+  the `evidence` rows *are* the record, so zero of them is a measured zero. Either failure
+  state means the count is unknown, and a bundle asserting zero evidence there would number
+  every `[n]` against nothing and claim a quality nobody observed.
+* **A plan approval never serializes as `"approved"`.** `verify_bundle` treats that string
   as report authorization and no database constraint reaches a JSON file, so the guard has
   to be here.
 """
@@ -30,7 +25,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.authorization import approval_chain
 from app.models.agent_log import AgentLog
-from app.models.migration_ledger import MigrationLedger
 from app.models.research import Contradiction, Evidence, ResearchRun, Source
 from app.models.revision import Revision
 from research_engine import bundle as bundle_mod
@@ -74,24 +68,16 @@ async def assemble_with_reason(
         await db.execute(select(ResearchRun).where(ResearchRun.id == run_id))
     ).scalar_one_or_none()
     if run is None:
-        return None, "V2_RUN_ABSENT"
+        return None, "RUN_ABSENT"
 
-    # The ledger read contract (M2F Amendment §9.2, invariant I10). A bundle is a read path
-    # that presents an evidence list, so it must not present one for a run whose checkpoint
-    # the migration could not read: `evidence` would be empty, every `[n]` would resolve to
+    # A bundle presents an evidence list, so it must not present one for a run whose
+    # evidence was never recovered: `evidence` would be empty, every `[n]` would resolve to
     # nothing, and the bundle would assert a measured zero it never measured.
     #
-    # Found by measurement, not by review: before this, V1 refused to assemble such a run
-    # while V2 emitted a bundle that failed its own `claim_evidence_linkage` check. Absence
-    # of a ledger row means the run is V2-native, and its evidence rows ARE the record.
-    ledger = (
-        await db.execute(select(MigrationLedger).where(MigrationLedger.session_id == run_id))
-    ).scalar_one_or_none()
-    if ledger is not None and ledger.evidence_outcome in {
-        "CHECKPOINT_MISSING",
-        "CHECKPOINT_UNREADABLE",
-    }:
-        return None, "V2_EVIDENCE_UNAVAILABLE"
+    # Found by measurement, not review: an unreadable checkpoint used to emit a bundle that
+    # failed its own `claim_evidence_linkage` check.
+    if run.evidence_outcome in {"CHECKPOINT_MISSING", "CHECKPOINT_UNREADABLE"}:
+        return None, "EVIDENCE_UNAVAILABLE"
 
     revision = (
         (
@@ -103,7 +89,7 @@ async def assemble_with_reason(
         .first()
     )
     if revision is None:
-        return None, "V2_NO_REVISION"
+        return None, "NO_REVISION"
 
     sources = (
         (

@@ -92,6 +92,11 @@ def test_shared_modules_the_sidecar_imports_are_configuration_free():
         "app.schemas.v2",
         "app.services.local_llm",
         "app.services.sse",
+        # In the lifecycle's import tree since run deletion had to clear project memory.
+        # It reads `settings.corpus_path`, and doing so at module scope pulled `app.config`
+        # — and its two required environment variables — into every sidecar startup.
+        "app.services.memory",
+        "app.v2_runtime",
     ):
         result = _run(f"import {module}\n", strip_server_env=True)
         assert result.returncode == 0, f"{module} needs server configuration:\n{result.stderr}"

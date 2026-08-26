@@ -158,6 +158,17 @@ class Session(Base):
         cascade="all, delete-orphan",
         lazy="select",
     )
+    # `memory_chunks.source_report_id` is polymorphic across both run tables for the same
+    # reason `agent_logs.session_id` is, and so also has no foreign key and no database
+    # cascade. Deleting a session must still take its indexed text with it, or project chat
+    # keeps quoting a report nobody can open.
+    memory_chunks: Mapped[list["MemoryChunk"]] = relationship(  # noqa: F821
+        "MemoryChunk",
+        primaryjoin="Session.id == foreign(MemoryChunk.source_report_id)",
+        cascade="all, delete-orphan",
+        lazy="select",
+        overlaps="project,memory_chunks",
+    )
     chat_messages: Mapped[list["ChatMessage"]] = relationship(  # noqa: F821
         "ChatMessage",
         back_populates="session",

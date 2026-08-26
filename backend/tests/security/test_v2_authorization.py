@@ -40,7 +40,7 @@ from app.models.revision import Revision
 from app.models.user import User
 from research_engine import bundle as bundle_mod
 from research_engine import verify_bundle
-from tests.migration_support import open_db
+from tests.sqlite_support import open_db
 
 HASH64 = "a" * 64
 

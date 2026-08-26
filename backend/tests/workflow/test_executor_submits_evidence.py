@@ -398,3 +398,65 @@ async def test_a_model_that_ignores_tool_choice_falls_back_to_structured_output(
     assert "structured" in seen, "a refused tool call must be retried a different way"
     assert out["evidence"], "the fallback must recover the evidence"
     assert out["evidence"][0]["snippet"] == PAGE, "and it is still checked against seen text"
+
+
+# ── 5. What the guard is charged is what the run actually spent ────────────────────
+
+
+@pytest.mark.asyncio
+async def test_the_second_forcing_attempt_does_not_rebill_the_first(monkeypatch):
+    """Two mechanisms, two calls, one charge each.
+
+    The accumulator handed to `_BudgetGuard.add` was the *running total*, so a task that
+    fell through to the fallback billed its first attempt twice — the budget guard saw a
+    spend the run never made, and `MAX_COST_PER_SESSION_USD` fired early on money nobody
+    was charged. Over-reporting spend is the same honesty failure as under-reporting it:
+    the number has to be what happened.
+    """
+
+    class _Refuser(_FakeLLM):
+        def bind_tools(self, tools, tool_choice=None):
+            bound = _FakeBound(self, tool_choice)
+
+            async def refuse(messages):
+                return AIMessage(content="no", tool_calls=[])
+
+            bound.ainvoke = refuse
+            return bound
+
+        def with_structured_output(self, schema, include_raw=False):
+            class _Structured:
+                async def ainvoke(_self, messages):
+                    parsed = schema.model_validate(
+                        {
+                            "evidence": [
+                                {
+                                    "source_url": URL,
+                                    "source_title": "Emergence",
+                                    "snippet": PAGE,
+                                    "key_fact": "k",
+                                }
+                            ]
+                        }
+                    )
+                    return {"raw": AIMessage(content=""), "parsed": parsed, "parsing_error": None}
+
+            return _Structured()
+
+    monkeypatch.setattr(graph_mod, "get_llm", lambda role: _Refuser([]))
+    monkeypatch.setattr(graph_mod, "estimate_cost", lambda resp, role: 1.0)
+
+    guard = graph_mod._BudgetGuard(0.0, 0.0)
+    token = set_run_config(RunConfig(llm_mode="real"))
+    try:
+        evidence, cost, _, _ = await graph_mod._forced_submit(
+            "billing-test", TASK, {URL: PAGE}, guard
+        )
+    finally:
+        reset_run_config(token)
+
+    assert evidence, "the fallback must still recover the evidence"
+    assert guard.spent == pytest.approx(cost), (
+        f"guard was charged {guard.spent} for a pass that reported {cost}"
+    )
+    assert cost == pytest.approx(2.0), "two calls at 1.0 each, counted once each"

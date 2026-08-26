@@ -601,19 +601,25 @@ async def submit_report_review(
         await db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
-    if body.decision == "APPROVED":
-        # Same transition, same "never fail an already-committed run" guarantee as V1's
-        # `_ingest_into_project_memory` (app/workers/pipeline_runner.py) — see
-        # app/services/report_corpus.py. Runs after commit, not inside the approval
-        # transaction: embedding cost/availability must never gate an approval.
-        await _ingest_report_into_corpus(db, run, revision.report_markdown)
-
-    return {
+    # Read off the ORM rows *before* the ingest attempts. Either may fail and roll back,
+    # and a rollback expires every object in the identity map — so a response assembled
+    # afterwards would lazily reload `review` outside the greenlet and turn a best-effort
+    # indexing failure into a 500 on an approval that has already been committed.
+    response = {
         "review_id": str(review.id),
         "gate": "REPORT",
         "decision": review.decision,
         "artifact_id": artifact_id,
     }
+
+    if body.decision == "APPROVED":
+        # Both stores, after the commit and never inside the approval transaction:
+        # embedding cost and provider availability must not be able to fail an approval
+        # that has already been recorded. Neither call raises.
+        await _ingest_report_into_corpus(db, run, revision.report_markdown)
+        await _ingest_report_into_memory(db, run, revision.report_markdown)
+
+    return response
 
 
 async def _ingest_report_into_corpus(db: AsyncSession, run, report_markdown: str) -> None:
@@ -633,6 +639,36 @@ async def _ingest_report_into_corpus(db: AsyncSession, run, report_markdown: str
         await ingest_report(store, session_id=str(run.id), report_markdown=report_markdown)
     except Exception as e:  # noqa: BLE001 — see report_corpus.ingest_report's own docstring
         logger.warning("report_corpus_ingest_setup_failed", run_id=str(run.id), error=str(e))
+
+
+async def _ingest_report_into_memory(db: AsyncSession, run, report_markdown: str) -> None:
+    """Add an approved report to its project's memory — the store project chat reads.
+
+    Approval is the quality filter that makes retrieval trustworthy, so this sits on the
+    approval transition and nowhere else. Best-effort by the same rule as the corpus write:
+    the run has already succeeded and committed, and failing it retroactively because an
+    embedding provider was down would destroy work in order to report a gap. The gap is
+    reported instead, by `memory/status`, which counts approved reports against indexed
+    ones and self-heals on the next re-index.
+    """
+    from app.services import memory
+
+    if not memory.is_available(db):
+        # Absent on the desktop host by design, which the parity tables and the UI both
+        # already state. Skipping quietly is correct there; warning on every approval
+        # would report a decision as a gap.
+        return
+    try:
+        from app import adapters
+        from app.v2_execution import provider_keys_for
+
+        embedder = await adapters.embeddings_for(await provider_keys_for(db, run.owner_id))
+        result = await memory.ingest_run(db, run, report_markdown, embedder)
+        if result.skipped:
+            logger.info("memory_ingest_skipped", run_id=str(run.id), reason=result.reason)
+    except Exception as e:  # noqa: BLE001 — see docstring: never fail a committed run
+        await db.rollback()
+        logger.warning("memory_ingest_failed", run_id=str(run.id), error=str(e))
 
 
 @router.get("/{run_id}/bundle.json")

@@ -242,7 +242,8 @@ export interface ThreadListResponse {
  */
 export interface MemoryCitation {
   marker: string;
-  session_id: string;
+  /** The run whose approved report this excerpt came from. */
+  report_id: string;
   title: string;
   created_at: string;
   excerpt: string;

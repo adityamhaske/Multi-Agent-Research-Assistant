@@ -1,8 +1,5 @@
 """
-V2 research domain: the run and everything it gathers (M2B §2.2–2.5, §2.9).
-
-**These tables are created and nothing reads or writes them yet.** M2D builds the database
-contract only; dual-write is M2E and reads are later still (`internal/V2_Migration_Plan_M2C.md`).
+The research domain: a run and everything it gathers.
 
 Two mechanisms carry most of the invariants, and both were chosen because they work
 identically on Postgres and SQLite — triggers and column privileges do not, so immutability
@@ -76,6 +73,19 @@ CONTRADICTION_DIMENSIONS = (
 )
 CONTRADICTION_REVIEW_STATES = ("UNREVIEWED", "ACKNOWLEDGED", "DISMISSED")
 
+#: Whether this run's evidence was ever actually read out of the graph checkpoint.
+#:
+#: The distinction the product rests on, stored rather than inferred. `READ` means the
+#: checkpoint was opened and its evidence list — empty or not — is what the `evidence` table
+#: now holds. The two failure states mean the engine finished but its evidence could not be
+#: recovered, so an empty `evidence` table is an *unmeasured* zero, not a measured one. A
+#: bundle assembled from such a run would number citations against nothing and assert a
+#: quality it never observed, which is why `run_bundle` refuses it.
+#:
+#: `NOT_READ` covers the runs that have no evidence to read yet or ever: still at the design
+#: gate, cancelled, or failed before the graph produced state.
+EVIDENCE_OUTCOMES = ("NOT_READ", "READ", "CHECKPOINT_MISSING", "CHECKPOINT_UNREADABLE")
+
 
 def _in(column: str, values: tuple[str, ...]) -> str:
     """A portable `col IN ('a','b')` fragment. Renders the same on both dialects."""
@@ -115,6 +125,11 @@ class ResearchRun(Base):
     # NULL means unmeasured. Never 0 — that is the distinction the product rests on.
     citation_resolution_rate: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
 
+    #: See `EVIDENCE_OUTCOMES`. Written once, when the graph's outcome is persisted.
+    evidence_outcome: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="NOT_READ", server_default="NOT_READ"
+    )
+
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Cancellation state is durable and on the row, not a TTL'd cache key (M2A §3.11).
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -132,6 +147,7 @@ class ResearchRun(Base):
 
     __table_args__ = (
         CheckConstraint(_in("status", RUN_STATUSES), name="ck_run_status"),
+        CheckConstraint(_in("evidence_outcome", EVIDENCE_OUTCOMES), name="ck_run_evidence_outcome"),
         CheckConstraint(_in("depth", RESEARCH_DEPTHS), name="ck_run_depth"),
         # A cancelled run without a timestamp, or a timestamp without the status, is not
         # representable. Both sides are booleans on Postgres and 0/1 on SQLite; `=` compares

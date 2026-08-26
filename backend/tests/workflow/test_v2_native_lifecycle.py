@@ -31,7 +31,7 @@ from app.models.revision import Claim, ClaimEvidenceLink, Revision
 from app.models.user import User
 from research_engine import verify_bundle
 from research_engine.graph import _number_sources
-from tests.migration_support import open_db
+from tests.sqlite_support import open_db
 
 QUESTION = "Does retrieval-augmented generation improve factual accuracy?"
 
@@ -536,7 +536,39 @@ async def test_a_run_with_no_revision_yields_no_bundle(db, owner):
     await db.commit()
     manifest, reason = await v2_bundle.assemble_with_reason(db, run.id)
     assert manifest is None
-    assert reason == "V2_NO_REVISION"
+    assert reason == "NO_REVISION"
+
+
+async def test_a_run_whose_evidence_was_never_read_yields_no_bundle(db, owner):
+    """An unmeasured zero must never be exported as a measured one.
+
+    The guard used to live on the import ledger, so it only ever covered runs brought over
+    from the earlier pipeline. A run executed here whose checkpoint could not be decoded
+    took the other branch: `evidence` was empty because nothing was read, the bundle
+    numbered every `[n]` against nothing, and the manifest asserted a quality no one
+    observed. `research_runs.evidence_outcome` now carries the fact on the run itself, so
+    one rule covers every run.
+    """
+    for outcome in ("CHECKPOINT_MISSING", "CHECKPOINT_UNREADABLE"):
+        state = await drive_lifecycle(db, owner, approve=True)
+        run = state["run"]
+        run.evidence_outcome = outcome
+        await db.commit()
+
+        manifest, reason = await v2_bundle.assemble_with_reason(db, run.id)
+        assert manifest is None, f"{outcome} produced a bundle over unread evidence"
+        assert reason == "EVIDENCE_UNAVAILABLE"
+
+
+async def test_a_run_whose_evidence_was_read_still_bundles(db, owner):
+    """The other half: `READ` means the evidence rows are the record, so zero is measured."""
+    state = await drive_lifecycle(db, owner, approve=True)
+    assert state["run"].evidence_outcome in ("READ", "NOT_READ")
+    state["run"].evidence_outcome = "READ"
+    await db.commit()
+
+    manifest, reason = await v2_bundle.assemble_with_reason(db, state["run"].id)
+    assert manifest is not None, f"a readable run was refused: {reason}"
 
 
 async def test_the_citation_resolution_rate_stays_null_until_measured(db, owner):

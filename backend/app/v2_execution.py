@@ -278,6 +278,11 @@ async def persist_outcome(
         citation_resolution_rate=rate,
     )
 
+    # Persisted, not merely logged. Whether the evidence was ever read is what separates a
+    # measured zero from an unmeasured one, and `run_bundle` has to be able to ask the run
+    # itself — a log line cannot be consulted at export time.
+    run.evidence_outcome = evidence_outcome
+
     status = v2_runtime.OUTCOME_STATUS.get(outcome.status, "RUNNING")
     if status == "COMPLETED" and not report:
         # A completed run with no report is not completed. Fail closed rather than mark a

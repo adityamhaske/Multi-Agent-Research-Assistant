@@ -2,10 +2,6 @@
 
 Importing a model here is what registers it on `Base.metadata`, which is what both
 `alembic --autogenerate` (server) and `create_all` (desktop) walk.
-
-The V2 research tables (M2D) are **created and unused** — the database contract exists
-before anything writes to it, so the migration plan's later phases have something to write
-*into* (`internal/V2_Migration_Plan_M2C.md`).
 """
 
 from app.models.agent_log import AgentLog
@@ -14,7 +10,6 @@ from app.models.base import Base
 from app.models.chat_message import ChatMessage
 from app.models.chat_thread import ChatThread
 from app.models.memory_chunk import MemoryChunk
-from app.models.migration_ledger import MigrationLedger
 from app.models.project import Project
 from app.models.project_memory import ProjectMemoryItem, ProjectMemoryProvenance
 from app.models.refresh_token import RefreshToken
@@ -60,9 +55,8 @@ __all__ = [
     "ChatThread",
     "MemoryChunk",
     "AuditLog",
-    "MigrationLedger",
     "RefreshToken",
-    # V2 (M2D) — created, not yet written to.
+    # The research domain.
     "ResearchRun",
     "ResearchPlan",
     "Source",

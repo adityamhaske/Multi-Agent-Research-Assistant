@@ -31,6 +31,7 @@ from app.models.chat_message import ChatMessage
 from app.models.chat_thread import ChatThread, derive_title
 from app.models.memory_chunk import MemoryChunk
 from app.models.project import Project
+from app.models.research import ResearchRun
 from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.services import memory
@@ -246,8 +247,149 @@ async def test_approved_report_is_ingested_and_retrievable(db):
         db, project_id=project.id, query_vector=query, embedding_model=embedder.model_id
     )
     assert hits
-    assert all(hit.session.id == session.id for hit in hits)
+    assert all(hit.report.id == session.id for hit in hits)
     assert "solar" in hits[0].chunk.text.lower()
+
+
+async def make_run(
+    db,
+    project: Project,
+    user: User,
+    *,
+    question: str,
+    status: str = "COMPLETED",
+) -> ResearchRun:
+    run = ResearchRun(
+        project_id=project.id,
+        owner_id=user.id,
+        question=question,
+        status=status,
+        depth="balanced",
+    )
+    db.add(run)
+    await db.commit()
+    await db.refresh(run)
+    return run
+
+
+# ── Both pipelines write to the same memory ────────────────────────────────────────
+
+
+async def test_a_run_from_the_current_pipeline_is_indexed_and_retrievable(db):
+    """The gap this closes: memory used to be reachable by one pipeline only.
+
+    `memory_chunks.source_report_id` carried a foreign key to `sessions`, so a report
+    produced by the current runtime could not be written at all — it counted as approved in
+    `memory/status`, nothing could ever index it, and Chat answered from an empty store
+    while the pending count climbed. Nothing failed; the feature was simply inert for every
+    account that only ever used the current pipeline, which is every new account.
+    """
+    user = await make_user(db)
+    project = await make_project(db, user, "Energy")
+    run = await make_run(db, project, user, question="solar capacity growth")
+    embedder = StubEmbeddings()
+
+    result = await memory.ingest_run(db, run, SOLAR_REPORT, embedder)
+    assert result.chunks_written > 0, "an approved run must be indexable"
+
+    query = (await embedder.embed(["How fast did solar photovoltaic capacity grow?"]))[0]
+    hits = await memory.retrieve(
+        db, project_id=project.id, query_vector=query, embedding_model=embedder.model_id
+    )
+    assert hits, "the run's own project must retrieve its own report"
+    assert all(hit.report.id == run.id for hit in hits)
+    assert hits[0].report.title == "solar capacity growth", (
+        "a run's question is the report title, the way a session's prompt is"
+    )
+
+
+async def test_an_unapproved_run_is_never_indexed(db):
+    """Approval is the quality filter the whole feature rests on, on both pipelines."""
+    user = await make_user(db)
+    project = await make_project(db, user, "Energy")
+    embedder = StubEmbeddings()
+
+    # CANCELLED is absent because `ck_run_cancelled` will not let one exist without a
+    # timestamp, so it cannot be built this way — the constraint already makes the case
+    # unreachable, which is a stronger guarantee than a test.
+    for status in ("PENDING", "RUNNING", "AWAITING_PLAN", "AWAITING_REVIEW", "FAILED"):
+        run = await make_run(db, project, user, question="q", status=status)
+        result = await memory.ingest_run(db, run, SOLAR_REPORT, embedder)
+        assert result.skipped, f"a {status} run was indexed"
+        assert status in (result.reason or "")
+
+    assert (await db.execute(select(func.count()).select_from(MemoryChunk))).scalar_one() == 0
+
+
+async def test_reports_from_both_pipelines_share_one_project_memory(db):
+    """One store, two kinds of report, and a citation that names the right one either way."""
+    user = await make_user(db)
+    project = await make_project(db, user, "Mixed")
+    embedder = StubEmbeddings()
+
+    session = await make_session(db, project, user, prompt="solar", final_report=SOLAR_REPORT)
+    run = await make_run(db, project, user, question="tax residency")
+    await memory.ingest_session(db, session, embedder)
+    await memory.ingest_run(db, run, TAX_REPORT, embedder)
+
+    query = (await embedder.embed(["What determines corporate tax residency in Ireland?"]))[0]
+    hits = await memory.retrieve(
+        db, project_id=project.id, query_vector=query, embedding_model=embedder.model_id
+    )
+    assert hits
+    assert hits[0].report.id == run.id, "the nearest report is the one that answers"
+    assert {h.report.id for h in hits} <= {run.id, session.id}
+
+
+async def test_deleting_a_run_takes_its_memory_with_it(db):
+    """No foreign key means no database cascade, so the delete path has to do it.
+
+    A run deleted from History whose text stayed retrievable would let project chat quote a
+    report the user cannot open — an unresolvable citation, which is the one thing this
+    product exists to prevent.
+    """
+    from app import v2_runtime
+
+    user = await make_user(db)
+    project = await make_project(db, user, "Energy")
+    keep = await make_session(db, project, user, prompt="solar", final_report=SOLAR_REPORT)
+    run = await make_run(db, project, user, question="tax residency")
+    embedder = StubEmbeddings()
+    await memory.ingest_session(db, keep, embedder)
+    await memory.ingest_run(db, run, TAX_REPORT, embedder)
+
+    await v2_runtime.delete_run(db, run)
+    await db.commit()
+
+    survivors = (await db.execute(select(MemoryChunk.source_report_id).distinct())).scalars().all()
+    assert set(survivors) == {keep.id}, "the deleted run's chunks outlived it"
+
+
+async def test_the_retrieval_ceiling_admits_a_genuine_match(db):
+    """The ceiling is a measurement claim, and a tightened guess reads as "no memory".
+
+    `MAX_COSINE_DISTANCE` was lowered to 0.45 on the reasoning that it would "filter noisy
+    background matches". It filtered the answer instead: the project that owns a report
+    stopped retrieving it, and three suites went red together with no single test saying
+    what the rule was. This one says it — the measured distance of a question to the report
+    that answers it must sit inside the ceiling, with room to spare.
+    """
+    user = await make_user(db)
+    project = await make_project(db, user, "Energy")
+    session = await make_session(db, project, user, prompt="solar", final_report=SOLAR_REPORT)
+    embedder = StubEmbeddings()
+    await memory.ingest_session(db, session, embedder)
+
+    query = (await embedder.embed(["How fast did solar photovoltaic capacity grow?"]))[0]
+    hits = await memory.retrieve(
+        db, project_id=project.id, query_vector=query, embedding_model=embedder.model_id
+    )
+    assert hits, "a question about this project's own report retrieved nothing"
+    assert hits[0].distance <= memory.MAX_COSINE_DISTANCE, (
+        f"the best match sits at {hits[0].distance:.3f}; the ceiling is "
+        f"{memory.MAX_COSINE_DISTANCE}. Lowering it below a real match's distance does not "
+        "reduce noise, it hides the answer — measure before tightening."
+    )
 
 
 async def test_ingestion_is_idempotent(db):
@@ -287,7 +429,7 @@ async def test_reindex_replaces_rather_than_accumulates(db):
     after = await chunk_count(db, project.id)
     assert after < before
     remaining = (
-        (await db.execute(select(MemoryChunk).where(MemoryChunk.source_session_id == session.id)))
+        (await db.execute(select(MemoryChunk).where(MemoryChunk.source_report_id == session.id)))
         .scalars()
         .all()
     )
@@ -319,13 +461,13 @@ async def test_cross_project_isolation(db):
         db, project_id=tax.id, query_vector=question, embedding_model=embedder.model_id
     )
     assert from_tax, "the project that owns this research should answer"
-    assert {hit.session.id for hit in from_tax} == {residency.id}
+    assert {hit.report.id for hit in from_tax} == {residency.id}
 
     from_energy = await memory.retrieve(
         db, project_id=energy.id, query_vector=question, embedding_model=embedder.model_id
     )
-    assert all(hit.session.id == solar.id for hit in from_energy)
-    assert residency.id not in {hit.session.id for hit in from_energy}
+    assert all(hit.report.id == solar.id for hit in from_energy)
+    assert residency.id not in {hit.report.id for hit in from_energy}
 
 
 async def test_another_users_project_is_not_retrievable(db):
@@ -393,7 +535,7 @@ async def test_deleting_a_session_deletes_only_its_chunks(db):
     await db.delete(solar)
     await db.commit()
 
-    survivors = (await db.execute(select(MemoryChunk.source_session_id).distinct())).scalars().all()
+    survivors = (await db.execute(select(MemoryChunk.source_report_id).distinct())).scalars().all()
     assert survivors == [tax.id]
 
 
@@ -455,7 +597,7 @@ async def test_grounding_markers_resolve_to_their_reports(db):
     assert citations
     assert [c["marker"] for c in citations] == [f"R{i}" for i in range(1, len(citations) + 1)]
     for citation in citations:
-        assert citation["session_id"] == str(session.id)
+        assert citation["report_id"] == str(session.id)
         assert citation["title"] == "solar capacity growth"
         assert citation["excerpt"] in excerpts
     assert "[R1]" in excerpts

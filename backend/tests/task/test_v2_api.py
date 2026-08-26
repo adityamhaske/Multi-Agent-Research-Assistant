@@ -26,7 +26,7 @@ from app.db.base import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
 from research_engine.runconfig import ROLES
-from tests.migration_support import open_db
+from tests.sqlite_support import open_db
 from tests.workflow.test_v2_native_lifecycle import DRAFT, EVIDENCE, drive_lifecycle
 
 
@@ -257,7 +257,7 @@ async def test_the_bundle_endpoint_fails_closed_with_no_report(api):
     await api["db"].commit()
     resp = await api["client"].get(f"/api/v1/v2/runs/{run.id}/bundle.json")
     assert resp.status_code == 409
-    assert "V2_NO_REVISION" in resp.json()["detail"]
+    assert "NO_REVISION" in resp.json()["detail"]
 
 
 async def test_verification_reports_every_check_not_a_boolean(api):
@@ -291,7 +291,7 @@ async def test_verification_says_unassembled_rather_than_failed(api):
     body = (await api["client"].get(f"/api/v1/v2/runs/{run.id}/verification")).json()
     assert body["assembled"] is False
     assert body["passed"] is None, "a bundle that could not be built has not failed"
-    assert body["reason"] == "V2_NO_REVISION"
+    assert body["reason"] == "NO_REVISION"
     assert body["checks"] == []
 
 

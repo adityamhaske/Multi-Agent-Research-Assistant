@@ -48,7 +48,7 @@ from app.models.session import SessionStatus
 from app.models.user import User
 from desktop.sidecar import create_sidecar_app
 from research_engine.runner import RunOutcome
-from tests.migration_support import open_db
+from tests.sqlite_support import open_db
 
 TOKEN = "test-cancel-token"
 
