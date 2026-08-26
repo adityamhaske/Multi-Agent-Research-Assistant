@@ -200,6 +200,34 @@ jobs:
       - name: Build Tauri app (bundles the static export; runs cargo build)
         working-directory: desktop
         run: npx tauri build
+      - name: The bundle actually contains the backend
+        shell: bash
+        # AGENTS.md's worked example of a green build that died on first launch: all three
+        # copies of the sidecar's location were wrong at once, `tauri build` succeeded, the
+        # artifact uploaded cleanly, and the app shipped at ~5 MB with no backend inside.
+        # Building is not the assertion — what ended up in the bundle is.
+        run: |
+          set -euo pipefail
+          found=$(find desktop/target/release/bundle -type f \
+            \( -name 'research-sidecar' -o -name 'research-sidecar.exe' \) -print -quit)
+          if [ -z "$found" ]; then
+            echo "::error::no sidecar executable inside the bundle — the app would die on launch"
+            find desktop/target/release/bundle -maxdepth 4 -type d
+            exit 1
+          fi
+          echo "sidecar found at: $found"
+          bytes=$(wc -c < "$found")
+          # The one-dir launcher is a stub next to `_internal/`; the payload is the tree.
+          root=$(dirname "$found")
+          total=$(du -sk "$root" | cut -f1)
+          echo "sidecar tree: ${total} KiB (launcher ${bytes} bytes)"
+          # 60 MB floor: a real bundle is 140-200 MB, and the failure being guarded shipped
+          # at 5. Deliberately far below the real size so a dependency drop does not fail
+          # the build, and far above the failure so the failure cannot pass.
+          if [ "$total" -lt 61440 ]; then
+            echo "::error::sidecar tree is ${total} KiB — too small to contain the engine"
+            exit 1
+          fi
       - name: Upload shell bundle
         uses: actions/upload-artifact@v7
         with:
