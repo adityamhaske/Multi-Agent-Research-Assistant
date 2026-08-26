@@ -495,6 +495,54 @@ class CorpusStore:
                 break
         return results
 
+    async def search_generated_reports(self, query: str, max_results: int) -> list[dict]:
+        """Search auto-saved generated reports in this project's corpus for chat grounding."""
+        query_vector = (await self._embedder.embed([query]))[0]
+        return await asyncio.to_thread(self._search_generated_sync, query_vector, max_results)
+
+    def _search_generated_sync(self, query_vector: list[float], max_results: int) -> list[dict]:
+        import numpy as np
+
+        with self._connect() as conn:
+            rows = conn.execute(
+                'SELECT c.id, c.document_id, c.start, c."end", c.page, c.text, c.embedding, '
+                "d.filename "
+                "FROM corpus_chunks c JOIN corpus_documents d ON d.id = c.document_id "
+                "WHERE c.embedding_model = ? AND d.origin = 'generated'",
+                (self._embedder.model_id,),
+            ).fetchall()
+
+        if not rows:
+            return []
+
+        matrix = np.stack([np.frombuffer(row[6], dtype=np.float32) for row in rows])
+        if matrix.shape[1] != len(query_vector):
+            return []
+
+        q = np.asarray(query_vector, dtype=np.float32)
+        q_norm = q / (np.linalg.norm(q) or 1.0)
+        norms = np.linalg.norm(matrix, axis=1)
+        norms[norms == 0] = 1.0
+        scores = (matrix / norms[:, None]) @ q_norm
+
+        ranked = np.argsort(-scores)[: max_results * 4]
+        results: list[dict] = []
+        for idx in ranked:
+            if scores[idx] <= 0.0:
+                break
+            row = rows[int(idx)]
+            doc_id = row[1]
+            results.append(
+                {
+                    "title": row[7],
+                    "url": corpus_url(doc_id, start=row[2], end=row[3], page=row[4]),
+                    "snippet": row[5],
+                }
+            )
+            if len(results) >= max_results:
+                break
+        return results
+
     async def read(self, url: str) -> dict:
         return await asyncio.to_thread(self._read_sync, url)
 

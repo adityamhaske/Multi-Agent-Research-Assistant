@@ -21,7 +21,7 @@ export function Section({
 }) {
   return (
     <section
-      className="border bg-bg-surface"
+      className="border bg-bg-surface/90 shadow-xs backdrop-blur-sm overflow-hidden"
       style={{
         borderColor:
           tone === "danger"
@@ -29,9 +29,9 @@ export function Section({
             : "var(--border)",
       }}
     >
-      <div className="px-5 pt-5 sm:px-6 sm:pt-6">
+      <div className="px-5 pt-5 sm:px-6 sm:pt-6 border-b border-border/40 pb-4">
         <h2
-          className="font-serif text-[1rem] font-bold tracking-tight"
+          className="font-serif text-[1.0625rem] font-bold tracking-tight"
           style={{ color: tone === "danger" ? "var(--danger)" : "var(--text-primary)" }}
         >
           {title}
@@ -46,7 +46,7 @@ export function Section({
       <div className="px-5 py-5 sm:px-6">{children}</div>
 
       {footer && (
-        <div className="flex items-center justify-between gap-3 border-t border-border bg-bg-base/50 px-5 py-3.5 sm:px-6">
+        <div className="flex items-center justify-between gap-3 border-t border-border/60 bg-bg-base/40 px-5 py-3.5 sm:px-6">
           {footer}
         </div>
       )}
@@ -102,3 +102,4 @@ export function ReadOnlyRow({
     </div>
   );
 }
+

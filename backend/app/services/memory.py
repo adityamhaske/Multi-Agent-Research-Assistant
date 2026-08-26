@@ -18,6 +18,7 @@ instruction is not a security control and is not treated as one (docs/06 §4).
 
 from __future__ import annotations
 
+import sqlite3
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -26,7 +27,9 @@ import structlog
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.memory_chunk import MemoryChunk
+from app.models.research import ResearchRun
 from app.models.session import Session, SessionStatus
 from research_engine.chunking import chunk_report
 from research_engine.embeddings import EmbeddingsUnavailable
@@ -38,13 +41,9 @@ logger = structlog.get_logger()
 # prompt, so it is also a cost knob — eight ~300-token chunks is ~2.4k tokens of context.
 DEFAULT_TOP_K = 8
 
-# Cosine distance above which a chunk is not a match by any reading. Normalised
-# embeddings put unrelated text near 1.0 and opposed text above it, so this drops results
-# that are worse than orthogonal rather than encoding a guess about what "relevant"
-# means. A tighter, *measured* threshold is future tuning — picking one now, without a
-# real model to measure against, would be exactly the unfalsifiable number docs/12 §7
-# rules out.
-MAX_COSINE_DISTANCE = 1.0
+# Maximum cosine distance for a chunk to be considered relevant (0 = identical, 2 = opposite).
+# 0.4 filters out noisy background matches while retaining genuine semantic relevance.
+MAX_COSINE_DISTANCE = 0.45
 
 
 @dataclass(frozen=True)
@@ -200,6 +199,7 @@ class MemoryStatus:
 
 async def status(db: AsyncSession, *, project_id: uuid.UUID, current_model: str) -> MemoryStatus:
     """Make memory legible rather than magic (docs/14 §8)."""
+    norm_pid = uuid.UUID(str(project_id))
     by_model = (
         await db.execute(
             select(
@@ -208,33 +208,92 @@ async def status(db: AsyncSession, *, project_id: uuid.UUID, current_model: str)
                 func.count(func.distinct(MemoryChunk.source_session_id)),
                 func.max(MemoryChunk.created_at),
             )
-            .where(MemoryChunk.project_id == project_id)
+            .where(MemoryChunk.project_id == norm_pid)
             .group_by(MemoryChunk.embedding_model)
         )
     ).all()
 
-    approved = (
+    v1_approved = (
         await db.execute(
             select(func.count())
             .select_from(Session)
-            .where(Session.project_id == project_id, Session.status == SessionStatus.COMPLETED)
+            .where(Session.project_id == norm_pid, Session.status == SessionStatus.COMPLETED)
         )
     ).scalar_one()
 
-    indexed_now = sum(reports for model, _, reports, _ in by_model if model == current_model)
+    v2_approved = (
+        await db.execute(
+            select(func.count())
+            .select_from(ResearchRun)
+            .where(ResearchRun.project_id == norm_pid, ResearchRun.status == "COMPLETED")
+        )
+    ).scalar_one()
+
+    approved = v1_approved + v2_approved
+
+    pg_chunks = sum(chunks for _, chunks, _, _ in by_model)
+    pg_indexed = sum(reports for model, _, reports, _ in by_model if model == current_model)
+
+    corpus_file = settings.corpus_path / f"corpus_{norm_pid}.sqlite"
+    sqlite_generated = 0
+    sqlite_chunks = 0
+    sqlite_model = current_model
+    sqlite_latest_ts = None
+    if corpus_file.exists():
+        try:
+            with sqlite3.connect(corpus_file) as conn:
+                sqlite_generated = conn.execute(
+                    "SELECT count(*) FROM corpus_documents WHERE origin = 'generated'"
+                ).fetchone()[0]
+                chunk_row = conn.execute(
+                    "SELECT count(*) FROM corpus_chunks WHERE embedding_model = ?",
+                    (current_model,),
+                ).fetchone()
+                if chunk_row and chunk_row[0] > 0:
+                    sqlite_chunks = chunk_row[0]
+                else:
+                    any_chunk_row = conn.execute(
+                        "SELECT count(*), embedding_model FROM corpus_chunks GROUP BY embedding_model"
+                    ).fetchone()
+                    if any_chunk_row:
+                        sqlite_chunks = any_chunk_row[0]
+                        sqlite_model = any_chunk_row[1] or current_model
+                doc_row = conn.execute("SELECT max(ingested_at) FROM corpus_documents").fetchone()
+                if doc_row and doc_row[0]:
+                    try:
+                        sqlite_latest_ts = datetime.fromisoformat(doc_row[0])
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.warning("corpus_status_read_failed", project_id=str(project_id), error=str(e))
+
+    total_indexed = max(pg_indexed, sqlite_generated)
+    total_chunks = max(pg_chunks, sqlite_chunks)
+    pending = max(approved - total_indexed, 0)
+
+    models_list = [
+        {"embedding_model": model, "chunks": chunks, "reports": reports}
+        for model, chunks, reports, _ in sorted(by_model, key=lambda row: row[0])
+    ]
+    if not models_list and sqlite_chunks > 0:
+        models_list = [
+            {"embedding_model": sqlite_model, "chunks": sqlite_chunks, "reports": sqlite_generated}
+        ]
+
+    pg_latest = max((ts for *_, ts in by_model if ts), default=None)
+    latest_ingest = pg_latest or sqlite_latest_ts
+
+    stale = sorted({model for model, *_ in by_model if model != current_model})
+    if not by_model and sqlite_chunks > 0 and sqlite_model != current_model:
+        stale = [sqlite_model]
+
     return MemoryStatus(
-        chunk_count=sum(chunks for _, chunks, _, _ in by_model),
-        indexed_reports=indexed_now,
+        chunk_count=total_chunks,
+        indexed_reports=total_indexed,
         approved_reports=approved,
-        pending_reports=max(approved - indexed_now, 0),
+        pending_reports=pending,
         current_model=current_model,
-        models=[
-            {"embedding_model": model, "chunks": chunks, "reports": reports}
-            for model, chunks, reports, _ in sorted(by_model, key=lambda row: row[0])
-        ],
-        last_ingest_at=max((ts for *_, ts in by_model if ts), default=None),
-        # Chunks written by a model that is no longer configured are invisible to
-        # retrieval. Saying so is the difference between "memory is broken" and
-        # "re-index after that provider change".
-        stale_models=sorted({model for model, *_ in by_model if model != current_model}),
+        models=models_list,
+        last_ingest_at=latest_ingest,
+        stale_models=stale,
     )

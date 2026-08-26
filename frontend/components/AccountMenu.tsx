@@ -128,33 +128,33 @@ export function AccountMenu({ user, collapsed = false }: { user: User; collapsed
         <div
           role="menu"
           aria-label="Account"
-          className={`menu-surface animate-fade-in absolute z-50 w-64 ${
+          className={`animate-fade-in absolute z-50 border border-border/80 bg-bg-surface/95 shadow-xl backdrop-blur-md overflow-hidden p-1.5 ${
             collapsed
-              ? "left-full bottom-0 ml-3 origin-bottom-left"
-              : "bottom-full left-0 mb-2 origin-bottom-left"
+              ? "left-full bottom-0 ml-3 w-60 origin-bottom-left"
+              : "bottom-full left-0 mb-2 w-full min-w-[13.5rem] origin-bottom-left"
           }`}
         >
           {/* Identity header */}
-          <div className="flex items-center gap-3 px-3 py-2.5 bg-bg-elevated/40 border-b border-border">
-            <Avatar user={user} size={36} />
+          <div className="flex items-center gap-3 px-3 py-2.5 bg-bg-elevated/40 border border-border/60 mb-1">
+            <Avatar user={user} size={34} />
             <div className="min-w-0 flex-1">
               <div className="truncate font-serif text-sm font-bold text-text-primary">
                 {user.display_name || firstNameOf(user)}
               </div>
-              <div className="truncate font-mono text-xs text-text-muted" title={user.email}>
+              <div className="truncate font-mono text-[0.6875rem] text-text-muted" title={user.email}>
                 {user.email}
               </div>
             </div>
           </div>
 
-          <div className="menu-separator my-1" />
+          <div className="my-1 border-t border-border/50" />
 
           {/* Nav items */}
           {!isDesktop && (
             <Link
               href="/profile"
               role="menuitem"
-              className="menu-item"
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-medium text-text-secondary hover:bg-bg-elevated hover:text-text-primary transition-colors"
               onClick={() => setOpen(false)}
             >
               <svg
@@ -177,7 +177,7 @@ export function AccountMenu({ user, collapsed = false }: { user: User; collapsed
           <Link
             href="/settings"
             role="menuitem"
-            className="menu-item"
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-medium text-text-secondary hover:bg-bg-elevated hover:text-text-primary transition-colors"
             onClick={() => setOpen(false)}
           >
             <svg
@@ -196,14 +196,14 @@ export function AccountMenu({ user, collapsed = false }: { user: User; collapsed
             <span>Settings</span>
           </Link>
 
-          <div className="menu-separator my-1" />
+          <div className="my-1 border-t border-border/50" />
 
           {/* Theme switcher */}
           <button
             type="button"
             role="menuitem"
             onClick={() => setTheme(isDark ? "light" : "dark")}
-            className="menu-item justify-between"
+            className="flex items-center justify-between w-full px-3 py-2 text-xs font-medium text-text-secondary hover:bg-bg-elevated hover:text-text-primary transition-colors"
           >
             <span className="flex items-center gap-2.5">
               {isDark ? (
@@ -215,7 +215,7 @@ export function AccountMenu({ user, collapsed = false }: { user: User; collapsed
                   strokeWidth="1.75"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="h-4 w-4 text-warning"
+                  className="h-4 w-4 text-warning shrink-0"
                 >
                   <circle cx="12" cy="12" r="4" />
                   <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
@@ -229,21 +229,21 @@ export function AccountMenu({ user, collapsed = false }: { user: User; collapsed
                   strokeWidth="1.75"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="h-4 w-4 text-text-muted"
+                  className="h-4 w-4 text-text-muted shrink-0"
                 >
                   <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                 </svg>
               )}
               <span>Appearance</span>
             </span>
-            <span className="text-[0.6875rem] font-medium px-1.5 py-0.5 rounded bg-bg-elevated text-text-muted">
+            <span className="shrink-0 bg-bg-elevated px-2 py-0.5 font-mono text-[0.6875rem] font-medium border border-border/60 text-text-muted">
               {isDark ? "Dark" : "Light"}
             </span>
           </button>
 
           {!isDesktop && (
             <>
-              <div className="menu-separator my-1" />
+              <div className="my-1 border-t border-border/50" />
 
               <button
                 type="button"
@@ -251,7 +251,7 @@ export function AccountMenu({ user, collapsed = false }: { user: User; collapsed
                 data-danger="true"
                 onClick={onSignOut}
                 disabled={logout.isPending}
-                className="menu-item text-danger hover:bg-danger/10"
+                className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10 transition-colors"
               >
                 {logout.isPending ? (
                   <span className="spinner" style={{ width: 14, height: 14 }} />
@@ -264,7 +264,7 @@ export function AccountMenu({ user, collapsed = false }: { user: User; collapsed
                     strokeWidth="1.75"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="h-4 w-4"
+                    className="h-4 w-4 shrink-0"
                   >
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                     <polyline points="16 17 21 12 16 7" />

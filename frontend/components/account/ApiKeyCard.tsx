@@ -98,43 +98,43 @@ export function ApiKeyCard() {
         title="API key"
         description="Bring your own key and research runs on your provider account instead of this server's. It's encrypted before storage and never shown again."
         footer={
-          <>
+          <div className="flex items-center justify-between w-full">
             <span className="font-mono text-xs text-text-muted">Only the last 4 characters are ever displayed.</span>
             <button type="submit" disabled={setApiKey.isPending || keyInput.trim().length < 8} className="btn btn-primary">
               {setApiKey.isPending && <span className="spinner" />}
               {user.api_key_provider ? "Replace key" : "Save key"}
             </button>
-          </>
+          </div>
         }
       >
         {activeProvider ? (
-          <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border border-border bg-bg-surface px-4 py-3">
-            <div className="min-w-0 text-[0.8125rem]">
-              <span className="font-medium text-text-primary">
-                {user.api_key_label || activeProvider.label}
-              </span>{" "}
-              <span className="font-mono text-text-muted">{user.api_key_hint}</span>
-              {/* The catalog label ("Custom Endpoint") is shared by every user routed
-                  through this provider — shown alongside a nickname, not replaced by
-                  it, so "which kind of connection is this" stays answerable too. */}
-              {user.api_key_label && (
-                <span className="ml-1 font-mono text-[0.6875rem] text-text-muted">
-                  ({activeProvider.label})
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border border-border/80 bg-bg-surface/90 p-4 shadow-xs">
+            <div className="min-w-0 text-[0.8125rem] flex-1">
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-accent shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+                <span className="font-semibold text-text-primary">
+                  {user.api_key_label || activeProvider.label}
                 </span>
-              )}
+                <span className="font-mono text-xs bg-bg-elevated px-1.5 py-0.5 border border-border/60 text-text-muted">
+                  {user.api_key_hint}
+                </span>
+                {user.api_key_label && (
+                  <span className="font-mono text-[0.6875rem] text-text-muted">
+                    ({activeProvider.label})
+                  </span>
+                )}
+              </div>
 
               {labelDraft !== null ? (
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2.5 flex items-center gap-2">
                   <input
                     autoFocus
                     type="text"
                     value={labelDraft}
                     onChange={(e) => setLabelDraft(e.target.value)}
                     onKeyDown={(e) => {
-                      // type="button" siblings already keep Enter from reaching the
-                      // page's outer save-key <form>, but a text input submits its
-                      // enclosing form on Enter regardless of a sibling's type — this
-                      // is the guard that actually stops that submit.
                       if (e.key === "Enter") {
                         e.preventDefault();
                         renameKey();
@@ -144,13 +144,13 @@ export function ApiKeyCard() {
                     placeholder={activeProvider.label}
                     maxLength={60}
                     aria-label="Connection nickname"
-                    className="input-base w-48 font-mono text-xs"
+                    className="input-base w-48 font-mono text-xs py-1"
                   />
                   <button
                     type="button"
                     onClick={renameKey}
                     disabled={setApiKeyLabel.isPending}
-                    className="font-mono text-xs text-accent hover:underline disabled:opacity-50"
+                    className="font-mono text-xs text-accent hover:underline disabled:opacity-50 font-semibold"
                   >
                     {setApiKeyLabel.isPending && <span className="spinner" />}
                     Save
@@ -167,13 +167,13 @@ export function ApiKeyCard() {
                 <button
                   type="button"
                   onClick={() => setLabelDraft(user.api_key_label ?? "")}
-                  className="mt-2 block font-mono text-xs text-accent hover:underline"
+                  className="mt-1.5 block font-mono text-xs text-accent hover:underline"
                 >
                   Rename
                 </button>
               )}
 
-              <div className="mt-2">
+              <div className="mt-3">
                 <ConnectionStatus
                   verdict={providerHealth.data ?? setApiKey.data?.connection_verdict ?? null}
                   loading={providerHealth.isFetching}
@@ -182,15 +182,16 @@ export function ApiKeyCard() {
                 />
               </div>
             </div>
-            <button type="button" onClick={removeKey} disabled={deleteApiKey.isPending} className="btn btn-danger shrink-0">
+            <button type="button" onClick={removeKey} disabled={deleteApiKey.isPending} className="btn btn-danger shrink-0 text-xs">
               {deleteApiKey.isPending && <span className="spinner" />}
               Remove
             </button>
           </div>
         ) : (
-          <p className="mb-5 border border-border bg-bg-surface px-4 py-3 font-mono text-xs text-text-secondary">
-            No key stored — research runs on this deployment&apos;s shared key, subject to your monthly limit.
-          </p>
+          <div className="mb-5 flex items-center gap-2.5 border border-border/70 bg-bg-surface/50 p-4 font-mono text-xs text-text-secondary">
+            <span className="inline-block h-2 w-2 bg-text-muted shrink-0" />
+            <span>No key stored — research runs on this deployment&apos;s shared key, subject to your monthly limit.</span>
+          </div>
         )}
 
         <div className="grid gap-4 sm:grid-cols-[13rem_1fr]">
@@ -209,8 +210,9 @@ export function ApiKeyCard() {
                 <>The bearer token for the endpoint.</>
               ) : (
                 <>Get one from{" "}
-                  <a href={selected.url} target="_blank" rel="noopener noreferrer" className="font-medium text-accent hover:underline">
+                  <a href={selected.url} target="_blank" rel="noopener noreferrer" className="font-medium text-accent hover:underline inline-flex items-center gap-0.5">
                     {selected.label}
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                   </a>.
                 </>
               )

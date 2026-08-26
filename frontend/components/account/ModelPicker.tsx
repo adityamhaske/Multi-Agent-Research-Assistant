@@ -216,17 +216,18 @@ export function ModelPicker() {
     >
       {/* Presets */}
       {presetProviders.length === 0 ? (
-        <p className="border border-border bg-bg-surface px-4 py-3 font-mono text-xs text-text-secondary">
-          No provider is configured yet. Add an API key above, or run a local model with
-          Ollama, and presets will appear here.
-        </p>
+        <div className="flex items-center gap-2.5 border border-border/70 bg-bg-surface/50 p-4 font-mono text-xs text-text-secondary">
+          <span className="inline-block h-2 w-2 bg-text-muted shrink-0" />
+          <span>No provider is configured yet. Add an API key above, or run a local model with Ollama, and presets will appear here.</span>
+        </div>
       ) : (
         presetProviders.map((provider) => (
-          <div key={provider} className="mb-5 last:mb-0">
-            <div className="mb-2 font-mono text-xs font-semibold uppercase tracking-wider text-text-muted">
-              {provider}
+          <div key={provider} className="mb-6 last:mb-0">
+            <div className="mb-3 font-mono text-xs font-semibold uppercase tracking-wider text-text-secondary flex items-center gap-2">
+              <span className="h-1.5 w-1.5 bg-accent" />
+              <span>{PROVIDER_NAMES[provider] ?? provider}</span>
             </div>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-3">
               {catalog.preset_names.map((name) => {
                 const mapping = catalog.presets[provider]?.[name];
                 if (!mapping) return null;
@@ -238,21 +239,24 @@ export function ModelPicker() {
                     disabled={busy}
                     onClick={() => applyRouting(mapping)}
                     aria-pressed={active}
-                    className="border px-3.5 py-3 text-left transition-colors disabled:opacity-60"
-                    style={{
-                      borderColor: active ? "var(--accent)" : "var(--border)",
-                      backgroundColor: active
-                        ? "var(--accent-muted)"
-                        : "var(--bg-surface)",
-                    }}
+                    className={`border p-4 text-left transition-all disabled:opacity-60 ${
+                      active
+                        ? "border-accent bg-accent/5 ring-1 ring-accent/30 shadow-sm"
+                        : "border-border/80 bg-bg-surface hover:border-border hover:bg-bg-elevated/40"
+                    }`}
                   >
-                    <div className="font-serif text-sm font-bold capitalize text-text-primary">
-                      {name}
+                    <div className="flex items-center justify-between">
+                      <div className="font-serif text-sm font-bold capitalize text-text-primary">
+                        {name}
+                      </div>
+                      {active && (
+                        <span className="h-2 w-2 bg-accent shadow-xs shadow-accent/50" />
+                      )}
                     </div>
-                    <div className="mt-0.5 text-xs leading-relaxed text-text-muted">
+                    <div className="mt-1 text-xs leading-relaxed text-text-muted">
                       {PRESET_COPY[name] ?? ""}
                     </div>
-                    <div className="mt-1.5 font-mono text-[0.6875rem] text-text-muted">
+                    <div className="mt-2 font-mono text-[0.6875rem] text-text-muted border-t border-border/40 pt-2">
                       {relativeCost(mapping, byRoute) === 0
                         ? "free"
                         : `~$${relativeCost(mapping, byRoute).toFixed(2)} / 1M out`}
@@ -267,16 +271,19 @@ export function ModelPicker() {
 
       {/* Per-role drawer */}
       {customizing && (
-        <div className="mt-5 space-y-3 border-t border-border pt-5">
+        <div className="mt-6 space-y-4 border-t border-border/60 pt-6">
+          <div className="text-xs font-mono font-semibold uppercase tracking-wider text-text-secondary">
+            Role Allocations
+          </div>
           {catalog.roles.map((role) => {
             const selected = byRoute.get(current[role]);
             return (
               <div
                 key={role}
-                className="grid items-center gap-2 sm:grid-cols-[14rem_1fr]"
+                className="grid items-center gap-3 sm:grid-cols-[14rem_1fr] border border-border/60 bg-bg-base/40 p-3.5"
               >
                 <div className="min-w-0">
-                  <div className="text-[0.8125rem] font-medium text-text-secondary">
+                  <div className="text-[0.8125rem] font-semibold text-text-primary">
                     {ROLE_COPY[role].label}
                   </div>
                   <div className="text-xs leading-relaxed text-text-muted">
@@ -287,7 +294,7 @@ export function ModelPicker() {
                   <select
                     id={`model-${role}`}
                     aria-label={`Model for ${ROLE_COPY[role].label}`}
-                    className="input-base w-full"
+                    className="input-base w-full text-xs"
                     value={current[role]}
                     disabled={busy}
                     onChange={(e) => applyRouting({ ...current, [role]: e.target.value })}
@@ -318,7 +325,7 @@ export function ModelPicker() {
                     ))}
                   </select>
                   {selected?.notes && (
-                    <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                    <p className="mt-1.5 text-xs leading-relaxed text-text-muted">
                       {selected.notes}
                     </p>
                   )}

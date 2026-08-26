@@ -280,6 +280,30 @@ async def send_thread_message(
 
         return CorpusStore(db_path, embedder)
 
+    if scope in ("report", "everything") and not excerpts:
+        store = _corpus_store()
+        if store:
+            try:
+                gen_hits = await store.search_generated_reports(payload.message, 8)
+                if gen_hits:
+                    gen_blocks = []
+                    for idx, hit in enumerate(gen_hits, 1):
+                        gen_blocks.append(
+                            f"[{idx}] From approved report {hit['title']}:\n{hit['snippet']}"
+                        )
+                        citations.append(
+                            {
+                                "marker": idx,
+                                "session_id": hit.get("document_id", ""),
+                                "title": hit.get("title", "Approved Report"),
+                                "created_at": datetime.now(UTC).isoformat(),
+                                "excerpt": hit.get("snippet", ""),
+                            }
+                        )
+                    excerpts = "\n\n".join(gen_blocks)
+            except Exception as e:
+                logger.warning("corpus_generated_reports_search_failed", error=str(e))
+
     try:
         grounding = await chat_scope.gather(
             scope,

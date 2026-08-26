@@ -73,9 +73,9 @@ export function SideNav({ user }: { user?: User }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const renderNavContent = (isMobile = false) => (
-    <div className="flex h-full flex-col justify-between p-3 overflow-y-auto">
-      {/* Top Section: Brand + Actions + Nav Items */}
-      <div className="space-y-4">
+    <div className="flex h-full flex-col justify-between p-3 min-h-0">
+      {/* Top Section: Brand + Actions + Nav Items (scrolls independently) */}
+      <div className="space-y-4 overflow-y-auto flex-1 min-h-0 pr-0.5">
         {/* Brand Header */}
         <div className={`flex items-center ${collapsed && !isMobile ? "flex-col gap-2.5" : "justify-between"} px-1 pt-1`}>
           <Link
@@ -119,16 +119,7 @@ export function SideNav({ user }: { user?: User }) {
           <ProjectSwitcher collapsed={collapsed && !isMobile} menuDirection="down" />
         </div>
 
-        {/* The primary action, and it points at the V2 research flow.
-            It used to point at /dashboard — the V1 run form — so the sidebar's single
-            most prominent control started a *legacy* run, while the V2 workspace the
-            product is built around was reachable only from a secondary nav row. That is
-            the "V1 competing with V2" problem in its most expensive place.
-
-            It shares a destination with the "Research" row below, deliberately: one is an
-            action and one is a place, and both are how people look for this. What must
-            not happen — and did — is two controls pointing at two different research
-            products. */}
+        {/* The primary action, and it points at the V2 research flow. */}
         <div className="pt-1">
           <Link
             href="/research"
@@ -145,15 +136,8 @@ export function SideNav({ user }: { user?: User }) {
           </Link>
         </div>
 
-        {/* Nav links. No "Dashboard" entry: /dashboard is the legacy V1 run form, and
-            giving it a row would put two ways to start research side by side without
-            saying that they produce different things. It stays reachable — the legacy
-            sessions it produced are listed under History — but it is not a destination
-            the navigation recommends. */}
+        {/* Nav links */}
         <nav className="space-y-1 pt-2">
-          {/* Project-first (docs/07 §2, Phase 6): Overview is the active project itself,
-              and everything under it is scoped to that project. A project used to be a
-              filter applied to four unrelated pages with nowhere to see the project. */}
           <NavItem
             href="/project"
             label="Overview"
@@ -161,9 +145,6 @@ export function SideNav({ user }: { user?: User }) {
             collapsed={collapsed && !isMobile}
             onClick={() => isMobile && setMobileOpen(false)}
           />
-          {/* Research sits directly under Overview because it is the product's verb, and
-              Chat sits last because it is a secondary capability over an approved report —
-              not the way research is done here. */}
           <NavItem
             href="/research"
             label="Research"
@@ -185,8 +166,6 @@ export function SideNav({ user }: { user?: User }) {
             collapsed={collapsed && !isMobile}
             onClick={() => isMobile && setMobileOpen(false)}
           />
-          {/* Chat is a capability over approved research, not a way research is done, so
-              it sits below a rule rather than in the same run of items. */}
           {!isDesktop && (
             <div className="my-2 border-t border-border" aria-hidden />
           )}
@@ -202,8 +181,8 @@ export function SideNav({ user }: { user?: User }) {
         </nav>
       </div>
 
-      {/* Bottom Section: Profile */}
-      <div className="pt-4 border-t border-border">
+      {/* Bottom Section: Profile (Stays pinned at bottom, never clips popups) */}
+      <div className="pt-3 border-t border-border shrink-0 relative">
         {/* User Account Card */}
         <div>
           {user ? (

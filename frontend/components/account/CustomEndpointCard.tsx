@@ -70,7 +70,7 @@ export function CustomEndpointCard() {
         <span className="flex items-center gap-1.5">
           <span
             aria-hidden
-            className={`inline-block h-2 w-2 rounded-full ${
+            className={`inline-block h-2 w-2 ${
               reachable ? "bg-success" : "bg-danger"
             }`}
           />

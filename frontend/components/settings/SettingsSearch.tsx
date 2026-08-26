@@ -25,7 +25,6 @@ const INDEX: Entry[] = [
   { section: "research", label: "Snippet length", keywords: "snippet citation length characters truncate" },
   { section: "projects", label: "Create, rename, archive, delete projects", keywords: "project projects delete archive restore rename history" },
   { section: "appearance", label: "Theme", keywords: "appearance theme dark light mode" },
-  { section: "appearance", label: "Density", keywords: "density compact comfortable spacing" },
   { section: "advanced", label: "Token usage", keywords: "usage tokens cost spend" },
   { section: "advanced", label: "Monthly spending limit", keywords: "spending limit budget cap monthly token" },
 ];
@@ -37,25 +36,50 @@ export function SettingsSearch() {
 
   return (
     <div className="relative">
-      <input
-        type="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Search settings…"
-        aria-label="Search settings"
-        className="input-base w-full text-sm"
-      />
+      <div className="relative flex items-center">
+        <svg
+          className="pointer-events-none absolute left-3.5 h-4 w-4 text-text-muted"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search settings…"
+          aria-label="Search settings"
+          className="input-base w-full pl-9.5 pr-8 py-2 text-sm border-border/80 bg-bg-surface/90 focus:border-accent focus:ring-1 focus:ring-accent/40 shadow-xs"
+        />
+        {q && (
+          <button
+            type="button"
+            onClick={() => setQ("")}
+            className="absolute right-2.5 p-0.5 text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
+            title="Clear search"
+            aria-label="Clear search"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+        )}
+      </div>
+
       {matches.length > 0 && (
-        <ul className="menu-surface absolute z-20 mt-1 w-full max-h-72 overflow-y-auto">
+        <ul className="absolute left-0 right-0 z-30 mt-1.5 max-h-72 overflow-y-auto border border-border/80 bg-bg-surface/95 p-1.5 shadow-lg backdrop-blur-md">
           {matches.map((m) => (
             <li key={`${m.section}-${m.label}`}>
               <Link
                 href={`/settings/${m.section}`}
                 onClick={() => setQ("")}
-                className="menu-item justify-between"
+                className="flex items-center justify-between px-3 py-2 text-xs font-medium text-text-primary transition-colors hover:bg-bg-elevated"
               >
                 <span>{m.label}</span>
-                <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-text-muted">
+                <span className="bg-bg-elevated px-1.5 py-0.5 font-mono text-[0.625rem] uppercase tracking-wider text-text-muted border border-border/60">
                   {m.section}
                 </span>
               </Link>
@@ -64,8 +88,8 @@ export function SettingsSearch() {
         </ul>
       )}
       {query.length >= 2 && matches.length === 0 && (
-        <div className="menu-surface absolute z-20 mt-1 w-full px-3 py-2 text-xs text-text-muted">
-          No matching setting.
+        <div className="absolute left-0 right-0 z-30 mt-1.5 border border-border/80 bg-bg-surface/95 px-3 py-2.5 text-xs text-text-muted shadow-lg backdrop-blur-md">
+          No matching settings found.
         </div>
       )}
     </div>
