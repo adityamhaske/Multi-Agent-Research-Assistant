@@ -365,9 +365,29 @@ def test_the_verifier_falls_back_to_ascii_when_the_console_cannot_render_glyphs(
     cp1252 = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
 
     text = vb.format_text(result, stream=cp1252)
-    text.encode("cp1252"), "the fallback must be encodable by the stream that forced it"
+    text.encode("cp1252")  # must not raise — that is the whole failure being fixed
     assert "[PASS]" in text or "[FAIL]" in text
     assert "✓" not in text and "✗" not in text
 
     utf8 = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
     assert "✓" in vb.format_text(result, stream=utf8), "a capable console keeps the glyphs"
+
+
+def test_the_whole_report_degrades_not_just_the_tick_marks():
+    """The demo banner carries an em dash, which a strict-ASCII console cannot encode either.
+
+    Fixing only the check marks would move the crash one line down — and it would move it
+    onto the banner that says the bundle is *scripted output, not real research*, which is
+    the single most important line in this program's output.
+    """
+    import io
+
+    from research_engine import verify_bundle as vb
+
+    result = vb.verify(_bundle(demo=True))
+    ascii_only = io.TextIOWrapper(io.BytesIO(), encoding="ascii")
+
+    text = vb.format_text(result, stream=ascii_only)
+    text.encode("ascii")  # must not raise
+    assert "DEMO BUNDLE" in text, "the demo warning must survive the degradation"
+    assert "NOT REAL RESEARCH" in text

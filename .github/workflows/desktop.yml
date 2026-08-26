@@ -116,9 +116,14 @@ jobs:
           await_status AWAITING_REVIEW
           api -X POST -d '{"decision":"APPROVED"}' "$B/runs/$RUN/report-review" > /dev/null
 
-          curl -sf -H "$H" "$B/runs/$RUN/bundle.json" -o /tmp/ci.bundle.json
-          curl -sf -H "$H" "$B/runs/$RUN/export.md" -o /tmp/ci-report.md
-          test -s /tmp/ci-report.md
+          # Written into the working directory, not /tmp. Git Bash on Windows maps `/tmp`
+          # onto its own installation prefix while the Windows Python two lines down
+          # resolves the same string literally against the current drive — so `curl -o
+          # /tmp/x` and `open("/tmp/x")` name different files, and the check below failed
+          # with FileNotFoundError on a bundle that had downloaded perfectly.
+          curl -sf -H "$H" "$B/runs/$RUN/bundle.json" -o ci.bundle.json
+          curl -sf -H "$H" "$B/runs/$RUN/export.md" -o ci-report.md
+          test -s ci-report.md
 
           # PDF is deliberately unavailable on this host — WeasyPrint is excluded from the
           # bundle. A 501 is the contract; a 200 would mean the exclude stopped working.
@@ -126,10 +131,10 @@ jobs:
           [ "$CODE" = "501" ] || { echo "::error::expected 501 for desktop PDF, got $CODE"; exit 1; }
 
           # The verdict that matters, from the verifier as a third party would run it.
-          python -m research_engine.verify_bundle /tmp/ci.bundle.json
+          python -m research_engine.verify_bundle ci.bundle.json
           python - <<'CHECK'
           import json
-          b = json.load(open("/tmp/ci.bundle.json"))
+          b = json.load(open("ci.bundle.json"))
           actions = [a["action"] for a in b["approval_chain"]]
           assert "approved" in actions, f"no report approval in the chain: {actions}"
           assert b["evidence"], "the packaged app produced a bundle with no evidence"

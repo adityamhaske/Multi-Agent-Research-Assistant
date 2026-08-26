@@ -282,39 +282,50 @@ def verify_file(path: str | Path) -> VerifyResult:
 # ── Human-readable output ─────────────────────────────────────────────────────────
 
 
-def _marks(stream) -> tuple[str, str, str]:
-    """Pass, fail and note glyphs this stream can actually render.
+#: Every non-ASCII character this module emits, and what it degrades to.
+#:
+#: The verifier is the one program in this repository a stranger runs — offline, on their
+#: own machine, to check an artifact they were handed — so it has to produce a verdict on
+#: whatever they run it on. On Windows `sys.stdout` defaults to cp1252, which cannot encode
+#: `\u2713`, and printing it raised `UnicodeEncodeError` *after* every check had already
+#: passed: a traceback in place of the word PASS. The verdict was correct and the reader
+#: never saw it.
+#:
+#: Deliberately not `errors="replace"`, which renders `?` beside each check and leaves a
+#: reader unable to tell a pass from a failure — the one distinction this output exists to
+#: make. A check's own `detail` can carry anything, so it is transliterated by codec and
+#: only these fixed glyphs get a chosen replacement.
+_ASCII_FALLBACK = {"✓": "[PASS]", "✗": "[FAIL]", "ℹ": "[note]", "—": "--", "…": "..."}
 
-    The verifier is the one program in this repository a stranger runs — offline, on their
-    own machine, to check an artifact they were handed — so it has to produce a verdict on
-    whatever they run it on. On Windows `sys.stdout` defaults to cp1252, which cannot encode
-    `\u2713`, and printing it raised `UnicodeEncodeError` *after* every check had already
-    passed: a traceback in place of the word PASS. The verdict was correct and the reader
-    never saw it.
 
-    ASCII when the stream cannot promise better. Deliberately not `errors="replace"`, which
-    would print `?` beside each check and leave a reader unable to tell a pass from a
-    failure — the one distinction this output exists to make.
-    """
+def _encodable(stream) -> bool:
+    """Whether this stream can render the glyphs below without raising."""
     encoding = getattr(stream, "encoding", None) or "ascii"
     try:
-        "✓✗ℹ".encode(encoding)
+        "".join(_ASCII_FALLBACK).encode(encoding)
     except (UnicodeEncodeError, LookupError):
-        return "[PASS]", "[FAIL]", "[note]"
-    return "✓", "✗", "ℹ"
+        return False
+    return True
+
+
+def _degrade(text: str) -> str:
+    """The same report, in characters any console can print."""
+    for glyph, plain in _ASCII_FALLBACK.items():
+        text = text.replace(glyph, plain)
+    return text.encode("ascii", "replace").decode("ascii")
 
 
 def format_text(result: VerifyResult, stream=None) -> str:
-    ok, bad, note_mark = _marks(stream if stream is not None else sys.stdout)
+    rich = _encodable(stream if stream is not None else sys.stdout)
     lines: list[str] = []
     for c in result.checks:
-        mark = ok if c.passed else bad
+        mark = "✓" if c.passed else "✗"
         lines.append(f"  {mark} {c.name}")
         if c.detail:
             for d in c.detail.splitlines():
                 lines.append(f"    {d}")
     for note in result.notes:
-        lines.append(f"  {note_mark} {note}")
+        lines.append(f"  ℹ {note}")
     verdict = "PASS" if result.passed else "FAIL"
     lines.insert(0, f"Bundle verification: {verdict}")
     if result.demo:
@@ -327,7 +338,8 @@ def format_text(result: VerifyResult, stream=None) -> str:
             "!! The checks below confirm this file is internally consistent,\n"
             "!! not that its findings are true.\n",
         )
-    return "\n".join(lines)
+    text = "\n".join(lines)
+    return text if rich else _degrade(text)
 
 
 def format_json(result: VerifyResult) -> str:
