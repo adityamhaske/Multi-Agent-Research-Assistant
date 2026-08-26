@@ -854,9 +854,10 @@ Avoid breaking formats such as research artifacts without versioning.
 
 ---
 
-# 38. V2 Acceptance Test
+# 38. Public Readiness Acceptance Test
 
-Before declaring V2 mature enough for broad public adoption, a stranger should be able to:
+Before declaring the product mature enough for broad public adoption, a stranger should be
+able to:
 
 1. find the website
 2. understand the product

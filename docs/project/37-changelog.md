@@ -13,17 +13,90 @@ deciding whether to trust the thing, and a changelog with no bad news is marketi
 
 ---
 
-## v2.0.0 — on `main`, not yet tagged
+## v2.0.1 — 2026-08-26
+
+Four measurements that were wrong, a feature that was inert, and one product instead of two.
+
+**Fixed**
+
+- **Project memory could not index anything the current pipeline produced.** Memory was
+  keyed by a foreign key to the session table, so a research run counted as an approved
+  report and could never be indexed: the "not indexed yet" count only climbed, and project
+  chat answered from an empty store. Nothing failed and no test was red — the feature was
+  simply inert for every account that had only ever used runs, which is every account
+  created since 2.0.0. Both kinds of approved report now share one memory, and a citation
+  in a chat answer links to whichever surface can open it.
+- **Retrieval silently returned nothing.** The relevance ceiling had been tightened from
+  "worse than orthogonal" to a smaller unmeasured number, on the reasoning that it would
+  filter noise. It filtered the answer: a question asked of the project that owns the report
+  retrieved zero results. Restored, with a test that states the rule rather than leaving
+  three unrelated tests to imply it.
+- **A run whose evidence was never read could still export a bundle.** That refusal was
+  attached to the import ledger, so it only covered imported runs; a run executed here whose
+  checkpoint could not be decoded produced a bundle that numbered every `[n]` against
+  nothing and asserted a quality nobody observed. The fact now lives on the run itself and
+  one rule covers every run.
+- **A forced extraction pass billed its first attempt twice.** When a model declined to
+  submit evidence and the fallback mechanism ran, the budget guard was handed the running
+  total rather than the increment — so a spend limit could fire on money that was never
+  charged.
+- **The desktop app can start research.** It drives a run in-process against its own
+  checkpointer, because it has no broker to hand one to. In 2.0.0 the same button answered
+  501. Everything downstream is the server's code: the same engine, the same domain tables,
+  the same artifact and the same bundle.
+- **Approved reports are saved into their project's corpus automatically**, so follow-up
+  questions can draw on them without a re-upload.
+- **A task that fetched pages but never submitted evidence no longer loses them.** The
+  engine asks for the extraction directly, from the text it already holds and nothing else,
+  and retries through a differently-shaped request when a model ignores a forced tool call.
+  Every quotation is still checked against what the tools actually returned; a quote that
+  matches exactly one other fetched page is re-pointed at it and the claimed URL is recorded
+  alongside, because a repair a reader cannot see is a silent rewrite.
+
+**Improved**
+
+- **One way to start research.** A second start form existed on the older pipeline, was
+  labelled "legacy" in its own banner and was absent from the navigation. It is gone, along
+  with the version vocabulary that ran through the codebase, the API path (`/api/v1/v2/runs`
+  is now `/api/v1/runs`) and the interface.
+- **Research recorded before runs is still readable, chattable and exportable**, listed as
+  Sessions on History and on the project overview rather than by a version number.
+- **The import tool is removed.** It was a one-shot utility for bringing older research into
+  the current tables, its job is done, and a tool that reads a table nothing else consults
+  is a maintenance cost that misleads. Its outcome table is dropped by a migration.
+- **A rework journey covers the report gate end to end**, asserting that a rejection
+  authorizes nothing and that the second draft is a new revision rather than an edit of the
+  one that was rejected.
+
+**Known**
+
+- Two research pipelines still exist in the backend. The product has one, and research
+  recorded by the earlier one stays readable; consolidating the two is not a patch.
+- Follow-up chat scoped to a single report is available on research recorded as a session
+  and not on a run. Project chat, which cites every approved report in a project, covers
+  both.
+- Cancelling a run still does not interrupt work already in flight; it runs to its next
+  checkpoint, and the tokens spent there are recorded because they were really spent.
+- Claim verification is still not implemented, claim lineage across revisions is still not
+  tracked, and contradiction detection is still source-level and unscored.
+- Citation support is still measured at 0.90 on a single self-judged local-model run, and
+  that measurement predates 2.0.0. It needs re-running before the number is leaned on.
+- Corpus-mode research still has no end-to-end test, because it requires a local embedder
+  and the test environment has none.
+
+---
+
+## v2.0.0 — 2026-08-25
 
 Research becomes a structured record: evidence, claims, sources, conflicts, a human
 decision, and an artifact anyone can verify offline.
 
-**The major number moves because the product's unit of output changed.** In V1 a run
-produced a report with citations attached to it. In V2 the report is a *rendering* of
-records that exist in their own right — and those records, not the prose, are what you
-inspect, review, export, and hand to someone who does not trust this application. The V1
-API, the V1 SSE stream, and the V1 bundle format are all still served; nothing that worked
-against 1.0.2 stops working. See [the V2 research model](../getting-started/24-v2-research-model.md).
+**The major number moves because the product's unit of output changed.** Before this a run
+produced a report with citations attached to it. Now the report is a *rendering* of records
+that exist in their own right — and those records, not the prose, are what you inspect,
+review, export, and hand to someone who does not trust this application. The session API,
+its SSE stream and its bundle format are all still served; nothing that worked against
+1.0.2 stops working. See [the research record](../getting-started/19-research-record.md).
 
 **Improved**
 
@@ -58,10 +131,11 @@ against 1.0.2 stops working. See [the V2 research model](../getting-started/24-v
   Uploaded HTML renders inside a fully sandboxed frame.
 - **History filters** by verified-citation rate and by model, so a weak run is findable
   rather than buried.
-- **V1 → V2 migration tooling** with three verdicts kept separate rather than collapsed into
-  one number: does V2 say what V1 said (fidelity), is the result internally valid
-  (validity), and is every migrated fact traceable to something V1 recorded (grounding).
-  See the [migration guide](../deployment/38-migration-v1-to-v2.md).
+- **A one-shot import tool** for research recorded by the earlier pipeline, with three
+  verdicts kept separate rather than collapsed into one number: does the imported record say
+  what the original said (fidelity), is the result internally valid (validity), and is every
+  imported fact traceable to something the original recorded (grounding). *Removed in
+  2.0.1 — see below.*
 - **Server and desktop route parity is now enforced, not intended.** Follow-up chat and
   bundle export previously 404'd on the desktop build; a parity suite now fails the build
   when a route exists on one host and not the other. **Route parity is not feature parity**
@@ -81,23 +155,18 @@ against 1.0.2 stops working. See [the V2 research model](../getting-started/24-v
 
 ### Desktop support in 2.0.0
 
-| | Research journey | V2 record (evidence, claims, sources, review, artifact) |
+| | Research runs | The record (evidence, claims, sources, review, artifact) |
 |---|---|---|
-| **Web application** (server + worker) | V2 | Supported |
-| **Desktop application** (Tauri + sidecar) | V1 | Read and inspect only — runs cannot be executed |
+| **Web application** (server + worker) | Executed by a Celery worker | Supported |
+| **Desktop application** (Tauri + sidecar) | **Not executable** | Read and inspect only |
 
-The desktop build ships the **V1** research journey for 2.0.0. Its sidecar serves the V2
-routes and they answer correctly, but nothing in the desktop UI calls them, and a V2 run
-cannot be *executed* there: `v2_execution.execute_run` acquires a Redis lock, opens the
-server database engine and checkpoints to Postgres, none of which exist on a host that is
-SQLite-and-keychain by design. Asked to dispatch a V2 run, the desktop answers **501 Not
-Implemented** and creates nothing, rather than persisting a run no driver would ever
-advance.
+The desktop build of 2.0.0 could not *execute* a run: `execute_run` acquired a Redis lock,
+opened the server database engine and checkpointed to Postgres, none of which exist on a
+host that is SQLite-and-keychain by design. Asked to dispatch a run it answered **501 Not
+Implemented** and created nothing, rather than persisting a run no driver would advance.
+Verified by running the packaged sidecar, not inferred from the configuration file.
 
-Making the desktop a V2 host means writing an in-process V2 driver — a second execution
-path with its own checkpointer and no distributed lock. That is a milestone, not a patch,
-and it is not in this release. Verified by running the packaged sidecar, not inferred from
-the configuration file.
+*Fixed in 2.0.1: the desktop now drives a run in-process.*
 
 **Known**
 
@@ -105,24 +174,25 @@ the configuration file.
   copies — including one restored from real production data, where 11 of 11 sessions
   migrated with 0 refusals, 0 failures, and 0 fidelity mismatches — but running it on your
   own data is your decision and your backup.
-- Two V1 states are recorded as unmigratable rather than repaired: evidence whose source URL
+- Two states are recorded as unimportable rather than repaired: evidence whose source URL
   was never recorded, and a plan approval for a run with no plan. Neither occurred in the
   restored-production run.
-- Some V1 history cannot be recovered at all and is recorded as absent rather than filled
-  in: superseded report drafts, whether a plan was proposed or edited, and whether a run was
-  cancelled. V1 overwrote the first two and never recorded the third as a state.
-- Corpus-mode research works on V2 but has no end-to-end test, because corpus mode requires
-  a local embedder and the test environment has none.
+- Some history cannot be recovered at all and is recorded as absent rather than filled in:
+  superseded report drafts, whether a plan was proposed or edited, and whether a run was
+  cancelled. The earlier pipeline overwrote the first two and never recorded the third as a
+  state.
+- Corpus-mode research works but has no end-to-end test, because corpus mode requires a
+  local embedder and the test environment has none.
 - Cancelling a run does not interrupt work already in flight; it runs to its next
   checkpoint. The decision is durable and authoritative — a cancelled run stays cancelled
   and cannot reappear awaiting approval — and the tokens spent after the stop are recorded.
 - Claim verification is not implemented: claims are extracted from the report's prose and
-  carry no per-claim judgement. `verification_state` is `UNCHECKED` on every claim V2 writes.
+  carry no per-claim judgement. `verification_state` is `UNCHECKED` on every claim written.
 - Claim lineage across revisions is not tracked. Nothing observes that a sentence in
   revision 2 *is* the assertion from revision 1, and matching by text would manufacture a
   relationship the system never saw.
-- Project memory does not yet ingest V2 runs.
-- The V2 run list returns the most recent runs up to a limit and is not paginated.
+- Project memory does not yet ingest research runs. *Fixed in 2.0.1.*
+- The run list returns the most recent runs up to a limit and is not paginated.
 - Citation support is still measured at 0.90 on a single self-judged local-model run, and
   that measurement predates this work. It needs re-running before the number is leaned on.
 
@@ -196,7 +266,7 @@ for a break in a documented contract — the API, the SSE event shapes, or the
 besides.
 
 **v2.0.0 is the one deliberate exception, and it is worth stating rather than glossing.** It
-breaks no documented contract: the V1 API, SSE stream, and bundle format are all still
+breaks no documented contract: the session API, its SSE stream and its bundle format are all still
 served, and a client written against 1.0.2 keeps working. The major moved because the
 product's unit of output changed — from a report with citations attached to a structured
 record that a report is rendered from — and calling that a minor release would have

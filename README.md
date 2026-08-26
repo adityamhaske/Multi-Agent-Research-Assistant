@@ -11,7 +11,7 @@
 
 <!-- Direct link to the release asset — this downloads the file, no landing page.
      Bump the version in BOTH the badge label and the href when cutting a release. -->
-[![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon%20·%20.dmg-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/download/v2.0.0/Research.Assistant_2.0.0_aarch64.dmg)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon%20·%20.dmg-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/download/v2.0.1/Research.Assistant_2.0.1_aarch64.dmg)
 
 Apple Silicon macOS DMG available directly (81 MB, installs to ~182 MB; right-click → **Open** on first launch). Windows `.msi`, Linux `.deb` and `.AppImage` packages are available on the [releases page](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/latest). See [desktop app notes](docs/getting-started/23-desktop-app.md) for platform installation guides.
 
@@ -19,7 +19,7 @@ Apple Silicon macOS DMG available directly (81 MB, installs to ~182 MB; right-cl
 
 Ask a research question. A pipeline of specialized agents searches the web and your uploaded documents, gathers evidence with sources, drafts a cited report, and **pauses for your approval** before finalizing.
 
-> **Research that shows its work.** The evidence, sources, claims, claim-evidence links, conflicting sources, and your review decisions are all structured records you can inspect, and the report is a rendering of them. Three distinctions are enforced everywhere and never blurred: **retrieved is not verified**, **retrieved is not cited**, and **a citation marker is not evidence**. Approving a report freezes an artifact that anyone can check offline with the verifier in this repository — no network, no model, no account required. See [the research model](docs/getting-started/24-v2-research-model.md).
+> **Research that shows its work.** The evidence, sources, claims, claim-evidence links, conflicting sources, and your review decisions are all structured records you can inspect, and the report is a rendering of them. Three distinctions are enforced everywhere and never blurred: **retrieved is not verified**, **retrieved is not cited**, and **a citation marker is not evidence**. Approving a report freezes an artifact that anyone can check offline with the verifier in this repository — no network, no model, no account required. See [the research model](docs/getting-started/19-research-record.md).
 
 Approve it, or send it back with feedback. Completed reports support grounded follow-up
 chat and export as `.md`, `.pdf`, or a hash-verifiable `.bundle.json` that a third party

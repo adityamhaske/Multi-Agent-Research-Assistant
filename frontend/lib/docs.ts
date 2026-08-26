@@ -162,6 +162,7 @@ const NAV_ORDER: Record<string, string[]> = {
     "getting-started/quick-start",
     "getting-started/configuration",
     "getting-started/local-llm",
+    "getting-started/research-record",
     "getting-started/desktop-app",
     "getting-started/troubleshooting",
   ],
@@ -183,7 +184,6 @@ const NAV_ORDER: Record<string, string[]> = {
     "deployment/docker",
     "deployment/production",
     "deployment/operations",
-    "deployment/migration-v1-to-v2",
   ],
   developers: [
     "developers/development",

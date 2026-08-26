@@ -133,7 +133,7 @@ locally.
   read directly not through the server-only `_report_or_404`, `trace_available` is `True`
   on both. **A bundle route is only correct if what it emits verifies** — the sidecar
   wrote no `audit_log` row at either gate, so the route alone would have produced bundles
-  that always fail `approval_chain`; `tests/test_bundle_export_routes.py` pins the whole
+  that always fail `approval_chain`; `tests/workflow/test_bundle_export_routes.py` pins the whole
   chain
 - Sidecar location → `desktop/tauri.conf.json` (`bundle.resources`), `desktop/src/lib.rs`
   (`sidecar_command`), *and* `.github/workflows/desktop.yml` (the `shell` job must
@@ -161,8 +161,8 @@ Prefer extracting shared logic into one function over keeping two copies in step
 discipline — `map_local_host` is the worked example of doing that after the fact.
 
 **A route that exists on both hosts can still be desktop-only broken, and parity won't see
-it.** The sidecar's V2 routes import their handlers from `app.api.v1.v2_runs` rather than
-restating them, so registration matched on both hosts while every V2 route on the packaged
+it.** The sidecar's run routes import their handlers from `app.api.v1.runs` rather than
+restating them, so registration matched on both hosts while every run route on the packaged
 app 500'd, in three layers that only bite the desktop:
 
 | Layer | Why it only bit the desktop |
@@ -172,16 +172,18 @@ app 500'd, in three layers that only bite the desktop:
 | `create_run` imports `app.workers.tasks` when `dispatch` is set | `celery` is excluded too, and this host has no broker either way |
 
 **Anything the desktop imports at request time must also fit in the bundle** —
-`test_sidecar_startup.py` asserts the V2 import tree touches none of the spec's excludes,
+`test_sidecar_startup.py` asserts the run import tree touches none of the spec's excludes,
 built the way the launcher does (its prior assertions covered startup only, which is why
-they stayed green). **V2 execution is server-only** (`v2_execution.execute_run` takes a
-Redis lock, checkpoints to Postgres) — desktop refuses `dispatch` with a 501 rather than
-creating a run nothing advances. The same packaged-app run found the behavioural twin:
+they stayed green). **Execution differs by mechanism, not by contract**: the server hands a
+run to a Celery worker, the desktop drives it as an `asyncio` task against its own SQLite
+checkpointer, and `app/run_dispatch.py` is the seam — it refused with a 501 until the
+in-process driver existed, which is why that seam is three named operations rather than one
+`enqueue`. The same packaged-app run found the behavioural twin:
 `POST /projects` on a duplicate name threw an unhandled `IntegrityError` on desktop where
 the server returned 409 — **parity checks registration; only a test that calls the route
 checks behaviour.**
 
-**`tests/test_host_parity.py` is the enforcement**, holding four tables:
+**`tests/workflow/test_host_parity.py` is the enforcement**, holding four tables:
 
 | Table | Means |
 |---|---|
@@ -202,18 +204,18 @@ branch in the frontend. Prefer that shape: one product contract, different inter
 
 **The row records what actually ran, not what was requested.** "Scripted"/`demo` must be
 decided from the request flag *or* the resolved `llm_mode`, in one branch, in all three
-homes: `pipeline_runner::_run_config_for`, `v2_execution::run_config_for_run`,
+homes: `pipeline_runner::_run_config_for`, `run_execution::run_config_for_run`,
 `sidecar::_drive_session`. (`--fake` is a process flag, `demo` a request flag; a run that
 silently fell back to `LLM_MODE=fake` — the common first-run-with-no-key case — used to
 record `demo=false`, so its bundle named models nothing had called and its `.md` came out
 unstamped with no warning. That's the P0 honesty class, not cosmetic.)
-`tests/test_scripted_runs_are_recorded_as_demo.py` pins all three.
+`tests/workflow/test_scripted_runs_are_recorded_as_demo.py` pins all three.
 
 **A cancelled run stays cancelled** (issue #54) — durable state
 (`sessions.cancelled_at`/`research_runs.cancelled_at`), and all three outcome writers
 refuse to move a cancelled row out of its terminal state: `pipeline_runner::_persist_outcome`,
-`sidecar::_apply_outcome`, `v2_execution::persist_outcome`. Change all three.
-`tests/test_cancellation_is_authoritative.py` pins the ordered t0→t1→t2 race. **The run
+`sidecar::_apply_outcome`, `run_execution::persist_outcome`. Change all three.
+`tests/workflow/test_cancellation_is_authoritative.py` pins the ordered t0→t1→t2 race. **The run
 itself still does not stop** — nothing interrupts the Celery task or the sidecar's
 `asyncio.Task`, so it spends tokens to its next checkpoint, and that spend is recorded, not
 dropped. Preemption is unbuilt on purpose (a killed task risks a half-written checkpoint,
@@ -223,10 +225,10 @@ and the mechanism differs per host).
 asserted zero network calls in corpus mode while injecting a `FakeEmbeddings` — the query
 embedding was the only call that egressed, so the suite was green because it had replaced
 the defect. **A decode that does not raise is not a decode that succeeded**:
-`migration/checkpoint.py` exists to keep a missing checkpoint distinct from an empty one,
-but its tests' `FakeSaver` raises on corruption where a real LangGraph saver's damaged blob
-deserialises to the integer `0` — "read it, no evidence" for a checkpoint never actually
-read. When testing an *absence* (no egress, no writes, no spend), check what the fixtures
+`research_engine/checkpoint_read.py` exists to keep a missing checkpoint distinct from an
+empty one, but a `FakeSaver` that raises on corruption is not the real thing: a LangGraph
+saver's damaged blob deserialises to the integer `0`, which reads as "opened it, no
+evidence" for a checkpoint never actually read. When testing an *absence* (no egress, no writes, no spend), check what the fixtures
 replaced; check the shape you got back, not just the absence of an exception.
 
 ## Provider and cost rules
@@ -258,65 +260,66 @@ replaced; check the shape you got back, not just the absence of an exception.
 - Router aliases (`auto/*`) are **not** pinned models — they resolve differently per call.
   Never treat one as a disclosed model; record what actually answered.
 
-## The V2 native runtime
+## The research runtime
 
-New runs persist through `app/v2_runtime.py`; migrated runs go through `migration/engine.py`.
-Both write the same tables, and the rules below hold for both.
+Runs persist through `app/run_lifecycle.py`.
 
-- **The lifecycle is host-agnostic and lives in one file.** `app/v2_runtime.py` has no
+- **The lifecycle is host-agnostic and lives in one file.** `app/run_lifecycle.py` has no
   FastAPI, no auth and no Redis, because the server router *and* the desktop sidecar both
-  call it. `test_host_parity` caught the V2 routes before they landed on only one host.
-- **`app/v2_execution.py` is the only bridge from the engine to V2.** It calls
-  `research_engine.runner.run`/`.resume` with the same ports and `RunConfig` the V1 worker
-  uses — nothing in `research_engine/` knows V2 exists. `persist_outcome` is the seam: pure
-  over (db, run, outcome, state).
+  call it. `test_host_parity` caught the run routes before they landed on only one host.
+- **`app/run_execution.py` is the only bridge from the engine to the domain.** It calls
+  `research_engine.runner.run`/`.resume` with the same ports and `RunConfig` the session
+  worker uses — nothing in `research_engine/` knows the domain exists. `persist_outcome` is
+  the seam: pure over (db, run, outcome, state).
 - **Evidence comes from the checkpoint, not from `RunOutcome`.** Evidence and
-  contradictions live in the LangGraph state, which is why the V1 bundle route reads them
-  there too. The adapter reads the final state once, through the tri-state reader; after
-  that the `evidence` table is authoritative.
-- **`agent_logs.session_id` has no foreign key** — polymorphic across `sessions.id` and
-  `research_runs.id`, since an FK can only point at one. Deletion is cascaded by the ORM
-  relationship on `Session`, not by the database.
-- **`app/v2_bundle.py` is the one bundle assembler.** `migration/bundle_equivalence`
-  delegates to it — if they diverge, "the migration produces the same bundle" stops being
-  a measurement and becomes a coincidence.
+  contradictions live in the LangGraph state, which is why the session bundle route reads
+  them there too. The adapter reads the final state once, through the tri-state reader
+  (`research_engine/checkpoint_read.py`); after that the `evidence` table is authoritative.
+- **Never read a checkpoint through `app.services.checkpoints.get_thread_state`** — it
+  returns `snapshot.values if snapshot else {}`, so "no checkpoint" and "empty checkpoint"
+  collapse to one value. The tri-state reader exists to keep them apart; the production
+  helper stays as-is, since changing it would alter session semantics.
+- **Whether the evidence was read is stored, not inferred.** `research_runs.evidence_outcome`
+  is `READ`, `CHECKPOINT_MISSING`, `CHECKPOINT_UNREADABLE` or `NOT_READ`, and `run_bundle`
+  refuses to assemble on either failure state. Without it, "0 evidence" read from the tables
+  alone is not a measured fact — an unreadable checkpoint and a run that genuinely found
+  nothing look identical, and only one of them may be exported as a bundle.
+- **Two tables carry a polymorphic reference and therefore no foreign key**:
+  `agent_logs.session_id` and `memory_chunks.source_report_id`, each of which can name a
+  `sessions.id` or a `research_runs.id`, and an FK can only point at one. Deletion is the
+  ORM's job — a relationship on `Session`, and an explicit delete in
+  `run_lifecycle.delete_run`. Add a third such column and it needs both.
+- **`app/run_bundle.py` is the one bundle assembler**, and `research_engine/verify_bundle.py`
+  is the one checker. A private copy of the checks would verify a bundle against the
+  assembler's own idea of validity.
 - **Artifact authorization goes through `app/authorization.py`.** Never re-derive
-  `gate == 'REPORT' and decision == 'APPROVED'` at a call site.
-- **`migration_ledger` is a model, not a tool artifact** — `v2_bundle` consults
-  `evidence_outcome` before claiming a run gathered no evidence. `migration/ledger.py`
-  re-exports the names.
+  `gate == 'REPORT' and decision == 'APPROVED'` at a call site. It is enforced four times
+  and all four must move together: the database (`fk_artifact_review` + `ck_artifact_gate`),
+  that module, the bundle assembler, and `verify_bundle`. The serialization layer looks
+  redundant and isn't — the verifier's load-bearing check is `action == "approved"`, and it
+  rejects `plan_approved` only because the two serialize differently, so an assembler
+  mapping every APPROVED review to `"approved"` would authorize a plan approval that no
+  constraint reaches.
+- **Project memory is pgvector-only**, so it exists on the server and not on the desktop.
+  `memory.is_available(db)` is the one home for that check; a caller writing its own dialect
+  test is a caller that will disagree with it.
 
 **Never run a planted-failure sweep and a validation run at the same time** — sweeps mutate
 source files in place and restore them after; one killed by a timeout leaves the plant
 *active* and can produce entirely fictional findings. Run sweeps in the foreground, one at
 a time, and `grep -rn PLANT` before trusting any number.
 
-## The V1 → V2 migration
-
-`backend/migration/` is a tool, not a service.
-
-- **Never read checkpoints through `app.services.checkpoints.get_thread_state`** — it
-  returns `snapshot.values if snapshot else {}`, so "no checkpoint" and "empty checkpoint"
-  collapse to the same value. The migration has its own tri-state reader; the production
-  helper stays as-is, since changing it would alter V1 semantics.
-- **`EMPTY`, `CHECKPOINT_MISSING` and `READ_FAILURE` all produce a V2 run with zero
-  evidence**, and nothing in the V2 domain tables distinguishes them — only
-  `migration_ledger` does. "0 evidence" read from V2 alone is not a measured fact.
-- **Artifact authorization is enforced four times, and all four must move together**: the
-  database (`fk_artifact_review` + `ck_artifact_gate`), `app/authorization.py`, the bundle
-  assembler, and `verify_bundle`. The serialization layer looks redundant and isn't — the
-  verifier's load-bearing check is `action == "approved"`, rejecting `plan_approved` only
-  because V1 uses a distinct string, so an assembler mapping every APPROVED review to
-  `"approved"` would authorize a plan approval no constraint reaches.
-- **The CLI never reads `DATABASE_URL`.** `--database-url` is required, writing needs
-  `--confirm-database NAME` matching the DSN, and the dry-run tool refuses any target whose
-  `sessions` table is not empty. A tool defaulting to the operator's environment is one
-  sourced shell away from migrating production.
+## Working with the ORM
 
 Do not load a list of ORM rows and then roll back inside the loop — the rollback expires
 *every* object in the identity map, including ones not yet processed, so the next
 iteration dies on attribute access outside the greenlet. Read ids, then re-read each row
 inside its own attempt.
+
+The same expiry bites a *request* handler that rolls back after committing: anything read
+off an ORM row afterwards reloads lazily, outside the greenlet, and turns a best-effort
+failure into a 500 on work that already succeeded. Build the response before the
+best-effort step, not after it — `runs.submit_report_review` is the worked example.
 
 ## Never fake, never swallow
 
@@ -349,7 +352,7 @@ about the code, and an unupdated one misleads the next reader with confidence. T
 equally to this file and `backend/AGENTS.md`/`frontend/AGENTS.md`.
 
 **Before adding a comment, ask whether the code already says it.** This repository's
-density is high on purpose (`research_engine/graph.py`, `app/v2_runtime.py` are the
+density is high on purpose (`research_engine/graph.py`, `app/run_lifecycle.py` are the
 reference examples), so a marginal comment needs to work harder to justify itself. A
 function that already explains itself through its name, types, and one clear surrounding
 comment needs no second one.
@@ -499,9 +502,13 @@ corpus roots.
 
 Before making substantial changes, read:
 
-- `docs/plans/Multi-Agent-Research-Assistant-V2-Master-Plan.md`
 - `docs/governance/Multi-Agent-Research-Assistant-Open-Source-Constitution.md`
 
-These define the V2 product direction and open-source engineering/maintainer rules.
+This defines the open-source engineering and maintainer rules.
 
-The current codebase is V1 heritage. V2 should evolve it rather than blindly preserve or blindly rewrite it.
+**Two research pipelines exist in the backend, and the product has one.** Runs are the
+product; research recorded earlier as sessions stays readable, chattable and exportable, and
+nothing in the interface offers a second way to start research. Consolidating the two is a
+milestone, not a patch — the session tables hold users' history, and follow-up chat scoped
+to a single report only exists there. Do not deepen the session path; do not delete it
+either.

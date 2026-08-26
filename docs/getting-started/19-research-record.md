@@ -1,9 +1,9 @@
-# V2: research that can show its work
+# The research record
 
-V2 changes what a research run *is*. In V1 the output was a report with citations attached
-to it. In V2 the report is one record among several, and it is not the one the others are
-derived from — the evidence, the claims, the sources, the conflicts and the human decision
-are structured records in their own right, and the report is a rendering of them.
+A research run does not produce a report with citations attached to it. It produces a
+record, of which the report is one part — and not the part the others are derived from. The
+evidence, the claims, the sources, the conflicts and the human decision are structured
+records in their own right, and the report is a rendering of them.
 
 That inversion is the whole point. A report you cannot interrogate is a claim about
 research; a record you can interrogate is research.
@@ -103,29 +103,6 @@ consistent and has not been altered since it was approved. It does **not** mean 
 is correct, the sources are trustworthy, or the claims are true. Those are judgements; this
 is arithmetic. The product's contribution is making the arithmetic possible.
 
-## Migration from V1
-
-V1 sessions are not migrated automatically, and the migration is not run by default. When it
-is run, every V1 session it considers gets exactly one recorded outcome, and the outcomes are
-kept distinct on purpose:
-
-- **Migrated** — the run's evidence, report, claims and review decisions were recovered.
-- **No evidence recorded** — the run genuinely gathered nothing.
-- **Evidence unavailable** — the execution checkpoint was missing or unreadable. This is
-  *not* the same as no evidence, and the two are never merged.
-- **Unmigratable** — V1 holds a state V2 cannot represent without inventing a fact. Two
-  cases occur: evidence whose source URL was never recorded, and a plan approval for a run
-  that has no plan. These are recorded and the V1 data is left untouched, rather than
-  repaired with a guess.
-
-Some V1 information cannot be recovered at all, and V2 records its absence rather than
-filling it in: per-item verification of evidence (V1 recorded none), superseded report
-drafts (V1 overwrote them), whether a plan was proposed or edited (V1 overwrote that too),
-and whether a run was cancelled (V1 recorded that as a message, not as a state).
-
-**V2-native runs are unaffected by any of this.** A run started in V2 records all of it from
-the beginning.
-
 ## Self-hosting and keys
 
 The application is self-hosted and brings your own keys. It provides no hosted model access
@@ -148,12 +125,11 @@ and requires no account with this project.
   cannot move it back to the review gate — but research already running continues to its
   next checkpoint, and the tokens it spends there are recorded rather than discarded.
 - **Claims are extracted from prose**, not emitted as structured output, and carry no
-  per-claim verification. `verification_state` is `UNCHECKED` on every claim V2 writes.
+  per-claim verification. `verification_state` is `UNCHECKED` on every claim written.
 - **Claim lineage across revisions is not tracked.** Nothing observes that a sentence in
   revision 2 *is* the assertion from revision 1, and matching by text would manufacture a
   relationship the system never saw.
 - **Contradiction detection is source-level** and unscored: the detector reports pairs it
   found, and the system neither ranks nor resolves them.
-- **Project memory does not yet ingest V2 runs.**
-- **Corpus-mode research works on V2** but has no end-to-end test, because corpus mode
-  requires a local embedder.
+- **Corpus-mode research works** but has no end-to-end test, because corpus mode requires a
+  local embedder and the test environment has none.

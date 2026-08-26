@@ -3,20 +3,21 @@
 The desktop build runs the product on your machine: a Tauri shell around the same web UI, a
 bundled Python engine, and SQLite. No Docker, no Postgres, no Redis, no login.
 
-> **Which research journey the desktop runs in 2.0.0: V1.**
+> **What the desktop runs, and what it does not.**
 >
-> | | Research journey | V2 record (evidence, claims, sources, review, artifact) |
+> | | Research runs | Project memory and project chat |
 > |---|---|---|
-> | Web application | V2 | Supported |
-> | Desktop application | V1 | Read and inspect only — runs cannot be executed |
+> | Web application | Executed by a Celery worker | Supported (pgvector) |
+> | Desktop application | Executed in-process by the sidecar | Absent by design |
 >
-> The sidecar serves the V2 routes and they answer correctly, but the desktop UI does not
-> call them and a V2 run cannot be *executed* here. `v2_execution.execute_run` acquires a
-> Redis lock, opens the server database engine and checkpoints to Postgres — none of which
-> exist on a host that is SQLite-and-keychain by design. Asked to dispatch a V2 run the
-> desktop answers **501 Not Implemented** and creates nothing, rather than persisting a run
-> no driver would advance. Making the desktop a V2 host means an in-process V2 driver with
-> its own checkpointer and no distributed lock; that is a milestone, not a patch.
+> The desktop drives a run itself, as an `asyncio` task against its own SQLite checkpointer,
+> because it has no broker and no worker to hand one to. Everything downstream is the same
+> code as the server's: the same engine, the same shared route handlers, the same domain
+> tables, the same artifact and the same bundle.
+>
+> Project memory is the one feature the desktop does not have. It is pgvector-backed, and
+> the navigation hides Chat rather than offering a control that cannot work. Your uploaded
+> corpus is local and unaffected.
 
 **Builds are unsigned.** macOS and Windows will both warn on first launch, and clearing
 that warning is a step you have to take deliberately. That is the honest state of it, and

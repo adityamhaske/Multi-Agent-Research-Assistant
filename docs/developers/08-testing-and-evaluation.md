@@ -65,7 +65,7 @@ Clear the counters by hand with:
 redis-cli -n 1 --scan --pattern 'rl:*' | xargs -r redis-cli -n 1 del
 ```
 
-The cap itself stays armed: `backend/tests/test_auth_rate_limit.py` proves a sixth
+The cap itself stays armed: `backend/tests/security/test_auth_rate_limit.py` proves a sixth
 registration from one address is refused, and pins the published limit so widening it has
 to be deliberate.
 

@@ -118,7 +118,7 @@ survives a worker that dies mid-run.
 A bundle's `approval_chain` is derived entirely from these rows, and
 `verify_bundle`'s `approval_chain` check is what decides whether an artifact is
 trustworthy — so a reader verifying a bundle is, in the end, trusting the rules below.
-They are pinned by `backend/tests/test_audit_log_semantics.py`, which fails if this
+They are pinned by `backend/tests/security/test_audit_log_semantics.py`, which fails if this
 section stops describing the code.
 
 **Writers — four, and no others.** `submit_plan` (`plan_approved`) and `approve_or_rework`

@@ -71,7 +71,7 @@ drift from the original. Do not "fix" those by duplicating them.
 Tailwind v4 generates color utilities from the `@theme inline` block, so `bg-warning-soft`
 works and `bg-status-warning-bg` — a name no token ever produced — is silently dropped.
 It is not a lint error, not a type error, and not a build failure: it is a chip with no
-background. The entire V2 workspace shipped that way, along with `border-border-subtle`,
+background. The entire run workspace shipped that way, along with `border-border-subtle`,
 `bg-accent-subtle`, a `.prose-report` that was never written and an `.input` class that
 does not exist, which is why the whole surface read as unstyled. When you reach for a
 utility, check the token is in `@theme inline`; `class="btn-primary"` needs `btn` too,
@@ -111,7 +111,7 @@ export. Edit `app-routes/`, never the generated directory.
 
 ## Looking at it
 
-`node e2e/uiqa.mjs` screenshots every V2 surface in both themes at three widths, and
+`node e2e/uiqa.mjs` screenshots every run surface in both themes at three widths, and
 `node e2e/uiqa-interactions.mjs` presses the workspace's controls — arrow keys, the URL,
 Back, refresh, a double-clicked submit. Both drive fixtures with no backend
 (`e2e/uiqa.fixture.mjs`), so states that are awkward to reach on demand — a failed run, an

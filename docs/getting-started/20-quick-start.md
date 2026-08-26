@@ -109,7 +109,7 @@ machine-readable output. The verifier needs no network, no API key, and no model
 
 A pass means the artifact is internally consistent and unaltered since approval. It does
 **not** mean the research is correct — see
-[the V2 research model](24-v2-research-model.md#verifying-an-artifact-yourself) for exactly
+[the research record](19-research-record.md#verifying-an-artifact-yourself) for exactly
 what each check proves and what none of them do.
 
 ## Try it without a key first

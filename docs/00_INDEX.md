@@ -13,10 +13,10 @@ explicitly marked as planned.
 Engineering notes, milestone plans, and release checklists are **not** documentation and live
 in [`../internal/`](../internal/README.md). Nothing under `docs/` should link to them.
 
-`docs/governance/` and `docs/plans/` are repository governance rather than product
-documentation — they describe how the project is run, not how the product works. Contributors
-and coding agents are pointed at them by `AGENTS.md`; the whole of each directory is withheld
-from the site by `UNPUBLISHED_DIRS` in `frontend/lib/docs.ts`.
+`docs/governance/` is repository governance rather than product documentation — it describes
+how the project is run, not how the product works. Contributors and coding agents are pointed
+at it by `AGENTS.md`; the whole directory is withheld from the site by `UNPUBLISHED_DIRS` in
+`frontend/lib/docs.ts`.
 
 ## Layout
 
@@ -30,7 +30,7 @@ docs/
 ├── reference/         exact contracts: API, SSE, bundle format, configuration
 ├── research/          measurement methodology
 ├── project/           roadmap and changelog
-└── screenshots/       UI reference images used by the README
+└── screenshots/       UI reference images, captured by `npm run screenshots`
 ```
 
 ## Getting started
@@ -42,7 +42,7 @@ docs/
 | [Configuration](getting-started/21-configuration.md) | The settings you actually reach for |
 | [Local LLM setup](getting-started/22-local-llm.md) | Running on Ollama, and which models work |
 | [Desktop app](getting-started/23-desktop-app.md) | Install, first run, and what differs from the server |
-| [V2 research model](getting-started/24-v2-research-model.md) | What a run records, what approval means, and how to verify an artifact yourself |
+| [The research record](getting-started/19-research-record.md) | What a run records, what approval means, and how to verify an artifact yourself |
 | [Troubleshooting](getting-started/24-troubleshooting.md) | The failures people actually hit |
 
 ## User guide
@@ -72,7 +72,6 @@ docs/
 | [Deploy with Docker](deployment/09-docker.md) | Images, Compose, startup ordering, migrations, health |
 | [Production deployment](deployment/30-production.md) | TLS, hardening, backups, upgrades, releases |
 | [Operations](deployment/31-operations.md) | Observability, runbook, cost control, housekeeping |
-| [Migrating V1 data to V2](deployment/38-migration-v1-to-v2.md) | The migration tool, its three gates, its outcome ledger, and what it refuses to invent |
 
 ## Developers
 

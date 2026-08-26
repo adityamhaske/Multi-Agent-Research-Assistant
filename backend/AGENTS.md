@@ -17,7 +17,7 @@ runner's ports instead (see `app/workers/pipeline_runner.py` for the canonical e
 `evals.metrics` for claim extraction while `graph.py`'s own docstring asserted the engine
 imported nothing from evals — so the "standalone" package could not be bundled into the
 desktop app without also shipping the eval harness, and nothing failed until someone
-tried. `tests/test_engine_boundary.py` now forbids both roots.
+tried. `tests/workflow/test_engine_boundary.py` now forbids both roots.
 
 **Claim extraction and the citation regex have exactly one home: `research_engine/claims.py`.**
 `evals.metrics` re-exports from it — the dependency runs evals → engine, never back. Three
@@ -25,7 +25,7 @@ things must agree about what a claim is, because they act on the same sentences:
 graph's citation-fidelity pass strips markers from claims their evidence does not back,
 the eval judge measures how well that worked, and the bundle records them for a third
 party to verify. Two definitions is how the published number stops describing the guard.
-`tests/test_claim_extraction_parity.py` pins the agreement *by object identity*, so a
+`tests/task/test_claim_extraction_parity.py` pins the agreement *by object identity*, so a
 copy-paste back into `evals/metrics.py` fails the suite rather than drifting quietly.
 
 Two scanning differences between `graph._cited_claims` and `claims.claim_lines` remain on
