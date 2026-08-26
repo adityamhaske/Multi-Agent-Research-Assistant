@@ -70,8 +70,74 @@ jobs:
           # And the token unlocks the same endpoint.
           CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/api/v1/auth/me")
           [ "$CODE" = "200" ] || { echo "expected 200 with token, got $CODE"; exit 1; }
-          kill $PID
+          echo "PORT=$PORT" >> "$GITHUB_ENV"
+          echo "TOKEN=$TOKEN" >> "$GITHUB_ENV"
+          echo "SIDECAR_PID=$PID" >> "$GITHUB_ENV"
           echo "sidecar smoke passed on $RUNNER_OS"
+      - name: Smoke — a run reaches a bundle the standalone verifier passes
+        # Issue #50: the bundle route was added to the sidecar and only ever exercised
+        # through ASGI, from a checkout that has every package the spec *excludes*. A
+        # source-level test structurally cannot catch a missing import in the bundle, and
+        # the documented failure mode of this repository is exactly that — three copies of
+        # the sidecar's location wrong at once, CI green, the app dead on first launch.
+        #
+        # So this drives the packaged binary the way the app does: create, both gates,
+        # export, and then the shipped verifier's own verdict on what came out. It reaches
+        # `build_graph`, the audit-log writes behind the approval chain, and the bundle
+        # assembler — none of which the token check above touches.
+        working-directory: backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          B="http://127.0.0.1:$PORT/api/v1"
+          H="Authorization: Bearer $TOKEN"
+          api() { curl -sf -H "$H" -H 'Content-Type: application/json' "$@"; }
+
+          PID_JSON=$(api -X POST -d '{"name":"CI"}' "$B/projects")
+          PROJECT=$(python -c "import json,sys;print(json.loads(sys.argv[1])['id'])" "$PID_JSON")
+
+          RUN_JSON=$(api -X POST "$B/runs" -d "{\"project_id\":\"$PROJECT\",\"question\":\"What are the leading approaches to long-term memory in LLM agents?\",\"depth\":\"fast\",\"skip_plan_gate\":false,\"dispatch\":true}")
+          RUN=$(python -c "import json,sys;print(json.loads(sys.argv[1])['run_id'])" "$RUN_JSON")
+          echo "run $RUN created"
+
+          # `dispatch: true` on this host means an in-process asyncio task, not a broker.
+          await_status() {
+            for _ in $(seq 1 180); do
+              s=$(api "$B/runs/$RUN" | python -c "import json,sys;print(json.load(sys.stdin)['run']['status'])")
+              [ "$s" = "$1" ] && { echo "reached $1"; return 0; }
+              case "$s" in FAILED|CANCELLED) echo "::error::run ended $s while waiting for $1"; return 1;; esac
+              sleep 1
+            done
+            echo "::error::run never reached $1 (last: $s)"; return 1
+          }
+
+          await_status AWAITING_PLAN
+          api -X POST -d '{"decision":"APPROVED"}' "$B/runs/$RUN/plan-review" > /dev/null
+          await_status AWAITING_REVIEW
+          api -X POST -d '{"decision":"APPROVED"}' "$B/runs/$RUN/report-review" > /dev/null
+
+          curl -sf -H "$H" "$B/runs/$RUN/bundle.json" -o /tmp/ci.bundle.json
+          curl -sf -H "$H" "$B/runs/$RUN/export.md" -o /tmp/ci-report.md
+          test -s /tmp/ci-report.md
+
+          # PDF is deliberately unavailable on this host — WeasyPrint is excluded from the
+          # bundle. A 501 is the contract; a 200 would mean the exclude stopped working.
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "$H" "$B/runs/$RUN/export.pdf")
+          [ "$CODE" = "501" ] || { echo "::error::expected 501 for desktop PDF, got $CODE"; exit 1; }
+
+          # The verdict that matters, from the verifier as a third party would run it.
+          python -m research_engine.verify_bundle /tmp/ci.bundle.json
+          python - <<'CHECK'
+          import json
+          b = json.load(open("/tmp/ci.bundle.json"))
+          actions = [a["action"] for a in b["approval_chain"]]
+          assert "approved" in actions, f"no report approval in the chain: {actions}"
+          assert b["evidence"], "the packaged app produced a bundle with no evidence"
+          assert b["demo"] is True, "a scripted run must be stamped as a demo"
+          print("approval chain:", actions, "| evidence:", len(b["evidence"]))
+          CHECK
+          kill "$SIDECAR_PID" || true
+          echo "packaged-app research journey verified on $RUNNER_OS"
       - name: Upload sidecar bundle
         uses: actions/upload-artifact@v7
         with:

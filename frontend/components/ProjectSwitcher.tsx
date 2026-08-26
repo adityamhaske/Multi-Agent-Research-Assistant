@@ -240,10 +240,19 @@ export function ProjectSwitcher({ collapsed = false, menuDirection = "up" }: Pro
           {/* New Project Form */}
           {creating ? (
             <form onSubmit={submitCreate} className="p-3 border-t border-border bg-bg-elevated">
-              <label className="block font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-wider text-text-muted mb-1">
-                Project Name
+              {/* `htmlFor`/`id`, not proximity. Without the association a screen reader
+                  announces the placeholder as the field's name — and a placeholder is an
+                  example, not a label: it disappears on the first keystroke, and here it
+                  reads as "e.g. mRNA Epigenetics", which describes one possible project
+                  rather than what the field is for. */}
+              <label
+                htmlFor="new-project-name"
+                className="block font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-wider text-text-muted mb-1"
+              >
+                Project name
               </label>
               <input
+                id="new-project-name"
                 ref={inputRef}
                 value={name}
                 onChange={(e) => setName(e.target.value.slice(0, 120))}

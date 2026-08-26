@@ -136,10 +136,13 @@ test.describe("report gate — rework", () => {
     );
     await page.getByRole("button", { name: "Request rework" }).click();
 
-    // Back to the gate a second time, with the round accounted for on screen.
-    await expect(page.getByText(/you asked for 1 rework on this/i)).toBeVisible({
-      timeout: 180_000,
-    });
+    // Wait for the *second draft*, not for the rework to be recorded. "You asked for 1
+    // rework" renders the moment the decision is written, before the synthesizer has run
+    // again — asserting on it and then reading revisions is a race the first version of
+    // this test lost, and it would have reported a resynthesis that never happened as a
+    // product bug. The revision number is the signal that the new draft exists.
+    await expect(page.getByText("Revision 2")).toBeVisible({ timeout: 180_000 });
+    await expect(page.getByText(/you asked for 1 rework on this/i)).toBeVisible();
 
     // A rejection authorizes nothing, checked at the API rather than by reading the screen.
     const afterRework = await (await page.request.get(`/api/v1/runs/${runId}`)).json();
@@ -149,7 +152,7 @@ test.describe("report gate — rework", () => {
     ).toHaveLength(1);
     // The second draft is a new revision, not an edit of the first — a rework that
     // overwrote the rejected text would destroy the record of what was rejected.
-    expect(afterRework.revisions.length).toBeGreaterThan(1);
+    expect(afterRework.revisions.map((r: { version: number }) => r.version)).toEqual([1, 2]);
 
     await page.getByRole("button", { name: "Approve report" }).click();
     await expect(page.getByText("Verified artifact")).toBeVisible({ timeout: 60_000 });

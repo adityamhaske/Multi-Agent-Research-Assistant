@@ -83,8 +83,12 @@ async function ensureActiveProject(page: Page): Promise<void> {
   const existing = page.getByRole("option");
   if ((await existing.count()) === 0) {
     await page.getByRole("button", { name: "+ New" }).click();
-    await page.getByPlaceholder("Project name...").fill("E2E Project");
-    await page.getByRole("button", { name: "Create", exact: true }).click();
+    // By label and by role, never by placeholder or by exact copy. This journey sat
+    // broken on `getByPlaceholder("Project name...")` and `name: "Create"` after the
+    // switcher was restyled, and nothing caught it: golden-e2e only runs once the backend
+    // and frontend jobs are green, and they were not.
+    await page.getByLabel(/project name/i).fill("E2E Project");
+    await page.getByRole("button", { name: /create project/i }).click();
   } else {
     await existing.first().click();
   }
