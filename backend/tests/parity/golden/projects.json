@@ -1,0 +1,96 @@
+[
+  {
+    "step": "create a project",
+    "status": 201,
+    "body": {
+      "id": "<uuid>",
+      "name": "Parity",
+      "description": null,
+      "archived_at": null,
+      "created_at": "<timestamp>",
+      "session_count": 0
+    }
+  },
+  {
+    "step": "list projects",
+    "status": 200,
+    "body": {
+      "projects": [
+        {
+          "id": "<uuid>",
+          "name": "Parity",
+          "description": null,
+          "archived_at": null,
+          "created_at": "<timestamp>",
+          "session_count": 0
+        }
+      ],
+      "total": 1
+    }
+  },
+  {
+    "step": "rename the project",
+    "status": 200,
+    "body": {
+      "id": "<uuid>",
+      "name": "Parity renamed",
+      "description": null,
+      "archived_at": null,
+      "created_at": "<timestamp>",
+      "session_count": 0
+    }
+  },
+  {
+    "step": "archive the project",
+    "status": 200,
+    "body": {
+      "id": "<uuid>",
+      "name": "Parity renamed",
+      "description": null,
+      "archived_at": "<timestamp>",
+      "created_at": "<timestamp>",
+      "session_count": 0
+    }
+  },
+  {
+    "step": "restore the project",
+    "status": 200,
+    "body": {
+      "id": "<uuid>",
+      "name": "Parity renamed",
+      "description": null,
+      "archived_at": null,
+      "created_at": "<timestamp>",
+      "session_count": 0
+    }
+  },
+  {
+    "step": "a duplicate name is refused",
+    "status": 409,
+    "body": {
+      "detail": "You already have a project named 'Parity renamed'."
+    }
+  },
+  {
+    "step": "an unknown project is not found",
+    "status": 404,
+    "body": {
+      "detail": "Project not found."
+    }
+  },
+  {
+    "step": "delete the project",
+    "status": 204,
+    "body": {
+      "media_type": "",
+      "empty": true
+    }
+  },
+  {
+    "step": "the deleted project is gone",
+    "status": 404,
+    "body": {
+      "detail": "Project not found."
+    }
+  }
+]

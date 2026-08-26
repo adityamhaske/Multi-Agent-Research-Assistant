@@ -3,10 +3,9 @@
 Released versions, what improved, and what shipped with a known gap. Versions match the git
 tags.
 
-The [releases page](https://adityamhaske.github.io/Multi-Agent-Research-Assistant/releases/)
-renders the same data, and every tag has a
-[GitHub release](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases)
-with the desktop installers and a `SHA256SUMS` file attached.
+The [releases page](/releases)
+renders the same data, with desktop installers and checksums available on the
+[download page](/download).
 
 **Known gaps are listed deliberately.** The people most likely to read a changelog are
 deciding whether to trust the thing, and a changelog with no bad news is marketing.

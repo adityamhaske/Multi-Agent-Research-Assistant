@@ -1,0 +1,102 @@
+[
+  {
+    "step": "create a project",
+    "status": 201,
+    "body": {
+      "id": "<uuid>",
+      "name": "Corpus parity",
+      "description": null,
+      "archived_at": null,
+      "created_at": "<timestamp>",
+      "session_count": 0
+    }
+  },
+  {
+    "step": "upload a document",
+    "status": 200,
+    "body": {
+      "id": "<uuid>",
+      "filename": "retrieval.txt",
+      "chunks": 1,
+      "created_at": null,
+      "size_bytes": null,
+      "downloadable": false,
+      "origin": "uploaded"
+    }
+  },
+  {
+    "step": "list documents",
+    "status": 200,
+    "body": [
+      {
+        "id": "<uuid>",
+        "filename": "retrieval.txt",
+        "chunks": 1,
+        "created_at": "<timestamp>",
+        "size_bytes": 142,
+        "downloadable": true,
+        "origin": "uploaded"
+      }
+    ]
+  },
+  {
+    "step": "corpus status",
+    "status": 200,
+    "body": {
+      "documents": 1,
+      "chunks": 1,
+      "chunks_by_model": {
+        "fake:parity-embed": 1
+      },
+      "current_model": "fake:parity-embed"
+    }
+  },
+  {
+    "step": "download the original bytes",
+    "status": 200,
+    "body": {
+      "media_type": "text/plain",
+      "empty": false
+    }
+  },
+  {
+    "step": "upload an empty document",
+    "status": 400,
+    "body": {
+      "detail": "Empty file"
+    }
+  },
+  {
+    "step": "upload an unsupported format",
+    "status": 400,
+    "body": {
+      "detail": "Unsupported document type '.exe'. The corpus accepts PDF, HTML (.html/.htm), Markdown (.md/.markdown), and plain text (.txt) only \u2014 a format we cannot locate a quote inside cannot enter a citation-grade corpus."
+    }
+  },
+  {
+    "step": "an unknown document is not found",
+    "status": 404,
+    "body": {
+      "detail": "Document not found"
+    }
+  },
+  {
+    "step": "another user's project is not found",
+    "status": 404,
+    "body": {
+      "detail": "Project not found."
+    }
+  },
+  {
+    "step": "delete the document",
+    "status": 204,
+    "body": {
+      "malformed_json": true
+    }
+  },
+  {
+    "step": "the corpus is empty again",
+    "status": 200,
+    "body": []
+  }
+]

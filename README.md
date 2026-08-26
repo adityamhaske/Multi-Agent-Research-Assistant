@@ -11,9 +11,9 @@
 
 <!-- Direct link to the release asset — this downloads the file, no landing page.
      Bump the version in BOTH the badge label and the href when cutting a release. -->
-[![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon%20·%20.dmg-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/download/v2.0.1/Research.Assistant_2.0.1_aarch64.dmg)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon%20·%20.dmg-000000?style=for-the-badge&logo=apple&logoColor=white)](docs/getting-started/23-desktop-app.md)
 
-Apple Silicon macOS DMG available directly (81 MB, installs to ~182 MB; right-click → **Open** on first launch). Windows `.msi`, Linux `.deb` and `.AppImage` packages are available on the [releases page](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/latest). See [desktop app notes](docs/getting-started/23-desktop-app.md) for platform installation guides.
+Apple Silicon macOS DMG available directly (81 MB, installs to ~182 MB; right-click → **Open** on first launch). Windows `.msi`, Linux `.deb` and `.AppImage` packages are available via the [desktop installation guide](docs/getting-started/23-desktop-app.md).
 
 ---
 

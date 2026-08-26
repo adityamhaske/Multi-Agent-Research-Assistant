@@ -20,7 +20,7 @@ export default function DocsLayout({
     <div className="mx-auto flex w-full max-w-7xl gap-8 px-4 py-8 sm:px-6">
       <aside className="hidden w-56 shrink-0 lg:block">
         {/* Sticky under the 3.5rem site header so navigation stays reachable in a long doc. */}
-        <div className="sticky top-[4.5rem] max-h-[calc(100vh-6rem)]">
+        <div className="sticky top-[4.5rem] flex max-h-[calc(100vh-6rem)] flex-col">
           <DocsSidebar categories={categories} />
         </div>
       </aside>

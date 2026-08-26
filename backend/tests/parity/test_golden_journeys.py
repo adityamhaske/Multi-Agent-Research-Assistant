@@ -1,0 +1,220 @@
+"""
+Golden behavioural parity: the same product journey, driven against both hosts.
+
+**What this is not.** It is not a comparison of the two implementations against each
+other. Two implementations that agree can both be wrong, and this repository has already
+shipped that exact test once — `test_desktop_contract_gaps` called the desktop's corpus
+routes and asserted the two desktop response shapes matched, which proved the bug was
+consistent rather than that it was correct (`AGENTS.md`, "Registration is not behaviour").
+
+So every step is compared to a **third thing**: a golden recorded once and reviewed by a
+human. Both hosts are asserted against it. A shared defect fails both; a divergence names
+which host moved.
+
+And agreement is not enough on its own. Two hosts that both return nothing agree
+perfectly, so each journey also declares product facts that must hold — see
+`tests/parity/liveness.py`. A journey whose steps are all empty fails on both hosts even
+when they match each other and match the golden.
+
+**Regenerating.** `PARITY_RECORD=1 python -m pytest tests/parity -k golden` rewrites
+`golden/*.json` from the SERVER host, which is the reference. Never regenerate to make a
+red test green — read the diff first, because a diff is either a contract change you meant
+or the defect the suite exists to catch.
+
+**Known divergences are recorded, not fixed.** `XFAIL_DIVERGENCES` names each one with the
+plan phase that closes it. A milestone that both records a contract and repairs it cannot
+show which of its assertions were load-bearing, so Phase 0 only records.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+
+import pytest
+
+from tests.parity import journeys
+from tests.parity.drivers import desktop_driver, server_driver
+from tests.parity.liveness import at_least_one_nonempty_body, failing_checks
+
+GOLDEN_DIR = Path(__file__).parent / "golden"
+RECORDING = os.environ.get("PARITY_RECORD") == "1"
+
+#: Steps where the two hosts are known to disagree today, each with the phase that closes
+#: it. A step named here is asserted to STILL diverge, so a fix that lands without deleting
+#: its entry fails the suite and the list can only shrink.
+XFAIL_DIVERGENCES: dict[str, str] = {
+    # ── The §2.4 hole: the desktop route declares no `response_model`, so it returns a
+    # hand-built dict and the server's declared fields simply are not there. Phase 1
+    # declares the models and the fields come back.
+    "identity-and-models/who am I": (
+        "plan phase 1 — desktop omits is_active, api_key_*, connection_verdict and every "
+        "preferences key the server's UserResponse declares"
+    ),
+    "identity-and-models/the model catalog": (
+        "plan phase 1 — desktop omits available_providers entirely; per-model `available` "
+        "also differs because the two hosts read keys from different places"
+    ),
+    # ── §2.5 #2, confirmed exactly as the audit predicted, plus two the audit missed.
+    "corpus/upload a document": (
+        "plan phase 2b — 200 vs 201, and the desktop body omits created_at, size_bytes, "
+        "downloadable and origin"
+    ),
+    "corpus/upload an empty document": "plan phase 2b — 400 'Empty file' vs 422",
+    "corpus/upload an unsupported format": "plan phase 2b — 400 vs 422",
+    "corpus/an unknown document is not found": (
+        "plan phase 2b — detail differs only in punctuation, which a client matching on "
+        "the string still sees"
+    ),
+    "corpus/download the original bytes": (
+        "plan phase 2b — the desktop serves the download with NO content-type; the server "
+        "sends text/plain. Not in the original audit"
+    ),
+    "corpus/corpus status": (
+        "plan phase 2b — the desktop adds a corpus_only field the server does not have. "
+        "Not in the original audit"
+    ),
+    "corpus/delete the document": (
+        "plan phase 2b — the SERVER sends 204 with content-type application/json and an "
+        "empty body, so the response does not parse. The desktop sends no content-type. "
+        "A server-side finding, not a desktop one"
+    ),
+    # ── First-launch state.
+    "projects/list projects": (
+        "plan phase 8 — the desktop seeds a General project at launch and the server "
+        "creates one lazily, so a fresh install lists one project on desktop and zero "
+        "on the server"
+    ),
+}
+
+
+def _golden_path(name: str) -> Path:
+    return GOLDEN_DIR / f"{name}.json"
+
+
+def _load_golden(name: str) -> dict[str, dict]:
+    path = _golden_path(name)
+    if not path.exists():
+        pytest.fail(
+            f"no golden for journey {name!r}. Record one with "
+            "`PARITY_RECORD=1 python -m pytest tests/parity -k golden`, then read the diff "
+            "before committing it."
+        )
+    return {step["step"]: step for step in json.loads(path.read_text())}
+
+
+async def _observe(journey, driver):
+    unmet = journeys.unmet_requirements(journey, driver)
+    if unmet:
+        pytest.skip(f"{driver.name} cannot run {journey.name}: {'; '.join(unmet)}")
+    return await journeys.drive(journey, driver)
+
+
+@pytest.mark.parametrize("journey", journeys.ALL, ids=lambda j: j.name)
+async def test_the_server_matches_the_recorded_contract(journey, tmp_path):
+    async with server_driver(tmp_path / "server") as driver:
+        observed = await _observe(journey, driver)
+    if RECORDING:
+        _golden_path(journey.name).write_text(json.dumps(observed, indent=2) + "\n")
+        pytest.skip(f"recorded {len(observed)} steps for {journey.name}")
+    _assert_journey(journey, observed, host="server")
+
+
+@pytest.mark.parametrize("journey", journeys.ALL, ids=lambda j: j.name)
+async def test_the_desktop_matches_the_recorded_contract(journey, tmp_path):
+    async with desktop_driver(tmp_path / "desktop") as driver:
+        observed = await _observe(journey, driver)
+    if RECORDING:
+        pytest.skip("the server is the reference host; recording from the desktop is refused")
+    _assert_journey(journey, observed, host="desktop")
+
+
+def _assert_journey(journey, observed: list[dict], *, host: str) -> None:
+    _assert_alive(journey, observed, host=host)
+    _assert_against_golden(journey.name, observed, host=host)
+
+
+def _assert_alive(journey, observed: list[dict], *, host: str) -> None:
+    """Before comparing anything: did this journey actually do something on this host?
+
+    Run first, so a host that produced nothing fails with "nothing happened" rather than
+    with a shape mismatch that sends the reader looking in the wrong place.
+    """
+    assert at_least_one_nonempty_body(observed), (
+        f"{host} completed {journey.name} without a single successful non-empty response — "
+        "the journey passed by doing nothing, which is not parity"
+    )
+    failed = failing_checks(journey, observed)
+    assert not failed, f"{host} broke these product facts in {journey.name}:\n  " + "\n  ".join(
+        failed
+    )
+
+
+def _assert_against_golden(name: str, observed: list[dict], *, host: str) -> None:
+    golden = _load_golden(name)
+    seen = {step["step"] for step in observed}
+
+    missing = set(golden) - seen
+    assert not missing, f"{host} never reached these recorded steps of {name}: {sorted(missing)}"
+    extra = seen - set(golden)
+    assert not extra, (
+        f"{host} produced steps the golden does not record: {sorted(extra)} — "
+        "re-record if the journey genuinely gained a step"
+    )
+
+    diverged: list[str] = []
+    for step in observed:
+        key = f"{name}/{step['step']}"
+        want = {k: v for k, v in golden[step["step"]].items() if k != "step"}
+        got = {k: v for k, v in step.items() if k != "step"}
+        if got == want:
+            assert key not in XFAIL_DIVERGENCES or host == "server", (
+                f"{key} no longer diverges on {host} — delete its XFAIL_DIVERGENCES entry"
+            )
+            continue
+        if key in XFAIL_DIVERGENCES and host == "desktop":
+            continue
+        diverged.append(f"  {key}\n    golden: {want}\n    {host}: {got}")
+
+    assert not diverged, f"{host} diverges from the recorded contract:\n" + "\n".join(diverged)
+
+
+# ── Guards on the harness itself ──────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("journey", journeys.ALL, ids=lambda j: j.name)
+def test_every_journey_declares_product_facts(journey):
+    """A journey with no checks records shapes and asserts nothing about meaning."""
+    assert journey.checks, (
+        f"{journey.name} declares no checks — add at least one product fact, or the journey "
+        "passes whenever both hosts agree, including on doing nothing"
+    )
+
+
+@pytest.mark.parametrize("journey", journeys.ALL, ids=lambda j: j.name)
+def test_no_golden_is_degenerate(journey):
+    """The recorded contract itself must not be a page of empty results.
+
+    Checked against the committed file rather than a live run: a golden recorded from a
+    broken host would otherwise become the contract, and every later run would agree with
+    it forever.
+    """
+    path = _golden_path(journey.name)
+    if not path.exists():
+        pytest.skip(f"{journey.name} has no golden yet")
+    recorded = json.loads(path.read_text())
+    assert recorded, f"the golden for {journey.name} records no steps at all"
+    assert at_least_one_nonempty_body(recorded), (
+        f"the golden for {journey.name} contains no successful non-empty response — it was "
+        "recorded from a host that did nothing, and would make every future run agree with "
+        "a broken baseline"
+    )
+
+
+def test_every_recorded_divergence_names_a_plan_phase():
+    """The same anti-rot rule `test_host_parity` applies to its own tables."""
+    for step, reason in XFAIL_DIVERGENCES.items():
+        assert "phase" in reason.lower() and len(reason) > 20, (
+            f"{step} needs a reason naming the phase that closes it, not {reason!r}"
+        )

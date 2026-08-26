@@ -351,6 +351,41 @@ def test_shared_routes_return_the_same_response_models():
     assert not mismatched, f"Shared routes disagree on response shape: {mismatched}"
 
 
+def test_no_shared_route_declares_a_model_on_only_one_host():
+    """The hole the check above had, and the reason it never caught the corpus bug.
+
+    `_response_models` reads the OpenAPI document, so a route that declares no
+    `response_model` publishes no `$ref` and simply does not appear. Every desktop route
+    was hand-written and most declared nothing, so the intersection above skipped exactly
+    the twelve operations where the desktop restates a shape by hand — the class that
+    produced the `{"documents": [...]}` wrapper `AGENTS.md` records, where the body was
+    wrong, the route 200'd, and the parity suite was green.
+
+    A declared model is not decoration here: it is what makes the shape checkable at all.
+    """
+    server_ops = _operations(_server_app())
+    desktop_ops = _operations(_desktop_app())
+    shared = server_ops & desktop_ops
+
+    server = _response_models(_server_app())
+    desktop = _response_models(_desktop_app())
+
+    one_sided = sorted(
+        f"{op}: server declares {server[op]}, desktop declares nothing"
+        for op in shared
+        if op in server and op not in desktop
+    ) + sorted(
+        f"{op}: desktop declares {desktop[op]}, server declares nothing"
+        for op in shared
+        if op in desktop and op not in server
+    )
+    assert not one_sided, (
+        "These shared operations declare a response model on one host and not the other, "
+        "so `test_shared_routes_return_the_same_response_models` never compares them:\n  "
+        + "\n  ".join(one_sided)
+    )
+
+
 def test_the_session_status_vocabulary_is_shared():
     """Both hosts import the same enum, and the UI's union mirrors it.
 

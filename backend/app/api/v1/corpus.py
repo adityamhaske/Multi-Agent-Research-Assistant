@@ -11,7 +11,6 @@ import uuid
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters import embeddings_for
@@ -47,26 +46,8 @@ async def _get_corpus_store(project_id: uuid.UUID) -> CorpusStore:
     return CorpusStore(db_path, embedder)
 
 
-class DocumentResponse(BaseModel):
-    id: str
-    filename: str
-    chunks: int
-    created_at: str | None = None
-    size_bytes: int | None = None
-    # False for documents ingested before originals were retained. The UI keys its
-    # Open/Download affordance off this rather than assuming every row has a file.
-    downloadable: bool = False
-    # "uploaded" or "generated" (app/services/report_corpus.py). The UI badges a
-    # generated document distinctly and must not let a user believe it is a source the
-    # way an upload is — retrieval already refuses to cite one (research_engine/corpus.py).
-    origin: str = "uploaded"
-
-
-class CorpusStatusResponse(BaseModel):
-    documents: int
-    chunks: int
-    chunks_by_model: dict[str, int]
-    current_model: str
+# Re-exported, not restated — see `app/schemas/corpus.py` for why the shapes moved.
+from app.schemas.corpus import CorpusStatusResponse, DocumentResponse  # noqa: E402
 
 
 @router.post("/documents", response_model=DocumentResponse)

@@ -1,0 +1,413 @@
+[
+  {
+    "step": "who am I",
+    "status": 200,
+    "body": {
+      "id": "<uuid>",
+      "email": "parity@server.invalid",
+      "is_active": true,
+      "created_at": "<timestamp>",
+      "display_name": null,
+      "avatar_url": null,
+      "monthly_token_limit": 0,
+      "api_key_provider": null,
+      "api_key_base_url": null,
+      "api_key_hint": null,
+      "api_key_label": null,
+      "api_key_set_at": null,
+      "connection_verdict": null,
+      "preferences": {
+        "retrieval_k": null,
+        "min_sources_per_task": null,
+        "snippet_max_chars": null,
+        "density": null,
+        "tavily_api_key": null,
+        "brave_api_key": null
+      }
+    }
+  },
+  {
+    "step": "my usage",
+    "status": 200,
+    "body": {
+      "month": {
+        "tokens_input": 0,
+        "tokens_output": 0,
+        "tokens_total": 0,
+        "cost_usd": 0.0,
+        "sessions": 0
+      },
+      "week": {
+        "tokens_input": 0,
+        "tokens_output": 0,
+        "tokens_total": 0,
+        "cost_usd": 0.0,
+        "sessions": 0
+      },
+      "last_session": {
+        "tokens_input": 0,
+        "tokens_output": 0,
+        "tokens_total": 0,
+        "cost_usd": 0.0,
+        "sessions": 0
+      },
+      "monthly_token_limit": 0,
+      "limit_remaining": null,
+      "limit_reached": false
+    }
+  },
+  {
+    "step": "the model catalog",
+    "status": 200,
+    "body": {
+      "roles": [
+        "planner",
+        "executor",
+        "critic",
+        "synthesizer",
+        "chat"
+      ],
+      "models": [
+        {
+          "route": "anthropic:claude-haiku-4-5",
+          "provider": "anthropic",
+          "model_id": "claude-haiku-4-5",
+          "display_name": "Claude Haiku 4.5",
+          "input_per_mtok": 1.0,
+          "output_per_mtok": 5.0,
+          "context_window": 200000,
+          "max_output_tokens": 64000,
+          "supports_tools": true,
+          "supports_structured_output": true,
+          "notes": "",
+          "available": false
+        },
+        {
+          "route": "anthropic:claude-sonnet-5",
+          "provider": "anthropic",
+          "model_id": "claude-sonnet-5",
+          "display_name": "Claude Sonnet 5",
+          "input_per_mtok": 3.0,
+          "output_per_mtok": 15.0,
+          "context_window": 1000000,
+          "max_output_tokens": 128000,
+          "supports_tools": true,
+          "supports_structured_output": true,
+          "notes": "",
+          "available": false
+        },
+        {
+          "route": "anthropic:claude-sonnet-4-6",
+          "provider": "anthropic",
+          "model_id": "claude-sonnet-4-6",
+          "display_name": "Claude Sonnet 4.6",
+          "input_per_mtok": 3.0,
+          "output_per_mtok": 15.0,
+          "context_window": 1000000,
+          "max_output_tokens": 128000,
+          "supports_tools": true,
+          "supports_structured_output": true,
+          "notes": "",
+          "available": false
+        },
+        {
+          "route": "anthropic:claude-opus-5",
+          "provider": "anthropic",
+          "model_id": "claude-opus-5",
+          "display_name": "Claude Opus 5",
+          "input_per_mtok": 5.0,
+          "output_per_mtok": 25.0,
+          "context_window": 1000000,
+          "max_output_tokens": 128000,
+          "supports_tools": true,
+          "supports_structured_output": true,
+          "notes": "Thinking is on by default; raw reasoning is never returned.",
+          "available": false
+        },
+        {
+          "route": "anthropic:claude-opus-4-8",
+          "provider": "anthropic",
+          "model_id": "claude-opus-4-8",
+          "display_name": "Claude Opus 4.8",
+          "input_per_mtok": 5.0,
+          "output_per_mtok": 25.0,
+          "context_window": 1000000,
+          "max_output_tokens": 128000,
+          "supports_tools": true,
+          "supports_structured_output": true,
+          "notes": "",
+          "available": false
+        },
+        {
+          "route": "anthropic:claude-opus-4-7",
+          "provider": "anthropic",
+          "model_id": "claude-opus-4-7",
+          "display_name": "Claude Opus 4.7",
+          "input_per_mtok": 5.0,
+          "output_per_mtok": 25.0,
+          "context_window": 1000000,
+          "max_output_tokens": 128000,
+          "supports_tools": true,
+          "supports_structured_output": true,
+          "notes": "",
+          "available": false
+        },
+        {
+          "route": "anthropic:claude-opus-4-6",
+          "provider": "anthropic",
+          "model_id": "claude-opus-4-6",
+          "display_name": "Claude Opus 4.6",
+          "input_per_mtok": 5.0,
+          "output_per_mtok": 25.0,
+          "context_window": 1000000,
+          "max_output_tokens": 128000,
+          "supports_tools": true,
+          "supports_structured_output": true,
+          "notes": "",
+          "available": false
+        },
+        {
+          "route": "anthropic:claude-fable-5",
+          "provider": "anthropic",
+          "model_id": "claude-fable-5",
+          "display_name": "Claude Fable 5",
+          "input_per_mtok": 10.0,
+          "output_per_mtok": 50.0,
+          "context_window": 1000000,
+          "max_output_tokens": 128000,
+          "supports_tools": true,
+          "supports_structured_output": true,
+          "notes": "Highest-capability tier; thinking always on. Requires 30-day data retention.",
+          "available": false
+        },
+        {
+          "route": "google:gemini-2.5-flash",
+          "provider": "google",
+          "model_id": "gemini-2.5-flash",
+          "display_name": "Gemini 2.5 Flash",
+          "input_per_mtok": 0.075,
+          "output_per_mtok": 0.3,
+          "context_window": null,
+          "max_output_tokens": null,
+          "supports_tools": true,
+          "supports_structured_output": true,
+          "notes": "",
+          "available": true
+        },
+        {
+          "route": "google:gemini-1.5-flash",
+          "provider": "google",
+          "model_id": "gemini-1.5-flash",
+          "display_name": "Gemini 1.5 Flash",
+          "input_per_mtok": 0.075,
+          "output_per_mtok": 0.3,
+          "context_window": null,
+          "max_output_tokens": null,
+          "supports_tools": true,
+          "supports_structured_output": true,
+          "notes": "",
+          "available": true
+        },
+        {
+          "route": "google:gemini-2.5-pro",
+          "provider": "google",
+          "model_id": "gemini-2.5-pro",
+          "display_name": "Gemini 2.5 Pro",
+          "input_per_mtok": 1.25,
+          "output_per_mtok": 5.0,
+          "context_window": null,
+          "max_output_tokens": null,
+          "supports_tools": true,
+          "supports_structured_output": true,
+          "notes": "",
+          "available": true
+        },
+        {
+          "route": "google:gemini-1.5-pro",
+          "provider": "google",
+          "model_id": "gemini-1.5-pro",
+          "display_name": "Gemini 1.5 Pro",
+          "input_per_mtok": 1.25,
+          "output_per_mtok": 5.0,
+          "context_window": null,
+          "max_output_tokens": null,
+          "supports_tools": true,
+          "supports_structured_output": true,
+          "notes": "",
+          "available": true
+        }
+      ],
+      "presets": {
+        "anthropic": {
+          "fast": {
+            "planner": "anthropic:claude-haiku-4-5",
+            "executor": "anthropic:claude-haiku-4-5",
+            "critic": "anthropic:claude-haiku-4-5",
+            "synthesizer": "anthropic:claude-haiku-4-5",
+            "chat": "anthropic:claude-haiku-4-5"
+          },
+          "balanced": {
+            "planner": "anthropic:claude-sonnet-5",
+            "executor": "anthropic:claude-haiku-4-5",
+            "critic": "anthropic:claude-haiku-4-5",
+            "synthesizer": "anthropic:claude-sonnet-5",
+            "chat": "anthropic:claude-haiku-4-5"
+          },
+          "best": {
+            "planner": "anthropic:claude-opus-5",
+            "executor": "anthropic:claude-sonnet-5",
+            "critic": "anthropic:claude-sonnet-5",
+            "synthesizer": "anthropic:claude-opus-5",
+            "chat": "anthropic:claude-sonnet-5"
+          }
+        },
+        "google": {
+          "fast": {
+            "planner": "google:gemini-2.5-flash",
+            "executor": "google:gemini-2.5-flash",
+            "critic": "google:gemini-2.5-flash",
+            "synthesizer": "google:gemini-2.5-flash",
+            "chat": "google:gemini-2.5-flash"
+          },
+          "balanced": {
+            "planner": "google:gemini-2.5-pro",
+            "executor": "google:gemini-2.5-flash",
+            "critic": "google:gemini-2.5-flash",
+            "synthesizer": "google:gemini-2.5-pro",
+            "chat": "google:gemini-2.5-flash"
+          },
+          "best": {
+            "planner": "google:gemini-2.5-pro",
+            "executor": "google:gemini-2.5-pro",
+            "critic": "google:gemini-2.5-pro",
+            "synthesizer": "google:gemini-2.5-pro",
+            "chat": "google:gemini-2.5-pro"
+          }
+        },
+        "ollama": {
+          "fast": {
+            "planner": "ollama:llama3.2:latest",
+            "executor": "ollama:llama3.2:latest",
+            "critic": "ollama:llama3.2:latest",
+            "synthesizer": "ollama:llama3.2:latest",
+            "chat": "ollama:llama3.2:latest"
+          },
+          "balanced": {
+            "planner": "ollama:qwen2.5-coder:14b",
+            "executor": "ollama:qwen2.5-coder:14b",
+            "critic": "ollama:qwen2.5-coder:14b",
+            "synthesizer": "ollama:qwen2.5-coder:14b",
+            "chat": "ollama:qwen2.5-coder:14b"
+          },
+          "best": {
+            "planner": "ollama:qwen2.5-coder:14b",
+            "executor": "ollama:qwen2.5-coder:14b",
+            "critic": "ollama:qwen2.5-coder:14b",
+            "synthesizer": "ollama:qwen2.5-coder:14b",
+            "chat": "ollama:qwen2.5-coder:14b"
+          }
+        }
+      },
+      "preset_names": [
+        "fast",
+        "balanced",
+        "best"
+      ],
+      "available_providers": [
+        "custom",
+        "google",
+        "ollama"
+      ],
+      "effective_routing": {
+        "planner": "google:gemini-2.5-flash",
+        "executor": "google:gemini-2.5-flash",
+        "critic": "google:gemini-2.5-flash",
+        "synthesizer": "google:gemini-2.5-flash",
+        "chat": "google:gemini-2.5-flash"
+      },
+      "user_routing": null,
+      "deployment_routing": {
+        "planner": "google:gemini-2.5-flash",
+        "executor": "google:gemini-2.5-flash",
+        "critic": "google:gemini-2.5-flash",
+        "synthesizer": "google:gemini-2.5-flash",
+        "chat": "google:gemini-2.5-flash"
+      }
+    }
+  },
+  {
+    "step": "routing before any choice",
+    "status": 200,
+    "body": {
+      "routing": null,
+      "effective_routing": {
+        "planner": "google:gemini-2.5-flash",
+        "executor": "google:gemini-2.5-flash",
+        "critic": "google:gemini-2.5-flash",
+        "synthesizer": "google:gemini-2.5-flash",
+        "chat": "google:gemini-2.5-flash"
+      }
+    }
+  },
+  {
+    "step": "pin every role",
+    "status": 200,
+    "body": {
+      "routing": {
+        "planner": "google:gemini-2.5-flash",
+        "executor": "google:gemini-2.5-flash",
+        "critic": "google:gemini-2.5-flash",
+        "synthesizer": "google:gemini-2.5-flash",
+        "chat": "google:gemini-2.5-flash"
+      },
+      "effective_routing": {
+        "planner": "google:gemini-2.5-flash",
+        "executor": "google:gemini-2.5-flash",
+        "critic": "google:gemini-2.5-flash",
+        "synthesizer": "google:gemini-2.5-flash",
+        "chat": "google:gemini-2.5-flash"
+      }
+    }
+  },
+  {
+    "step": "routing after pinning",
+    "status": 200,
+    "body": {
+      "routing": {
+        "planner": "google:gemini-2.5-flash",
+        "executor": "google:gemini-2.5-flash",
+        "critic": "google:gemini-2.5-flash",
+        "synthesizer": "google:gemini-2.5-flash",
+        "chat": "google:gemini-2.5-flash"
+      },
+      "effective_routing": {
+        "planner": "google:gemini-2.5-flash",
+        "executor": "google:gemini-2.5-flash",
+        "critic": "google:gemini-2.5-flash",
+        "synthesizer": "google:gemini-2.5-flash",
+        "chat": "google:gemini-2.5-flash"
+      }
+    }
+  },
+  {
+    "step": "clear the routing",
+    "status": 200,
+    "body": {
+      "routing": null,
+      "effective_routing": {
+        "planner": "google:gemini-2.5-flash",
+        "executor": "google:gemini-2.5-flash",
+        "critic": "google:gemini-2.5-flash",
+        "synthesizer": "google:gemini-2.5-flash",
+        "chat": "google:gemini-2.5-flash"
+      }
+    }
+  },
+  {
+    "step": "an unroutable model is refused",
+    "status": 422,
+    "body": {
+      "detail": "Every role needs a model. Missing: ['chat', 'critic', 'executor', 'synthesizer']."
+    }
+  }
+]

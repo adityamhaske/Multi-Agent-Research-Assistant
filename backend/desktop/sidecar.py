@@ -93,7 +93,14 @@ from app.models.chat_message import ChatMessage
 from app.models.project import Project
 from app.models.session import Session, SessionStatus
 from app.models.user import User
-from app.schemas.auth import UsageResponse
+from app.schemas.auth import ConnectionVerdict, UsageResponse, UserResponse
+from app.schemas.corpus import CorpusStatusResponse, DocumentResponse
+from app.schemas.models import (
+    CatalogResponse,
+    CustomEndpointStatusResponse,
+    LocalLLMStatusResponse,
+    RoutingResponse,
+)
 from app.schemas.project import (
     ProjectCreateRequest,
     ProjectListResponse,
@@ -782,21 +789,18 @@ def create_sidecar_app(
     # ── Routes ───────────────────────────────────────────────────────────────────
     api = APIRouter(prefix="/api/v1")
 
-    @api.get("/auth/me")
+    @api.get("/auth/me", response_model=UserResponse)
     async def me(user: User = Depends(get_local_user)):
-        # The frontend boots on this call. Desktop has exactly one user and no password:
-        # returning the row keeps the existing UI code path working with no login screen.
-        return {
-            "id": str(user.id),
-            "email": user.email,
-            "display_name": user.display_name,
-            "avatar_url": user.avatar_url,
-            "created_at": user.created_at.isoformat() if user.created_at else None,
-            "api_key_provider": None,
-            "api_key_hint": None,
-            "monthly_token_limit": 0,
-            "preferences": user.preferences or {},
-        }
+        """The frontend boots on this call. Desktop has exactly one user and no password.
+
+        The row is returned and `UserResponse` projects it, rather than a dict assembled
+        here. The dict omitted `is_active`, every `api_key_*` field, `connection_verdict`
+        and the whole `preferences` object the server's model declares — so the same
+        TypeScript type read two different shapes, and nothing failed in between. Keys live
+        in the keychain on this host, so the BYOK fields stay at their `None` defaults;
+        that is a value, not an absence.
+        """
+        return user
 
     @api.get("/auth/me/usage", response_model=UsageResponse)
     async def get_usage(
@@ -821,7 +825,7 @@ def create_sidecar_app(
         """
         return await usage.summary(db, user.id, user.monthly_token_limit)
 
-    @api.patch("/auth/me")
+    @api.patch("/auth/me", response_model=UserResponse)
     async def update_me(
         request: Request,
         db: AsyncSession = Depends(get_db),
@@ -840,17 +844,7 @@ def create_sidecar_app(
             user.preferences = merged
         await db.commit()
         await db.refresh(user)
-        return {
-            "id": str(user.id),
-            "email": user.email,
-            "display_name": user.display_name,
-            "avatar_url": user.avatar_url,
-            "created_at": user.created_at.isoformat() if user.created_at else None,
-            "api_key_provider": None,
-            "api_key_hint": None,
-            "monthly_token_limit": 0,
-            "preferences": user.preferences or {},
-        }
+        return user
 
     # -- projects -------------------------------------------------------------
 
@@ -2097,7 +2091,7 @@ def create_sidecar_app(
 
     # -- models -----------------------------------------------------------------
 
-    @api.get("/models")
+    @api.get("/models", response_model=CatalogResponse)
     async def get_catalog(user: User = Depends(get_local_user)):  # noqa: ARG001
         """The picker's catalog. Availability is judged by keys, desktop-style:
         keychain keys merged with the environment (nothing else exists here)."""
@@ -2155,7 +2149,7 @@ def create_sidecar_app(
             "model_count": verdict.model_count,
         }
 
-    @api.post("/models/providers/test")
+    @api.post("/models/providers/test", response_model=ConnectionVerdict)
     async def test_provider(request: Request):
         """Probe a submitted key BEFORE it is stored in the keychain (docs/07 §2, Phase
         2a) — contract copy #2 of the server's `POST /models/providers/test`."""
@@ -2186,7 +2180,7 @@ def create_sidecar_app(
         verdict = await provider_health.probe(provider, key, base_url)
         return _verdict_dict(verdict)
 
-    @api.get("/models/local/status")
+    @api.get("/models/local/status", response_model=LocalLLMStatusResponse)
     async def local_status():
         """Probe the configured local model server — same shape as the server's
         `GET /models/local/status`, which this build had no counterpart for at all."""
@@ -2212,7 +2206,7 @@ def create_sidecar_app(
             "install_state": status_.install_state,
         }
 
-    @api.get("/models/custom/status")
+    @api.get("/models/custom/status", response_model=CustomEndpointStatusResponse)
     async def custom_status():
         """Contract copy of the server's `GET /models/custom/status`.
 
@@ -2313,7 +2307,7 @@ def create_sidecar_app(
 
         return StreamingResponse(gen(), media_type="application/x-ndjson")
 
-    @api.get("/models/routing")
+    @api.get("/models/routing", response_model=RoutingResponse)
     async def get_routing(user: User = Depends(get_local_user)):  # noqa: ARG001
         """The saved routing and the one a run would dial. Second home of the server's
         `GET /models/routing` — both hosts shipped this trio write-only (PUT and DELETE
@@ -2325,7 +2319,7 @@ def create_sidecar_app(
         saved = stored_routing(app.state.data_dir)
         return {"routing": saved or None, "effective_routing": _effective_with(saved or None)}
 
-    @api.put("/models/routing")
+    @api.put("/models/routing", response_model=RoutingResponse)
     async def set_routing(payload: dict, user: User = Depends(get_local_user)):  # noqa: ARG001
         """Save the per-role routing to `routing.json` in the data directory.
 
@@ -2339,7 +2333,7 @@ def create_sidecar_app(
         save_routing(app.state.data_dir, cleaned)
         return {"routing": cleaned, "effective_routing": _effective_with(cleaned)}
 
-    @api.delete("/models/routing")
+    @api.delete("/models/routing", response_model=RoutingResponse)
     async def clear_routing(user: User = Depends(get_local_user)):  # noqa: ARG001
         """Drop the saved preference; routing falls back to MODEL_* env / defaults."""
         save_routing(app.state.data_dir, None)
@@ -2523,7 +2517,7 @@ def create_sidecar_app(
     # server's authorization boundary — the project id is not *used* to pick a store, but
     # answering for a project that does not exist would be a different contract.
 
-    @api.get("/projects/{project_id}/corpus/documents")
+    @api.get("/projects/{project_id}/corpus/documents", response_model=list[DocumentResponse])
     async def list_project_corpus_documents(
         project_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
@@ -2532,7 +2526,7 @@ def create_sidecar_app(
         await _resolve_project(db, user.id, project_id)
         return [_document_response(d) for d in await _corpus().documents()]
 
-    @api.get("/projects/{project_id}/corpus/status")
+    @api.get("/projects/{project_id}/corpus/status", response_model=CorpusStatusResponse)
     async def project_corpus_status(
         project_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
@@ -2543,7 +2537,9 @@ def create_sidecar_app(
         info["corpus_only"] = corpus_only_enabled(app.state.data_dir)
         return info
 
-    @api.post("/projects/{project_id}/corpus/documents", status_code=201)
+    @api.post(
+        "/projects/{project_id}/corpus/documents", status_code=201, response_model=DocumentResponse
+    )
     async def upload_project_corpus_document(
         project_id: uuid.UUID,
         file: UploadFile,

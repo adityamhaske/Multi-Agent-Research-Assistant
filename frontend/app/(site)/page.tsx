@@ -27,8 +27,6 @@ export const metadata = {
     "and a verbatim snippet, and the export can be verified offline with no AI and no network.",
 };
 
-const REPO = "https://github.com/adityamhaske/Multi-Agent-Research-Assistant";
-
 const OPEN_SOURCE = [
   {
     term: "Licence",
@@ -256,18 +254,18 @@ export default async function Home() {
           ))}
         </dl>
         <div className="mt-6 flex flex-wrap gap-3">
-          <a
-            href={REPO}
+          <Link
+            href="/source"
             className="flex h-9 items-center border border-border bg-bg-surface px-3 font-mono text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
           >
-            Source on GitHub ↗
-          </a>
-          <a
-            href={`${REPO}/blob/main/LICENSE`}
+            Source &amp; architecture →
+          </Link>
+          <Link
+            href="/license"
             className="flex h-9 items-center border border-border bg-bg-surface px-3 font-mono text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
           >
-            MIT licence ↗
-          </a>
+            MIT licence →
+          </Link>
           <Link
             href="/releases"
             className="flex h-9 items-center border border-border bg-bg-surface px-3 font-mono text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"

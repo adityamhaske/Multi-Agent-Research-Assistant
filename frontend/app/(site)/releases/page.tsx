@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { RELEASES } from "@/lib/releases";
 
 /**
@@ -8,8 +10,6 @@ import { RELEASES } from "@/lib/releases";
  * measurement; a changelog that only lists wins is the same failure in a different
  * surface. The people reading this page are deciding whether to trust the thing.
  */
-
-const REPO = "https://github.com/adityamhaske/Multi-Agent-Research-Assistant";
 
 export const metadata = {
   title: "Releases · Research Assistant",
@@ -29,10 +29,10 @@ export default function ReleasesPage() {
         </h1>
         <p className="mt-4 text-base leading-relaxed text-text-secondary">
           What improved in each release, and what it shipped with still broken.
-          Every version is tagged in git and its installers are attached to the{" "}
-          <a href={`${REPO}/releases`} className="text-accent hover:opacity-80">
-            GitHub release
-          </a>{" "}
+          Every version is tagged in git and its installers are available on the{" "}
+          <Link href="/download" className="text-accent hover:opacity-80">
+            Download page
+          </Link>{" "}
           with checksums.
         </p>
       </header>
@@ -107,12 +107,12 @@ export default function ReleasesPage() {
             )}
 
             {!release.unreleased && (
-              <a
-                href={`${REPO}/releases/tag/${release.version}`}
+              <Link
+                href="/download"
                 className="mt-4 inline-flex font-mono text-xs text-accent transition-opacity hover:opacity-80"
               >
-                Downloads and checksums for {release.version} ↗
-              </a>
+                Downloads and checksums for {release.version} →
+              </Link>
             )}
           </li>
         ))}

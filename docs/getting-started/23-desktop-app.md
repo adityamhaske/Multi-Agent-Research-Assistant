@@ -33,9 +33,7 @@ the unblock steps for each platform are below.
 
 ## Download
 
-Installers are attached to each tagged release:
-**[Releases](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/latest)**,
-or the [download page](https://adityamhaske.github.io/Multi-Agent-Research-Assistant/download/),
+Installers are available on the [Download page](/download) or the [Releases page](/releases),
 which detects your OS and shows that platform's steps inline.
 
 Every release also ships a `SHA256SUMS` file. Unsigned software that cannot be verified is
@@ -116,8 +114,8 @@ Follow-up chat over a report works on both.
 
 ## Updates
 
-There is no auto-updater. Download the newer installer from
-[Releases](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/latest)
+There is no auto-updater. Download the newer installer from the
+[Download page](/download) or [Releases](/releases)
 and install over the top; your data lives in the app's data directory and is not touched.
 
 Auto-update is [planned](../project/10-roadmap.md) rather than dismissed. The open question

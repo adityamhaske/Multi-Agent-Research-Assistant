@@ -3,8 +3,7 @@
 What is implemented, what it prevents, and where the limits are. Every item here is
 testable, and most have a named test behind them.
 
-To report a vulnerability, see **[SECURITY.md](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/blob/main/SECURITY.md)**
-— private disclosure through GitHub Security Advisories, not a public issue.
+To report a vulnerability responsibly, contact the maintainers directly through private disclosure rather than filing a public issue.
 
 ## 1. Threat model
 

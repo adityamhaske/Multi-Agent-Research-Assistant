@@ -27,8 +27,8 @@ export function DocsSidebar({ categories }: { categories: DocCategory[] }) {
   }, [categories, filter]);
 
   return (
-    <nav aria-label="Documentation" className="flex h-full flex-col gap-4">
-      <div>
+    <nav aria-label="Documentation" className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="shrink-0">
         <label htmlFor="docs-filter" className="sr-only">
           Filter documents
         </label>
@@ -47,7 +47,7 @@ export function DocsSidebar({ categories }: { categories: DocCategory[] }) {
           No document matches “{filter}”.
         </p>
       ) : (
-        <div className="flex flex-col gap-5 overflow-y-auto pb-6">
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto pb-6">
           {shown.map((category) => (
             <div key={category.key}>
               <div className="mb-1.5 px-1 font-mono text-[0.6875rem] font-semibold uppercase tracking-wider text-text-muted">

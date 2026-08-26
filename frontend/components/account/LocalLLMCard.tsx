@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -240,14 +241,12 @@ export function LocalLLMCard() {
         <>
           Run the assistant against a model on your own machine — no API key, no cost, and
           nothing leaves your computer.{" "}
-          <a
+          <Link
             className="underline underline-offset-2 hover:text-text-secondary"
-            href="https://github.com/adityamhaske/multi-agent-research-assistant/blob/main/docs/getting-started/22-local-llm.md"
-            target="_blank"
-            rel="noopener noreferrer nofollow"
+            href="/docs/getting-started/local-llm"
           >
             Setup guide
-          </a>
+          </Link>
         </>
       }
       footer={

@@ -1,10 +1,6 @@
 # Contributing
 
-The full policy lives in
-**[CONTRIBUTING.md](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/blob/main/CONTRIBUTING.md)**
-at the repository root, alongside the
-[Code of Conduct](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/blob/main/CODE_OF_CONDUCT.md).
-This page is the developer-facing summary and the pointers to everything you will need.
+This page outlines the contribution guidelines, engineering standards, and developer workflow for the project.
 
 ## Where to start
 
@@ -18,14 +14,10 @@ This page is the developer-facing summary and the pointers to everything you wil
 
 ## Reporting a bug
 
-Open a [GitHub issue](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/issues)
-with steps to reproduce, expected versus actual behaviour, and your environment. Check the
-existing issues first.
+Submit an issue with steps to reproduce, expected versus actual behaviour, and your environment. Check the existing documentation and notes first.
 
-**Do not open a public issue for a security vulnerability.** Use
-[GitHub Security Advisories](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/security/advisories/new)
-instead; see
-[SECURITY.md](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/blob/main/SECURITY.md).
+**Do not file public issues for security vulnerabilities.** See the
+[Security policy](../architecture/06-security.md) for responsible disclosure guidelines.
 
 ## Suggesting a feature
 
