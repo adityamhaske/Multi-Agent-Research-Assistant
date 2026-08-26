@@ -357,7 +357,9 @@ def _norm_url(url: str) -> str:
     return u.rstrip("/")
 
 
-def record_tool_output(seen: dict[str, str], tool_name: str, observation) -> None:
+def record_tool_output(
+    seen: dict[str, str], tool_name: str, observation, grades: dict[str, str] | None = None
+) -> None:
     """Accumulate what each tool actually returned, keyed by URL.
 
     This is the only record of what the executor really saw. `submit_evidence` arguments
@@ -370,12 +372,22 @@ def record_tool_output(seen: dict[str, str], tool_name: str, observation) -> Non
     so normalising the key here would only discard the one thing a citation needs: a URL a
     reader can open. Storing the normalised form cost exactly that — snippet repair wrote
     `a.example/paper` into `source_url` and every downstream link stopped resolving.
+
+    `grades` is optional and additive: when given, it records *how* each URL was seen — a
+    fetched page body is stronger evidence than a search-result snippet, and
+    `Evidence.attested_against` (`ATTESTATION_GRADES`) exists to say which one a citation
+    rests on. `read_webpage` always sets `FETCHED_BODY`, overwriting any earlier
+    `SEARCH_SNIPPET` for the same URL — the body is strictly the better source, seen later
+    or not. `web_search` uses `setdefault` for the reverse reason: a snippet must never
+    downgrade a URL this task already opened in full.
     """
     if tool_name == "read_webpage" and isinstance(observation, dict):
         body = observation.get("text") or ""
         for key in (observation.get("url"), observation.get("final_url")):
             if key:
                 seen[key] = seen.get(key, "") + "\n" + body
+                if grades is not None:
+                    grades[key] = "FETCHED_BODY"
     elif tool_name == "web_search" and isinstance(observation, list):
         # A snippet may legitimately be quoted from a search result rather than a fetched
         # page, so search hits count as seen text too.
@@ -383,6 +395,8 @@ def record_tool_output(seen: dict[str, str], tool_name: str, observation) -> Non
             if isinstance(hit, dict) and hit.get("url"):
                 key = hit["url"]
                 seen[key] = seen.get(key, "") + "\n" + (hit.get("snippet") or "")
+                if grades is not None:
+                    grades.setdefault(key, "SEARCH_SNIPPET")
 
 
 def _seen_get(seen: dict[str, str], url: str | None) -> str:
@@ -393,7 +407,27 @@ def _seen_get(seen: dict[str, str], url: str | None) -> str:
     return "\n".join(text for key, text in seen.items() if _norm_url(key) == target)
 
 
-def verify_evidence_snippets(evidence: list[dict], seen: dict[str, str]) -> list[dict]:
+def _seen_grade(grades: dict[str, str], url: str | None) -> str | None:
+    """The strongest attestation grade recorded for `url`, matched like `_seen_get`.
+
+    `FETCHED_BODY` wins over `SEARCH_SNIPPET` when a URL was seen both ways — matching
+    `record_tool_output`'s own precedence, so a snippet that verifies against the merged
+    text of a page we both searched and fetched is graded on the stronger of the two.
+    """
+    target = _norm_url(url or "")
+    if not target:
+        return None
+    matched = {g for key, g in grades.items() if _norm_url(key) == target}
+    if "FETCHED_BODY" in matched:
+        return "FETCHED_BODY"
+    if "SEARCH_SNIPPET" in matched:
+        return "SEARCH_SNIPPET"
+    return None
+
+
+def verify_evidence_snippets(
+    evidence: list[dict], seen: dict[str, str], grades: dict[str, str] | None = None
+) -> list[dict]:
     """Blank every snippet that does not occur in what the tools actually returned.
 
     An unresolvable citation renders a ⚠ chip and tells the reader it failed. A fabricated
@@ -422,6 +456,13 @@ def verify_evidence_snippets(evidence: list[dict], seen: dict[str, str]) -> list
       whichever the dict yielded first would attribute the same run differently on a rerun.
     - the URL written back is the one the tool reported, scheme intact — see
       `record_tool_output` on why `seen` is keyed that way.
+
+    `grades`, when supplied, is where this function's verdict actually gets recorded for a
+    reader: a chunk that verifies is stamped `attestation_grade` (`FETCHED_BODY` or
+    `SEARCH_SNIPPET`), so `record_evidence` can persist `ATTESTED`/`attested_against`
+    instead of the `UNCHECKED` it would otherwise write for a citation this function just
+    finished checking. Optional so every existing caller — including this module's own
+    tests — keeps working unchanged; the production call site always passes it.
     """
     fabricated: list[dict] = []
 
@@ -433,6 +474,10 @@ def verify_evidence_snippets(evidence: list[dict], seen: dict[str, str]) -> list
         claimed = chunk.get("source_url", "")
         norm_snip = _norm_text(snippet)
         if norm_snip in _norm_text(_seen_get(seen, claimed)):
+            if grades is not None:
+                grade = _seen_grade(grades, claimed)
+                if grade:
+                    chunk["attestation_grade"] = grade
             continue
 
         matches = [url for url, text in seen.items() if norm_snip in _norm_text(text)]
@@ -441,6 +486,10 @@ def verify_evidence_snippets(evidence: list[dict], seen: dict[str, str]) -> list
         if len({_norm_url(u) for u in matches}) == 1:
             chunk["source_url"] = matches[0]
             chunk["snippet_reattributed"] = claimed
+            if grades is not None:
+                grade = _seen_grade(grades, matches[0])
+                if grade:
+                    chunk["attestation_grade"] = grade
             continue
 
         chunk["snippet"] = ""
@@ -711,6 +760,9 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
     # What the tools actually returned, keyed by URL — the only record of what the
     # executor really saw. See `verify_evidence_snippets`.
     seen_text: dict[str, str] = {}
+    # How each URL in `seen_text` was seen — fetched body or search snippet — so a
+    # verified citation can be persisted as attested-to-what, not just attested.
+    seen_grades: dict[str, str] = {}
     # Pages already opened this task, so a second request for one is answered from
     # `seen_text` instead of the network. The observed run re-read one arXiv page five
     # times inside a single task, spending a round and a fetch each time to learn nothing.
@@ -836,7 +888,7 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
         )
 
         for (call, _cached), observation in zip(dispatch, observations, strict=True):
-            record_tool_output(seen_text, call["name"], observation)
+            record_tool_output(seen_text, call["name"], observation, grades=seen_grades)
 
             tool_args = call.get("args") or {}
             search_query = tool_args.get("query") or tool_args.get("url") or ""
@@ -878,7 +930,9 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
     # runs, so it cannot catch a regression in it. The danger it guards is real models
     # inventing quotations, so guarding real mode is where the value is.
     fabricated = (
-        verify_evidence_snippets(evidence, seen_text) if get_run_config().llm_mode != "fake" else []
+        verify_evidence_snippets(evidence, seen_text, grades=seen_grades)
+        if get_run_config().llm_mode != "fake"
+        else []
     )
     if fabricated:
         logger.warning(

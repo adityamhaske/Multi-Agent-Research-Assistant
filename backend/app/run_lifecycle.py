@@ -16,8 +16,11 @@ Four rules, and this module is where each becomes behaviour rather than document
 
 * **Retrieved is not cited.** A `Source` gets a `citation_index` only if the synthesizer
   numbered it. Never generated (I6).
-* **Nothing is attested.** Evidence lands `UNCHECKED`: the graph's in-line snippet check records
-  nothing per item, so a run inherits exactly the same absence of evidence (I…§14).
+* **An item is attested only to what the graph actually verified.** The snippet check in
+  `research_engine.graph.verify_evidence_snippets` runs per item and records its verdict on
+  the chunk (`attestation_grade`, `snippet_unverified`); `record_evidence` below reads that
+  verdict rather than asserting one. An item the check never reached — fake-mode runs, or a
+  chunk with no snippet to check — lands `UNCHECKED`, honestly (I…§14).
 * **A contradiction is a conflict between two attributed quotations.** `DETECTED` needs both
   source anchors; an evidence anchor is set only on an exact, unique quotation match (I7, I8).
 * **Only an APPROVED REPORT review authorizes an artifact**, and the check goes through
@@ -325,6 +328,34 @@ async def record_evidence(
 
         snippet = item.get("snippet") or ""
         sequence = base + offset
+
+        # The graph's per-item verdict, read rather than re-derived — see
+        # `verify_evidence_snippets` for what sets each of these on the chunk dict.
+        # `snippet_unverified` means the check ran and blanked a fabricated quotation;
+        # `attestation_grade` means it ran and the snippet matched what a tool actually
+        # returned (as `FETCHED_BODY` or `SEARCH_SNIPPET` — `read_webpage` handles a
+        # `corpus://` URL the same as any other fetch). Neither present means the check
+        # never reached this item (fake mode, or nothing to check), which is exactly what
+        # UNCHECKED is for — a corpus item is not exempt from that absence.
+        grade = item.get("attestation_grade")
+        if url.startswith("corpus://") and grade:
+            grade = "CORPUS_DOCUMENT"
+
+        if item.get("snippet_unverified"):
+            provenance_state, attested_against, attestation_run_at = (
+                "UNATTESTED",
+                None,
+                datetime.now(UTC),
+            )
+        elif grade:
+            provenance_state, attested_against, attestation_run_at = (
+                "ATTESTED",
+                grade,
+                datetime.now(UTC),
+            )
+        else:
+            provenance_state, attested_against, attestation_run_at = "UNCHECKED", None, None
+
         eid = uuid.uuid4()
         db.add(
             Evidence(
@@ -336,11 +367,9 @@ async def record_evidence(
                 snippet=snippet,
                 content_hash=content_hash(snippet),
                 key_fact=item.get("key_fact") or None,
-                # The graph's snippet check records nothing per item, so a run has no
-                # per-item attestation either. UNCHECKED until something actually attests.
-                provenance_state="UNCHECKED",
-                attested_against=None,
-                attestation_run_at=None,
+                provenance_state=provenance_state,
+                attested_against=attested_against,
+                attestation_run_at=attestation_run_at,
             )
         )
         watermark = sequence

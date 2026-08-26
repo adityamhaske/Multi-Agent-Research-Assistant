@@ -59,7 +59,11 @@ RUN_STATUSES = (
 RESEARCH_DEPTHS = ("fast", "balanced", "comprehensive")
 PLAN_ORIGINS = ("MODEL_PROPOSED", "HUMAN_EDITED", "TEMPLATE", "UNKNOWN")
 SOURCE_KINDS = ("WEB", "CORPUS")
-RETRIEVAL_STATUSES = ("FETCHED", "SEARCH_RESULT_ONLY", "FAILED", "UNKNOWN")
+#: `record_evidence` has always written `CORPUS_DOCUMENT` for a `corpus://` source — this
+#: tuple just never had the member to make that legal. A CHECK constraint enforces it, so
+#: the gap was silent only for as long as no corpus run reached `record_evidence`; the first
+#: one raises `IntegrityError` on an insert that a reader would call correct.
+RETRIEVAL_STATUSES = ("FETCHED", "SEARCH_RESULT_ONLY", "FAILED", "UNKNOWN", "CORPUS_DOCUMENT")
 PROVENANCE_STATES = ("ATTESTED", "UNATTESTED", "UNCHECKED")
 ATTESTATION_GRADES = ("FETCHED_BODY", "SEARCH_SNIPPET", "CORPUS_DOCUMENT")
 CONTRADICTION_DETECTION = ("DETECTED", "NOT_RUN", "DETECTOR_UNAVAILABLE")

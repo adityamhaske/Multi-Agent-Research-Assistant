@@ -236,8 +236,10 @@ async def test_sources_keep_retrieved_and_cited_apart(db, owner):
     assert await _count(db, Source, run_id=run.id) == 3
 
 
-async def test_evidence_is_never_born_attested(db, owner):
-    """The graph's snippet check records nothing per item, so a run inherits that absence."""
+async def test_evidence_with_no_graph_verdict_lands_unchecked(db, owner):
+    """`EVIDENCE` above is a hand-built fixture, not something `verify_evidence_snippets`
+    ever ran over — it carries no `attestation_grade`/`snippet_unverified`. Nothing here
+    checked these snippets, so `record_evidence` must not claim otherwise."""
     await drive_lifecycle(db, owner, approve=False)
     rows = (await db.execute(select(Evidence))).scalars().all()
     assert rows
@@ -245,6 +247,87 @@ async def test_evidence_is_never_born_attested(db, owner):
         assert e.provenance_state == "UNCHECKED"
         assert e.attested_against is None and e.attestation_run_at is None
         assert e.content_hash == run_lifecycle.content_hash(e.snippet)
+
+
+async def test_a_verified_snippet_is_recorded_attested_to_its_grade(db, owner):
+    """The graph stamps a verified chunk with `attestation_grade`; `record_evidence` must
+    persist that verdict rather than the `UNCHECKED` it writes when there is none."""
+    state = await drive_lifecycle(db, owner, approve=False)
+    run = state["run"]
+
+    verified = dict(EVIDENCE[0])
+    verified["source_url"] = "https://example.invalid/paper-verified"
+    verified["attestation_grade"] = "FETCHED_BODY"
+    await run_lifecycle.record_evidence(db, run, evidence=[verified], numbered_sources=None)
+    await db.commit()
+
+    row = (
+        await db.execute(
+            select(Evidence).where(
+                Evidence.source_id
+                == select(Source.id)
+                .where(Source.url == "https://example.invalid/paper-verified")
+                .scalar_subquery()
+            )
+        )
+    ).scalar_one()
+    assert row.provenance_state == "ATTESTED"
+    assert row.attested_against == "FETCHED_BODY"
+    assert row.attestation_run_at is not None
+
+
+async def test_a_blanked_snippet_is_recorded_unattested_not_unchecked(db, owner):
+    """`snippet_unverified` means the check ran and rejected the quote — that is a verdict,
+    not an absence of one, and must not collapse into UNCHECKED alongside items nothing
+    ever reached."""
+    state = await drive_lifecycle(db, owner, approve=False)
+    run = state["run"]
+
+    blanked = dict(EVIDENCE[1])
+    blanked["source_url"] = "https://example.invalid/paper-blanked"
+    blanked["snippet"] = ""
+    blanked["snippet_unverified"] = True
+    await run_lifecycle.record_evidence(db, run, evidence=[blanked], numbered_sources=None)
+    await db.commit()
+
+    row = (
+        await db.execute(
+            select(Evidence).where(
+                Evidence.source_id
+                == select(Source.id)
+                .where(Source.url == "https://example.invalid/paper-blanked")
+                .scalar_subquery()
+            )
+        )
+    ).scalar_one()
+    assert row.provenance_state == "UNATTESTED"
+    assert row.attested_against is None
+    assert row.attestation_run_at is not None, "the check ran — only its target is unknown"
+
+
+async def test_a_verified_corpus_item_is_graded_corpus_document(db, owner):
+    """`read_webpage` handles `corpus://` the same as any other fetch, so the graph stamps
+    it `FETCHED_BODY` — `record_evidence` must relabel that to the schema's own vocabulary
+    for a corpus source rather than persist a grade that claims a web fetch happened."""
+    state = await drive_lifecycle(db, owner, approve=False)
+    run = state["run"]
+
+    corpus_item = dict(EVIDENCE[0])
+    corpus_item["source_url"] = "corpus://doc-1"
+    corpus_item["attestation_grade"] = "FETCHED_BODY"
+    await run_lifecycle.record_evidence(db, run, evidence=[corpus_item], numbered_sources=None)
+    await db.commit()
+
+    row = (
+        await db.execute(
+            select(Evidence).where(
+                Evidence.source_id
+                == select(Source.id).where(Source.url == "corpus://doc-1").scalar_subquery()
+            )
+        )
+    ).scalar_one()
+    assert row.provenance_state == "ATTESTED"
+    assert row.attested_against == "CORPUS_DOCUMENT"
 
 
 async def test_rework_appends_a_revision_and_never_overwrites(db, owner):

@@ -252,6 +252,14 @@ def _add_missing_columns(sync_conn, tables) -> None:
     pass silently; SQLite cannot express most of them without a table rebuild. If one is
     ever needed, it needs explicit handling here rather than an assumption that this
     covers it.
+
+    Concretely already true of `ck_source_ret` (0023_corpus_document_retrieval_status):
+    widening it to admit `CORPUS_DOCUMENT` reaches a fresh install's `create_all` and the
+    server's `alembic upgrade`, but an existing local `corpus.sqlite` keeps the narrower
+    constraint it was created with, unrebuilt, until this function (or a dedicated
+    migration) does something about it. Low-risk today only because the *absence* of that
+    value made every corpus-mode evidence insert fail outright — no installed database can
+    hold a `CORPUS_DOCUMENT` row the rebuild would need to preserve.
     """
     inspector = sa_inspect(sync_conn)
     existing_tables = set(inspector.get_table_names())
