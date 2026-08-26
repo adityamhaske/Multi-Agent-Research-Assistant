@@ -81,3 +81,9 @@ future-plans/
 .qoder/
 .codex/
 
+
+# Personal presentation/interview notes. Kept beside the code so it is easy to open during a
+# walkthrough, but it is a personal artifact rather than project documentation — the shipped
+# explanation of how this works is README.md and docs/, and a second one in the tree would
+# drift from them silently.
+/PRESENTATION.md
