@@ -339,3 +339,35 @@ def test_demo_flag_cannot_be_edited_away():
     doctored = BundleManifest(**{**json.loads(serialize(honest)), "demo": False})
     integrity = next(c for c in verify(doctored).checks if c.name == "bundle_integrity")
     assert integrity.passed is False, "flipping demo must break the bundle hash"
+
+
+# ── The verifier has to produce a verdict on the machine it is run on ──────────────
+
+
+def test_the_verifier_falls_back_to_ascii_when_the_console_cannot_render_glyphs():
+    """A Windows console is cp1252, and `✓` is not in cp1252.
+
+    Found by driving the packaged desktop sidecar on a Windows runner: every check passed,
+    and then `print` raised `UnicodeEncodeError` — a traceback where the word PASS should
+    have been. This is the one program in the repository a stranger runs on their own
+    machine to check an artifact they were handed, so "it works on the developer's
+    terminal" is not the bar.
+
+    ASCII markers, not `errors="replace"`: a row of `?` beside each check would render but
+    would leave a reader unable to tell a pass from a failure, which is the only thing this
+    output exists to say.
+    """
+    import io
+
+    from research_engine import verify_bundle as vb
+
+    result = vb.verify(_bundle())
+    cp1252 = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+
+    text = vb.format_text(result, stream=cp1252)
+    text.encode("cp1252"), "the fallback must be encodable by the stream that forced it"
+    assert "[PASS]" in text or "[FAIL]" in text
+    assert "✓" not in text and "✗" not in text
+
+    utf8 = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
+    assert "✓" in vb.format_text(result, stream=utf8), "a capable console keeps the glyphs"

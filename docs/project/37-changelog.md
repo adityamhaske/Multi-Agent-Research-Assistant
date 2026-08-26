@@ -36,6 +36,12 @@ Four measurements that were wrong, a feature that was inert, and one product ins
   checkpoint could not be decoded produced a bundle that numbered every `[n]` against
   nothing and asserted a quality nobody observed. The fact now lives on the run itself and
   one rule covers every run.
+- **The standalone verifier crashed on Windows.** Every check passed and then printing the
+  result raised `UnicodeEncodeError`, because a Windows console is cp1252 and `✓` is not in
+  cp1252 — a traceback where the word PASS should have been. This is the one program here a
+  stranger runs on their own machine to check an artifact they were handed, so it now falls
+  back to ASCII markers on a console that cannot render the glyphs. Found by running the
+  packaged desktop app on a Windows runner, which nothing had done before.
 - **A forced extraction pass billed its first attempt twice.** When a model declined to
   submit evidence and the fallback mechanism ran, the budget guard was handed the running
   total rather than the increment — so a spend limit could fire on money that was never

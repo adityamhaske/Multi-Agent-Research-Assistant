@@ -282,16 +282,39 @@ def verify_file(path: str | Path) -> VerifyResult:
 # ── Human-readable output ─────────────────────────────────────────────────────────
 
 
-def format_text(result: VerifyResult) -> str:
+def _marks(stream) -> tuple[str, str, str]:
+    """Pass, fail and note glyphs this stream can actually render.
+
+    The verifier is the one program in this repository a stranger runs — offline, on their
+    own machine, to check an artifact they were handed — so it has to produce a verdict on
+    whatever they run it on. On Windows `sys.stdout` defaults to cp1252, which cannot encode
+    `\u2713`, and printing it raised `UnicodeEncodeError` *after* every check had already
+    passed: a traceback in place of the word PASS. The verdict was correct and the reader
+    never saw it.
+
+    ASCII when the stream cannot promise better. Deliberately not `errors="replace"`, which
+    would print `?` beside each check and leave a reader unable to tell a pass from a
+    failure — the one distinction this output exists to make.
+    """
+    encoding = getattr(stream, "encoding", None) or "ascii"
+    try:
+        "✓✗ℹ".encode(encoding)
+    except (UnicodeEncodeError, LookupError):
+        return "[PASS]", "[FAIL]", "[note]"
+    return "✓", "✗", "ℹ"
+
+
+def format_text(result: VerifyResult, stream=None) -> str:
+    ok, bad, note_mark = _marks(stream if stream is not None else sys.stdout)
     lines: list[str] = []
     for c in result.checks:
-        mark = "✓" if c.passed else "✗"
+        mark = ok if c.passed else bad
         lines.append(f"  {mark} {c.name}")
         if c.detail:
             for d in c.detail.splitlines():
                 lines.append(f"    {d}")
     for note in result.notes:
-        lines.append(f"  ℹ {note}")
+        lines.append(f"  {note_mark} {note}")
     verdict = "PASS" if result.passed else "FAIL"
     lines.insert(0, f"Bundle verification: {verdict}")
     if result.demo:
