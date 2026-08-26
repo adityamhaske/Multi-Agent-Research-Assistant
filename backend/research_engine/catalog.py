@@ -215,44 +215,21 @@ _GOOGLE = [
 
 # ── Ollama (local) ────────────────────────────────────────────────────────────────
 #
-# Zero cost is a fact here, not a placeholder: the tokens are generated on the user's own
-# machine. Structured-output support is weaker than a hosted model's, which the pipeline
-# already tolerates — the critic fails closed and the executor has a no-tools wrap-up
-# retry, so a model that fumbles JSON degrades the run instead of breaking it.
+# No chat models are cataloged. The three that were here (llama3.3 70B, qwen2.5 7B,
+# mistral-nemo 12B) were removed: the 70B model exceeds consumer-laptop VRAM, and both
+# smaller ones fall below _MIN_RESEARCH_PARAMS_B in `local_llm.py`, so the pipeline's
+# own quality floor rejected them. Ollama stays in KNOWN_PROVIDERS — its embedding models
+# (`nomic-embed-text`) power corpus retrieval, and dynamic routing via `ollama:<tag>`
+# still works for any tag the user pulls. The catalog just no longer pretends specific
+# local chat models are a supported tier.
 
-_OLLAMA = [
-    _spec(
-        "ollama",
-        "llama3.3",
-        "Llama 3.3 (local)",
-        input_per_mtok=0.0,
-        output_per_mtok=0.0,
-        notes="Runs locally via Ollama. No API key, no network egress for inference.",
-    ),
-    _spec(
-        "ollama",
-        "qwen2.5",
-        "Qwen 2.5 (local)",
-        input_per_mtok=0.0,
-        output_per_mtok=0.0,
-        notes="Runs locally via Ollama.",
-    ),
-    _spec(
-        "ollama",
-        "mistral-nemo",
-        "Mistral Nemo (local)",
-        input_per_mtok=0.0,
-        output_per_mtok=0.0,
-        notes="Runs locally via Ollama.",
-    ),
-]
-
-CATALOG: dict[str, ModelSpec] = {spec.model_id: spec for spec in (*_ANTHROPIC, *_GOOGLE, *_OLLAMA)}
+CATALOG: dict[str, ModelSpec] = {spec.model_id: spec for spec in (*_ANTHROPIC, *_GOOGLE)}
 
 # Providers the factory can build a client for. OpenAI and OpenRouter are routable but
 # deliberately carry no catalog entries: their model lists change constantly and their
 # prices are not ours to guess. Route to them explicitly and register the model with
-# `register()` (below) so pricing is a conscious act.
+# `register()` (below) so pricing is a conscious act. Ollama stays for embeddings and
+# dynamic routing even though no chat models are cataloged.
 KNOWN_PROVIDERS = ("anthropic", "google", "openai", "openrouter", "ollama", "custom")
 
 
@@ -319,6 +296,10 @@ def providers() -> list[str]:
 # runs many tool-calling rounds and wants breadth and speed, while the synthesizer writes
 # the artifact the user reads and wants the strongest model. Presets encode that, so the
 # common case is one click and the per-role drawer stays for people who want it.
+#
+# Ollama presets were removed alongside its catalog entries: with no cataloged local chat
+# model that clears the pipeline's quality floor, a preset would route to models the UI
+# itself warns are underpowered.
 
 PRESETS: dict[str, dict[str, dict[str, str]]] = {
     "anthropic": {
@@ -348,13 +329,6 @@ PRESETS: dict[str, dict[str, dict[str, str]]] = {
             "chat": "google:gemini-2.5-flash",
         },
         "best": {r: "google:gemini-2.5-pro" for r in ROLES},
-    },
-    "ollama": {
-        # One local model for every role — a laptop runs one at a time anyway, and
-        # swapping models mid-run would just thrash the weights cache.
-        "fast": {r: "ollama:qwen2.5" for r in ROLES},
-        "balanced": {r: "ollama:llama3.3" for r in ROLES},
-        "best": {r: "ollama:llama3.3" for r in ROLES},
     },
 }
 

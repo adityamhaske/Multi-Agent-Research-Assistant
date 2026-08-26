@@ -42,8 +42,8 @@ def test_route_is_the_exact_tag_even_when_the_family_is_catalogued():
     """
     route, in_catalog = local_llm._match_catalog_route("qwen2.5:7b")
     assert route == "ollama:qwen2.5:7b"
-    # Still catalogued — that is what carries known pricing and capabilities to the UI.
-    assert in_catalog is True
+    # No Ollama chat models are cataloged (removed as underpowered); route is still exact.
+    assert in_catalog is False
 
 
 def test_sibling_tags_of_one_family_stay_distinct():

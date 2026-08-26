@@ -35,9 +35,11 @@ export default function HistoryPage() {
   const [status, setStatus] = useState<RunStatusV2 | "ALL">("ALL");
   const [verified, setVerified] = useState<Verified>("any");
   const [query, setQuery] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
   const { data: runs, isLoading, isError, refetch } = useV2Runs(
     scope === "project" ? (activeId ?? null) : null,
+    showArchived,
   );
 
   const projectNames = useMemo(
@@ -69,11 +71,12 @@ export default function HistoryPage() {
             id="history-heading"
             className="font-serif text-2xl font-bold tracking-tight text-text-primary"
           >
-            History
+            {showArchived ? "Archived history" : "History"}
           </h1>
           <p className="mt-1 max-w-2xl text-sm leading-relaxed text-text-muted">
-            Every research run, with the decision it is waiting on and whether it produced a
-            verifiable artifact.
+            {showArchived
+              ? "Archived research runs. You can restore them to active history or delete them permanently."
+              : "Every research run, with the decision it is waiting on and whether it produced a verifiable artifact."}
           </p>
         </div>
 
@@ -151,6 +154,19 @@ export default function HistoryPage() {
               ))}
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={() => setShowArchived((v) => !v)}
+            aria-pressed={showArchived}
+            className={`border px-3 py-1 font-mono text-xs font-medium transition-colors ${
+              showArchived
+                ? "border-accent bg-accent text-accent-contrast"
+                : "border-border bg-bg-surface text-text-muted hover:text-text-primary"
+            }`}
+          >
+            {showArchived ? "← Active History" : "Archived"}
+          </button>
         </div>
 
         {isLoading ? (
@@ -172,11 +188,13 @@ export default function HistoryPage() {
           />
         ) : (runs ?? []).length === 0 ? (
           <EmptyState
-            title="No research yet"
+            title={showArchived ? "Nothing archived" : "No research yet"}
             description={
-              scope === "project"
-                ? "Nothing has been researched in this project. Start a question and it will be recorded here."
-                : "Nothing has been researched in any of your projects yet."
+              showArchived
+                ? "Archiving moves a research run out of History without deleting it."
+                : scope === "project"
+                  ? "Nothing has been researched in this project. Start a question and it will be recorded here."
+                  : "Nothing has been researched in any of your projects yet."
             }
           />
         ) : visible.length === 0 ? (

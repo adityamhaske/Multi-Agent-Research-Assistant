@@ -33,21 +33,53 @@ export function isLive(status?: string | null): boolean {
 }
 
 export const v2Keys = {
-  runs: (projectId?: string | null) => ["v2-runs", projectId ?? null] as const,
+  runs: (projectId?: string | null, archived: boolean = false) =>
+    ["v2-runs", projectId ?? null, archived] as const,
   run: (id: string) => ["v2-run", id] as const,
   verification: (id: string) => ["v2-verification", id] as const,
 };
 
-export function useV2Runs(projectId?: string | null) {
+export function useV2Runs(projectId?: string | null, archived: boolean = false) {
   return useQuery({
-    queryKey: v2Keys.runs(projectId),
-    queryFn: () =>
-      apiFetch<{ runs: V2RunSummary[] }>(
-        `/v2/runs${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""}`,
-      ),
+    queryKey: v2Keys.runs(projectId, archived),
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (projectId) params.set("project_id", projectId);
+      if (archived) params.set("archived", "true");
+      const qs = params.toString();
+      return apiFetch<{ runs: V2RunSummary[] }>(`/v2/runs${qs ? `?${qs}` : ""}`);
+    },
     select: (d) => d.runs,
   });
 }
+
+export function useArchiveV2Run() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, archived }: { id: string; archived: boolean }) =>
+      apiFetch<{ status: string; archived: boolean }>(
+        `/v2/runs/${id}/${archived ? "archive" : "unarchive"}`,
+        { method: "POST" },
+      ),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["v2-runs"] });
+      qc.invalidateQueries({ queryKey: v2Keys.run(id) });
+    },
+  });
+}
+
+export function useDeleteV2Run() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/v2/runs/${id}`, { method: "DELETE" }),
+    onSuccess: (_data, id) => {
+      qc.removeQueries({ queryKey: v2Keys.run(id) });
+      qc.removeQueries({ queryKey: v2Keys.verification(id) });
+      qc.invalidateQueries({ queryKey: ["v2-runs"] });
+    },
+  });
+}
+
 
 export function useV2Run(runId: string | null) {
   return useQuery({

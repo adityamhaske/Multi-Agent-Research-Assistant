@@ -651,5 +651,7 @@ export interface V2RunSummary {
   cost_usd: number;
   citation_resolution_rate: number | null;
   has_artifact: boolean;
+  archived_at?: string | null;
   created_at: string;
 }
+

@@ -1,8 +1,14 @@
-import { render, screen } from "@testing-library/react";
+import { render as rtlRender, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
 import { ActiveResearchList } from "./ActiveResearchList";
 import type { V2RunSummary } from "@/lib/types";
+
+function render(ui: React.ReactElement) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return rtlRender(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+}
 
 function run(overrides: Partial<V2RunSummary> = {}): V2RunSummary {
   return {

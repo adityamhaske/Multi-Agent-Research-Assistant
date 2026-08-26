@@ -35,10 +35,11 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import func, insert, select
+from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import authorization
+from app.models.agent_log import AgentLog
 from app.models.research import Contradiction, Evidence, ResearchPlan, ResearchRun, Source
 from app.models.review import AuditEvent, ResearchArtifact, Review
 from app.models.revision import Claim, ClaimEvidenceLink, Revision
@@ -696,3 +697,50 @@ async def create_artifact(db: AsyncSession, run: ResearchRun) -> ResearchArtifac
     await db.flush()
     await _audit(db, run, review.reviewer_id, "artifact.created")
     return artifact
+
+
+# ── 10. Archive, Restore & Delete ──────────────────────────────────────────────────
+
+
+async def archive_run(db: AsyncSession, run: ResearchRun) -> ResearchRun:
+    """Mark a run archived. Idempotent."""
+    if run.archived_at is None:
+        run.archived_at = datetime.now(UTC)
+        await db.flush()
+    return run
+
+
+async def unarchive_run(db: AsyncSession, run: ResearchRun) -> ResearchRun:
+    """Restore an archived run to active history. Idempotent."""
+    if run.archived_at is not None:
+        run.archived_at = None
+        await db.flush()
+    return run
+
+
+async def delete_run(db: AsyncSession, run: ResearchRun) -> None:
+    """Permanently delete a run and all associated relational records.
+
+    Refuses active / non-terminal runs (PENDING, RUNNING, AWAITING_PLAN, AWAITING_REVIEW)
+    with LifecycleError. Reviews and artifacts associated with the run are deleted in the
+    same transaction, AgentLogs (which have no FK) are deleted, and the run itself is
+    deleted, cascading its plans, sources, evidence, revisions, claims, annotations,
+    links, and contradictions.
+    """
+    if run.status in ("PENDING", "RUNNING", "AWAITING_PLAN", "AWAITING_REVIEW"):
+        raise LifecycleError(
+            f"This run is still active ({run.status}). Cancel it or wait for it to finish before deleting."
+        )
+
+    # 1. Delete polymorphic AgentLogs
+    await db.execute(delete(AgentLog).where(AgentLog.session_id == run.id))
+
+    # 2. Delete ResearchArtifact for this run
+    await db.execute(delete(ResearchArtifact).where(ResearchArtifact.run_id == run.id))
+
+    # 3. Delete Review rows for this run (RESTRICT foreign key)
+    await db.execute(delete(Review).where(Review.run_id == run.id))
+
+    # 4. Delete the run (cascades plans, sources, evidence, revisions, claims, annotations, links, contradictions)
+    await db.delete(run)
+    await db.flush()

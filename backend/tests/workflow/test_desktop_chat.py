@@ -135,7 +135,7 @@ async def test_an_unauthenticated_follow_up_is_rejected(sidecar):
 
 
 @pytest.mark.asyncio
-async def test_the_scope_selector_is_not_a_control_that_does_nothing(sidecar):
+async def test_the_scope_selector_is_not_a_control_that_does_nothing(sidecar, monkeypatch):
     """`ScopeSelector` is already mounted on the desktop panel. The host has to honour
     the field, or it is a segmented control that changes what the user believes and not
     what the run reads — the "accepted by the schema, dropped on the floor" bug.
@@ -147,6 +147,15 @@ async def test_the_scope_selector_is_not_a_control_that_does_nothing(sidecar):
     Asserted this way rather than through `web`, which reaches a real search API even in
     fake mode and would make the test depend on the network.
     """
+    from research_engine import embeddings
+
+    async def _failing_embed(*a, **kw):
+        raise embeddings.EmbeddingsUnavailable(
+            "Local embedding server at http://localhost:11434/v1 did not answer: Connection refused. "
+            "Check that Ollama is running and `ollama pull nomic-embed-text` has been run."
+        )
+
+    monkeypatch.setattr(embeddings.LocalEmbeddings, "embed", _failing_embed)
     sid = await _completed_session(sidecar)
 
     resp = await sidecar.post(

@@ -39,10 +39,9 @@ export function FirstRunNotice() {
       <p className="mt-1 max-w-2xl text-sm leading-relaxed text-text-secondary">
         {data.local_reachable ? (
           <>
-            A local model server is running but has no chat model installed — an embedding
-            model alone cannot answer research questions. Pull one with{" "}
-            <code className="font-mono text-xs">ollama pull qwen2.5</code>, or add a
-            provider key.
+            A local model server is running — great for document embeddings. For
+            research-quality output, add a provider key (Anthropic, Google, or
+            OpenAI) in Settings.
           </>
         ) : (
           <>

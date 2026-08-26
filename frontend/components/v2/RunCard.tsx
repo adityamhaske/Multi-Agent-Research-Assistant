@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import toast from "react-hot-toast";
 
 import { RelativeTime } from "@/components/RelativeTime";
+import { useArchiveV2Run, useDeleteV2Run } from "@/hooks/v2";
 import { formatCost } from "@/lib/format";
 import { v2StatusMeta } from "@/lib/v2Status";
 import type { V2RunSummary } from "@/lib/types";
@@ -20,6 +23,38 @@ import type { V2RunSummary } from "@/lib/types";
  */
 export function RunCard({ run, showProject }: { run: V2RunSummary; showProject?: string | null }) {
   const meta = v2StatusMeta(run.status);
+  const archived = Boolean(run.archived_at);
+  const archive = useArchiveV2Run();
+  const del = useDeleteV2Run();
+  const [confirming, setConfirming] = useState(false);
+  const busy = archive.isPending || del.isPending;
+
+  const stop = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const onArchive = async (e: React.MouseEvent) => {
+    stop(e);
+    try {
+      await archive.mutateAsync({ id: run.id, archived: !archived });
+      toast.success(archived ? "Restored to History" : "Archived");
+    } catch {
+      toast.error(archived ? "Couldn't restore this run." : "Couldn't archive this run.");
+    }
+  };
+
+  const onDelete = async (e: React.MouseEvent) => {
+    stop(e);
+    try {
+      await del.mutateAsync(run.id);
+      toast.success("Research run deleted");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't delete this run.");
+      setConfirming(false);
+    }
+  };
+
 
   // Status-colored left border accent
   let borderLeftColor = "transparent";
@@ -115,6 +150,57 @@ export function RunCard({ run, showProject }: { run: V2RunSummary; showProject?:
             {Math.round(run.citation_resolution_rate * 100)}% citations resolve
           </span>
         )}
+
+        {/* Actions. Visible on hover/focus at pointer sizes, always visible on touch. */}
+        <span className="ml-auto flex items-center gap-1.5 opacity-100 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100 font-sans">
+          {confirming ? (
+            <>
+              <span className="text-[0.6875rem] text-danger font-medium">Delete permanently?</span>
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={busy}
+                className="px-1.5 py-0.5 text-[0.6875rem] font-medium text-danger border border-danger/30 hover:bg-danger/10"
+              >
+                {del.isPending ? "Deleting…" : "Yes"}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  stop(e);
+                  setConfirming(false);
+                }}
+                className="px-1.5 py-0.5 text-[0.6875rem] text-text-muted border border-border hover:text-text-secondary"
+              >
+                No
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={onArchive}
+                disabled={busy}
+                className="px-1.5 py-0.5 text-[0.6875rem] text-text-muted border border-transparent hover:border-border hover:text-text-secondary"
+                title={archived ? "Restore to History" : "Move out of History"}
+              >
+                {archived ? "Restore" : "Archive"}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  stop(e);
+                  setConfirming(true);
+                }}
+                disabled={busy}
+                className="px-1.5 py-0.5 text-[0.6875rem] text-text-muted border border-transparent hover:border-danger/30 hover:text-danger"
+                title="Delete permanently"
+              >
+                Delete
+              </button>
+            </>
+          )}
+        </span>
       </div>
     </Link>
   );

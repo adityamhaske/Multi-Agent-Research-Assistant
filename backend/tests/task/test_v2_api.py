@@ -58,6 +58,17 @@ async def api(tmp_path):
         app.dependency_overrides[get_current_user] = lambda: User(
             id=uid, email=f"{uid}@x.invalid", hashed_pw="x", is_active=True, created_at=now
         )
+
+        from unittest.mock import AsyncMock
+
+        from app.v2_dispatch import get_run_dispatcher
+
+        fake_dispatcher = AsyncMock()
+        fake_dispatcher.start = AsyncMock()
+        fake_dispatcher.resume_plan = AsyncMock()
+        fake_dispatcher.rework = AsyncMock()
+        app.dependency_overrides[get_run_dispatcher] = lambda: fake_dispatcher
+
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
             yield {"client": client, "db": db, "user_id": uid, "project_id": pid}
@@ -581,3 +592,160 @@ async def test_omitting_routing_leaves_the_run_on_saved_settings(api):
     assert resp.status_code == 201
     payload = (await api["client"].get(f"/api/v1/v2/runs/{resp.json()['run_id']}")).json()
     assert payload["run"]["model_routing"] is None
+
+
+# ── Archive, Restore & Delete ─────────────────────────────────────────────────────
+
+
+async def test_list_runs_filters_by_archived(api):
+    owner = {"user_id": api["user_id"], "project_id": api["project_id"]}
+    run1 = await v2_runtime.create_run(
+        api["db"], owner_id=owner["user_id"], project_id=owner["project_id"], question="run 1"
+    )
+    run2 = await v2_runtime.create_run(
+        api["db"], owner_id=owner["user_id"], project_id=owner["project_id"], question="run 2"
+    )
+    await v2_runtime.archive_run(api["db"], run2)
+    await api["db"].commit()
+
+    # Active list (default): includes only run1
+    resp_active = await api["client"].get("/api/v1/v2/runs")
+    assert resp_active.status_code == 200
+    active_ids = [r["id"] for r in resp_active.json()["runs"]]
+    assert str(run1.id) in active_ids
+    assert str(run2.id) not in active_ids
+
+    # Archived list: includes only run2
+    resp_archived = await api["client"].get("/api/v1/v2/runs?archived=true")
+    assert resp_archived.status_code == 200
+    archived_ids = [r["id"] for r in resp_archived.json()["runs"]]
+    assert str(run1.id) not in archived_ids
+    assert str(run2.id) in archived_ids
+    archived_run = next(r for r in resp_archived.json()["runs"] if r["id"] == str(run2.id))
+    assert archived_run["archived_at"] is not None
+
+
+async def test_archive_and_unarchive_are_idempotent(api):
+    owner = {"user_id": api["user_id"], "project_id": api["project_id"]}
+    run = await v2_runtime.create_run(
+        api["db"], owner_id=owner["user_id"], project_id=owner["project_id"], question="q"
+    )
+    await api["db"].commit()
+
+    # Archive
+    r1 = await api["client"].post(f"/api/v1/v2/runs/{run.id}/archive")
+    assert r1.status_code == 200
+    assert r1.json()["archived"] is True
+    assert r1.json()["archived_at"] is not None
+
+    # Repeated archive is idempotent
+    r2 = await api["client"].post(f"/api/v1/v2/runs/{run.id}/archive")
+    assert r2.status_code == 200
+    assert r2.json()["archived"] is True
+
+    # Unarchive
+    r3 = await api["client"].post(f"/api/v1/v2/runs/{run.id}/unarchive")
+    assert r3.status_code == 200
+    assert r3.json()["archived"] is False
+    assert r3.json()["archived_at"] is None
+
+    # Repeated unarchive is idempotent
+    r4 = await api["client"].post(f"/api/v1/v2/runs/{run.id}/unarchive")
+    assert r4.status_code == 200
+    assert r4.json()["archived"] is False
+
+
+async def test_deleting_an_active_run_is_refused_with_409(api):
+    owner = {"user_id": api["user_id"], "project_id": api["project_id"]}
+    for active_status in ("PENDING", "RUNNING", "AWAITING_PLAN", "AWAITING_REVIEW"):
+        run = await v2_runtime.create_run(
+            api["db"], owner_id=owner["user_id"], project_id=owner["project_id"], question="q"
+        )
+        await v2_runtime.set_status(api["db"], run, active_status)
+        await api["db"].commit()
+
+        resp = await api["client"].delete(f"/api/v1/v2/runs/{run.id}")
+        assert resp.status_code == 409
+        assert "active" in resp.json()["detail"].lower()
+
+
+async def test_deleting_a_completed_run_cleans_up_all_records(api):
+    from sqlalchemy import select
+
+    from app.models.research import Evidence, ResearchPlan, ResearchRun, Source
+    from app.models.review import ResearchArtifact, Review
+    from app.models.revision import Claim, ClaimEvidenceLink, Revision
+
+    owner = {"user_id": api["user_id"], "project_id": api["project_id"]}
+    state = await drive_lifecycle(api["db"], owner)
+    run_id = state["run"].id
+
+    # Verify run and related data exist
+    assert (await api["client"].get(f"/api/v1/v2/runs/{run_id}")).status_code == 200
+
+    # Delete
+    del_resp = await api["client"].delete(f"/api/v1/v2/runs/{run_id}")
+    assert del_resp.status_code == 204
+
+    # 1. Repeated delete returns 404
+    assert (await api["client"].delete(f"/api/v1/v2/runs/{run_id}")).status_code == 404
+    assert (await api["client"].get(f"/api/v1/v2/runs/{run_id}")).status_code == 404
+
+    # 2. Verify all dependent relational tables are empty for this run
+    db = api["db"]
+    assert (
+        await db.execute(select(ResearchRun).where(ResearchRun.id == run_id))
+    ).scalar_one_or_none() is None
+    assert (
+        await db.execute(select(ResearchPlan).where(ResearchPlan.run_id == run_id))
+    ).scalars().all() == []
+    assert (await db.execute(select(Source).where(Source.run_id == run_id))).scalars().all() == []
+    assert (
+        await db.execute(select(Evidence).where(Evidence.run_id == run_id))
+    ).scalars().all() == []
+    assert (
+        await db.execute(select(Revision).where(Revision.run_id == run_id))
+    ).scalars().all() == []
+    assert (await db.execute(select(Claim).where(Claim.run_id == run_id))).scalars().all() == []
+    assert (
+        await db.execute(select(ClaimEvidenceLink).where(ClaimEvidenceLink.run_id == run_id))
+    ).scalars().all() == []
+    assert (await db.execute(select(Review).where(Review.run_id == run_id))).scalars().all() == []
+    assert (
+        await db.execute(select(ResearchArtifact).where(ResearchArtifact.run_id == run_id))
+    ).scalars().all() == []
+
+
+async def test_cannot_archive_or_delete_another_users_run(api):
+    from datetime import UTC, datetime
+
+    from sqlalchemy import insert
+
+    from app.models.project import Project
+
+    other_user_id = uuid.uuid4()
+    other_project_id = uuid.uuid4()
+    now = datetime(2026, 8, 18, tzinfo=UTC)
+    await api["db"].execute(
+        insert(User).values(
+            id=other_user_id,
+            email=f"{other_user_id}@x.invalid",
+            hashed_pw="x",
+            is_active=True,
+            created_at=now,
+        )
+    )
+    await api["db"].execute(
+        insert(Project).values(
+            id=other_project_id, user_id=other_user_id, name="Other", created_at=now, updated_at=now
+        )
+    )
+    run = await v2_runtime.create_run(
+        api["db"], owner_id=other_user_id, project_id=other_project_id, question="q"
+    )
+    await v2_runtime.set_status(api["db"], run, "COMPLETED")
+    await api["db"].commit()
+
+    assert (await api["client"].post(f"/api/v1/v2/runs/{run.id}/archive")).status_code == 404
+    assert (await api["client"].post(f"/api/v1/v2/runs/{run.id}/unarchive")).status_code == 404
+    assert (await api["client"].delete(f"/api/v1/v2/runs/{run.id}")).status_code == 404

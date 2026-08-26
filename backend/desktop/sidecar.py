@@ -2647,13 +2647,14 @@ def create_sidecar_app(
     @api.get("/v2/runs")
     async def v2_list_runs(
         project_id: uuid.UUID | None = None,
+        archived: bool = False,
         limit: int = 50,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
         from app.api.v1.v2_runs import list_runs
 
-        return await list_runs(project_id, limit, db, user)
+        return await list_runs(project_id, archived, limit, db, user)
 
     @api.get("/v2/runs/{run_id}")
     async def v2_get_run(
@@ -2816,6 +2817,49 @@ def create_sidecar_app(
         from app.api.v1.v2_runs import cancel_run
 
         return await cancel_run(run_id, db, user)
+
+    @api.post("/v2/runs/{run_id}/archive")
+    async def v2_archive_run(
+        run_id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.v2_runs import archive_run
+
+        return await archive_run(run_id, db, user)
+
+    @api.post("/v2/runs/{run_id}/unarchive")
+    async def v2_unarchive_run(
+        run_id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.v2_runs import unarchive_run
+
+        return await unarchive_run(run_id, db, user)
+
+    @api.delete("/v2/runs/{run_id}", status_code=204)
+    async def v2_delete_run(
+        run_id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app import v2_runtime
+        from app.api.v1.v2_runs import _run_or_404
+
+        run = await _run_or_404(db, run_id, user.id)
+        try:
+            await v2_runtime.delete_run(db, run)
+        except v2_runtime.LifecycleError as exc:
+            raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        await db.commit()
+
+        try:
+            await app.state.sidecar["saver"].adelete_thread(str(run_id))
+        except Exception as e:  # noqa: BLE001
+            logger.warning("checkpoint_cleanup_failed", run_id=str(run_id), error=str(e))
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @api.get("/v2/runs/{run_id}/bundle.json")
     async def v2_get_bundle(

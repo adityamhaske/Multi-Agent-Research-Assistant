@@ -67,8 +67,6 @@ data/
 # Redis snapshot, written into the working directory by a locally started redis-server.
 *.rdb
 
-# Personal / not for publication
-internal/04_Interview_Defense.md
 
 # Per-developer Claude Code overrides. `.claude/plans/` is deliberately NOT
 # ignored — a plan is a design artifact worth reviewing alongside the diff.

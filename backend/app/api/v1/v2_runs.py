@@ -406,6 +406,7 @@ async def create_run(
 @router.get("")
 async def list_runs(
     project_id: uuid.UUID | None = None,
+    archived: bool = False,
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -418,6 +419,10 @@ async def list_runs(
     query = select(ResearchRun).where(ResearchRun.owner_id == current_user.id)
     if project_id is not None:
         query = query.where(ResearchRun.project_id == project_id)
+    if archived:
+        query = query.where(ResearchRun.archived_at.is_not(None))
+    else:
+        query = query.where(ResearchRun.archived_at.is_(None))
     runs = (
         (await db.execute(query.order_by(ResearchRun.created_at.desc()).limit(min(limit, 200))))
         .scalars()
@@ -449,6 +454,7 @@ async def list_runs(
                     else None
                 ),
                 "has_artifact": r.id in artifacts,
+                "archived_at": r.archived_at.isoformat() if r.archived_at else None,
                 "created_at": r.created_at.isoformat(),
             }
             for r in runs
@@ -907,3 +913,70 @@ async def cancel_run(
             "no new research will be started for this run."
         ),
     }
+
+
+# ── Archive, Restore & Delete ─────────────────────────────────────────────────────
+
+
+@router.post("/{run_id}/archive")
+async def archive_run(
+    run_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Mark a run as archived. Idempotent."""
+    run = await _run_or_404(db, run_id, current_user.id)
+    await v2_runtime.archive_run(db, run)
+    await db.commit()
+    return {
+        "status": "ok",
+        "archived": True,
+        "archived_at": run.archived_at.isoformat() if run.archived_at else None,
+    }
+
+
+@router.post("/{run_id}/unarchive")
+async def unarchive_run(
+    run_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Restore an archived run to active history. Idempotent."""
+    run = await _run_or_404(db, run_id, current_user.id)
+    await v2_runtime.unarchive_run(db, run)
+    await db.commit()
+    return {
+        "status": "ok",
+        "archived": False,
+        "archived_at": None,
+    }
+
+
+@router.delete("/{run_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_run(
+    run_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Permanently delete a run and all associated records.
+
+    Refuses non-terminal runs (409 Conflict). Deletes polymorphic AgentLogs, ResearchArtifact,
+    Review rows, and the ResearchRun row (cascading all dependent tables). Cleans up LangGraph
+    checkpoints via checkpoints.delete_thread.
+    """
+    run = await _run_or_404(db, run_id, current_user.id)
+    try:
+        await v2_runtime.delete_run(db, run)
+    except v2_runtime.LifecycleError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    await db.commit()
+
+    from app.services import checkpoints
+
+    try:
+        await checkpoints.delete_thread(str(run_id))
+    except Exception as e:  # noqa: BLE001 — user rows are gone; log and move on
+        logger.warning("checkpoint_cleanup_failed", run_id=str(run_id), error=str(e))
+
+    logger.info("v2_run_deleted", run_id=str(run_id))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

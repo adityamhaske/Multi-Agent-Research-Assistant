@@ -282,8 +282,6 @@ def test_every_preset_covers_every_role_with_a_real_catalog_model():
 def test_presets_are_ordered_by_cost():
     """fast ≤ balanced ≤ best on total per-1M output price — otherwise the labels lie."""
     for provider, presets in catalog.PRESETS.items():
-        if provider == "ollama":
-            continue  # local models are all free; ordering is meaningless
         totals = {}
         for name, mapping in presets.items():
             totals[name] = sum(

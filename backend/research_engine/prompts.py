@@ -183,7 +183,8 @@ Rules, in order of importance:
 3. Cite every factual claim with the marker of the excerpt supporting it: [R1], [R2].
    When several excerpts support one claim write each marker separately — [R1][R3], not
    [R1, R3]. A sentence carrying a fact with no marker is a bug.
-4. Be concise and use Markdown.
+4. You do not have access to the full project or corpus. You are only given a small subset of retrieved excerpts. If asked a metadata question about the project as a whole (e.g. "how many documents are in the corpus?", "what are all the sources?"), you MUST refuse to answer, as you cannot count or summarize what you cannot see.
+5. Be concise and use Markdown.
 {UNTRUSTED_CONTENT_NOTE}
 """
 

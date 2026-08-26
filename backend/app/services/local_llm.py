@@ -262,19 +262,22 @@ async def probe(base_url: str | None = None) -> LocalLLMStatus:
     hint = None
     if not models:
         hint = (
-            "The server is running but has no models. Pull one first, for example "
-            "`ollama pull qwen2.5:14b`."
+            "The server is running but has no models. Pull an embedding model for "
+            "corpus retrieval, e.g. `ollama pull nomic-embed-text`. For research "
+            "runs, use a hosted provider (Anthropic, Google, or OpenAI)."
         )
     elif not chat_models:
         hint = (
-            "Only embedding models are installed. Those power retrieval, not the agents — "
-            "pull a chat model too, for example `ollama pull qwen2.5:14b`."
+            "Only embedding models are installed — that is the recommended setup. "
+            "Embedding models power corpus retrieval locally. For the research "
+            "pipeline and chat, use a hosted provider for best quality."
         )
     elif all(m.likely_underpowered for m in chat_models):
         hint = (
             f"Every installed chat model looks small (under {_MIN_RESEARCH_PARAMS_B:.0f}B). "
-            "Those are fine for chat but usually fail the research pipeline's "
-            "structured-evidence step — pull a larger model for research runs."
+            "Local models at this size usually fail the research pipeline's "
+            "structured-evidence step. Use a hosted provider (Anthropic, Google, "
+            "or OpenAI) for research runs."
         )
 
     return LocalLLMStatus(

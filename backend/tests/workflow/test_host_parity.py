@@ -259,6 +259,9 @@ DESKTOP_UI_CALLS: dict[str, str] = {
     "GET /v2/runs/{run_id}/bundle.json": "ArtifactPanel — the verifiable bundle",
     "GET /v2/runs/{run_id}/export.md": "ReportPanel",
     "GET /v2/runs/{run_id}/export.pdf": "ReportPanel (501 on desktop, handled)",
+    "POST /v2/runs/{run_id}/archive": "RunCard — archive",
+    "POST /v2/runs/{run_id}/unarchive": "RunCard — restore",
+    "DELETE /v2/runs/{run_id}": "RunCard — delete",
 }
 
 #: Paths the desktop UI calls that the sidecar does **not** serve — controls that 404.
