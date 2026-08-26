@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { pickPriorityRun } from "./runPriority";
-import type { V2RunSummary } from "./types";
+import type { RunSummary } from "./types";
 
-function run(id: string, created_at: string, status: V2RunSummary["status"] = "AWAITING_REVIEW"): V2RunSummary {
+function run(id: string, created_at: string, status: RunSummary["status"] = "AWAITING_REVIEW"): RunSummary {
   return {
     id,
     project_id: "p1",

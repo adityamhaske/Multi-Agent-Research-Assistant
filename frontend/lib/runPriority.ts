@@ -1,4 +1,4 @@
-import type { V2RunSummary } from "./types";
+import type { RunSummary } from "./types";
 
 /**
  * Which pending decision earns the Overview page's one attention slot.
@@ -14,7 +14,7 @@ import type { V2RunSummary } from "./types";
  * it, so it never has to know the status vocabulary that defines "waiting" (`lib/v2Status.ts`
  * owns that).
  */
-export function pickPriorityRun(waiting: V2RunSummary[]): V2RunSummary | null {
+export function pickPriorityRun(waiting: RunSummary[]): RunSummary | null {
   if (waiting.length === 0) return null;
   return waiting.reduce((oldest, r) =>
     new Date(r.created_at).getTime() < new Date(oldest.created_at).getTime() ? r : oldest,

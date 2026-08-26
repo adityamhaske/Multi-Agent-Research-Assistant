@@ -7,9 +7,9 @@ import { Suspense } from "react";
 import { useActiveProject } from "@/components/ActiveProject";
 import { FirstRunNotice } from "@/components/FirstRunNotice";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { RunCard } from "@/components/v2/RunCard";
-import { StartResearchForm } from "@/components/v2/StartResearchForm";
-import { useV2Runs } from "@/hooks/v2";
+import { RunCard } from "@/components/runs/RunCard";
+import { StartResearchForm } from "@/components/runs/StartResearchForm";
+import { useRuns } from "@/hooks/runs";
 
 /**
  * Research: ask a question, and see what this project has already established.
@@ -50,7 +50,7 @@ function ResearchPageInner() {
   const seeded = useSearchParams()?.get("q") ?? "";
   // `activeId` is undefined while the switcher loads; scoped fetches hold off on that.
   const { activeId: projectId, active, isLoading: projectsLoading } = useActiveProject();
-  const { data: runs, isLoading, isError, refetch } = useV2Runs(projectId ?? null);
+  const { data: runs, isLoading, isError, refetch } = useRuns(projectId ?? null);
 
   const waiting =
     runs?.filter((r) => r.status === "AWAITING_REVIEW" || r.status === "AWAITING_PLAN") ?? [];

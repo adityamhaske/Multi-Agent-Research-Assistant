@@ -53,7 +53,7 @@ function ProjectThreads({ projectId }: { projectId: string }) {
  * Project chat (docs/14 §5) — the surface project memory exists for.
  *
  * Scoped by the active project from context rather than a route param, matching the
- * dashboard and history: every surface under the switcher is project-scoped, and
+ * research page and history: every surface under the switcher is project-scoped, and
  * threading the id through the URL as well would be two sources of truth for one choice.
  */
 export default function ChatPage() {

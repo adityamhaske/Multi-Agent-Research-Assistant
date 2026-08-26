@@ -56,20 +56,21 @@ const NEVER_PUBLISH = new Set([
 /**
  * Directories under `docs/` that exist on disk and are deliberately **not** published.
  *
- * `governance/` and `plans/` are repository governance rather than product documentation:
- * they describe how the project is *run*, not how the product works. `AGENTS.md` points
- * contributors and coding agents at them, so they stay in the tree. `screenshots/` holds
- * PNGs the README embeds.
+ * `governance/` is repository governance rather than product documentation: it describes
+ * how the project is *run*, not how the product works, and `AGENTS.md` points contributors
+ * and coding agents at it, so it stays in the tree. `screenshots/` holds reference images.
  *
  * **This used to be a per-file denylist, and that was a latent leak.** A directory's
  * absence from `CATEGORY_ORDER` hides it from the sidebar and the index but does *not*
  * stop `generateStaticParams` generating its routes — so anything filed under
  * `docs/plans/` beyond the two named files was published at a URL nothing linked to, which
- * is the worst of both outcomes. The V1→V2 audit had to be filed in `internal/` for
+ * is the worst of both outcomes. A planning audit had to be filed in `internal/` for
  * exactly this reason. Classification is now by directory, and unclassified directories
- * fail the build (see `classifyDir`) rather than publishing by default.
+ * fail the build (see `classifyDir`) rather than publishing by default. `plans/` is not
+ * listed: the directory is gone, and if one reappears the build should stop and make
+ * someone decide, which is exactly what an unclassified directory now does.
  */
-const UNPUBLISHED_DIRS = new Set(["governance", "plans", "screenshots"]);
+const UNPUBLISHED_DIRS = new Set(["governance", "screenshots"]);
 
 /**
  * Whether a directory found under `docs/` is published, withheld, or unclassified.

@@ -9,7 +9,7 @@ import { isPagesBuild } from "@/lib/pages-build";
  * Landing page and app entry point (docs/07 §2).
  *
  * The redirect logic is unchanged from when this file did nothing else: a session cookie
- * still means "go straight to /dashboard", server-side so there is no unauthenticated
+ * still means "go straight into the app", server-side so there is no unauthenticated
  * flash of app chrome, and the desktop build still skips all of it because it has no login
  * (docs/13 §7) — `isDesktop` is inlined, so the cookie read compiles out of the static
  * export exactly as before. What changed is only what a *logged-out web visitor* gets:
@@ -17,7 +17,7 @@ import { isPagesBuild } from "@/lib/pages-build";
  *
  * Ordering matters. The pitch below leads with verifiability rather than with the agent
  * pipeline, because the pipeline is how it works and verifiability is why anyone would
- * switch — see `future-plans/` and docs/01 §0.
+ * switch (docs/01 §0).
  */
 
 export const metadata = {
@@ -79,8 +79,7 @@ export default async function Home() {
   // first because `cookies()` cannot be called from a statically exported route at all;
   // this is not an optimisation, it is what makes the export possible.
   if (!isPagesBuild) {
-    // Into the research flow, not the legacy V1 run form: /research is the product's
-    // entry point and /dashboard is the earlier pipeline's.
+    // /research is the product's entry point: a question, and the run it becomes.
     if (!isDesktop) {
       const store = await cookies();
       if (store.has("access_token")) redirect("/research");

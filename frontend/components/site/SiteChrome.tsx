@@ -84,8 +84,8 @@ export function SiteHeader({ eyebrow }: { eyebrow?: string }) {
           ))}
         </nav>
         {isPagesBuild ? (
-          // The static site has no app to open. Sending someone to /dashboard here would
-          // 404 on a page that promises the opposite.
+          // The static site has no app to open. Linking into the app here would 404 on a
+          // page that promises the opposite.
           <a
             href={REPO}
             className="ml-1 flex h-8 items-center border border-border bg-bg-surface px-2.5 font-mono text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"

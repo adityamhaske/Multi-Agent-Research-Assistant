@@ -244,6 +244,8 @@ export interface MemoryCitation {
   marker: string;
   /** The run whose approved report this excerpt came from. */
   report_id: string;
+  /** Which surface opens it. The two kinds of run live on different routes. */
+  report_kind: "run" | "session";
   title: string;
   created_at: string;
   excerpt: string;
@@ -444,9 +446,9 @@ export interface OutlineTemplate {
   sections: OutlineSection[];
 }
 
-/* ── V2 run graph ──────────────────────────────────────────────────────────────
+/* ── The run graph ─────────────────────────────────────────────────────────────
  *
- * The contract served by `GET /v2/runs/{id}` on both hosts. Written now, ahead of the UI
+ * The contract served by `GET /runs/{id}` on both hosts. Written now, ahead of the UI
  * milestone, because the shapes are the part that is expensive to change once nine
  * surfaces read them.
  *
@@ -468,7 +470,7 @@ export type ClaimVerificationState =
 export type ContradictionDetectionState = 'DETECTED' | 'NOT_RUN' | 'DETECTOR_UNAVAILABLE';
 export type ReviewGate = 'PLAN' | 'REPORT';
 export type ReviewDecision = 'APPROVED' | 'REWORK_REQUESTED' | 'REJECTED';
-export type RunStatusV2 =
+export type RunStatus =
   | 'PENDING'
   | 'RUNNING'
   | 'AWAITING_PLAN'
@@ -477,11 +479,11 @@ export type RunStatusV2 =
   | 'FAILED'
   | 'CANCELLED';
 
-export interface V2Run {
+export interface Run {
   id: string;
   project_id: string;
   question: string;
-  status: RunStatusV2;
+  status: RunStatus;
   depth: string;
   corpus_mode: boolean;
   demo: boolean;
@@ -499,18 +501,18 @@ export interface V2Run {
   updated_at: string;
 }
 
-export interface V2Plan {
+export interface RunPlan {
   id: string;
   version: number;
   tasks: PlanTask[];
   outline_sections: unknown[];
-  /** `UNKNOWN` appears only on plans migrated from V1, which could not tell the model's
-   *  proposal from a human's edit. A native run always knows. */
+  /** `UNKNOWN` appears only on plans written before origin was recorded, which could not
+   *  tell a model's proposal from a human's edit. A run written today always knows. */
   origin: 'MODEL_PROPOSED' | 'HUMAN_EDITED' | 'TEMPLATE' | 'UNKNOWN';
   approved_at: string | null;
 }
 
-export interface V2Source {
+export interface RunSource {
   id: string;
   url: string;
   title: string | null;
@@ -521,7 +523,7 @@ export interface V2Source {
   corpus_document_id: string | null;
 }
 
-export interface V2Evidence {
+export interface RunEvidence {
   id: string;
   source_id: string;
   sequence: number;
@@ -534,7 +536,7 @@ export interface V2Evidence {
   attestation_run_at: string | null;
 }
 
-export interface V2Revision {
+export interface RunRevision {
   id: string;
   version: number;
   report_markdown: string;
@@ -544,7 +546,7 @@ export interface V2Revision {
   created_at: string;
 }
 
-export interface V2Claim {
+export interface RunClaim {
   id: string;
   revision_id: string;
   position: number;
@@ -556,7 +558,7 @@ export interface V2Claim {
   lineage_id: string | null;
 }
 
-export interface V2ClaimEvidenceLink {
+export interface RunClaimEvidenceLink {
   id: string;
   claim_id: string;
   evidence_id: string;
@@ -569,7 +571,7 @@ export interface V2ClaimEvidenceLink {
  * observed; the evidence anchors are a refinement and are often null, because a quotation
  * that matches two evidence rows must not be resolved to one of them.
  */
-export interface V2Contradiction {
+export interface RunContradiction {
   id: string;
   source_a_id: string | null;
   source_b_id: string | null;
@@ -585,7 +587,7 @@ export interface V2Contradiction {
   review_state: 'UNREVIEWED' | 'ACKNOWLEDGED' | 'DISMISSED';
 }
 
-export interface V2Review {
+export interface RunReview {
   id: string;
   /** Explicit position within the run. Do not sort by `created_at`. */
   sequence: number;
@@ -599,7 +601,7 @@ export interface V2Review {
   created_at: string;
 }
 
-export interface V2Artifact {
+export interface RunArtifact {
   id: string;
   artifact_hash: string;
   format_version: number;
@@ -613,26 +615,26 @@ export interface V2Artifact {
 }
 
 /** The whole graph, as one response. See `app/api/v1/v2_runs.py` for why it is aggregate. */
-export interface V2RunGraph {
-  run: V2Run;
-  plans: V2Plan[];
-  sources: V2Source[];
-  evidence: V2Evidence[];
-  revisions: V2Revision[];
-  claims: V2Claim[];
-  claim_evidence_links: V2ClaimEvidenceLink[];
-  contradictions: V2Contradiction[];
-  reviews: V2Review[];
-  artifact: V2Artifact | null;
+export interface RunGraph {
+  run: Run;
+  plans: RunPlan[];
+  sources: RunSource[];
+  evidence: RunEvidence[];
+  revisions: RunRevision[];
+  claims: RunClaim[];
+  claim_evidence_links: RunClaimEvidenceLink[];
+  contradictions: RunContradiction[];
+  reviews: RunReview[];
+  artifact: RunArtifact | null;
 }
 
 /**
- * `GET /v2/runs/{id}/verification` — every check the standalone verifier ran.
+ * `GET /runs/{id}/verification` — every check the standalone verifier ran.
  *
  * `assembled: false` means the verifier was NOT run, and `passed` is then null. That is not
  * the same as a failure, and a UI must not render it as one.
  */
-export interface V2Verification {
+export interface RunVerification {
   assembled: boolean;
   reason: string | null;
   passed: boolean | null;
@@ -641,12 +643,12 @@ export interface V2Verification {
   checks: { name: string; passed: boolean; detail: string | null }[];
 }
 
-/** One row of `GET /v2/runs` — the History list. */
-export interface V2RunSummary {
+/** One row of `GET /runs` — the History list. */
+export interface RunSummary {
   id: string;
   project_id: string;
   question: string;
-  status: RunStatusV2;
+  status: RunStatus;
   depth: string;
   demo: boolean;
   cost_usd: number;

@@ -13,8 +13,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * directory was published at a URL nothing linked to.
  *
  * The old guard was a denylist of two exact file paths. It held only for as long as those
- * two files were the only ones there: adding a third document to `docs/plans/` published
- * it, silently, with no failing check anywhere. The V1→V2 audit had to be filed outside
+ * the named files were the only ones there: adding a third document to a withheld directory published
+ * it, silently, with no failing check anywhere. A planning audit had to be filed outside
  * `docs/` because of this.
  *
  * These tests are the regression guard. They exercise the real `walk()` against fixture
@@ -77,11 +77,19 @@ describe("classifyDir", () => {
     }
   });
 
-  it("withholds governance, plans, and screenshots", async () => {
+  it("withholds governance and screenshots", async () => {
     const { classifyDir } = await loadDocsModule();
     expect(classifyDir("governance")).toBe("withhold");
-    expect(classifyDir("plans")).toBe("withhold");
     expect(classifyDir("screenshots")).toBe("withhold");
+  });
+
+  it("refuses a planning directory rather than remembering one that was deleted", async () => {
+    // `plans/` was withheld while it existed and is not withheld now that it does not.
+    // A leftover entry would publish nothing today and quietly wave through whatever a
+    // future contributor filed under that name; an unclassified directory stops the build
+    // and makes someone decide, which is the whole point of failing closed.
+    const { classifyDir } = await loadDocsModule();
+    expect(() => classifyDir("plans")).toThrow(/not classified/);
   });
 
   it("refuses to guess about a directory nobody classified", async () => {
@@ -114,24 +122,21 @@ describe("allDocs (fixture tree)", () => {
   });
 
   it("withholds every file under a governance directory, not just the named ones", async () => {
-    // The exact regression: file two in `plans/` was published because the old denylist
-    // named file one.
+    // The exact regression: the second file in a withheld directory was published, because
+    // the old denylist named the first one and nothing generalised.
     vi.stubEnv(
       "DOCS_DIR",
       makeDocsTree({
         "getting-started/20-quick-start.md": "# Quick start\n",
-        "plans/Multi-Agent-Research-Assistant-V2-Master-Plan.md": "# Master plan\n",
-        "plans/V2-Audit-and-Migration-Map.md": "# Audit\n",
-        "plans/nested/deeper-note.md": "# Deeper\n",
         "governance/Multi-Agent-Research-Assistant-Open-Source-Constitution.md": "# C\n",
         "governance/some-new-policy.md": "# Policy\n",
+        "governance/nested/deeper-note.md": "# Deeper\n",
       }),
     );
     const { allDocs } = await loadDocsModule();
     const slugs = allDocs().map((d) => d.slug);
 
     expect(slugs).toEqual(["getting-started/quick-start"]);
-    expect(slugs.some((s) => s.startsWith("plans/"))).toBe(false);
     expect(slugs.some((s) => s.startsWith("governance/"))).toBe(false);
   });
 

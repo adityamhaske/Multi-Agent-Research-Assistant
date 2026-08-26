@@ -28,7 +28,7 @@ declare global {
 
 /**
  * Pure resolver, unit-testable without a window. The injected global wins over the
- * query string so a shell can migrate mechanisms without breaking older bundles.
+ * query string so a shell can change mechanisms without breaking older bundles.
  */
 export function resolveSidecar(
   search: string,
@@ -91,4 +91,9 @@ export function streamUrl(path: string): string {
  */
 export function sessionHref(sessionId: string): string {
   return isDesktop ? `/session?id=${sessionId}` : `/session/${sessionId}`;
+}
+
+/** Where a research run opens. A query parameter, so both build targets resolve it. */
+export function runHref(runId: string): string {
+  return `/research/run?id=${runId}`;
 }

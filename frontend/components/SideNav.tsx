@@ -119,7 +119,7 @@ export function SideNav({ user }: { user?: User }) {
           <ProjectSwitcher collapsed={collapsed && !isMobile} menuDirection="down" />
         </div>
 
-        {/* The primary action, and it points at the V2 research flow. */}
+        {/* The primary action, and it points at the research flow. */}
         <div className="pt-1">
           <Link
             href="/research"

@@ -79,7 +79,7 @@ async function mockApi(page, { runOverrides = {}, verification = F.verification 
     if (p.endsWith("/corpus/documents")) return route.fulfill(json(F.corpusDocuments));
     if (p.endsWith("/memory/status")) return route.fulfill(json(F.memoryStatus));
     if (p.endsWith("/threads")) return route.fulfill(json({ threads: [], total: 0 }));
-    if (p === "/v2/runs") return route.fulfill(json(F.runs));
+    if (p === "/runs") return route.fulfill(json(F.runs));
     if (p.endsWith("/verification")) return route.fulfill(json(verification));
     if (p.endsWith("/stream")) return route.abort();
 
@@ -187,7 +187,6 @@ const PAGES = [
   ["project", "/project"],
   ["corpus", "/corpus"],
   ["chat", "/chat"],
-  ["dashboard-legacy", "/dashboard"],
   ["settings", "/settings"],
 ];
 

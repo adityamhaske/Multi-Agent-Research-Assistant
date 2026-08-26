@@ -1,5 +1,5 @@
 /**
- * Interaction audit for the V2 workspace, driven against fixture data.
+ * Interaction audit for the run workspace, driven against fixture data.
  *
  * Companion to `uiqa.mjs`, which looks at pages. This one presses things, and checks the
  * four questions a tab has to answer that a screenshot cannot: does the keyboard move
@@ -60,7 +60,7 @@ await page.route("**/api/v1/**", (route) => {
   if (p === "/auth/me") return route.fulfill(json(F.user));
   if (p === "/projects") return route.fulfill(json(F.projects));
   if (p === "/models/readiness") return route.fulfill(json(F.readiness));
-  if (p === "/v2/runs") return route.fulfill(json(F.runs));
+  if (p === "/runs") return route.fulfill(json(F.runs));
   if (p.endsWith("/verification")) return route.fulfill(json(F.verification));
   if (p.endsWith("/stream")) return route.abort();
   if (/^\/v2\/runs\/[0-9a-f-]+$/.test(p)) return route.fulfill(json(F.graph()));
@@ -174,7 +174,7 @@ check("no horizontal page overflow", overflow <= 1, `${overflow}px`);
 
 // ── 11. The start form refuses a second submit while one is in flight.
 let starts = 0;
-await page.route("**/api/v1/v2/runs", async (route) => {
+await page.route("**/api/v1/runs", async (route) => {
   if (route.request().method() === "POST") {
     starts += 1;
     await new Promise((r) => setTimeout(r, 1500));

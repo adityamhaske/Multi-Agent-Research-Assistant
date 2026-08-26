@@ -1,9 +1,9 @@
 /**
- * Screenshot capture for the README (docs/screenshots/).
+ * Screenshot capture for the documentation (docs/screenshots/).
  *
- * Not part of the golden E2E suite — this is a documentation tool. It drives a
- * real run against whatever LLM_MODE the stack is in and saves the resulting
- * screens to disk, so the README shows the actual product rather than mockups.
+ * Not part of the golden E2E suite — this is a documentation tool. It drives a real run
+ * against whatever LLM_MODE the stack is in and saves the resulting screens to disk, so
+ * the docs show the actual product rather than mockups.
  *
  *   npm run screenshots
  *
@@ -12,6 +12,11 @@
  * playwright.screenshots.config.ts.
  *
  * Requires the full stack running (docker compose -f docker-compose.full.yml up).
+ *
+ * **It captures the journey the product ships.** It used to walk a second start form on a
+ * second pipeline, so every image in `docs/screenshots/` showed a surface the navigation
+ * had stopped pointing at — a documentation tool producing documentation of the wrong
+ * product. The run workspace below is what a user actually sees.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -23,8 +28,8 @@ const PASSWORD = "demo-correct-horse-battery-99";
 const QUERY =
   "What are the main approaches to retrieval-augmented generation (RAG), and what are their trade-offs?";
 
-// One long-running test: the pipeline runs once and every screen is captured
-// from that same real session.
+// One long-running test: the pipeline runs once and every screen is captured from that
+// same real run.
 test.describe.configure({ mode: "serial", timeout: 900_000 });
 
 async function shot(page: Page, name: string) {
@@ -40,6 +45,12 @@ async function setTheme(page: Page, theme: "light" | "dark") {
   await page.waitForTimeout(250);
 }
 
+/** Open a workspace tab and let it settle before the shutter. */
+async function openTab(page: Page, name: RegExp) {
+  await page.getByRole("tab", { name }).click();
+  await page.waitForTimeout(800);
+}
+
 test("capture product screenshots", async ({ page }) => {
   test.setTimeout(900_000);
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -53,107 +64,77 @@ test("capture product screenshots", async ({ page }) => {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await shot(page, "01-login");
-  // By submit type, not by label — see golden.spec.ts::submitAuthForm. The copy here was
-  // "Create Account" until the landing-page redesign renamed it "Initialize Account",
-  // which hung this file on a locator that could never match.
+  // By submit type, not by label: this button's copy changed once already and hung the
+  // capture on a locator that could never match.
   const submit = page.locator('form button[type="submit"]');
   await expect(submit).toHaveAccessibleName(/\S/);
   await submit.click();
-  // Login lands on /research now. This capture walks the legacy V1 journey, so it opens
-  // the legacy form explicitly rather than relying on where login happens to land.
-  await page.waitForURL(/\/(research|dashboard)/);
-  await page.goto("/dashboard");
+  await page.waitForURL(/\/(research|project)/, { timeout: 60_000 });
 
-  // ── 2. Dashboard (light) ──────────────────────────────────────────────────
+  // A run is project-scoped, and a fresh account owns no project.
+  await page.goto("/research");
   await setTheme(page, "light");
+  const created = await page.request.post("/api/v1/projects", {
+    data: { name: "Demo", description: "Documentation capture" },
+  });
+  expect(created.ok(), `project create failed: ${created.status()}`).toBe(true);
+  await page.reload();
+
+  // ── 2. The research page, question typed ──────────────────────────────────
   await page.getByLabel(/research question/i).fill(QUERY);
-  await shot(page, "02-dashboard");
+  await page.waitForTimeout(500);
+  await shot(page, "02-start-research");
 
-  // ── 3. Research design gate ───────────────────────────────────────────────
-  // The run form ships with plan review on (docs/07 §2, Phase 4), so every run now
-  // pauses here first. This step is not optional bookkeeping: without it the capture
-  // sat at the design gate waiting for a review gate that could not arrive, and burned
-  // the full 600s timeout to report "element(s) not found".
+  // ── 3. The design gate ────────────────────────────────────────────────────
+  // The run form ships with plan review on, so every run pauses here first.
   await page.getByRole("button", { name: /start research/i }).click();
-  await page.waitForURL(/\/session\/[0-9a-f-]{36}/);
-  const sessionUrl = page.url();
+  await page.waitForURL(/\/research\/run\?id=/, { timeout: 60_000 });
+  const runUrl = page.url();
 
-  await expect(page.getByRole("heading", { name: /design gate/i })).toBeVisible({
-    timeout: 120_000,
+  await expect(page.getByRole("heading", { name: "Research plan" })).toBeVisible({
+    timeout: 300_000,
   });
   await page.waitForTimeout(1500);
   await shot(page, "03-plan-gate");
 
-  await page.getByRole("button", { name: /approve & start research/i }).click();
+  await page.getByRole("button", { name: "Approve plan" }).click();
 
-  // ── 3b. Live monitor while the pipeline runs ──────────────────────────────
-  await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({
-    timeout: 60_000,
-  });
-  // Let a few agent events land so the feed and rail are populated.
-  await expect(page.getByLabel("Agent activity log")).toContainText(/planner|executor/i, {
-    timeout: 120_000,
-  });
-  await page.waitForTimeout(6000);
-  await shot(page, "03-live-monitor");
-
-  // ── 4. Human approval gate ────────────────────────────────────────────────
-  await expect(page.getByRole("heading", { name: /review gate/i })).toBeVisible({
-    timeout: 600_000,
-  });
+  // ── 4. The report gate ────────────────────────────────────────────────────
+  await expect(page.getByText("What you are approving")).toBeVisible({ timeout: 600_000 });
   await page.waitForTimeout(1500);
-  await shot(page, "04-approval-gate");
+  await shot(page, "04-review-gate");
 
-  // ── 5. Completed report + citations ───────────────────────────────────────
-  await page.getByRole("button", { name: /approve & finalize/i }).click();
-  // Same drift as golden.spec.ts: the heading now reads "Research Report", so an
-  // exact-name locator waits instead of matching. Anchor on the labelled region.
-  await expect(page.locator('section[aria-labelledby="report-heading"]')).toBeVisible({
-    timeout: 600_000,
-  });
-  await page.waitForTimeout(1500);
+  // ── 5. The chain behind the report ────────────────────────────────────────
+  await openTab(page, /^report$/i);
   await shot(page, "05-report");
+  await openTab(page, /^evidence$/i);
+  await shot(page, "06-evidence");
+  await openTab(page, /^sources$/i);
+  await shot(page, "07-sources");
 
-  // Sources panel (scroll to it).
-  await page.evaluate(() => {
-    const el = [...document.querySelectorAll("h2")].find((h) => /^Sources \(/.test(h.textContent ?? ""));
-    if (el) window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 70);
-  });
-  await page.waitForTimeout(600);
-  await shot(page, "06-sources");
+  // ── 6. Approve, then the artifact and its verification ────────────────────
+  await openTab(page, /^review$/i);
+  await page.getByRole("button", { name: "Approve report" }).click();
+  await expect(page.getByText("Verified artifact")).toBeVisible({ timeout: 120_000 });
+  await page.waitForTimeout(1200);
+  await shot(page, "08-artifact");
 
-  // ── 6. Same report in dark mode (Claude Code palette) ─────────────────────
-  await page.goto(sessionUrl);
+  // ── 7. The same workspace in dark mode ────────────────────────────────────
+  await page.goto(runUrl);
   await setTheme(page, "dark");
-  await page.waitForTimeout(800);
-  await shot(page, "07-report-dark");
-
-  // ── 7. Profile (identity + password) ──────────────────────────────────────
-  await page.goto("/profile");
-  await setTheme(page, "light");
-  await page.waitForTimeout(800);
-  await shot(page, "08-profile");
+  await page.waitForTimeout(1000);
+  await shot(page, "09-workspace-dark");
 
   // ── 8. Settings (usage + BYOK) ────────────────────────────────────────────
   await page.goto("/settings");
+  await setTheme(page, "light");
   await page.waitForTimeout(800);
-  await shot(page, "09-byok");
+  await shot(page, "10-settings");
 
-  // ── 8b. Account menu open (nav IA) ────────────────────────────────────────
-  await page.getByRole("button", { name: /account|ada|docs-/i }).first().click().catch(() => {});
-  await page.evaluate(() => {
-    const b = [...document.querySelectorAll("button")].find(
-      (x) => x.getAttribute("aria-haspopup") === "menu",
-    );
-    if (b && b.getAttribute("aria-expanded") !== "true") (b as HTMLButtonElement).click();
-  });
-  await page.waitForTimeout(400);
-  await shot(page, "11-account-menu");
-
-  // ── 8. History ────────────────────────────────────────────────────────────
+  // ── 9. History ────────────────────────────────────────────────────────────
   await page.goto("/history");
   await page.waitForTimeout(800);
-  await shot(page, "10-history");
+  await shot(page, "11-history");
 
   console.log(`Screenshots written to ${OUT}`);
 });

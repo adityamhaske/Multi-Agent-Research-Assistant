@@ -89,6 +89,10 @@ class SourceReport:
     id: uuid.UUID
     title: str
     created_at: datetime
+    #: `"run"` or `"session"`. Carried because a citation has to link somewhere, and the
+    #: two kinds live on different routes — a marker that opens nothing is the failure the
+    #: whole citation apparatus exists to prevent.
+    kind: str
 
 
 @dataclass(frozen=True)
@@ -243,10 +247,13 @@ async def _resolve_reports(db: AsyncSession, ids: list[uuid.UUID]) -> dict[uuid.
     for row in (
         (await db.execute(select(ResearchRun).where(ResearchRun.id.in_(ids)))).scalars().all()
     ):
-        found[row.id] = SourceReport(id=row.id, title=row.question, created_at=row.created_at)
+        found[row.id] = SourceReport(
+            id=row.id, title=row.question, created_at=row.created_at, kind="run"
+        )
     for row in (await db.execute(select(Session).where(Session.id.in_(ids)))).scalars().all():
         found.setdefault(
-            row.id, SourceReport(id=row.id, title=row.prompt, created_at=row.created_at)
+            row.id,
+            SourceReport(id=row.id, title=row.prompt, created_at=row.created_at, kind="session"),
         )
     return found
 

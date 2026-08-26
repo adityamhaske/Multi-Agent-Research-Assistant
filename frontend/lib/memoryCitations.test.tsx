@@ -16,7 +16,8 @@ import type { MemoryCitation } from "./types";
 
 const citation = (over: Partial<MemoryCitation> = {}): MemoryCitation => ({
   marker: "R1",
-  session_id: "3f2504e0-4f89-11d3-9a0c-0305e82c3301",
+  report_id: "3f2504e0-4f89-11d3-9a0c-0305e82c3301",
+  report_kind: "run" as const,
   title: "How fast did solar capacity grow in 2025?",
   created_at: "2026-07-14T10:30:00Z",
   excerpt: "Global solar photovoltaic capacity grew 32 percent during 2025 [1].",
@@ -37,6 +38,23 @@ describe("MemoryAnswer citations", () => {
 
     const link = screen.getByRole("link", { name: /open the report/i });
     expect(link).toHaveAttribute(
+      "href",
+      "/research/run?id=3f2504e0-4f89-11d3-9a0c-0305e82c3301",
+    );
+  });
+
+  it("sends a citation to the surface that can actually open it", () => {
+    // Project memory indexes reports from both run tables, and the two open on different
+    // routes. A chip that always pointed at one of them is a marker that resolves to a 404
+    // for half the corpus — the exact failure the citation apparatus exists to prevent.
+    render(
+      <MemoryAnswer
+        markdown="Capacity grew sharply [R1]."
+        citations={[{ ...citation(), report_kind: "session" as const }]}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: /open the report/i })).toHaveAttribute(
       "href",
       "/session/3f2504e0-4f89-11d3-9a0c-0305e82c3301",
     );

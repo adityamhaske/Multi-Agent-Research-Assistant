@@ -6,16 +6,16 @@ import { Suspense, useCallback } from "react";
 
 import { useActiveProject } from "@/components/ActiveProject";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { RunProgress } from "@/components/v2/RunProgress";
-import { CancelButton, RunWorkspace } from "@/components/v2/RunWorkspace";
-import { RunStatusBadge, runTotals } from "@/components/v2/primitives";
-import { isLive, useV2Run, useV2RunStream } from "@/hooks/v2";
+import { RunProgress } from "@/components/runs/RunProgress";
+import { CancelButton, RunWorkspace } from "@/components/runs/RunWorkspace";
+import { RunStatusBadge, runTotals } from "@/components/runs/primitives";
+import { isLive, useRun, useRunStream } from "@/hooks/runs";
 import { ApiError } from "@/lib/api";
 import { formatCost } from "@/lib/format";
 import { shouldOpenStream } from "@/lib/sessionStream";
-import { v2StatusMeta } from "@/lib/v2Status";
-import { isTab, type Tab } from "@/lib/v2Tabs";
-import type { V2RunGraph } from "@/lib/types";
+import { runStatusMeta } from "@/lib/runStatus";
+import { isTab, type Tab } from "@/lib/runTabs";
+import type { RunGraph } from "@/lib/types";
 
 /**
  * One research run, from question to verified artifact.
@@ -61,18 +61,18 @@ function RunPageInner() {
   const tabParam = params.get("tab");
   const initialTab: Tab | null = isTab(tabParam) ? tabParam : null;
 
-  const { data: graph, isLoading, error, refetch, isFetching } = useV2Run(runId || null);
+  const { data: graph, isLoading, error, refetch, isFetching } = useRun(runId || null);
   const live = isLive(graph?.run.status);
   // Subscribe for every loaded run, finished ones included — not just while `live`.
-  // The stream is the only path by which this host reads `agent_logs`: the V2 stream
+  // The stream is the only path by which this host reads `agent_logs`: the run stream
   // endpoint replays them on connect and then ends the response at a terminal event, so
   // a finished run costs one short request and yields its history. Gating on `live`
   // discarded that history entirely, and made the reconnect journey a race the page
   // usually lost — a fake-mode run reaches the review gate in well under a second, so the
   // first fetch often resolved after the run was already terminal and no stream was ever
-  // opened. `lib/sessionStream.ts` records V1 hitting and fixing exactly this; V2 shipped
+  // opened. `lib/sessionStream.ts` records the session stream hitting and fixing exactly this; this one shipped
   // with the unfixed copy.
-  const { events, degraded } = useV2RunStream(
+  const { events, degraded } = useRunStream(
     runId,
     shouldOpenStream(graph?.run.status),
     graph?.run.status,
@@ -161,9 +161,9 @@ function RunPageInner() {
   );
 }
 
-function RunHeader({ graph, live }: { graph: V2RunGraph; live: boolean }) {
+function RunHeader({ graph, live }: { graph: RunGraph; live: boolean }) {
   const { active } = useActiveProject();
-  const meta = v2StatusMeta(graph.run.status);
+  const meta = runStatusMeta(graph.run.status);
   const totals = runTotals(graph);
   const inActiveProject = active?.id === graph.run.project_id;
 

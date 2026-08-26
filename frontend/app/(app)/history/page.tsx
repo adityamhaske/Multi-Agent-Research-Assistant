@@ -3,19 +3,19 @@
 import { useMemo, useState } from "react";
 
 import { useActiveProject } from "@/components/ActiveProject";
-import { LegacySessions } from "@/components/history/LegacySessions";
+import { SessionHistory } from "@/components/history/SessionHistory";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { RunCard } from "@/components/v2/RunCard";
-import { useV2Runs } from "@/hooks/v2";
-import { V2_STATUS_ORDER, v2StatusMeta } from "@/lib/v2Status";
-import type { RunStatusV2 } from "@/lib/types";
+import { RunCard } from "@/components/runs/RunCard";
+import { useRuns } from "@/hooks/runs";
+import { RUN_STATUS_ORDER, runStatusMeta } from "@/lib/runStatus";
+import type { RunStatus } from "@/lib/types";
 
 /**
  * Everything that has been researched.
  *
- * This page used to list V1 sessions and nothing else, while the V2 runs it exists to
- * record were reachable only from a list at the bottom of the Research page. A user who
- * clicked "History" after doing research in this product saw none of it.
+ * This page used to list sessions and nothing else, while the runs it exists to record
+ * were reachable only from a list at the bottom of the Research page. A user who clicked
+ * "History" after doing research in this product saw none of it.
  *
  * The filters are derived from data every row already carries, so none of them can lie
  * about what they select. Two are worth spelling out:
@@ -32,12 +32,12 @@ type Verified = "any" | "artifact" | "none";
 export default function HistoryPage() {
   const { activeId, active, projects } = useActiveProject();
   const [scope, setScope] = useState<Scope>("project");
-  const [status, setStatus] = useState<RunStatusV2 | "ALL">("ALL");
+  const [status, setStatus] = useState<RunStatus | "ALL">("ALL");
   const [verified, setVerified] = useState<Verified>("any");
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
 
-  const { data: runs, isLoading, isError, refetch } = useV2Runs(
+  const { data: runs, isLoading, isError, refetch } = useRuns(
     scope === "project" ? (activeId ?? null) : null,
     showArchived,
   );
@@ -49,7 +49,7 @@ export default function HistoryPage() {
 
   const present = useMemo(() => {
     const seen = new Set(runs?.map((r) => r.status) ?? []);
-    return V2_STATUS_ORDER.filter((s) => seen.has(s));
+    return RUN_STATUS_ORDER.filter((s) => seen.has(s));
   }, [runs]);
 
   const needle = query.trim().toLowerCase();
@@ -149,7 +149,7 @@ export default function HistoryPage() {
                       : "border-border bg-bg-surface text-text-muted hover:text-text-primary"
                   }`}
                 >
-                  {v2StatusMeta(s).label}
+                  {runStatusMeta(s).label}
                 </button>
               ))}
             </div>
@@ -238,9 +238,9 @@ export default function HistoryPage() {
         )}
       </section>
 
-      {/* The earlier pipeline's runs, kept readable rather than hidden — and rendered as
-          nothing at all on an account that never used it. */}
-      <LegacySessions />
+      {/* Research recorded as sessions, kept readable rather than hidden — and rendered
+          as nothing at all on an account that has none. */}
+      <SessionHistory />
     </div>
   );
 }

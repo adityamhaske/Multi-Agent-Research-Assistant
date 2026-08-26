@@ -196,7 +196,7 @@ describe("multi-snippet sources (docs/12 M5, defect D3)", () => {
     expect(screen.getByText(/decomposed binary format/i)).toBeInTheDocument();
   });
 
-  it("falls back to the legacy single snippet for pre-fix sessions", () => {
+  it("falls back to the single snippet field for sessions stored before it was a list", () => {
     render(
       <Report
         markdown="A claim [1]."

@@ -2,7 +2,7 @@
  * Fixture payloads for the offline UI QA pass (`e2e/uiqa.mjs`).
  *
  * Not part of the test suite and not shipped: this is a stand-in backend used to *look at*
- * every V2 surface — including the states that are awkward to reach against a real stack
+ * every run surface — including the states that are awkward to reach against a real stack
  * (a failed run, an unresolved citation, a conflicting pair, an empty project). Shapes are
  * copied from `lib/types.ts`, so a drift there shows up here as a screenshot that is wrong
  * rather than as a page that silently renders nothing.
@@ -486,7 +486,7 @@ export const sessions = {
       session_id: "sess-1",
       project_id: PROJECT_ID,
       status: "COMPLETED",
-      prompt: "An older question asked through the legacy pipeline.",
+      prompt: "An older question, recorded as a session.",
       research_depth: "balanced",
       total_cost_usd: 0.19,
       total_tokens_input: 90_000,

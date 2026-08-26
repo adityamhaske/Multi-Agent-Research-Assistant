@@ -7,7 +7,7 @@ import { apiBase, authHeaders, isDesktop } from "./desktop";
  * A plain `<a href="…/bundle.json">` works on the web host, where the httpOnly cookie
  * rides along with the navigation — and does not work on the desktop host at all, where
  * the sidecar authenticates with a per-launch bearer token that a link cannot carry. The
- * three V2 export controls were plain links, so on the desktop build every one of them
+ * three export controls were plain links, so on the desktop build every one of them
  * was a button that produced a 401 page (AGENTS.md, "two hosts, one contract": the desktop
  * copy is the one that gets forgotten).
  *

@@ -5,7 +5,10 @@ import { useMemo } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { runHref, sessionHref } from "@/lib/desktop";
+
 import { UnverifiedChip, makeMarkerPlugin } from "./citations";
+
 import type { MemoryCitation } from "./types";
 
 /**
@@ -49,7 +52,11 @@ function MemoryChip({ citation }: { citation: MemoryCitation }) {
           &ldquo;{citation.excerpt}&rdquo;
         </span>
         <Link
-          href={`/session/${citation.session_id}`}
+          href={
+            citation.report_kind === "run"
+              ? runHref(citation.report_id)
+              : sessionHref(citation.report_id)
+          }
           className="pointer-events-auto mt-2 inline-block font-mono text-[0.6875rem] font-medium text-accent hover:underline"
         >
           Open the report and its sources →

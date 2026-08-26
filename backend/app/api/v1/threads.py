@@ -223,6 +223,7 @@ def _grounding(retrieved: list[memory.Retrieved]) -> tuple[str, list[dict]]:
                 # table, and naming the field after one of them made the payload claim an
                 # identity half of it does not have.
                 "report_id": str(report.id),
+                "report_kind": report.kind,
                 "title": report.title,
                 "created_at": report.created_at.isoformat(),
                 "excerpt": hit.chunk.text,

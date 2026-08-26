@@ -1,18 +1,18 @@
-import { spawnSync } from "node:child_process";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-
 import { expect, test, waitForAuthRedirect, type Page } from "./fixtures";
 
 /**
- * The three golden journeys (docs/08 §2). CI blocks merge to `main` if any fails.
- * The backend runs with LLM_MODE=fake: scripted models + fixture retrievers, so these
- * are deterministic and free.
+ * Golden journeys that are not about a research run (docs/08 §2). CI blocks merge on any
+ * failure. The backend runs with LLM_MODE=fake — scripted models and fixture retrievers —
+ * so these are deterministic and free.
+ *
+ * **The run journeys live in `run-journey.spec.ts` and `gates.spec.ts`.** This file used to
+ * hold five more, all of which drove a second start form on a second pipeline; that form is
+ * gone, and the journeys it drove were re-testing the design gate, streaming, approval,
+ * export and the bundle — every one of which those two specs already exercise against the
+ * flow the product actually ships. What remains here is the corpus journey, which belongs
+ * to neither.
  */
 
-const QUERY =
-  "What are the leading approaches to long-term memory in LLM agents, and their trade-offs?";
 
 // Meets the backend password policy (>= 12 chars, not breached).
 const PASSWORD = "e2e-correct-horse-battery-42";
@@ -44,27 +44,8 @@ async function submitAuthForm(page: Page): Promise<void> {
   await submit.click();
 }
 
-/**
- * The finalized report view, located by its labelled region rather than the heading's
- * words.
- *
- * Same lesson as `submitAuthForm`, found the same way. The heading read "Report" when
- * these tests were written and now reads "Research Report" (`ReportView.tsx`), so
- * `getByRole("heading", { name: "Report", exact: true })` stopped matching — and an
- * exact-name locator that stops matching *waits* rather than failing, so both journeys
- * burned 150 s apiece to report "element(s) not found" instead of naming the heading
- * that moved.
- *
- * `section[aria-labelledby="report-heading"]` is the accessibility relationship the view
- * is actually built on, so it is a sounder anchor than the words inside it. The heading's
- * accessible name is still asserted separately, so a genuinely unlabelled report still
- * fails.
- */
-function reportView(page: Page) {
-  return page.locator('section[aria-labelledby="report-heading"]');
-}
 
-/** Register a fresh account, then open the legacy run form these journeys cover. */
+/** Register a fresh account and land in the app. */
 async function registerAndLogin(page: Page): Promise<string> {
   const email = uniqueEmail();
   await page.goto("/login");
@@ -72,58 +53,12 @@ async function registerAndLogin(page: Page): Promise<string> {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await submitAuthForm(page);
-  // Login now lands on /research — the V2 flow is the product's entry point. These
-  // journeys exercise the *legacy* V1 run form, which the navigation deliberately no
-  // longer points at, so they go there explicitly instead of relying on the landing.
-  await waitForAuthRedirect(page, /\/(research|dashboard)/);
-  await page.goto("/dashboard");
+  await waitForAuthRedirect(page, /\/(research|project)/);
   return email;
 }
 
-/**
- * Submit a research query and wait for the *design* gate (docs/07 §2, Phase 4).
- *
- * The run form ships with plan review on, so every run now pauses here first. Split out
- * from `startResearchToGate` so one journey can edit the plan while the others take the
- * default path through it.
- */
-async function startResearchToPlanGate(page: Page): Promise<void> {
-  await page.getByLabel(/research question/i).fill(QUERY);
-  await page.getByRole("button", { name: /start research/i }).click();
-  await page.waitForURL(/\/session\/[0-9a-f-]{36}/);
 
-  await expect(page.getByRole("heading", { name: /design gate/i })).toBeVisible({
-    timeout: 60_000,
-  });
-  // The planner's proposal is editable, and nothing has been searched yet.
-  await expect(page.getByRole("heading", { name: /research plan/i })).toBeVisible();
-}
 
-/** Approve the proposed plan unedited, letting the run proceed to the executor. */
-async function approvePlan(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /approve & start research/i }).click();
-}
-
-/** Submit a research query, pass the design gate, and wait for the draft-review gate. */
-async function startResearchToGate(page: Page): Promise<void> {
-  await startResearchToPlanGate(page);
-  await approvePlan(page);
-
-  // The session returns to the live-monitor state before any draft exists.
-  await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({
-    timeout: 60_000,
-  });
-
-  // SSE delivers pipeline events into the feed (replayed from agent_logs on connect).
-  await expect(page.getByLabel("Agent activity log")).toContainText(
-    /planner|executor|critic|synthesizer/i,
-    { timeout: 60_000 },
-  );
-
-  await expect(page.getByRole("heading", { name: /review gate/i })).toBeVisible({
-    timeout: 150_000,
-  });
-}
 
 /**
  * Give this browser an active project, creating one if the account has none.
@@ -185,189 +120,5 @@ test.describe("Golden journey 6 — corpus documents preview in place", () => {
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
     await expect(page.getByRole("button", { name: "Preview" }).first()).toBeVisible();
-  });
-});
-
-test.describe("Golden journey 0 — the research design gate", () => {
-  test("edits the plan before any search runs, then reaches the draft", async ({ page }) => {
-    await registerAndLogin(page);
-    await startResearchToPlanGate(page);
-
-    // Drop a subtopic and reword the first. Both must change what is researched — a gate
-    // whose edits do not reach the executor is a rubber stamp (backend
-    // tests/test_plan_gate.py asserts the same claim below the HTTP layer).
-    const first = page.getByLabel(/search query for task 1/i);
-    await first.fill("how retrieval grounding is evaluated");
-
-    const checkboxes = page.getByRole("checkbox", { name: /^Include / });
-    if ((await checkboxes.count()) > 1) await checkboxes.nth(1).uncheck();
-
-    await approvePlan(page);
-
-    // Research actually runs after the gate, and the executor works the edited query.
-    await expect(page.getByLabel("Agent activity log")).toContainText(
-      /how retrieval grounding is evaluated/i,
-      { timeout: 60_000 },
-    );
-    await expect(page.getByRole("heading", { name: /review gate/i })).toBeVisible({
-      timeout: 150_000,
-    });
-    await expect(page.getByRole("heading", { name: /draft report/i })).toBeVisible();
-  });
-});
-
-test.describe("Golden journey 1 — research reaches the gate", () => {
-  test("submits a query, streams pipeline events, and renders a cited draft", async ({ page }) => {
-    await registerAndLogin(page);
-    await startResearchToGate(page);
-
-    // Draft body renders (a blank panel here is the bug this journey guards).
-    await expect(page.getByRole("heading", { name: /draft report/i })).toBeVisible();
-
-    // Citations UX: inline [n] chips resolved against the source table.
-    const chips = page.getByRole("button", { name: /^Source \d+/ });
-    await expect(chips.first()).toBeVisible();
-
-    // The decision panel reports a non-zero source count.
-    const sourceCount = page.locator("dt", { hasText: "Sources" }).locator("+ dd");
-    await expect(sourceCount).not.toHaveText("0");
-  });
-});
-
-test.describe("Golden journey 2 — approval completes the session", () => {
-  test("approves the draft, finalizes the report, and exports markdown", async ({ page }) => {
-    await registerAndLogin(page);
-    await startResearchToGate(page);
-
-    await page.getByRole("button", { name: /approve & finalize/i }).click();
-
-    // Finalizer resumes from the checkpoint and completes.
-    await expect(reportView(page)).toBeVisible({ timeout: 150_000 });
-    // The region is located by its aria-labelledby relationship, so assert the heading
-    // it points at actually has a name — otherwise a report that lost its label would
-    // still pass. The words are not pinned; their presence is.
-    await expect(page.locator("#report-heading")).toHaveAccessibleName(/\S/);
-    await expect(page.getByText("Completed")).toBeVisible();
-
-    // Metrics row + sources panel.
-    await expect(page.getByText("Duration")).toBeVisible();
-    await expect(page.getByText("Tokens")).toBeVisible();
-    await expect(page.getByRole("heading", { name: /^sources \(\d+\)$/i })).toBeVisible();
-
-    // Export: .md downloads.
-    const [download] = await Promise.all([
-      page.waitForEvent("download"),
-      page.getByRole("button", { name: ".md", exact: true }).click(),
-    ]);
-    expect(download.suggestedFilename()).toMatch(/\.md$/);
-  });
-});
-
-test.describe("Golden journey 3 — rework loops and chat works", () => {
-  test("requests rework, re-reaches the gate, approves, then chats over the report", async ({
-    page,
-  }) => {
-    await registerAndLogin(page);
-    await startResearchToGate(page);
-
-    // Reject with feedback → pipeline resumes from the gate.
-    await page
-      .getByLabel(/request changes/i)
-      .fill("Add explicit trade-offs for each approach and cite a primary source.");
-    await page.getByRole("button", { name: /request rework/i }).click();
-
-    // Back to the running monitor, then to the gate a second time.
-    await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByRole("heading", { name: /review gate/i })).toBeVisible({
-      timeout: 150_000,
-    });
-
-    // The rework round is accounted for.
-    await expect(page.getByText(/1 of 3 used/i)).toBeVisible();
-
-    // Approve the revised draft.
-    await page.getByRole("button", { name: /approve & finalize/i }).click();
-    await expect(reportView(page)).toBeVisible({ timeout: 150_000 });
-
-    // Grounded follow-up chat streams an answer.
-    const question = "What are the main limitations?";
-    await page.getByLabel("Chat message").fill(question);
-    await page.getByRole("button", { name: "Send", exact: true }).click();
-
-    const transcript = page.getByLabel("Chat transcript");
-    await expect(transcript).toContainText(question);
-    // Assistant reply lands and the composer re-enables (stream finished).
-    await expect(page.getByRole("button", { name: "Send", exact: true })).toBeVisible({
-      timeout: 90_000,
-    });
-    await expect(transcript.locator("div").filter({ hasText: /\w/ }).nth(1)).toBeVisible();
-
-    // History persists across a reload.
-    await page.reload();
-    await expect(page.getByLabel("Chat transcript")).toContainText(question, { timeout: 30_000 });
-  });
-});
-
-test.describe("Golden journey 7 — the research bundle downloads and verifies", () => {
-  /**
-   * The product's central claim, exercised the way a reviewer would.
-   *
-   * The `.bundle.json` endpoint shipped in v1.0.0 with no control anywhere in the app,
-   * so this journey covers the part that was missing: a button a user can reach, a file
-   * that lands on disk, and a verdict from the standalone verifier — run here as a real
-   * subprocess, with no network and no model, exactly as a third party would run it.
-   *
-   * If the verifier is unavailable (no Python on the runner) the download is still
-   * asserted and the verification is skipped with a stated reason, rather than silently
-   * passing on half the journey.
-   */
-  test("approves, downloads the bundle, and verifies it offline", async ({ page }) => {
-    await registerAndLogin(page);
-    await startResearchToGate(page);
-
-    await page.getByRole("button", { name: /approve & finalize/i }).click();
-    await expect(reportView(page)).toBeVisible({ timeout: 150_000 });
-
-    // The control exists next to .md and PDF.
-    const bundleButton = page.getByRole("button", { name: ".bundle.json", exact: true });
-    await expect(bundleButton).toBeVisible();
-
-    const [download] = await Promise.all([
-      page.waitForEvent("download"),
-      bundleButton.click(),
-    ]);
-    expect(download.suggestedFilename()).toMatch(/\.bundle\.json$/);
-
-    const saved = path.join(os.tmpdir(), `e2e-${Date.now()}-${download.suggestedFilename()}`);
-    await download.saveAs(saved);
-
-    // It is a well-formed manifest before anything else is claimed about it.
-    const manifest = JSON.parse(fs.readFileSync(saved, "utf8"));
-    expect(manifest.bundle_version).toBe(1);
-    expect(manifest.report).toBeTruthy();
-    expect(manifest.report_hash).toMatch(/^[0-9a-f]{64}$/);
-    expect(Array.isArray(manifest.claims)).toBe(true);
-    expect(manifest.approval_chain.length).toBeGreaterThan(0);
-    expect(manifest.approval_chain.some((a: { action: string }) => a.action === "approved")).toBe(
-      true,
-    );
-
-    // The verifier's own verdict, from the repository's engine.
-    const backend = path.resolve(process.cwd(), "..", "backend");
-    const result = spawnSync(
-      process.env.E2E_PYTHON ?? "python3",
-      ["-m", "research_engine.verify_bundle", saved],
-      { cwd: backend, encoding: "utf8" },
-    );
-
-    if (result.error) {
-      test.skip(true, `verifier not runnable on this host: ${result.error.message}`);
-    }
-    expect(result.stdout, result.stdout + result.stderr).toContain("PASS");
-    expect(result.status, `verifier exited ${result.status}\n${result.stdout}${result.stderr}`).toBe(
-      0,
-    );
-
-    fs.rmSync(saved, { force: true });
   });
 });

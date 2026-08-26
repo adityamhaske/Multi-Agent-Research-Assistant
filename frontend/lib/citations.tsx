@@ -135,7 +135,7 @@ export function domainOf(url: string): string {
 /**
  * Every snippet this source contributed, newest schema first.
  *
- * Falls back to the single legacy `snippet` for sessions stored before `snippets` existed
+ * Falls back to the single `snippet` field for sessions stored before `snippets` existed
  * (docs/12 M5, defect D3), so an old report still renders its citation popovers.
  */
 export function snippetsOf(source: Source): string[] {

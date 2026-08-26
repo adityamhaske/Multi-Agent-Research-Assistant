@@ -7,17 +7,17 @@ import { FirstRunNotice } from "@/components/FirstRunNotice";
 import { RelativeTime } from "@/components/RelativeTime";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { ActiveResearchList } from "@/components/v2/ActiveResearchList";
-import { AttentionCard } from "@/components/v2/AttentionCard";
-import { EmptyProjectWelcome } from "@/components/v2/EmptyProjectWelcome";
-import { ProjectHealth } from "@/components/v2/ProjectHealth";
+import { ActiveResearchList } from "@/components/runs/ActiveResearchList";
+import { AttentionCard } from "@/components/runs/AttentionCard";
+import { EmptyProjectWelcome } from "@/components/runs/EmptyProjectWelcome";
+import { ProjectHealth } from "@/components/runs/ProjectHealth";
 import { useCorpusStatus, useSessions } from "@/hooks/queries";
-import { useV2Runs } from "@/hooks/v2";
+import { useRuns } from "@/hooks/runs";
 import { sessionHref } from "@/lib/desktop";
 import { formatCost } from "@/lib/format";
 import { isProjectEmpty } from "@/lib/projectEmptiness";
 import { pickPriorityRun } from "@/lib/runPriority";
-import { v2StatusMeta } from "@/lib/v2Status";
+import { runStatusMeta } from "@/lib/runStatus";
 
 /**
  * Overview: the project's home (docs/07 §2, Phase 6; req 9).
@@ -27,7 +27,7 @@ import { v2StatusMeta } from "@/lib/v2Status";
  * start or resume work. Everything below the header exists to answer one of those and
  * nothing is here that doesn't.
  *
- * `useV2Runs` is called once, here, and its result threaded down to `AttentionCard`,
+ * `useRuns` is called once, here, and its result threaded down to `AttentionCard`,
  * `ActiveResearchList` and `ProjectHealth` as props rather than let each component fetch
  * its own copy. Not a performance concern — React Query would dedupe an identical second
  * call for free — but a correctness one: which run gets promoted to Attention, which runs
@@ -43,7 +43,7 @@ export default function ProjectPage() {
   const { activeId, active } = useActiveProject();
   const sessions = useSessions(1, 5, false, activeId);
   const corpus = useCorpusStatus(activeId);
-  const runsQuery = useV2Runs(activeId);
+  const runsQuery = useRuns(activeId);
 
   if (!activeId || !active) {
     return (
@@ -57,13 +57,13 @@ export default function ProjectPage() {
   const runs = runsQuery.data ?? [];
   const spend = runs.reduce((total, r) => total + (r.cost_usd || 0), 0);
   const waiting = runs
-    .filter((r) => v2StatusMeta(r.status).needsYou)
+    .filter((r) => runStatusMeta(r.status).needsYou)
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   const priorityRun = pickPriorityRun(waiting);
 
-  const legacySessions = sessions.data?.sessions ?? [];
+  const priorSessions = sessions.data?.sessions ?? [];
 
-  // A first-time project: no V2 research, no legacy sessions, no corpus. The rule for what
+  // A first-time project: no runs, no sessions, no corpus. The rule for what
   // counts as "empty" rather than "not read yet" lives in `lib/projectEmptiness.ts` — see
   // there for why an errored source is not a zero. While it resolves, the sections below
   // render their own per-section loading state rather than one page-wide gate.
@@ -197,9 +197,9 @@ export default function ProjectPage() {
         </>
       )}
 
-      {/* Legacy V1 sessions: kept reachable, deliberately quiet, and absent entirely when
+      {/* Research recorded as sessions: kept reachable, deliberately quiet, and absent when
           there are none — an empty collapsed section is still a section nobody needed. */}
-      {legacySessions.length > 0 && (
+      {priorSessions.length > 0 && (
         <details className="group">
           <summary className="flex cursor-pointer list-none items-center gap-1.5 font-mono text-xs text-text-muted transition-colors hover:text-text-primary [&::-webkit-details-marker]:hidden">
             {/* A ▸/▾ pair swapped by `group-open:`, not one static glyph. A frozen arrow is
@@ -212,20 +212,20 @@ export default function ProjectPage() {
             <span aria-hidden className="hidden w-2 text-center group-open:inline-block">
               ▾
             </span>
-            <span className="uppercase tracking-wider">Legacy sessions</span>
+            <span className="uppercase tracking-wider">Sessions</span>
           </summary>
           <div className="mt-3 border-t border-border pt-3">
             {/* A real heading, so this section is reachable by heading navigation — the
                 primary way a screen-reader user skims. The visible label lives in the
                 summary; this is the same words at the level the outline needs, kept
                 off-screen rather than duplicated visually. */}
-            <h2 className="sr-only">Legacy sessions</h2>
+            <h2 className="sr-only">Sessions</h2>
             <p className="mb-3 text-xs leading-relaxed text-text-muted">
-              From the earlier research form. Still here and still openable — new research
-              runs through the flow above instead.
+              Research recorded before runs. Still here and still openable — new research
+              goes through the flow above.
             </p>
             <ul className="divide-y divide-border">
-              {legacySessions.map((s) => (
+              {priorSessions.map((s) => (
                 <li key={s.session_id} className="flex items-center justify-between gap-3 py-2">
                   <Link
                     href={sessionHref(s.session_id)}
@@ -246,7 +246,7 @@ export default function ProjectPage() {
               href="/history"
               className="mt-3 inline-block font-mono text-xs text-accent hover:underline"
             >
-              All legacy sessions →
+              All sessions →
             </Link>
           </div>
         </details>

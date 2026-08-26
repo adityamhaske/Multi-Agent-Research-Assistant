@@ -8,7 +8,7 @@ import type { Project } from "@/lib/types";
 /**
  * Which project the app is currently looking at (docs/14 §3).
  *
- * Held in context rather than the URL because every scoped surface (dashboard,
+ * Held in context rather than the URL because every scoped surface (research,
  * history, and later chat) needs it and they navigate between each other freely —
  * threading a query param through all of them would be noise. The choice is
  * remembered in localStorage so a reload keeps you where you were; it is a UI

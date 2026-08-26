@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 /**
  * The "nothing here yet" card: a title, a short description, and an optional
  * action — icon slot is opt-in. Replaces the ad-hoc `◇` glyph that stood in
- * for an icon in the corpus and dashboard empty states (docs/07 §2): a glyph
+ * for an icon in the corpus and research empty states (docs/07 §2): a glyph
  * with no meaning is decoration, so the default is no icon at all rather
  * than a placeholder shape.
  */

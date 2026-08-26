@@ -6,7 +6,7 @@ import { useId, useState, type ReactNode } from "react";
  * The collapsed-summary disclosure (docs/07 §2, "Progressive disclosure"):
  * a trigger that expands to reveal detail, and — open or closed — always
  * names its own current state instead of hiding behind a bare arrow. Lifted
- * out of the dashboard run form's "Options" toggle, which is the model every
+ * out of the run form's "Options" toggle, which is the model every
  * new options group should follow.
  */
 export function Disclosure({
