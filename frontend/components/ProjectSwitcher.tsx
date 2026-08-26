@@ -147,14 +147,14 @@ export function ProjectSwitcher({ collapsed = false, menuDirection = "up" }: Pro
         <div
           role="listbox"
           aria-label="Projects"
-          className={`menu-surface animate-fade-in absolute z-50 w-72 shadow-xl ${
+          className={`menu-surface animate-fade-in absolute z-50 shadow-xl ${
             collapsed
               ? menuDirection === "down"
-                ? "left-full top-0 ml-2 origin-top-left"
-                : "left-full bottom-0 ml-2 origin-bottom-left"
+                ? "left-full top-0 ml-2 w-64 origin-top-left"
+                : "left-full bottom-0 ml-2 w-64 origin-bottom-left"
               : menuDirection === "down"
-                ? "top-full left-0 mt-1.5 origin-top-left"
-                : "bottom-full left-0 mb-1.5 origin-bottom-left"
+                ? "top-full left-0 mt-1.5 w-full min-w-[13.5rem] origin-top-left"
+                : "bottom-full left-0 mb-1.5 w-full min-w-[13.5rem] origin-bottom-left"
           }`}
         >
           <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-bg-elevated/40">
@@ -165,9 +165,9 @@ export function ProjectSwitcher({ collapsed = false, menuDirection = "up" }: Pro
               <button
                 type="button"
                 onClick={() => setCreating(true)}
-                className="font-mono text-[0.6875rem] font-semibold text-accent hover:underline flex items-center gap-1"
+                className="font-mono text-[0.6875rem] font-semibold text-accent hover:underline flex items-center gap-1 shrink-0"
               >
-                <span>+ New project</span>
+                <span>+ New</span>
               </button>
             )}
           </div>
@@ -197,7 +197,7 @@ export function ProjectSwitcher({ collapsed = false, menuDirection = "up" }: Pro
                         : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary"
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <span
                         className={`flex h-5 w-5 shrink-0 items-center justify-center border font-mono font-bold text-[0.625rem] ${
                           isSelected
@@ -210,10 +210,10 @@ export function ProjectSwitcher({ collapsed = false, menuDirection = "up" }: Pro
                       <span className="truncate text-[0.8125rem]">{p.name}</span>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <div className="flex items-center gap-1.5 shrink-0 ml-1.5">
                       {Boolean(p.session_count) && (
-                        <span className="border border-border bg-bg-surface px-1.5 py-0.5 font-mono text-[0.625rem] text-text-muted font-normal">
-                          {p.session_count} {p.session_count === 1 ? "run" : "runs"}
+                        <span className="border border-border bg-bg-surface px-1 py-0.5 font-mono text-[0.625rem] text-text-muted font-normal shrink-0">
+                          {p.session_count}
                         </span>
                       )}
                       {isSelected && (
@@ -225,7 +225,7 @@ export function ProjectSwitcher({ collapsed = false, menuDirection = "up" }: Pro
                           strokeWidth="2.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          className="h-3.5 w-3.5 text-accent"
+                          className="h-3.5 w-3.5 text-accent shrink-0"
                         >
                           <path d="m4 10 4 4 8-8" />
                         </svg>

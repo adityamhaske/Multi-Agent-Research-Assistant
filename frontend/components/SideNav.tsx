@@ -74,8 +74,8 @@ export function SideNav({ user }: { user?: User }) {
 
   const renderNavContent = (isMobile = false) => (
     <div className="flex h-full flex-col justify-between p-3 min-h-0">
-      {/* Top Section: Brand + Actions + Nav Items (scrolls independently) */}
-      <div className="space-y-4 overflow-y-auto flex-1 min-h-0 pr-0.5">
+      {/* Top Section: Brand + Workspace + Action (Fixed at top, never clips popups) */}
+      <div className="space-y-3.5 shrink-0 relative">
         {/* Brand Header */}
         <div className={`flex items-center ${collapsed && !isMobile ? "flex-col gap-2.5" : "justify-between"} px-1 pt-1`}>
           <Link
@@ -135,51 +135,51 @@ export function SideNav({ user }: { user?: User }) {
             {(!collapsed || isMobile) && <span>New Research</span>}
           </Link>
         </div>
-
-        {/* Nav links */}
-        <nav className="space-y-1 pt-2">
-          <NavItem
-            href="/project"
-            label="Overview"
-            icon={<IconOverview />}
-            collapsed={collapsed && !isMobile}
-            onClick={() => isMobile && setMobileOpen(false)}
-          />
-          <NavItem
-            href="/research"
-            label="Research"
-            icon={<IconResearch />}
-            collapsed={collapsed && !isMobile}
-            onClick={() => isMobile && setMobileOpen(false)}
-          />
-          <NavItem
-            href="/corpus"
-            label="Corpus"
-            icon={<IconCorpus />}
-            collapsed={collapsed && !isMobile}
-            onClick={() => isMobile && setMobileOpen(false)}
-          />
-          <NavItem
-            href="/history"
-            label="History"
-            icon={<IconHistory />}
-            collapsed={collapsed && !isMobile}
-            onClick={() => isMobile && setMobileOpen(false)}
-          />
-          {!isDesktop && (
-            <div className="my-2 border-t border-border" aria-hidden />
-          )}
-          {!isDesktop && (
-            <NavItem
-              href="/chat"
-              label="Chat"
-              icon={<IconChat />}
-              collapsed={collapsed && !isMobile}
-              onClick={() => isMobile && setMobileOpen(false)}
-            />
-          )}
-        </nav>
       </div>
+
+      {/* Nav links (Scrollable area) */}
+      <nav className="space-y-1 pt-3 overflow-y-auto flex-1 min-h-0 pr-0.5">
+        <NavItem
+          href="/project"
+          label="Overview"
+          icon={<IconOverview />}
+          collapsed={collapsed && !isMobile}
+          onClick={() => isMobile && setMobileOpen(false)}
+        />
+        <NavItem
+          href="/research"
+          label="Research"
+          icon={<IconResearch />}
+          collapsed={collapsed && !isMobile}
+          onClick={() => isMobile && setMobileOpen(false)}
+        />
+        <NavItem
+          href="/corpus"
+          label="Corpus"
+          icon={<IconCorpus />}
+          collapsed={collapsed && !isMobile}
+          onClick={() => isMobile && setMobileOpen(false)}
+        />
+        <NavItem
+          href="/history"
+          label="History"
+          icon={<IconHistory />}
+          collapsed={collapsed && !isMobile}
+          onClick={() => isMobile && setMobileOpen(false)}
+        />
+        {!isDesktop && (
+          <div className="my-2 border-t border-border" aria-hidden />
+        )}
+        {!isDesktop && (
+          <NavItem
+            href="/chat"
+            label="Chat"
+            icon={<IconChat />}
+            collapsed={collapsed && !isMobile}
+            onClick={() => isMobile && setMobileOpen(false)}
+          />
+        )}
+      </nav>
 
       {/* Bottom Section: Profile (Stays pinned at bottom, never clips popups) */}
       <div className="pt-3 border-t border-border shrink-0 relative">
