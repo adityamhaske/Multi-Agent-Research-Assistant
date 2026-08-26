@@ -54,17 +54,30 @@ import type { ResearchDepth } from "@/lib/types";
 const MIN_QUERY = 10;
 const MAX_QUERY = 2000;
 
+/**
+ * What each depth actually buys, in the terms that decide the wait.
+ *
+ * A run's wall-clock is the number of times each agent is asked something, multiplied by
+ * how long the chosen model takes to answer — pages are fetched in parallel with a ten
+ * second ceiling and barely register. So the honest thing to state is the number of turns,
+ * not a vague promise of thoroughness: depth was a word in a prompt until `_DEPTH_LIMITS`,
+ * and every setting cost the same eight turns per task.
+ */
 const DEPTHS: { value: ResearchDepth; label: string; hint: string }[] = [
-  { value: "fast", label: "Fast", hint: "A quick scan — fewer sources, lowest cost." },
+  {
+    value: "fast",
+    label: "Fast",
+    hint: "Up to 3 turns and 3 pages per task. Quickest and cheapest.",
+  },
   {
     value: "balanced",
     label: "Balanced",
-    hint: "Solid coverage at moderate cost. Recommended for most questions.",
+    hint: "Up to 5 turns and 5 pages per task. Recommended for most questions.",
   },
   {
     value: "comprehensive",
     label: "Comprehensive",
-    hint: "A deep dive — most sources, highest cost and longest run.",
+    hint: "Up to 8 turns and 8 pages per task. Most thorough, and the longest wait.",
   },
 ];
 

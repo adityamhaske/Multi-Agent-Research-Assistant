@@ -28,6 +28,7 @@ cannot become a route by which a model's memory reaches a citation.
 
 from __future__ import annotations
 
+import asyncio
 import time
 
 import pytest
@@ -460,3 +461,151 @@ async def test_the_second_forcing_attempt_does_not_rebill_the_first(monkeypatch)
         f"guard was charged {guard.spent} for a pass that reported {cost}"
     )
     assert cost == pytest.approx(2.0), "two calls at 1.0 each, counted once each"
+
+
+# ── 6. A round costs one model call, so a round must do as much as it can ──────────
+
+
+@pytest.mark.asyncio
+async def test_pages_requested_in_one_turn_are_fetched_concurrently(monkeypatch):
+    """Wall-clock is `rounds x model latency`; fetches must not add to it serially.
+
+    Measured on a hosted router, one model turn took two to four and a half *minutes*
+    while a page fetch is capped at ten seconds. The tool calls in a turn nonetheless ran
+    one after another, so a model that asked for three pages paid three fetch timeouts end
+    to end — and the prompt's step-by-step recipe pushed it to ask across three separate
+    turns instead, which is the expensive shape.
+    """
+    order: list[str] = []
+
+    async def slow_read(args):
+        order.append(f"start:{args['url']}")
+        await asyncio.sleep(0.05)
+        order.append(f"end:{args['url']}")
+        return {"url": args["url"], "text": PAGE, "error": None}
+
+    urls = [f"https://example.invalid/p{i}" for i in range(3)]
+    llm = _FakeLLM(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {"name": "read_webpage", "args": {"url": u}, "id": f"r{i}"}
+                    for i, u in enumerate(urls)
+                ],
+            )
+        ]
+    )
+    _install(monkeypatch, llm)
+    monkeypatch.setattr(
+        graph_mod,
+        "_TOOLS_BY_NAME",
+        {
+            **graph_mod._TOOLS_BY_NAME,
+            "read_webpage": type("T", (), {"ainvoke": staticmethod(slow_read)})(),
+        },
+    )
+
+    token = set_run_config(RunConfig(llm_mode="real"))
+    try:
+        await graph_mod._research_one(_state(), TASK, graph_mod._BudgetGuard(0.0, 0.0))
+    finally:
+        reset_run_config(token)
+
+    # Every fetch starts before any finishes: that is concurrency, not interleaving luck.
+    assert order[:3] == [f"start:{u}" for u in urls], f"fetches ran serially: {order}"
+
+
+@pytest.mark.asyncio
+async def test_the_same_page_asked_for_twice_in_one_turn_is_fetched_once(monkeypatch):
+    """Deduplication has to survive the move to concurrency.
+
+    Sequentially, the second call saw the first already in `fetched`. Dispatched together
+    they would both miss it, and the round would spend two fetches to read one page.
+    """
+    fetched: list[str] = []
+
+    async def counting_read(args):
+        fetched.append(args["url"])
+        return {"url": args["url"], "text": PAGE, "error": None}
+
+    llm = _FakeLLM(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {"name": "read_webpage", "args": {"url": URL}, "id": "a"},
+                    {"name": "read_webpage", "args": {"url": URL}, "id": "b"},
+                ],
+            )
+        ]
+    )
+    _install(monkeypatch, llm)
+    monkeypatch.setattr(
+        graph_mod,
+        "_TOOLS_BY_NAME",
+        {
+            **graph_mod._TOOLS_BY_NAME,
+            "read_webpage": type("T", (), {"ainvoke": staticmethod(counting_read)})(),
+        },
+    )
+
+    token = set_run_config(RunConfig(llm_mode="real"))
+    try:
+        await graph_mod._research_one(_state(), TASK, graph_mod._BudgetGuard(0.0, 0.0))
+    finally:
+        reset_run_config(token)
+
+    assert fetched.count(URL) == 1, f"fetched the same page {fetched.count(URL)} times in one turn"
+
+
+# ── 7. Depth has to mean something ─────────────────────────────────────────────────
+
+
+def test_depth_changes_the_work_a_task_may_do():
+    """ "Fast — fewer sources, lowest cost" was a label over identical behaviour.
+
+    Depth reached the planner's prompt as a word and nothing else, so every depth bought
+    the same eight rounds and the same five pages per task. A round is a model call and a
+    model call is minutes, so the control that promises a quicker, cheaper run has to
+    reduce rounds or it promises nothing.
+    """
+    fast, balanced, comprehensive = (
+        graph_mod._limits_for(d) for d in ("fast", "balanced", "comprehensive")
+    )
+    assert fast < balanced < comprehensive, (
+        f"depths must be ordered by the work they permit: {fast} {balanced} {comprehensive}"
+    )
+    assert fast[0] < 8, "fast must cost fewer model round-trips than the old fixed ceiling"
+
+
+def test_an_unknown_depth_gets_the_middle_setting_rather_than_the_dearest():
+    """An older client's depth string must not silently buy the most expensive run."""
+    assert graph_mod._limits_for("wildly-thorough") == graph_mod._DEPTH_LIMITS["balanced"]
+    assert graph_mod._limits_for(None) == graph_mod._DEPTH_LIMITS["balanced"]
+    assert graph_mod._limits_for("  FAST  ") == graph_mod._DEPTH_LIMITS["fast"]
+
+
+@pytest.mark.asyncio
+async def test_a_fast_run_stops_sooner_than_a_comprehensive_one(monkeypatch):
+    """The limit is enforced in the loop, not merely declared in a table."""
+    calls: dict[str, int] = {}
+
+    async def run_at(depth: str) -> int:
+        llm = _FakeLLM([_search_turn(f"q{i}", f"s{i}") for i in range(20)])
+        _install(monkeypatch, llm)
+        token = set_run_config(RunConfig(llm_mode="real"))
+        try:
+            state = _state()
+            state["research_depth"] = depth
+            await graph_mod._research_one(state, TASK, graph_mod._BudgetGuard(0.0, 0.0))
+        finally:
+            reset_run_config(token)
+        # One `bind_tools(...)` per model turn, plus the forced pass at the end.
+        return sum(1 for c in llm.calls if c is None)
+
+    calls["fast"] = await run_at("fast")
+    calls["comprehensive"] = await run_at("comprehensive")
+
+    assert calls["fast"] < calls["comprehensive"], calls
+    assert calls["fast"] <= graph_mod._DEPTH_LIMITS["fast"][0], calls

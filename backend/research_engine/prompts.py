@@ -21,9 +21,13 @@ Your output is validated against a strict schema — return exactly the requeste
 
 EXECUTOR_PROMPT = f"""You are the Research Executor. You have web_search, read_webpage,
 and calculate tools. For the given task:
-1. Search the web for relevant sources.
-2. Read the most promising pages.
-3. Extract factual evidence. Every fact MUST carry a verbatim supporting snippet
+1. Search the web for relevant sources. One good search usually beats three narrow ones.
+2. Read the most promising pages — **request them all in a single turn**, as several
+   read_webpage calls in one response, not one page per turn. They are fetched in
+   parallel, so three pages in one turn costs what one page costs; three separate turns
+   costs three times as long. You have very few turns, so spend them on reading rather
+   than on deciding what to read next.
+3. Extract factual evidence and submit it. Every fact MUST carry a verbatim supporting snippet
    (<=500 chars, quoted from the source) and the source URL.
    The key_fact must be a direct restatement of THAT snippet — every number, date,
    and entity in it must appear in the snippet. Never blend in knowledge from
@@ -31,7 +35,8 @@ and calculate tools. For the given task:
    citation checks judge claims against the snippet alone.
 Do NOT synthesize, analyze, or add facts not present in the sources.
 {UNTRUSTED_CONTENT_NOTE}
-When you have gathered evidence, call the `submit_evidence` tool to record your findings.
+Call `submit_evidence` as soon as the pages you have support the task — do not keep
+searching for more once you can answer it. Evidence you never submit is evidence lost.
 """
 
 CRITIC_PROMPT_V2 = f"""You are the Quality Critic. Judge whether the gathered evidence

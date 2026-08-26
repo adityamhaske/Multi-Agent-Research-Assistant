@@ -74,6 +74,20 @@ Four measurements that were wrong, a feature that was inert, and one product ins
   matches exactly one other fetched page is re-pointed at it and the claimed URL is recorded
   alongside, because a repair a reader cannot see is a silent rewrite.
 
+**Faster**
+
+- **Depth now governs the run instead of describing it.** It reached the planner as a word
+  in a prompt and nothing else, so "Fast — fewer sources, lowest cost" bought the same
+  eight turns and five pages per task as "Comprehensive". A turn is one model call, and a
+  model call on a hosted router was measured at two to four and a half *minutes*, so turns
+  are the entire wall-clock of a run. Fast is now 3 turns and 3 pages per task, balanced 5
+  and 5, comprehensive 8 and 8 — a fast run makes **under half** the model calls it used
+  to, and the run form states the numbers rather than promising thoroughness.
+- **A turn's page reads happen at once.** They ran one after another, so a model asking
+  for three pages paid three fetch timeouts end to end. Fetches are capped at ten seconds
+  and now overlap; the executor is also told to request its pages in a single turn, which
+  is the change that removes whole model round-trips rather than shaving seconds off one.
+
 **Improved**
 
 - **One way to start research.** A second start form existed on the older pipeline, was

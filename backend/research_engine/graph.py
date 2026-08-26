@@ -56,6 +56,26 @@ from research_engine.tools import EXECUTOR_TOOLS
 logger = structlog.get_logger()
 
 _TOOLS_BY_NAME = {t.name: t for t in EXECUTOR_TOOLS}
+#: Tool rounds and pages a single task may spend, by research depth.
+#:
+#: **A round is one model call, and that is the whole cost of a run.** A page fetch is
+#: capped at 10s and several run concurrently; a model turn on a hosted router was measured
+#: at two to four and a half *minutes*. So wall-clock is `rounds x model latency` and
+#: nothing else, and the only lever that matters is asking the model fewer times.
+#:
+#: Depth used to be a word in the planner's prompt and nothing more: `fast` and
+#: `comprehensive` bought the same eight rounds and the same five pages per task, so the
+#: control the interface offers as "a quick scan — fewer sources, lowest cost" changed
+#: neither the time nor the spend except by however many tasks the planner happened to
+#: emit. These make it mean what it says.
+_DEPTH_LIMITS: dict[str, tuple[int, int]] = {
+    # depth: (max tool rounds, max pages fetched) per task
+    "fast": (3, 3),
+    "balanced": (5, 5),
+    "comprehensive": (8, 8),
+}
+
+#: Used for an unknown depth, and as the ceiling the loop falls back to.
 _MAX_TOOL_ROUNDS = 8
 
 #: How many pages one task may open before it must stop reading and submit what it has.
@@ -65,6 +85,17 @@ _MAX_TOOL_ROUNDS = 8
 #: submitted nothing, twice. Reading is bounded so the task always reaches the extraction
 #: step with the sources it has, rather than reaching the end of its rounds with none.
 _MAX_PAGES_PER_TASK = 5
+
+
+def _limits_for(depth: str | None) -> tuple[int, int]:
+    """`(rounds, pages)` for a depth, falling back to balanced for anything unknown.
+
+    Unknown rather than invalid on purpose: a depth this build does not recognise is a
+    run started by an older client, and answering it with the middle setting is better
+    than refusing it or silently giving it the most expensive one.
+    """
+    return _DEPTH_LIMITS.get((depth or "").strip().lower(), _DEPTH_LIMITS["balanced"])
+
 
 #: Per-source ceiling on the text handed to the forced extraction pass.
 #:
@@ -684,11 +715,12 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
     # `seen_text` instead of the network. The observed run re-read one arXiv page five
     # times inside a single task, spending a round and a fetch each time to learn nothing.
     fetched: set[str] = set()
-    for _round in range(_MAX_TOOL_ROUNDS):
+    max_rounds, max_pages = _limits_for(state.get("research_depth"))
+    for _round in range(max_rounds):
         if guard.exceeded():
             logger.warning("executor_budget_stop", session_id=sid, task_id=task["id"])
             break
-        if len(fetched) >= _MAX_PAGES_PER_TASK:
+        if len(fetched) >= max_pages:
             # Enough sources are in hand; the forced pass below turns them into evidence.
             logger.info("executor_read_limit", session_id=sid, task_id=task["id"])
             break
@@ -704,6 +736,20 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
         if not tool_calls:
             break
         is_done = False
+
+        # ── Run this turn's tool calls concurrently ───────────────────────────────
+        #
+        # They used to run one after another. A model that asks for three pages in one
+        # turn then paid three fetch timeouts end to end, and — worse — the prompt's
+        # step-by-step recipe encouraged it to ask for them in three separate *turns*
+        # instead, each costing a full model round-trip. Fetches are the cheap part; the
+        # round-trip is minutes. So the prompt now asks for the reads in one turn, and
+        # this makes that turn cost one fetch's latency rather than N.
+        #
+        # Order is preserved throughout: results are consumed in `tool_calls` order, so
+        # `seen_text`, the emitted log and the appended `ToolMessage`s are identical to
+        # the sequential version regardless of which fetch finishes first.
+        pending_calls: list[dict] = []
         for call in tool_calls:
             if call["name"] == "submit_evidence":
                 try:
@@ -723,7 +769,7 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
                     submitted = True
                     is_done = True
                     break
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     # Report it. Swallowed into a tool observation, a model calling this
                     # with bad arguments every round was indistinguishable from one that
                     # never called it — the two have completely different remedies.
@@ -734,48 +780,67 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
                         forced=False,
                         error=str(e)[:400],
                     )
-                    observation = f"submit_evidence validation error: {e}"
                     messages.append(
                         ToolMessage(
-                            content=json.dumps(observation, default=str), tool_call_id=call["id"]
+                            content=json.dumps(
+                                f"submit_evidence validation error: {e}", default=str
+                            ),
+                            tool_call_id=call["id"],
                         )
                     )
                     continue
+            pending_calls.append(call)
 
-            url = (call.get("args") or {}).get("url")
-            if call["name"] == "read_webpage" and _norm_url(url) in fetched:
+        if is_done:
+            break
+
+        async def _observe(call: dict, *, cached: bool) -> object:
+            """One tool call's observation. Never raises — a failure is an observation."""
+            if cached:
                 # Already open in `seen_text`; refetching cannot produce new text, and the
                 # round it costs is a round not spent concluding.
-                observation = {
+                url = (call.get("args") or {}).get("url")
+                return {
                     "url": url,
                     "text": _seen_get(seen_text, url),
                     "error": None,
                     "note": "already read this page — quote it or move on",
                 }
+            tool = _TOOLS_BY_NAME.get(call["name"])
+            if tool is None:
+                return f"unknown tool {call['name']}"
+            try:
+                return await tool.ainvoke(call["args"])
+            except Exception as e:  # noqa: BLE001
+                return f"tool error: {e}"
+
+        # Cached-or-not is decided per call, before anything is dispatched, and never from
+        # a set the batch shares: marking a duplicate as cached in a shared set marks its
+        # own first occurrence too, and the whole turn then reads from an empty cache
+        # having fetched nothing. The first request for a URL fetches; a repeat — in this
+        # turn or an earlier one — is answered from `seen_text`.
+        seen_before = set(fetched)
+        dispatch: list[tuple[dict, bool]] = []
+        for call in pending_calls:
+            url = (call.get("args") or {}).get("url")
+            if call["name"] == "read_webpage" and url:
+                norm = _norm_url(url)
+                dispatch.append((call, norm in seen_before))
+                seen_before.add(norm)
+                fetched.add(norm)
             else:
-                tool = _TOOLS_BY_NAME.get(call["name"])
-                try:
-                    observation = (
-                        await tool.ainvoke(call["args"]) if tool else f"unknown tool {call['name']}"
-                    )
-                except Exception as e:  # noqa: BLE001
-                    observation = f"tool error: {e}"
-                if call["name"] == "read_webpage" and url:
-                    fetched.add(_norm_url(url))
+                dispatch.append((call, False))
+
+        observations = await asyncio.gather(
+            *(_observe(call, cached=cached) for call, cached in dispatch)
+        )
+
+        for (call, _cached), observation in zip(dispatch, observations, strict=True):
             record_tool_output(seen_text, call["name"], observation)
 
-            # Extract thought or query details
             tool_args = call.get("args") or {}
             search_query = tool_args.get("query") or tool_args.get("url") or ""
             thought_snippet = text_of(resp) if resp else ""
-
-            detail_payload = {
-                "task_id": task["id"],
-                "tool": call["name"],
-                "args": tool_args,
-                "thought": thought_snippet[:2000] if thought_snippet else None,
-                "observation": str(observation)[:4000] if observation else None,
-            }
 
             msg_suffix = f': "{search_query}"' if search_query else ""
             await emit(
@@ -783,13 +848,17 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
                 "agent_log",
                 agent="executor",
                 message=f"Used {call['name']}{msg_suffix}",
-                detail=detail_payload,
+                detail={
+                    "task_id": task["id"],
+                    "tool": call["name"],
+                    "args": tool_args,
+                    "thought": thought_snippet[:2000] if thought_snippet else None,
+                    "observation": str(observation)[:4000] if observation else None,
+                },
             )
             messages.append(
                 ToolMessage(content=json.dumps(observation, default=str), tool_call_id=call["id"])
             )
-        if is_done:
-            break
 
     # The model finished its turns without ever submitting. Ask it directly rather than
     # letting the text we already fetched fall on the floor — see `_forced_submit`.
