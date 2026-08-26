@@ -32,7 +32,7 @@ const QUESTION =
 const PASSWORD = "e2e-correct-horse-battery-42";
 
 function uniqueEmail(): string {
-  return `v2-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@mara-demo.dev`;
+  return `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@mara-demo.dev`;
 }
 
 async function register(page: Page): Promise<void> {
@@ -91,7 +91,7 @@ test.describe("research journey", () => {
 
     // 4. The design gate, because the run form sends `skip_plan_gate: false` — the run
     // stops before anything is searched (AGENTS.md, "three defaults, and they disagree on
-    // purpose"). `v2-gates.spec.ts` is what interrogates this gate; here it is walked
+    // purpose"). `gates.spec.ts` is what interrogates this gate; here it is walked
     // through, because a journey that skipped the product's default path would not be the
     // journey a user takes.
     await expect(page.getByRole("heading", { name: "Research plan" })).toBeVisible({
@@ -149,7 +149,7 @@ test.describe("research journey", () => {
       page.waitForEvent("download"),
       page.getByRole("link", { name: "Verification bundle" }).click(),
     ]);
-    const bundlePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "v2-bundle-")), "b.json");
+    const bundlePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "run-bundle-")), "b.json");
     await download.saveAs(bundlePath);
 
     const bundle = JSON.parse(fs.readFileSync(bundlePath, "utf8"));

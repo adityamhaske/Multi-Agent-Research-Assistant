@@ -83,7 +83,7 @@ async function mockApi(page, { runOverrides = {}, verification = F.verification 
     if (p.endsWith("/verification")) return route.fulfill(json(verification));
     if (p.endsWith("/stream")) return route.abort();
 
-    const run = p.match(/^\/v2\/runs\/([0-9a-f-]+)$/);
+    const run = p.match(/^\/runs\/([0-9a-f-]+)$/);
     if (run) {
       const id = run[1];
       const summary = F.runs.runs.find((r) => r.id === id);

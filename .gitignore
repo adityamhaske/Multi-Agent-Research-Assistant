@@ -68,13 +68,13 @@ data/
 *.rdb
 
 
-# Per-developer Claude Code overrides. `.claude/plans/` is deliberately NOT
-# ignored — a plan is a design artifact worth reviewing alongside the diff.
+# Per-developer coding-agent state. Plans are working notes, not a build contract, and a
+# completed one left in the tree reads as a description of the product; the shipped design
+# belongs in `docs/`, which is where the code cites it from.
 .claude/settings.local.json
+.claude/plans/
 
 # Scratch space for positioning notes, drafts, and ideas that are not yet decisions.
-# Deliberately ignored, unlike `.claude/plans/` — a plan is a design artifact reviewed
-# alongside its diff, whereas these are thinking-in-progress with no build contract.
 future-plans/
 
 # Editor/agent tool directories. Per-tool config, not project code.

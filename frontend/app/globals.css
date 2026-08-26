@@ -97,7 +97,7 @@
    * re-resolve there, so the mix does too. Restating the same expression in `.dark` could
    * only ever drift from this one.
    *
-   * They exist because the V2 workspace was hand-assembling this tint at nine call sites
+   * They exist because the run workspace was hand-assembling this tint at nine call sites
    * as `bg-status-warning-bg` — a utility no theme ever generated, so every warning panel
    * in the workspace rendered with no background at all. */
   --success-soft: color-mix(in srgb, var(--success) 12%, var(--bg-surface));

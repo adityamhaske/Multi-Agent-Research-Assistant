@@ -14,7 +14,7 @@ export const QUESTION =
 const PASSWORD = "e2e-correct-horse-battery-42";
 
 function uniqueEmail(): string {
-  return `v2-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@mara-demo.dev`;
+  return `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@mara-demo.dev`;
 }
 
 export async function register(page: Page): Promise<void> {
@@ -53,7 +53,7 @@ export async function ensureProject(page: Page): Promise<void> {
  * user meets the design gate, while a script POSTing an un-updated body keeps the ungated
  * journey (AGENTS.md, "three defaults, and they disagree on purpose"). Both populations are
  * real, so both are reachable here — threaded through the API for determinism rather than
- * clicked, since the form itself is exercised by `v2-journey.spec.ts`.
+ * clicked, since the form itself is exercised by `run-journey.spec.ts`.
  */
 export async function startResearch(
   page: Page,

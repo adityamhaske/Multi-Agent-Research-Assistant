@@ -32,16 +32,16 @@ export function isLive(status?: string | null): boolean {
   return status === "PENDING" || status === "RUNNING";
 }
 
-export const v2Keys = {
+export const runKeys = {
   runs: (projectId?: string | null, archived: boolean = false) =>
-    ["v2-runs", projectId ?? null, archived] as const,
-  run: (id: string) => ["v2-run", id] as const,
-  verification: (id: string) => ["v2-verification", id] as const,
+    ["runs", projectId ?? null, archived] as const,
+  run: (id: string) => ["run", id] as const,
+  verification: (id: string) => ["run-verification", id] as const,
 };
 
 export function useRuns(projectId?: string | null, archived: boolean = false) {
   return useQuery({
-    queryKey: v2Keys.runs(projectId, archived),
+    queryKey: runKeys.runs(projectId, archived),
     queryFn: () => {
       const params = new URLSearchParams();
       if (projectId) params.set("project_id", projectId);
@@ -62,8 +62,8 @@ export function useArchiveRun() {
         { method: "POST" },
       ),
     onSuccess: (_data, { id }) => {
-      qc.invalidateQueries({ queryKey: ["v2-runs"] });
-      qc.invalidateQueries({ queryKey: v2Keys.run(id) });
+      qc.invalidateQueries({ queryKey: ["runs"] });
+      qc.invalidateQueries({ queryKey: runKeys.run(id) });
     },
   });
 }
@@ -73,9 +73,9 @@ export function useDeleteRun() {
   return useMutation({
     mutationFn: (id: string) => apiFetch<void>(`/runs/${id}`, { method: "DELETE" }),
     onSuccess: (_data, id) => {
-      qc.removeQueries({ queryKey: v2Keys.run(id) });
-      qc.removeQueries({ queryKey: v2Keys.verification(id) });
-      qc.invalidateQueries({ queryKey: ["v2-runs"] });
+      qc.removeQueries({ queryKey: runKeys.run(id) });
+      qc.removeQueries({ queryKey: runKeys.verification(id) });
+      qc.invalidateQueries({ queryKey: ["runs"] });
     },
   });
 }
@@ -83,7 +83,7 @@ export function useDeleteRun() {
 
 export function useRun(runId: string | null) {
   return useQuery({
-    queryKey: v2Keys.run(runId ?? ""),
+    queryKey: runKeys.run(runId ?? ""),
     queryFn: () => apiFetch<RunGraph>(`/runs/${runId}`),
     enabled: Boolean(runId),
     // Fallback polling while the run is live. The event stream is the primary channel and
@@ -100,7 +100,7 @@ export function useRun(runId: string | null) {
 
 export function useV2Verification(runId: string | null, enabled = true) {
   return useQuery({
-    queryKey: v2Keys.verification(runId ?? ""),
+    queryKey: runKeys.verification(runId ?? ""),
     queryFn: () => apiFetch<RunVerification>(`/runs/${runId}/verification`),
     enabled: Boolean(runId) && enabled,
   });
@@ -119,7 +119,7 @@ export function useStartV2Research() {
        *  explicit `null` would be a routing the server then has to interpret. */
       model_routing?: ModelRouting;
     }) => apiFetch<{ run_id: string; status: string }>("/runs", { method: "POST", body }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["v2-runs"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["runs"] }),
   });
 }
 
@@ -132,9 +132,9 @@ export function useReportReview(runId: string) {
         { method: "POST", body },
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: v2Keys.run(runId) });
-      qc.invalidateQueries({ queryKey: v2Keys.verification(runId) });
-      qc.invalidateQueries({ queryKey: ["v2-runs"] });
+      qc.invalidateQueries({ queryKey: runKeys.run(runId) });
+      qc.invalidateQueries({ queryKey: runKeys.verification(runId) });
+      qc.invalidateQueries({ queryKey: ["runs"] });
     },
   });
 }
@@ -153,7 +153,7 @@ export function usePlanReview(runId: string) {
         method: "POST",
         body,
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: v2Keys.run(runId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: runKeys.run(runId) }),
   });
 }
 
@@ -165,7 +165,7 @@ export function useV2Cancel(runId: string) {
         `/runs/${runId}/cancel`,
         { method: "POST" },
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: v2Keys.run(runId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: runKeys.run(runId) }),
   });
 }
 
@@ -236,8 +236,8 @@ export function useRunStream(runId: string, enabled: boolean, runKey?: string | 
         // this subscription still believes the run is RUNNING, so the refetch is what
         // moves the status on — and the resubscribe that follows sees the gate again with
         // the run parked at it, and closes then.
-        qc.invalidateQueries({ queryKey: v2Keys.run(runId) });
-        qc.invalidateQueries({ queryKey: ["v2-runs"] });
+        qc.invalidateQueries({ queryKey: runKeys.run(runId) });
+        qc.invalidateQueries({ queryKey: ["runs"] });
       }
       // Hang up only where there is genuinely nothing more to read.
       //

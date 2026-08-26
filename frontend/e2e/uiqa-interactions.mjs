@@ -63,7 +63,7 @@ await page.route("**/api/v1/**", (route) => {
   if (p === "/runs") return route.fulfill(json(F.runs));
   if (p.endsWith("/verification")) return route.fulfill(json(F.verification));
   if (p.endsWith("/stream")) return route.abort();
-  if (/^\/v2\/runs\/[0-9a-f-]+$/.test(p)) return route.fulfill(json(F.graph()));
+  if (/^\/runs\/[0-9a-f-]+$/.test(p)) return route.fulfill(json(F.graph()));
   return route.fulfill(json({}));
 });
 
