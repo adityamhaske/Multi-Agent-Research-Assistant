@@ -662,6 +662,10 @@ export interface CorpusDocument {
   size_bytes?: number | null;
   /** False for documents ingested before originals were retained — no file to open. */
   downloadable?: boolean;
+  /** "uploaded" (a human added it) or "generated" (auto-saved from an approved report in
+   *  this project). Retrieval never cites a generated document as evidence — the badge
+   *  this drives exists so the UI doesn't imply otherwise. */
+  origin?: "uploaded" | "generated";
 }
 
 /** Same-origin URL for the stored original (docs/06 §6 — never a hardcoded backend host). */

@@ -121,15 +121,23 @@ def test_the_budget_guard_still_outranks_the_no_evidence_guard():
 # ── The failure a user actually reads ──────────────────────────────────────────────
 
 
-def test_the_two_nothing_to_research_failures_are_worded_apart():
-    """ "Nothing was selected" and "nothing was found" need different remedies.
+def test_the_three_nothing_to_research_failures_are_worded_apart():
+    """Three causes, three remedies, three messages.
 
-    Collapsing them would send a user to check their search providers when what really
-    happened is that they unchecked every subtopic — which is exactly what happened in
-    the run this module documents.
+    Collapsing any pair would send a user somewhere useless. "Nothing was selected" is a
+    plan the reviewer emptied; "nothing was found" is retrieval; "found plenty, kept
+    none" is the executor model — and that third one shipped wearing the second one's
+    words. In run `96a16137` every search returned ten hits and seven pages fetched 200
+    OK, and the run told its user to go check that a search provider was reachable.
+    Misdiagnosis is the P0 class in this codebase, not a wording nit.
     """
     nothing_selected = graph_mod.failer_node({"tasks": [], "evidence": []})["error"]
-    nothing_found = graph_mod.failer_node({"tasks": [{"id": 1}], "evidence": []})["error"]
+    nothing_found = graph_mod.failer_node(
+        {"tasks": [{"id": 1}], "evidence": [], "sources_seen": 0}
+    )["error"]
+    nothing_kept = graph_mod.failer_node({"tasks": [{"id": 1}], "evidence": [], "sources_seen": 7})[
+        "error"
+    ]
 
     assert "no research tasks were selected" in nothing_selected
     assert "subtopic" in nothing_selected
@@ -137,7 +145,14 @@ def test_the_two_nothing_to_research_failures_are_worded_apart():
     assert "no evidence was gathered" in nothing_found
     assert "search provider" in nothing_found
 
-    assert nothing_selected != nothing_found
+    assert "no evidence was gathered" in nothing_kept
+    assert "7 source(s) were fetched" in nothing_kept, "the message must report what it measured"
+    assert "executor model" in nothing_kept
+    assert "search provider" not in nothing_kept, (
+        "retrieval worked; sending the reader to check it is the misdiagnosis this pins"
+    )
+
+    assert len({nothing_selected, nothing_found, nothing_kept}) == 3
 
 
 def test_a_healthy_run_reaching_the_failer_still_reports_the_retry_limit():

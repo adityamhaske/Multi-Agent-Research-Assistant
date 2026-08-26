@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_current_user
 from app.models.project import Project
 from app.models.user import User
-from tests.test_project_memory import StubEmbeddings
+from tests.dataflow.test_project_memory import StubEmbeddings
 
 pytestmark = pytest.mark.asyncio
 

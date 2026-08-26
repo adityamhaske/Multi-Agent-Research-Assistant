@@ -46,7 +46,7 @@ async def sidecar(tmp_path):
         # desktop app ships. Nothing is listening in CI, so swap in the deterministic fake
         # — the same helper `test_desktop_sidecar` uses. The store is what is under test,
         # not the embedder.
-        from tests.test_corpus_store import FakeEmbeddings
+        from tests.dataflow.test_corpus_store import FakeEmbeddings
 
         app.state.sidecar["corpus"]._embedder = FakeEmbeddings()  # noqa: SLF001
         transport = httpx.ASGITransport(app=app)
@@ -178,13 +178,13 @@ async def test_per_project_corpus_paths_reach_the_flat_store(sidecar):
         files={"file": ("notes.txt", TEXT_DOC, "text/plain")},
     )
     assert upload.status_code == 201, upload.text
-    doc_id = upload.json()["doc_id"]
+    doc_id = upload.json()["id"]
 
     via_project = await sidecar.get(f"/api/v1/projects/{pid}/corpus/documents", headers=_auth())
     via_flat = await sidecar.get("/api/v1/corpus/documents", headers=_auth())
     assert via_project.status_code == 200
     assert via_project.json() == via_flat.json()
-    assert any(d["id"] == doc_id for d in via_project.json()["documents"])
+    assert any(d["id"] == doc_id for d in via_project.json())
 
 
 async def test_per_project_corpus_status_matches_the_flat_one(sidecar):
@@ -238,7 +238,7 @@ async def test_delete_through_the_canonical_path_removes_the_document(sidecar):
         headers=_auth(),
         files={"file": ("notes.txt", TEXT_DOC, "text/plain")},
     )
-    doc_id = upload.json()["doc_id"]
+    doc_id = upload.json()["id"]
 
     delete = await sidecar.delete(
         f"/api/v1/projects/{pid}/corpus/documents/{doc_id}", headers=_auth()
@@ -246,7 +246,7 @@ async def test_delete_through_the_canonical_path_removes_the_document(sidecar):
     assert delete.status_code == 204
 
     listed = await sidecar.get("/api/v1/corpus/documents", headers=_auth())
-    assert not any(d["id"] == doc_id for d in listed.json()["documents"])
+    assert not any(d["id"] == doc_id for d in listed.json())
 
 
 async def test_delete_404s_for_an_unknown_document(sidecar):
@@ -269,7 +269,7 @@ async def test_download_returns_the_original_bytes(sidecar):
         headers=_auth(),
         files={"file": ("notes.txt", TEXT_DOC, "text/plain")},
     )
-    doc_id = upload.json()["doc_id"]
+    doc_id = upload.json()["id"]
 
     resp = await sidecar.get(
         f"/api/v1/projects/{pid}/corpus/documents/{doc_id}/download", headers=_auth()
@@ -293,7 +293,7 @@ async def test_download_carries_the_servers_own_no_render_headers(sidecar):
         headers=_auth(),
         files={"file": ("notes.txt", TEXT_DOC, "text/plain")},
     )
-    doc_id = upload.json()["doc_id"]
+    doc_id = upload.json()["id"]
 
     resp = await sidecar.get(
         f"/api/v1/projects/{pid}/corpus/documents/{doc_id}/download", headers=_auth()

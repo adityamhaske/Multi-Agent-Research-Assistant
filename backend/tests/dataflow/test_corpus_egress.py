@@ -23,7 +23,7 @@ from research_engine.embeddings import EmbeddingsUnavailable, LocalEmbeddings
 from research_engine.runconfig import RunConfig, reset_run_config, set_run_config
 from research_engine.runner import run
 from research_engine.tools import read_webpage, web_search
-from tests.test_corpus_store import SOLAR_TEXT, VENTS_TEXT, FakeEmbeddings
+from tests.dataflow.test_corpus_store import SOLAR_TEXT, VENTS_TEXT, FakeEmbeddings
 
 _LOOPBACK = {"127.0.0.1", "::1", "localhost"}
 

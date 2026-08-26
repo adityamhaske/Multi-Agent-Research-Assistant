@@ -316,6 +316,34 @@ async def _ingest_into_project_memory(db, session: Session, provider_keys: dict[
         )
 
 
+async def _ingest_report_into_corpus(session: Session, provider_keys: dict[str, str]) -> None:
+    """Auto-save this approved report into its project's corpus (app/services/report_corpus.py).
+
+    Same transition as `_ingest_into_project_memory` and the same reason: never fail an
+    already-committed run over it. Uses whatever embedder the deployment resolves to —
+    unlike corpus-mode *search*, ingestion is not required to be local (the upload route
+    ingests uploads the same way), so a hosted embedder here is not an egress violation.
+    """
+    try:
+        from app import adapters
+        from app.config import settings
+        from app.services.report_corpus import ingest_report
+        from research_engine.corpus import CorpusStore
+
+        settings.corpus_path.mkdir(parents=True, exist_ok=True)
+        db_path = settings.corpus_path / f"corpus_{session.project_id}.sqlite"
+        embedder = await adapters.embeddings_for(provider_keys)
+        store = CorpusStore(db_path, embedder)
+        await ingest_report(store, session_id=str(session.id), report_markdown=session.final_report)
+    except Exception as e:  # noqa: BLE001 — see report_corpus.ingest_report's own docstring
+        logger.warning(
+            "report_corpus_ingest_setup_failed",
+            session_id=str(session.id),
+            project_id=str(session.project_id),
+            error=str(e),
+        )
+
+
 async def _persist_outcome(
     db,
     session: Session,
@@ -429,6 +457,8 @@ async def _persist_outcome(
     )
     # The one place approved research enters project memory (docs/14 §2).
     await _ingest_into_project_memory(db, session, provider_keys or {})
+    # And its project's corpus (docs/12 M10 follow-up) — see report_corpus.py.
+    await _ingest_report_into_corpus(session, provider_keys or {})
 
 
 async def run_pipeline(session_id: str, user_id: str) -> None:

@@ -12,3 +12,7 @@ __pycache__/
 evals/results/
 .git/
 .DS_Store
+# Local corpus SQLite files — never bake a developer's project data into the image.
+# A fresh named volume is seeded from whatever the image has at its mount point, so a
+# baked-in corpus/ here would silently reappear as phantom documents on first run.
+data/

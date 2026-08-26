@@ -35,7 +35,7 @@ from pathlib import Path
 
 import pytest
 
-BACKEND = Path(__file__).resolve().parents[1]
+BACKEND = Path(__file__).resolve().parents[2]
 
 # Probed against a run id that does not exist, so a handler that imports and executes
 # answers 404. Any 500 here is the import failing, not the query.
@@ -341,7 +341,7 @@ def test_the_export_path_works_with_the_bundle_s_excluded_packages_unavailable()
     # Read from the spec itself, via the module that already parses it — a second copy
     # of the exclude list is a second thing to forget. WeasyPrint is left available:
     # its own guard covers it, and PDF export is a documented 501 on this host anyway.
-    from tests.test_sidecar_startup import _spec_excludes
+    from tests.workflow.test_sidecar_startup import _spec_excludes
 
     blocked = [n for n in _spec_excludes() if n != "weasyprint"]
     script = _BLOCKED_CHILD.replace("__BACKEND__", repr(str(BACKEND))).replace(

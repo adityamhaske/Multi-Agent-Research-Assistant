@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import { useActiveProject } from "@/components/ActiveProject";
+import { GeneratedBadge } from "@/components/GeneratedBadge";
 import { documentUrl } from "@/components/preview/DocumentPreview";
 import { PreviewDrawer } from "@/components/preview/PreviewDrawer";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -215,7 +216,10 @@ export default function CorpusPage() {
         </h1>
         <p className="mb-5 max-w-2xl text-sm leading-relaxed text-text-muted">
           Upload documents to restrict research to an airgapped local corpus. Saved to{" "}
-          <strong className="text-text-secondary">{active?.name}</strong>.
+          <strong className="text-text-secondary">{active?.name}</strong>. Every approved
+          report in this project is saved here too, marked{" "}
+          <span className="font-mono text-[0.6875rem] uppercase tracking-wider">Generated</span>{" "}
+          — never used as evidence for the next report.
         </p>
 
         <div
@@ -329,9 +333,12 @@ export default function CorpusPage() {
                       className="flex items-center justify-between gap-3 p-4 hover:bg-bg-elevated"
                     >
                       <div className="min-w-0">
-                        <p className="truncate font-serif text-sm font-semibold text-text-primary">
-                          {doc.filename}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="truncate font-serif text-sm font-semibold text-text-primary">
+                            {doc.filename}
+                          </p>
+                          {doc.origin === "generated" && <GeneratedBadge className="shrink-0" />}
+                        </div>
                         <p className="font-mono text-xs text-text-muted">
                           {doc.chunks} chunks
                           {size ? ` · ${size}` : ""}

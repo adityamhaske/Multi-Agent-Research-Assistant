@@ -157,7 +157,14 @@ CREATE TABLE IF NOT EXISTS corpus_documents (
     -- what a human opens. Without it the UI could only offer "view extracted text", which
     -- is not the same as opening your own PDF. Nullable on purpose: documents ingested
     -- before this column existed keep working and simply cannot be downloaded.
-    blob        BLOB
+    blob        BLOB,
+    -- 'uploaded' (a human added it) or 'generated' (this project's own approved report,
+    -- auto-saved after the report-review gate — docs/12 M10 follow-up). Retrieval excludes
+    -- 'generated' unconditionally (see `_search_sync`): without this, an approved report
+    -- becomes citable evidence for the next one, and a `[n]` marker would resolve cleanly
+    -- while pointing at the model's own earlier output rather than a real source — the
+    -- unverifiable-citation class AGENTS.md calls P0, just laundered through a real file.
+    origin      TEXT NOT NULL DEFAULT 'uploaded'
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_corpus_doc_dedupe
     ON corpus_documents (filename, sha256);
@@ -220,6 +227,10 @@ class CorpusStore:
         have = {row[1] for row in conn.execute("PRAGMA table_info(corpus_documents)")}
         if "blob" not in have:
             conn.execute("ALTER TABLE corpus_documents ADD COLUMN blob BLOB")
+        if "origin" not in have:
+            conn.execute(
+                "ALTER TABLE corpus_documents ADD COLUMN origin TEXT NOT NULL DEFAULT 'uploaded'"
+            )
 
     @property
     def embedder(self) -> Embeddings:
@@ -234,13 +245,16 @@ class CorpusStore:
 
     # -- ingestion ---------------------------------------------------------------
 
-    async def ingest(self, filename: str, data: bytes) -> Ingested:
+    async def ingest(self, filename: str, data: bytes, *, origin: str = "uploaded") -> Ingested:
         """Extract, chunk, embed, and store one document. Idempotent per content.
 
         Phase split matters: extraction and the dedupe check run on a worker thread
         (a 25 MB PDF parse must not block the loop), embedding runs on the CALLER'S
         loop (an async httpx client cannot live inside a `to_thread`), and the write
         goes back to a thread.
+
+        `origin` distinguishes a human upload from this project's own auto-saved report
+        (`app/services/report_corpus.py`) — see the column comment in `_SCHEMA`.
         """
         prepared = await asyncio.to_thread(self._prepare_sync, filename, data)
         if isinstance(prepared, Ingested):  # skipped (duplicate) — nothing to embed
@@ -263,6 +277,7 @@ class CorpusStore:
             chunks,
             vectors,
             data,
+            origin,
         )
         logger.info(
             "corpus_ingested",
@@ -310,12 +325,13 @@ class CorpusStore:
         chunks: list,
         vectors: list[list[float]],
         blob: bytes | None = None,
+        origin: str = "uploaded",
     ) -> None:
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO corpus_documents "
                 "(id, filename, kind, sha256, text, page_starts, chunk_count, ingested_at, "
-                "blob) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "blob, origin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     doc_id,
                     filename,
@@ -326,6 +342,7 @@ class CorpusStore:
                     len(chunks),
                     datetime.now(UTC).isoformat(),
                     blob,
+                    origin,
                 ),
             )
             conn.executemany(
@@ -399,22 +416,41 @@ class CorpusStore:
                 'SELECT c.id, c.document_id, c.start, c."end", c.page, c.text, c.embedding, '
                 "d.filename "
                 "FROM corpus_chunks c JOIN corpus_documents d ON d.id = c.document_id "
-                "WHERE c.embedding_model = ?",
+                # Unconditional, not a caller-chosen filter: a generated report resolving as
+                # a clean citation for the next report is exactly the false-measurement bug
+                # this store exists to refuse (see the `origin` column comment above).
+                "WHERE c.embedding_model = ? AND d.origin != 'generated'",
                 (self._embedder.model_id,),
             ).fetchall()
 
         if not rows:
-            # Distinguish "empty corpus" from "wrong model" — both fail the run, but
-            # the remedy differs (ingest documents vs re-index after a model change).
+            # Distinguish "empty corpus", "wrong model", and "nothing but auto-saved
+            # reports" — all three fail the run, but the remedy differs (ingest documents,
+            # re-index after a model change, or upload a real source). Each diagnostic
+            # query below repeats the same `origin != 'generated'` exclusion as the main
+            # query above, or a corpus holding only generated reports would misreport
+            # itself as "wrong embedding model" instead of the true reason.
             with self._connect() as conn:
                 other = conn.execute(
-                    "SELECT embedding_model, COUNT(*) FROM corpus_chunks GROUP BY 1"
+                    "SELECT c.embedding_model, COUNT(*) FROM corpus_chunks c "
+                    "JOIN corpus_documents d ON d.id = c.document_id "
+                    "WHERE d.origin != 'generated' GROUP BY 1"
                 ).fetchall()
             if other:
                 models = ", ".join(f"{m} ({n} chunks)" for m, n in other)
                 raise RuntimeError(
                     f"Corpus was indexed with a different embedding model ({models}); "
                     f"current model is '{self._embedder.model_id}'. Re-ingest to re-index."
+                )
+            with self._connect() as conn:
+                generated_only = conn.execute(
+                    "SELECT COUNT(*) FROM corpus_documents WHERE origin = 'generated'"
+                ).fetchone()[0]
+            if generated_only:
+                raise RuntimeError(
+                    "The corpus has only auto-saved reports and no uploaded documents. "
+                    "Generated reports are never used as evidence — upload a source "
+                    "before running corpus-only research."
                 )
             raise RuntimeError(
                 "The corpus is empty. Ingest documents before running corpus-only research."
@@ -517,7 +553,7 @@ class CorpusStore:
                 # a corpus of 25 MB PDFs stays cheap. `downloadable` is derived rather
                 # than assumed: documents ingested before the blob column existed have
                 # NULL here, and the UI must offer Open only where a file really exists.
-                "       length(blob) FROM corpus_documents "
+                "       length(blob), origin FROM corpus_documents "
                 "ORDER BY ingested_at"
             ).fetchall()
         return [
@@ -529,6 +565,7 @@ class CorpusStore:
                 "ingested_at": row[4],
                 "size_bytes": row[5],
                 "downloadable": row[5] is not None,
+                "origin": row[6],
             }
             for row in rows
         ]

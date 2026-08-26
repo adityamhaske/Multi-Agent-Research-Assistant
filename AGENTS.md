@@ -141,6 +141,21 @@ locally.
   copied in, `lib.rs` looked next to the executable instead, CI raced the two jobs — a
   5 MB `.app` passed CI and died on first launch. **A desktop bundle that has not been
   launched is not verified** — check the artifact is ~180 MB, not ~5 MB
+- Corpus document/status/upload response shape → `app/api/v1/corpus.py`'s
+  `DocumentResponse`/`CorpusStatusResponse` *and* the four matching routes in
+  `desktop/sidecar.py`. The desktop routes 200'd and `test_desktop_contract_gaps.py`
+  called them, but the body was `CorpusStore.documents()`'s own raw shape
+  (`chunk_count`/`ingested_at`, a `{"documents": [...]}` wrapper on the list route) instead
+  of the server's field names (`chunks`/`created_at`, a bare array) — and the status route
+  never summed `chunks` at all. `hooks/queries.ts::useCorpusDocuments` types the response
+  as a bare `CorpusDocument[]`, so `.length` on the wrapper read as `undefined` — falsy —
+  and the Corpus page rendered "no documents" for a corpus that was never empty. No
+  crash, no failing test, just silently wrong on desktop only. **Registration is not
+  behaviour**: the existing parity test called the route and asserted equality between
+  the two desktop response shapes, which only proves the bug was consistent, not correct —
+  it had to be checked against the *server's* contract, not against itself.
+  `desktop/sidecar.py::_document_response`/`_corpus_status_response` are the one shaping
+  function each, called from both the flat and per-project routes
 
 Prefer extracting shared logic into one function over keeping two copies in step by
 discipline — `map_local_host` is the worked example of doing that after the fact.

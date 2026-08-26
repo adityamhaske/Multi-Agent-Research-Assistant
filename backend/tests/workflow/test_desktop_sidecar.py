@@ -534,7 +534,7 @@ def _install_fake_embedder(app_holder) -> None:
     The sidecar's lifespan builds the store before tests can touch it, so the
     embedder is replaced in place — the store is the contract under test.
     """
-    from tests.test_corpus_store import FakeEmbeddings
+    from tests.dataflow.test_corpus_store import FakeEmbeddings
 
     # `app_holder` is the httpx client; the app hangs off its transport.
     app = app_holder._transport.app  # noqa: SLF001 — test-internal access
@@ -562,19 +562,24 @@ async def test_corpus_upload_list_delete_round_trip(sidecar):
     )
     assert upload.status_code == 201
     body = upload.json()
-    assert body["doc_id"] and body["chunks_written"] >= 1 and not body["skipped"]
+    # Same field names as the server's DocumentResponse (app/api/v1/corpus.py) — not
+    # `Ingested`'s own doc_id/chunks_written/skipped/reason. See sidecar's
+    # `_document_response` for why: nothing here checked the body shape, only the status
+    # code, so a wrapped/renamed response looked done while the frontend's typed
+    # `CorpusDocument[]` would have read every field as undefined.
+    assert body["id"] and body["chunks"] >= 1
 
-    # Same bytes again: deduped, not doubled.
+    # Same bytes again: deduped to the same id, not doubled.
     again = await sidecar.post(
         "/api/v1/corpus/documents",
         params={"filename": "notes.txt"},
         headers=_auth(),
         content=CORPUS_DOC.encode(),
     )
-    assert again.json()["skipped"] is True
+    assert again.json()["id"] == body["id"]
 
     docs = await sidecar.get("/api/v1/corpus/documents", headers=_auth())
-    assert [d["filename"] for d in docs.json()["documents"]] == ["notes.txt"]
+    assert [d["filename"] for d in docs.json()] == ["notes.txt"]
 
     # A format we cannot locate quotes in never enters a citation-grade corpus.
     rejected = await sidecar.post(
@@ -585,9 +590,9 @@ async def test_corpus_upload_list_delete_round_trip(sidecar):
     )
     assert rejected.status_code == 422
 
-    delete = await sidecar.delete(f"/api/v1/corpus/documents/{body['doc_id']}", headers=_auth())
+    delete = await sidecar.delete(f"/api/v1/corpus/documents/{body['id']}", headers=_auth())
     assert delete.status_code == 204
-    gone = await sidecar.delete(f"/api/v1/corpus/documents/{body['doc_id']}", headers=_auth())
+    gone = await sidecar.delete(f"/api/v1/corpus/documents/{body['id']}", headers=_auth())
     assert gone.status_code == 404
 
 

@@ -23,6 +23,7 @@ const INDEX: Entry[] = [
   { section: "research", label: "Search results per query", keywords: "retrieval search results web count k" },
   { section: "research", label: "Minimum sources per task", keywords: "sources evidence minimum critic floor" },
   { section: "research", label: "Snippet length", keywords: "snippet citation length characters truncate" },
+  { section: "projects", label: "Create, rename, archive, delete projects", keywords: "project projects delete archive restore rename history" },
   { section: "appearance", label: "Theme", keywords: "appearance theme dark light mode" },
   { section: "appearance", label: "Density", keywords: "density compact comfortable spacing" },
   { section: "advanced", label: "Token usage", keywords: "usage tokens cost spend" },

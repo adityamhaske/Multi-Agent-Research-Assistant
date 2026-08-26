@@ -118,9 +118,6 @@ INTENTIONAL_SERVER_ONLY: dict[str, str] = {
         "desktop takes the provider as a path segment: /models/providers/health/{provider}; "
         "the frontend already branches on isDesktop for this one"
     ),
-    # Multi-tenant concerns with no meaning for a single local user paying their own bill.
-    "PATCH /projects/{project_id}": "desktop offers no project rename; the UI never calls it",
-    "DELETE /projects/{project_id}": "desktop offers no project delete; the UI never calls it",
 }
 
 #: On the desktop host and deliberately not on the server.
@@ -211,6 +208,8 @@ DESKTOP_UI_CALLS: dict[str, str] = {
     "GET /auth/me": "AppShell — the local user identity",
     "GET /projects": "ProjectSwitcher",
     "POST /projects": "ProjectSwitcher — create",
+    "PATCH /projects/{project_id}": "ProjectsSection — rename, archive, restore",
+    "DELETE /projects/{project_id}": "ProjectsSection — delete",
     "POST /research": "dashboard run form",
     "GET /research": "history, project overview",
     "GET /research/{session_id}": "session view",

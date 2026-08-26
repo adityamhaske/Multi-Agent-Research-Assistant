@@ -499,7 +499,7 @@ def test_the_write_only_redis_cancellation_key_is_gone():
     import ast
     from pathlib import Path
 
-    backend = Path(__file__).resolve().parents[1]
+    backend = Path(__file__).resolve().parents[2]
     offenders: list[str] = []
     for package in (backend / "app", backend / "desktop", backend / "research_engine"):
         for source in package.rglob("*.py"):

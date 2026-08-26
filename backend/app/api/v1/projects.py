@@ -18,6 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.db.base import get_db
 from app.dependencies import get_current_user
 from app.models.project import Project
@@ -222,6 +223,20 @@ async def delete_project(
             await checkpoints.delete_thread(str(sid))
         except Exception as e:  # noqa: BLE001 — user rows are gone; log and continue
             logger.warning("checkpoint_cleanup_failed", session_id=str(sid), error=str(e))
+
+    # The project's corpus (docs/12 M10) is a standalone SQLite file keyed by project_id,
+    # not reachable by the cascade above — no foreign key points at a path on disk. Left
+    # alone, it becomes an orphan that never surfaces again (no route can address a
+    # deleted project's corpus) while still holding every document and embedding that
+    # was in it, contradicting the "no orphan vectors after a delete" standard the
+    # project model itself documents (app/models/project.py).
+    corpus_stem = settings.corpus_path / f"corpus_{project_id}"
+    for suffix in (".sqlite", ".sqlite-wal", ".sqlite-shm"):
+        path = corpus_stem.with_name(corpus_stem.name + suffix)
+        try:
+            path.unlink(missing_ok=True)
+        except OSError as e:
+            logger.warning("corpus_cleanup_failed", project_id=str(project_id), error=str(e))
 
     logger.info("project_deleted", project_id=str(project_id), sessions=len(session_ids))
     return Response(status_code=status.HTTP_204_NO_CONTENT)

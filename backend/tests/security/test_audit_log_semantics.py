@@ -21,7 +21,7 @@ import ast
 import re
 from pathlib import Path
 
-BACKEND = Path(__file__).resolve().parent.parent
+BACKEND = Path(__file__).resolve().parent.parent.parent
 
 #: The complete set of writers, by file and enclosing function. Server and desktop hosts
 #: write the same two decisions each: one at the design gate, one at the report gate.

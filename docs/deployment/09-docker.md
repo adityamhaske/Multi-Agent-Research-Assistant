@@ -53,6 +53,22 @@ portably, including on Linux.
 Volumes are named distinctly from the dev compose file's, so the full stack can never
 collide with a dev database of a different Postgres major version.
 
+**A fourth named volume, `mara_full_corpus_data`, holds per-project corpora** (docs/12
+M10) and is mounted at `/app/data` on **both** `api` and `worker`. It must be on both:
+they are separate containers with separate writable layers, so a document uploaded
+through `api` and not visible to `worker` is exactly the split-brain a shared volume
+exists to prevent. Without this volume at all, a corpus lives only in a container's
+writable layer and is destroyed by any `up --build` or `down` recreate — `./start.sh
+--stop` / a plain `docker compose down` preserves it, and only `./start.sh --reset` /
+`down -v` removes it, same as the database.
+
+To back up a project's corpus outside the volume:
+
+```bash
+docker run --rm -v mara_full_corpus_data:/data -v "$PWD":/backup alpine \
+  tar czf /backup/corpus-backup.tar.gz -C /data .
+```
+
 ## Startup ordering
 
 Migrations run exactly once per deploy, and dependants wait for them:

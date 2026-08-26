@@ -94,7 +94,12 @@ from app.models.project import Project
 from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.schemas.auth import UsageResponse
-from app.schemas.project import ProjectCreateRequest, ProjectListResponse, ProjectResponse
+from app.schemas.project import (
+    ProjectCreateRequest,
+    ProjectListResponse,
+    ProjectResponse,
+    ProjectUpdateRequest,
+)
 from app.schemas.research import (
     ApprovalRequest,
     ChatMessageSchema,
@@ -128,6 +133,7 @@ from research_engine.runconfig import (
     reset_run_config,
     set_run_config,
 )
+
 # `resume`/`run` are also bound under aliases: in `_drive_run`, `run` is the ResearchRun
 # row, and letting the row shadow the engine entry point would be a silent bug rather than
 # a name error.
@@ -586,9 +592,7 @@ def create_sidecar_app(
     # `app.db.base` builds from this is never used on this host — the sidecar passes its
     # own session into every handler — but pointing it at the desktop's own database is
     # what makes an accidental future use read real rows instead of silently empty ones.
-    os.environ.setdefault(
-        "DATABASE_URL", f"sqlite+aiosqlite:///{data_path / 'desktop.sqlite'}"
-    )
+    os.environ.setdefault("DATABASE_URL", f"sqlite+aiosqlite:///{data_path / 'desktop.sqlite'}")
     # No JWT is ever minted here; this only has to exist, and must not be a shipped constant.
     os.environ.setdefault("JWT_SECRET_KEY", secrets.token_urlsafe(32))
 
@@ -934,6 +938,86 @@ def create_sidecar_app(
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Project not found.")
         return project
 
+    @api.patch("/projects/{project_id}", response_model=ProjectResponse)
+    async def update_project(
+        project_id: uuid.UUID,
+        payload: ProjectUpdateRequest,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        """Rename, re-describe, or archive/unarchive a project — the server's route
+        (app/api/v1/projects.py), same validation and same 409 on a duplicate name.
+
+        This route did not exist for a whole release; `INTENTIONAL_SERVER_ONLY` in
+        test_host_parity.py justified the gap as "the UI never calls it" — true only
+        as long as no shared component did. `ProjectsSection.tsx` now does, on both
+        hosts, which is what makes the justification stop being true and this route
+        required rather than optional.
+        """
+        project = await _resolve_project(db, user.id, project_id)
+        if payload.name is not None:
+            project.name = payload.name
+        if payload.description is not None:
+            project.description = payload.description
+        if payload.archived is not None:
+            project.archived_at = datetime.now(UTC) if payload.archived else None
+        try:
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, detail="You already have a project with that name."
+            ) from None
+        await db.refresh(project)
+        count = (
+            await db.execute(
+                select(func.count()).select_from(Session).where(Session.project_id == project.id)
+            )
+        ).scalar_one()
+        return _project_response(project, count)
+
+    @api.delete("/projects/{project_id}", status_code=204)
+    async def delete_project(
+        project_id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        """Delete a project and every session in it — same refusal-while-running rule
+        and same checkpoint cleanup as the server route.
+
+        Deliberately does NOT touch a corpus file: desktop's corpus is one flat
+        `corpus.sqlite` for the whole app (`make_corpus_store`), not one file per
+        project like the server's `corpus_<project_id>.sqlite` — a real, documented
+        infra difference (AGENTS.md), not a gap. There is nothing project-scoped on
+        disk here to orphan.
+        """
+        project = await _resolve_project(db, user.id, project_id)
+        running = (
+            await db.execute(
+                select(func.count())
+                .select_from(Session)
+                .where(Session.project_id == project.id, Session.status == SessionStatus.RUNNING)
+            )
+        ).scalar_one()
+        if running:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail=f"{running} session(s) in this project are still running.",
+            )
+        session_ids = (
+            (await db.execute(select(Session.id).where(Session.project_id == project.id)))
+            .scalars()
+            .all()
+        )
+        await db.delete(project)  # sessions (and their logs/chat/audit) cascade
+        await db.commit()
+        for sid in session_ids:
+            try:
+                await app.state.sidecar["saver"].adelete_thread(str(sid))
+            except Exception as e:  # noqa: BLE001 — the rows are gone; log and move on
+                logger.warning("checkpoint_cleanup_failed", session_id=str(sid), error=str(e))
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
     # -- research sessions ------------------------------------------------------
 
     async def _authorized_session(
@@ -1006,6 +1090,19 @@ def create_sidecar_app(
                 outcome.final_report or "", outcome.sources
             )
         await db.commit()
+
+        if outcome.status == "completed":
+            # Desktop's V1 counterpart to `pipeline_runner._ingest_report_into_corpus`.
+            # There is no desktop project-memory ingestion to mirror alongside it (project
+            # memory is pgvector-only — AGENTS.md), but the corpus is plain SQLite and has
+            # no such constraint, so this is not skipped the way memory is.
+            from app.services.report_corpus import ingest_report
+
+            await ingest_report(
+                make_corpus_store(app.state.data_dir),
+                session_id=str(session.id),
+                report_markdown=outcome.final_report,
+            )
 
         lifecycle = {
             "awaiting_plan": "PLAN_READY",
@@ -2306,6 +2403,38 @@ def create_sidecar_app(
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="Corpus not ready.")
         return store
 
+    def _document_response(d: dict) -> dict:
+        """`CorpusStore.documents()`'s raw shape → the server's `DocumentResponse` field
+        names (`app/api/v1/corpus.py`) — the same client contract on both hosts.
+
+        Registration alone made these routes look done: `test_desktop_contract_gaps.py`
+        called them and got 200s, but nothing checked the *body* against the server's
+        actual field names (`id`/`chunks`/`created_at`) versus this store's own
+        (`chunk_count`/`ingested_at`) — id vs doc_id, chunks vs chunks_written. The
+        frontend hook types the response as a bare `CorpusDocument[]`
+        (`hooks/queries.ts::useCorpusDocuments`); the wrapped `{"documents": [...]}` this
+        used to return has `.length` read as `undefined` off the wrapper object, which is
+        falsy, so the Corpus page rendered "no documents" for a corpus that was never
+        empty — silent data loss in the UI, not a crash, which is why it went unnoticed.
+        """
+        return {
+            "id": d["id"],
+            "filename": d["filename"],
+            "chunks": d["chunk_count"],
+            "created_at": d["ingested_at"],
+            "size_bytes": d.get("size_bytes"),
+            "downloadable": d.get("downloadable", False),
+            "origin": d.get("origin", "uploaded"),
+        }
+
+    def _corpus_status_response(info: dict) -> dict:
+        """Same shape gap as `_document_response`, in `CorpusStatusResponse`: the server
+        adds a top-level `chunks` sum (`app/api/v1/corpus.py::get_status`) that
+        `CorpusStore.status()` itself does not compute — this host must add it too."""
+        info = dict(info)
+        info["chunks"] = sum(info["chunks_by_model"].values())
+        return info
+
     @api.post("/corpus/documents", status_code=201)
     async def upload_document(request: Request, filename: str):
         """Ingest one PDF/MD/TXT into the corpus.
@@ -2336,17 +2465,13 @@ def create_sidecar_app(
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
         except EmbeddingsUnavailable as e:
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
-        return {
-            "doc_id": result.doc_id,
-            "filename": result.filename,
-            "chunks_written": result.chunks_written,
-            "skipped": result.skipped,
-            "reason": result.reason,
-        }
+        # Same field names as the server's DocumentResponse (app/api/v1/corpus.py), not
+        # `Ingested`'s own doc_id/chunks_written/skipped/reason — see _document_response.
+        return {"id": result.doc_id, "filename": result.filename, "chunks": result.chunks_written}
 
     @api.get("/corpus/documents")
     async def list_corpus_documents():
-        return {"documents": await _corpus().documents()}
+        return [_document_response(d) for d in await _corpus().documents()]
 
     @api.delete("/corpus/documents/{doc_id}", status_code=204)
     async def delete_corpus_document(doc_id: str):
@@ -2356,7 +2481,7 @@ def create_sidecar_app(
 
     @api.get("/corpus/status")
     async def corpus_status():
-        info = await _corpus().status()
+        info = _corpus_status_response(await _corpus().status())
         info["corpus_only"] = corpus_only_enabled(app.state.data_dir)
         return info
 
@@ -2397,7 +2522,7 @@ def create_sidecar_app(
         user: User = Depends(get_local_user),
     ):
         await _resolve_project(db, user.id, project_id)
-        return {"documents": await _corpus().documents()}
+        return [_document_response(d) for d in await _corpus().documents()]
 
     @api.get("/projects/{project_id}/corpus/status")
     async def project_corpus_status(
@@ -2406,7 +2531,7 @@ def create_sidecar_app(
         user: User = Depends(get_local_user),
     ):
         await _resolve_project(db, user.id, project_id)
-        info = await _corpus().status()
+        info = _corpus_status_response(await _corpus().status())
         info["corpus_only"] = corpus_only_enabled(app.state.data_dir)
         return info
 
@@ -2449,13 +2574,8 @@ def create_sidecar_app(
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
         except EmbeddingsUnavailable as e:
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
-        return {
-            "doc_id": result.doc_id,
-            "filename": result.filename,
-            "chunks_written": result.chunks_written,
-            "skipped": result.skipped,
-            "reason": result.reason,
-        }
+        # Same field names as the server's DocumentResponse — see _document_response.
+        return {"id": result.doc_id, "filename": result.filename, "chunks": result.chunks_written}
 
     @api.delete("/projects/{project_id}/corpus/documents/{doc_id}", status_code=204)
     async def delete_project_corpus_document(
@@ -2565,7 +2685,38 @@ def create_sidecar_app(
     ):
         from app.api.v1.v2_runs import submit_report_review
 
-        return await submit_report_review(run_id, body, db, user, dispatcher=_dispatcher)
+        result = await submit_report_review(run_id, body, db, user, dispatcher=_dispatcher)
+
+        if body.decision == "APPROVED":
+            # `submit_report_review` already tried its own server-side corpus ingest and
+            # swallowed it (app/api/v1/v2_runs.py::_ingest_report_into_corpus) — it imports
+            # `app.config`/`app.adapters`, which `make_corpus_store`'s own docstring
+            # documents as excluded from this bundle, so that attempt always fails cleanly
+            # here and never completes the save. This is the completion: desktop's actual,
+            # bundle-safe path, using the same flat `corpus.sqlite` every other desktop
+            # corpus route writes to (AGENTS.md — one store for the whole app, by design).
+            from app.models.revision import Revision
+            from app.services.report_corpus import ingest_report
+
+            revision = (
+                (
+                    await db.execute(
+                        select(Revision)
+                        .where(Revision.run_id == run_id)
+                        .order_by(Revision.version.desc())
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            if revision is not None:
+                await ingest_report(
+                    make_corpus_store(app.state.data_dir),
+                    session_id=str(run_id),
+                    report_markdown=revision.report_markdown,
+                )
+
+        return result
 
     @api.get("/v2/runs/{run_id}/stream")
     async def v2_stream_run(

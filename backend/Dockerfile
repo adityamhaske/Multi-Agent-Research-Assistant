@@ -33,6 +33,13 @@ RUN useradd --create-home --uid 10001 appuser
 COPY --from=builder /venv /venv
 ENV PATH="/venv/bin:$PATH"
 COPY --chown=appuser:appuser . /app
+# Pre-create the corpus mount point owned by appuser. Compose mounts a named volume at
+# /app/data on both the api and worker targets (docker-compose.full.yml) so per-project
+# corpora survive a container recreate — but Docker creates a fresh volume root-owned,
+# and the api/worker processes run as appuser (never root), so an upload's first write
+# would fail with EACCES. Owning it here, before USER switches away from root, is what
+# makes the volume inherit appuser instead.
+RUN mkdir -p /app/data/corpus && chown -R appuser:appuser /app/data
 USER appuser
 
 # ── API: migrate then serve ───────────────────────────────────────────────────────

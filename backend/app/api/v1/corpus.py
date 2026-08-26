@@ -56,6 +56,10 @@ class DocumentResponse(BaseModel):
     # False for documents ingested before originals were retained. The UI keys its
     # Open/Download affordance off this rather than assuming every row has a file.
     downloadable: bool = False
+    # "uploaded" or "generated" (app/services/report_corpus.py). The UI badges a
+    # generated document distinctly and must not let a user believe it is a source the
+    # way an upload is — retrieval already refuses to cite one (research_engine/corpus.py).
+    origin: str = "uploaded"
 
 
 class CorpusStatusResponse(BaseModel):
@@ -115,6 +119,7 @@ async def list_documents(
             created_at=d["ingested_at"],
             size_bytes=d.get("size_bytes"),
             downloadable=d.get("downloadable", False),
+            origin=d.get("origin", "uploaded"),
         )
         for d in docs
     ]

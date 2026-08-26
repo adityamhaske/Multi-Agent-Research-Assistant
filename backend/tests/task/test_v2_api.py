@@ -27,7 +27,7 @@ from app.dependencies import get_current_user
 from app.models.user import User
 from research_engine.runconfig import ROLES
 from tests.migration_support import open_db
-from tests.test_v2_native_lifecycle import DRAFT, EVIDENCE, drive_lifecycle
+from tests.workflow.test_v2_native_lifecycle import DRAFT, EVIDENCE, drive_lifecycle
 
 
 @pytest.fixture

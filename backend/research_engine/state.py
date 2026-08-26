@@ -41,6 +41,11 @@ class AgentState(TypedDict, total=False):
     verdicts: dict[str, dict[str, Any]]
     retries: dict[str, int]
     research_round: int
+    # Distinct sources retrieval actually delivered text for, across the whole run. Kept
+    # apart from `evidence` because "found nothing to read" and "read plenty and made
+    # nothing of it" are different failures with different remedies, and a run that
+    # gathered no evidence must be able to say which one happened (`_no_research_reason`).
+    sources_seen: int
 
     # Synthesis / HITL
     draft_report: str | None

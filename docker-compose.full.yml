@@ -57,6 +57,15 @@ services:
     # on the host (portable across Docker Desktop and Linux).
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # Per-project corpus SQLite files (app/config.py::corpus_path → /app/data/corpus).
+    # MUST be mounted on both api and worker at the same path: they are separate
+    # containers with separate writable layers, and without a shared volume the worker
+    # looks for a corpus the api just wrote and finds nothing (AGENTS.md — this was the
+    # "two hosts, one contract" bug, not the relative-path one corpus_path already
+    # fixed). Without this volume at all, any `up --build`/`down` recreate destroys
+    # every project's corpus, since the writable layer does not survive a recreate.
+    volumes:
+      - corpus_data:/app/data
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -81,6 +90,11 @@ services:
       LLM_MODE: ${LLM_MODE:-real}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # Same volume, same path as api — see the comment there. A run in corpus mode reads
+    # this from the worker container; a document uploaded through the api container must
+    # be visible here or every corpus-mode run fails with "Corpus database not found".
+    volumes:
+      - corpus_data:/app/data
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -110,3 +124,7 @@ volumes:
     name: mara_full_postgres_data
   redis_data:
     name: mara_full_redis_data
+  # Per-project corpus SQLite files, shared by api and worker. Survives `down`,
+  # `up --build`, and a machine restart; only `down -v` / `start.sh --reset` removes it.
+  corpus_data:
+    name: mara_full_corpus_data

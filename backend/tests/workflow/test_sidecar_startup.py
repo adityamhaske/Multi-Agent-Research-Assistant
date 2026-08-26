@@ -144,7 +144,7 @@ def _spec_excludes() -> list[str]:
     import ast
     from pathlib import Path
 
-    spec = Path(__file__).resolve().parents[1] / "desktop" / "research-sidecar.spec"
+    spec = Path(__file__).resolve().parents[2] / "desktop" / "research-sidecar.spec"
     tree = ast.parse(spec.read_text())
     for node in tree.body:
         if isinstance(node, ast.Assign) and any(

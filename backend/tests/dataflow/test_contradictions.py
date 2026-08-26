@@ -24,7 +24,7 @@ from research_engine.corpus import CorpusStore
 from research_engine.runconfig import RunConfig
 from research_engine.runner import run
 from research_engine.schemas import ContradictionPair
-from tests.test_corpus_store import FakeEmbeddings
+from tests.dataflow.test_corpus_store import FakeEmbeddings
 
 URL_A = "https://example.org/a"
 URL_B = "https://example.net/b"

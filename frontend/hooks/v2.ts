@@ -137,6 +137,15 @@ export function useV2Cancel(runId: string) {
   });
 }
 
+/** The run status at which each pause event is the live tail rather than history. */
+const GATE_PARKS_AT: Record<string, string> = {
+  PLAN_READY: "AWAITING_PLAN",
+  HITL_READY: "AWAITING_REVIEW",
+};
+
+/** Events after which the backlog genuinely ends. Mirrors the server's replay stop-list. */
+const TERMINAL_EVENTS = new Set(["COMPLETED", "FAILED"]);
+
 /**
  * The run's live event stream.
  *
@@ -186,22 +195,34 @@ export function useV2RunStream(runId: string, enabled: boolean, runKey?: string 
         seen.add(id);
       }
       setEvents((prev) => [...prev, payload]);
-      if (
-        payload.type === "COMPLETED" ||
-        payload.type === "FAILED" ||
-        payload.type === "HITL_READY" ||
-        payload.type === "PLAN_READY"
-      ) {
-        // The authoritative row, not the event's summary of it.
+
+      const gate = GATE_PARKS_AT[payload.type];
+      const terminal = TERMINAL_EVENTS.has(payload.type);
+      if (gate || terminal) {
+        // The authoritative row, not the event's summary of it. Refreshed for a replayed
+        // gate too: that is how a *live* gate is noticed at all. The event arrives while
+        // this subscription still believes the run is RUNNING, so the refetch is what
+        // moves the status on — and the resubscribe that follows sees the gate again with
+        // the run parked at it, and closes then.
         qc.invalidateQueries({ queryKey: v2Keys.run(runId) });
         qc.invalidateQueries({ queryKey: ["v2-runs"] });
-        source.close();
       }
+      // Hang up only where there is genuinely nothing more to read.
+      //
+      // A gate closes the stream when the run is *parked* at it — a suspended graph
+      // publishes nothing, so waiting waits on no one. A gate the run has already left is
+      // just history, and closing on it discards everything the run did afterwards. That
+      // was the defect: the backend replays past gates on purpose, and this handler undid
+      // it on every reconnect, so a failed run rendered as a planner that never finished
+      // while thirty executor and critic rows sat unread in `agent_logs`.
+      if (terminal || gate === runKey) source.close();
     };
     source.onerror = () => setDegraded(true);
 
     return () => source.close();
-  }, [subKey, runId, qc]);
+    // `runKey` is already inside `subKey`; it is named here because the handler reads it
+    // to tell a gate the run is parked at from one it has passed.
+  }, [subKey, runId, runKey, qc]);
 
   return { events, degraded };
 }

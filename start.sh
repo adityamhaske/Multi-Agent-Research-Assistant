@@ -57,17 +57,17 @@ docker info >/dev/null 2>&1 || die "Docker is installed but not running. Start D
 if [ "$MODE" = "stop" ]; then
   step "Stopping the stack…"
   docker compose -f "$COMPOSE_FILE" down
-  ok "Stopped. Your data is preserved — ./start.sh brings it back."
+  ok "Stopped. Your data (database + per-project corpora) is preserved — ./start.sh brings it back."
   exit 0
 fi
 
 if [ "$MODE" = "reset" ]; then
-  step "Reset — this DELETES the database (all users, sessions, and reports)."
+  step "Reset — this DELETES the database AND every project's corpus (all users, sessions, reports, and uploaded documents)."
   printf 'Type %sreset%s to confirm: ' "$BOLD" "$RESET"
   read -r confirm
   [ "$confirm" = "reset" ] || { say "Aborted — nothing was deleted."; exit 0; }
   docker compose -f "$COMPOSE_FILE" down -v
-  ok "Stack stopped and data volumes removed."
+  ok "Stack stopped and data volumes (database + corpora) removed."
   exit 0
 fi
 

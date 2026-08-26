@@ -56,6 +56,21 @@ logger = structlog.get_logger()
 _TOOLS_BY_NAME = {t.name: t for t in EXECUTOR_TOOLS}
 _MAX_TOOL_ROUNDS = 8
 
+#: How many pages one task may open before it must stop reading and submit what it has.
+#:
+#: A termination control, not a cost one. A model under no obligation to conclude will
+#: graze: run `96a16137` spent every round of every retry on another search or fetch and
+#: submitted nothing, twice. Reading is bounded so the task always reaches the extraction
+#: step with the sources it has, rather than reaching the end of its rounds with none.
+_MAX_PAGES_PER_TASK = 5
+
+#: Per-source ceiling on the text handed to the forced extraction pass.
+#:
+#: Truncating here is safe in the one way that matters: `verify_evidence_snippets` checks
+#: quotations against the *whole* of `seen_text`, so a snippet taken from the part we sent
+#: always verifies. The cap bounds one request, it does not narrow what counts as seen.
+_FORCED_SUBMIT_SOURCE_CHARS = 6_000
+
 
 # ── Structured-output helper ──────────────────────────────────────────────────────
 
@@ -357,6 +372,115 @@ class submit_evidence(BaseModel):
     evidence: list[EvidenceChunk] = Field(default_factory=list, description="List of cited facts")
 
 
+def _parse_submission(args: dict) -> list[dict]:
+    """Validate one `submit_evidence` payload into evidence dicts. Raises on rejection.
+
+    Truncate to the configured cap before validation (docs/07 §2, Phase 3) — this can only
+    tighten `EvidenceChunk.snippet`'s own max_length=500, never loosen it, since the
+    config's default (500) equals that ceiling and nothing here raises it.
+    """
+    snip_cap = get_run_config().snippet_max_chars
+    for item in args.get("evidence", []) or []:
+        if isinstance(item, dict) and isinstance(item.get("snippet"), str):
+            item["snippet"] = item["snippet"][:snip_cap]
+    return [e.model_dump() for e in submit_evidence.model_validate(args).evidence]
+
+
+async def _forced_submit(
+    sid: str, task: dict, seen_text: dict[str, str], guard: _BudgetGuard
+) -> tuple[list[dict], float, int, int]:
+    """Ask for the evidence directly, when the model never offered it.
+
+    The executor's tool loop *invites* `submit_evidence`; nothing obliges a model to
+    accept. Run `96a16137` searched and fetched successfully and then simply kept
+    searching until it ran out of rounds — evidence `[]`, twice, and a failed run whose
+    stated reason was to go check a search provider that had answered every query. A model
+    declining to call one tool must not be able to discard text the engine already holds.
+
+    Two constraints make this an extraction step rather than a second opinion:
+
+    - it is handed **only** `seen_text`, so there is no route by which model memory can
+      become a citation, and
+    - `verify_evidence_snippets` still rules on what comes back, exactly as it does for a
+      voluntary submission.
+
+    Returns empty when nothing was fetched. A task with no sources in hand has nothing to
+    quote, and asking anyway is asking a model to invent one.
+    """
+    sources = {url: text for url, text in seen_text.items() if (text or "").strip()}
+    if not sources or guard.exceeded():
+        return [], 0.0, 0, 0
+
+    digest = json.dumps(
+        {url: text[:_FORCED_SUBMIT_SOURCE_CHARS] for url, text in sources.items()},
+        indent=1,
+        default=str,
+    )
+    messages = [
+        SystemMessage(content=prompts.EXECUTOR_PROMPT_V2),
+        HumanMessage(
+            content=(
+                f"Task {task['id']}: {task['query']}\n\n"
+                "Stop searching. Below is every source already fetched for this task, "
+                "keyed by URL. Call `submit_evidence` now with the findings it supports. "
+                "Each snippet must be copied VERBATIM from the text of its own URL — a "
+                "quotation that is not in its source is dropped. If a source supports "
+                "nothing relevant, leave it out.\n\n"
+                f"<untrusted_web_content>\n{digest}\n</untrusted_web_content>"
+            )
+        ),
+    ]
+
+    # `tool_choice` rather than `with_structured_output`: it reuses the schema, the
+    # validation and the truncation the voluntary path already goes through, so both
+    # routes into `evidence` are the same code. Verified against an OpenAI-compatible
+    # gateway, Anthropic and Google — all three honour a named tool choice.
+    model = get_llm("executor").bind_tools([submit_evidence], tool_choice="submit_evidence")
+    try:
+        resp = await model.ainvoke(messages)
+    except Exception as e:  # noqa: BLE001
+        # Fail closed and *say so*. A provider error here costs the task its evidence, so
+        # it must never be reported as "the sources supported nothing".
+        logger.warning(
+            "forced_submit_failed", session_id=sid, task_id=task["id"], error=str(e)[:400]
+        )
+        return [], 0.0, 0, 0
+
+    cost = estimate_cost(resp, "executor")
+    await guard.add(cost)
+    i, o = token_counts(resp)
+
+    for call in getattr(resp, "tool_calls", None) or []:
+        if call["name"] != "submit_evidence":
+            continue
+        try:
+            evidence = _parse_submission(call["args"])
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "submit_evidence_rejected",
+                session_id=sid,
+                task_id=task["id"],
+                forced=True,
+                error=str(e)[:400],
+            )
+            continue
+        await emit(
+            sid,
+            "agent_log",
+            agent="executor",
+            message=(
+                f"Extracted {len(evidence)} evidence item(s) for task {task['id']} from the "
+                f"{len(sources)} source(s) already fetched — the model did not submit on "
+                f"its own"
+            ),
+            detail={"task_id": task["id"], "forced": True, "evidence": evidence},
+        )
+        return evidence, cost, i, o
+
+    logger.warning("forced_submit_returned_nothing", session_id=sid, task_id=task["id"])
+    return [], cost, i, o
+
+
 async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> dict:
     """Gather evidence for a single task. Returns {evidence, cost, tokens_in, tokens_out}."""
     sid = state["session_id"]
@@ -388,12 +512,21 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
     cost = 0.0
     i_tot = o_tot = 0
     evidence: list[dict] = []
+    submitted = False
     # What the tools actually returned, keyed by URL — the only record of what the
     # executor really saw. See `verify_evidence_snippets`.
     seen_text: dict[str, str] = {}
+    # Pages already opened this task, so a second request for one is answered from
+    # `seen_text` instead of the network. The observed run re-read one arXiv page five
+    # times inside a single task, spending a round and a fetch each time to learn nothing.
+    fetched: set[str] = set()
     for _round in range(_MAX_TOOL_ROUNDS):
         if guard.exceeded():
             logger.warning("executor_budget_stop", session_id=sid, task_id=task["id"])
+            break
+        if len(fetched) >= _MAX_PAGES_PER_TASK:
+            # Enough sources are in hand; the forced pass below turns them into evidence.
+            logger.info("executor_read_limit", session_id=sid, task_id=task["id"])
             break
         resp = await model.ainvoke(messages)
         round_cost = estimate_cost(resp, "executor")
@@ -410,17 +543,7 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
         for call in tool_calls:
             if call["name"] == "submit_evidence":
                 try:
-                    args = call["args"]
-                    # Truncate to the configured cap before validation (docs/07 §2,
-                    # Phase 3) — this can only tighten `EvidenceChunk.snippet`'s own
-                    # max_length=500, never loosen it, since the config's default (500)
-                    # equals that ceiling and nothing here raises it.
-                    snip_cap = get_run_config().snippet_max_chars
-                    for item in args.get("evidence", []) or []:
-                        if isinstance(item, dict) and isinstance(item.get("snippet"), str):
-                            item["snippet"] = item["snippet"][:snip_cap]
-                    parsed = submit_evidence.model_validate(args)
-                    evidence = [e.model_dump() for e in parsed.evidence]
+                    evidence = _parse_submission(call["args"])
                     thought_snippet = text_of(resp) if resp else ""
                     await emit(
                         sid,
@@ -433,9 +556,20 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
                             "evidence": evidence,
                         },
                     )
+                    submitted = True
                     is_done = True
                     break
                 except Exception as e:
+                    # Report it. Swallowed into a tool observation, a model calling this
+                    # with bad arguments every round was indistinguishable from one that
+                    # never called it — the two have completely different remedies.
+                    logger.warning(
+                        "submit_evidence_rejected",
+                        session_id=sid,
+                        task_id=task["id"],
+                        forced=False,
+                        error=str(e)[:400],
+                    )
                     observation = f"submit_evidence validation error: {e}"
                     messages.append(
                         ToolMessage(
@@ -444,13 +578,26 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
                     )
                     continue
 
-            tool = _TOOLS_BY_NAME.get(call["name"])
-            try:
-                observation = (
-                    await tool.ainvoke(call["args"]) if tool else f"unknown tool {call['name']}"
-                )
-            except Exception as e:  # noqa: BLE001
-                observation = f"tool error: {e}"
+            url = (call.get("args") or {}).get("url")
+            if call["name"] == "read_webpage" and _norm_url(url) in fetched:
+                # Already open in `seen_text`; refetching cannot produce new text, and the
+                # round it costs is a round not spent concluding.
+                observation = {
+                    "url": url,
+                    "text": seen_text.get(_norm_url(url), ""),
+                    "error": None,
+                    "note": "already read this page — quote it or move on",
+                }
+            else:
+                tool = _TOOLS_BY_NAME.get(call["name"])
+                try:
+                    observation = (
+                        await tool.ainvoke(call["args"]) if tool else f"unknown tool {call['name']}"
+                    )
+                except Exception as e:  # noqa: BLE001
+                    observation = f"tool error: {e}"
+                if call["name"] == "read_webpage" and url:
+                    fetched.add(_norm_url(url))
             record_tool_output(seen_text, call["name"], observation)
 
             # Extract thought or query details
@@ -479,6 +626,14 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
             )
         if is_done:
             break
+
+    # The model finished its turns without ever submitting. Ask it directly rather than
+    # letting the text we already fetched fall on the floor — see `_forced_submit`.
+    if not submitted:
+        evidence, fcost, fi, fo = await _forced_submit(sid, task, seen_text, guard)
+        cost += fcost
+        i_tot += fi
+        o_tot += fo
 
     # Before anything downstream can render these as verbatim quotations.
     #
@@ -525,7 +680,16 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
             "evidence": evidence,
         },
     )
-    return {"evidence": evidence, "cost": cost, "in": i_tot, "out": o_tot}
+    # `sources` is what retrieval actually delivered, which is a different question from
+    # what the executor made of it. Reported so a run that gathered nothing can say which
+    # of the two failed instead of guessing — see `_no_research_reason`.
+    return {
+        "evidence": evidence,
+        "cost": cost,
+        "in": i_tot,
+        "out": o_tot,
+        "sources": len([t for t in seen_text.values() if (t or "").strip()]),
+    }
 
 
 async def executor_node(state: AgentState) -> dict:
@@ -556,7 +720,7 @@ async def executor_node(state: AgentState) -> dict:
         async with semaphore:
             if guard.exceeded():
                 logger.warning("executor_not_dispatched", session_id=sid, task_id=task["id"])
-                return {"evidence": [], "cost": 0.0, "in": 0, "out": 0}
+                return {"evidence": [], "cost": 0.0, "in": 0, "out": 0, "sources": 0}
             return await _research_one(state, task, guard)
 
     # gather preserves argument order regardless of completion order, which is what keeps
@@ -581,9 +745,13 @@ async def executor_node(state: AgentState) -> dict:
     cost = sum(r["cost"] for r in results)
     i_tot = sum(r["in"] for r in results)
     o_tot = sum(r["out"] for r in results)
+    # Highest reading of the run, not this round's: a later round that searched worse must
+    # not erase the evidence that retrieval did work earlier.
+    sources_seen = max(state.get("sources_seen", 0), sum(r.get("sources", 0) for r in results))
     return {
         "evidence": merged,
         "research_round": round_no,
+        "sources_seen": sources_seen,
         **_acc(state, cost, i_tot, o_tot),
     }
 
@@ -1277,10 +1445,13 @@ def _over_budget(state: AgentState) -> str | None:
 def _no_research_reason(state: AgentState) -> str | None:
     """Why this run cannot honestly produce a report, if it cannot.
 
-    Two failures, deliberately worded apart because the remedy differs: a plan with
-    nothing selected never searched, while a plan that searched and found nothing did.
-    Collapsing them into one message would send a user to check their search providers
-    when what actually happened is that they unchecked every subtopic.
+    Three failures, deliberately worded apart because the remedy differs: a plan with
+    nothing selected never searched; a plan that searched and found nothing did; and a
+    plan that fetched sources but turned none of them into a citable quotation did neither.
+    Collapsing them would send a user to check their search providers when what actually
+    happened is that they unchecked every subtopic — or, as in run `96a16137`, when the
+    providers had answered every query and it was the executor model that returned nothing.
+    A false diagnosis is the P0 class here, not a cosmetic one.
 
     This is the *reason* half of the guards in `route_after_plan_gate`,
     `route_after_planner` and `route_after_critic`; the routers decide, and a router
@@ -1292,10 +1463,20 @@ def _no_research_reason(state: AgentState) -> str | None:
             "gate, so nothing was searched. Start a new run and keep at least one subtopic."
         )
     if not state.get("evidence"):
+        seen = state.get("sources_seen", 0)
+        if seen:
+            return (
+                f"no evidence was gathered — search worked and {seen} source(s) were "
+                "fetched, but the executor model returned no usable quotation from any of "
+                "them, so there is nothing a report could be built from. This is a model "
+                "failure, not a retrieval one: try a different executor model in "
+                "Settings → Models, then retry."
+            )
         return (
             "no evidence was gathered — every research task finished without returning "
-            "anything citable, so there is nothing a report could be built from. Check "
-            "that a search provider is reachable, then retry."
+            "anything citable, and no source was successfully fetched, so there is nothing "
+            "a report could be built from. Check that a search provider is reachable, "
+            "then retry."
         )
     return None
 

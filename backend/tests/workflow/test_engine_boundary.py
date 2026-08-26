@@ -26,7 +26,7 @@ from research_engine.runconfig import (
     set_run_config,
 )
 
-ENGINE_DIR = Path(__file__).resolve().parents[1] / "research_engine"
+ENGINE_DIR = Path(__file__).resolve().parents[2] / "research_engine"
 
 # The engine may not import the server host at all — not just `app.config`. Now that the
 # package is physically separate (M6 step 2) the contract is the whole `app` namespace.
