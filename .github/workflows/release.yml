@@ -172,15 +172,28 @@ jobs:
         # Lowercased for the same reason as the build job — these lines get copy-pasted
         # into `docker pull`, and the capitalised form is rejected as a malformed ref.
         run: echo "IMAGE_PREFIX=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - name: Derive the image tag
+        # `metadata-action`'s `{{version}}` strips the leading `v`, so the tag it pushes
+        # is `2.0.1` while `github.ref_name` is `v2.0.1`. These lines get copy-pasted into
+        # `docker pull`, and every release until now told people to pull a tag that does
+        # not exist.
+        run: echo "IMAGE_TAG=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           # Changelog auto-generated from merged PRs / conventional commits.
           generate_release_notes: true
+          # Appended, never assigned. The desktop workflow publishes installers to this
+          # same release on the same tag, and both jobs used to set `body`, so whichever
+          # finished second replaced the other's text — which is why v2.0.0 shipped with
+          # no mention anywhere that the images exist.
+          append_body: true
           body: |
             Multi-arch container images (linux/amd64, linux/arm64) pushed to GHCR:
-            - `${{ env.IMAGE_PREFIX }}-api:${{ github.ref_name }}`
-            - `${{ env.IMAGE_PREFIX }}-worker:${{ github.ref_name }}`
-            - `${{ env.IMAGE_PREFIX }}-frontend:${{ github.ref_name }}`
+            - `${{ env.IMAGE_PREFIX }}-api:${{ env.IMAGE_TAG }}`
+            - `${{ env.IMAGE_PREFIX }}-worker:${{ env.IMAGE_TAG }}`
+            - `${{ env.IMAGE_PREFIX }}-frontend:${{ env.IMAGE_TAG }}`
+
+            `latest` points at this release.
 
             Deploy the full stack on a free Oracle Cloud Ampere VM — see `deploy/README.md`.

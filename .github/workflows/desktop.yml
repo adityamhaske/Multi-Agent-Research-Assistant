@@ -309,8 +309,12 @@ jobs:
           # Pre-release for anything carrying a suffix (v1.0.0-rc1, -beta). Unsigned
           # desktop bundles are new territory here; the tag decides, not a human.
           prerelease: ${{ contains(github.ref_name, '-') }}
+          # Appended, never assigned — see the same flag in release.yml. Both workflows
+          # publish to one release on one tag, and assigning `body` from both meant the
+          # slower job erased the faster one's content.
+          append_body: true
           body: |
-            Desktop bundles for ${{ github.ref_name }}.
+            ## Desktop bundles for ${{ github.ref_name }}
 
             **These builds are not code-signed.** Your OS will warn you on first launch:
 
