@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useLogin, useMe, useRegister } from "@/hooks/queries";
 import { ApiError } from "@/lib/api";
+import { firstNameOf } from "@/lib/user";
 
 type Mode = "login" | "register";
 
@@ -382,10 +383,13 @@ export default function LoginPage() {
                 <div className="space-y-4 py-2">
                   <div className="border border-border bg-bg-base p-4 space-y-2">
                     <div className="font-mono text-xs text-text-muted uppercase tracking-wider">Active Researcher</div>
+                    {/* The name, once. This rendered `display_name || email` and then the
+                        email again underneath, so an account with no display name showed
+                        its address twice — on the public landing page, where it is most
+                        exposed. The address is on Profile. */}
                     <div className="font-serif text-base font-bold text-text-primary">
-                      {me.display_name || me.email}
+                      {me.display_name?.trim() || firstNameOf(me)}
                     </div>
-                    <div className="font-mono text-xs text-text-muted">{me.email}</div>
                   </div>
 
                   <button

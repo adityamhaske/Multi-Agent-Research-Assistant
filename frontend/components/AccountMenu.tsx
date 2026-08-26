@@ -9,17 +9,9 @@ import toast from "react-hot-toast";
 import { useLogout } from "@/hooks/queries";
 import { isDesktop } from "@/lib/desktop";
 import type { User } from "@/lib/types";
+import { firstNameOf } from "@/lib/user";
 
 import { Avatar } from "./Avatar";
-
-/** First name only — the nav shows who you are, not your whole identity. */
-export function firstNameOf(user: Pick<User, "display_name" | "email">): string {
-  const name = (user.display_name ?? "").trim();
-  if (name) return name.split(/\s+/)[0];
-  // No name set: fall back to the local part of the email, never the full address.
-  const local = (user.email ?? "").split("@")[0] ?? "";
-  return local.charAt(0).toUpperCase() + local.slice(1);
-}
 
 /**
  * Account menu for the sidebar.
@@ -88,7 +80,7 @@ export function AccountMenu({ user, collapsed = false }: { user: User; collapsed
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        title={collapsed ? `${displayName} (${user.email})` : undefined}
+        title={collapsed ? displayName : undefined}
         className={`group flex w-full items-center border border-transparent transition-all duration-150 ${
           collapsed
             ? "justify-center p-1.5 hover:bg-bg-elevated text-text-secondary hover:text-text-primary"
@@ -98,12 +90,14 @@ export function AccountMenu({ user, collapsed = false }: { user: User; collapsed
         <Avatar user={user} size={collapsed ? 30 : 32} />
         {!collapsed && (
           <>
+            {/* Name only. The address is on the Profile page and nowhere in the chrome:
+                a sidebar is on screen for the whole session, in every screen share and
+                every screenshot, and an email address is the one identifier here that is
+                also a credential elsewhere. Identifying the signed-in account does not
+                need it — the display name and avatar do that. */}
             <div className="min-w-0 flex-1">
               <div className="truncate text-xs font-semibold text-text-primary">
                 {displayName}
-              </div>
-              <div className="truncate font-mono text-[0.6875rem] text-text-muted">
-                {user.email}
               </div>
             </div>
             <svg
@@ -141,8 +135,8 @@ export function AccountMenu({ user, collapsed = false }: { user: User; collapsed
               <div className="truncate font-serif text-sm font-bold text-text-primary">
                 {user.display_name || firstNameOf(user)}
               </div>
-              <div className="truncate font-mono text-[0.6875rem] text-text-muted" title={user.email}>
-                {user.email}
+              <div className="truncate font-mono text-[0.6875rem] text-text-muted">
+                Signed in
               </div>
             </div>
           </div>
