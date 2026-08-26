@@ -71,54 +71,56 @@ export function RunCard({ run, showProject }: { run: V2RunSummary; showProject?:
   return (
     <Link
       href={`/research/run?id=${run.id}`}
-      className="card card-interactive block group p-4 hover:border-text-secondary transition-all"
+      className="card card-interactive flex flex-col justify-between group p-4 hover:border-text-secondary transition-all h-full"
       style={{
         borderLeft: `3px solid ${borderLeftColor}`,
         paddingLeft: "calc(var(--card-pad, 1rem) - 2px)",
       }}
     >
-      {/* Top Context & Status Row */}
-      <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-2 mb-2.5">
-        <div className="flex flex-wrap items-center gap-2 font-mono text-[length:var(--text-micro)] text-text-muted">
-          <RelativeTime iso={run.created_at} />
-          <span>·</span>
-          <span className="capitalize">{run.depth}</span>
-          <span>·</span>
-          <span className="font-semibold text-text-secondary">{formatCost(run.cost_usd)}</span>
-          {showProject && (
-            <>
-              <span>·</span>
-              <span className="text-text-secondary">{showProject}</span>
-            </>
-          )}
-          {run.demo && (
+      <div>
+        {/* Top Context & Status Row */}
+        <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-2 mb-2.5">
+          <div className="flex flex-wrap items-center gap-2 font-mono text-[length:var(--text-micro)] text-text-muted">
+            <RelativeTime iso={run.created_at} />
+            <span>·</span>
+            <span className="capitalize">{run.depth}</span>
+            <span>·</span>
+            <span className="font-semibold text-text-secondary">{formatCost(run.cost_usd)}</span>
+            {showProject && (
+              <>
+                <span>·</span>
+                <span className="text-text-secondary">{showProject}</span>
+              </>
+            )}
+            {run.demo && (
+              <span
+                className="border border-warning-line bg-warning-soft px-1.5 py-0.2 font-semibold text-warning"
+                title="Scripted models and fixture sources."
+              >
+                demo
+              </span>
+            )}
+          </div>
+
+          {/* Status Badge */}
+          <span
+            className="badge shrink-0 border-border bg-bg-elevated font-mono text-[length:var(--text-micro)] font-medium text-text-primary"
+            title={meta.sentence}
+          >
             <span
-              className="border border-warning-line bg-warning-soft px-1.5 py-0.2 font-semibold text-warning"
-              title="Scripted models and fixture sources."
-            >
-              demo
-            </span>
-          )}
+              aria-hidden
+              className="status-marker"
+              style={{ backgroundColor: `var(--${meta.token})` }}
+            />
+            {meta.label}
+          </span>
         </div>
 
-        {/* Status Badge */}
-        <span
-          className="badge shrink-0 border-border bg-bg-elevated font-mono text-[length:var(--text-micro)] font-medium text-text-primary"
-          title={meta.sentence}
-        >
-          <span
-            aria-hidden
-            className="status-marker"
-            style={{ backgroundColor: `var(--${meta.token})` }}
-          />
-          {meta.label}
-        </span>
+        {/* Research Question */}
+        <p className="min-w-0 line-clamp-2 break-words text-[0.9375rem] font-medium leading-snug text-text-primary group-hover:text-accent transition-colors">
+          {run.question}
+        </p>
       </div>
-
-      {/* Research Question */}
-      <p className="min-w-0 line-clamp-2 break-words text-[0.9375rem] font-medium leading-snug text-text-primary group-hover:text-accent transition-colors">
-        {run.question}
-      </p>
 
       {/* Bottom Telemetry & Artifact Status Bar */}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/30 pt-2.5 text-xs">

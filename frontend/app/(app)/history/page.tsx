@@ -170,9 +170,9 @@ export default function HistoryPage() {
         </div>
 
         {isLoading ? (
-          <div className="grid gap-3">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="card h-20 animate-pulse" aria-hidden />
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="card h-28 animate-pulse" aria-hidden />
             ))}
             <span className="sr-only">Loading your research history…</span>
           </div>
@@ -222,9 +222,9 @@ export default function HistoryPage() {
                 ? `${visible.length} of ${runs!.length} runs`
                 : `${visible.length} run${visible.length === 1 ? "" : "s"}`}
             </p>
-            <ul className="grid gap-3">
+            <ul className="grid gap-3 sm:grid-cols-2">
               {visible.map((r) => (
-                <li key={r.id}>
+                <li key={r.id} className="h-full">
                   <RunCard
                     run={r}
                     showProject={
