@@ -1,5 +1,5 @@
 """
-The V2 read and review surface (V2-native runtime milestone).
+The read and review surface for a research run.
 
 **One aggregate GET, three actions.** The next milestone builds nine UI surfaces — Overview,
 Research, Evidence, Claims, Sources, Contradictions, Review, Artifacts, History — and every
@@ -17,7 +17,7 @@ bytes would put the product's central claim behind a translation layer.
 retrieved and never cited. The UI must not number it.
 
 Actions are the two gates and the artifact. `POST /plan-review` and `POST /report-review` go
-through `app.v2_runtime`, which goes through `app.authorization` — so the rule that only an
+through `app.run_lifecycle`, which goes through `app.authorization` — so the rule that only an
 approved report review authorizes an artifact is not restated here.
 """
 
@@ -33,7 +33,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import v2_bundle, v2_runtime
+from app import run_bundle, run_lifecycle
 from app.db.base import AsyncSessionLocal, get_db
 from app.db.redis import get_redis
 from app.dependencies import get_current_user
@@ -50,40 +50,40 @@ from app.models.research import (
 from app.models.review import ResearchArtifact, Review
 from app.models.revision import Claim, ClaimEvidenceLink, Revision
 from app.models.user import User
+from app.run_dispatch import RunDispatcher, get_run_dispatcher
 
-# Request bodies live in app/schemas/v2.py so the desktop sidecar can import the exact
+# Request bodies live in app/schemas/runs.py so the desktop sidecar can import the exact
 # same contract without this module's `app.config` chain (#50). Re-exported here: this
 # is where the routes and their tests have always referred to them.
-from app.schemas.v2 import (  # noqa: F401  (re-export)
+from app.schemas.runs import (  # noqa: F401  (re-export)
     CreateRunRequest,
     PlanReviewRequest,
     ReportReviewRequest,
 )
 from app.services import model_routing
 from app.services.sse import SSE_HEADERS
-from app.v2_dispatch import RunDispatcher, get_run_dispatcher
 from research_engine.bundle import render_model_attribution_md, stamp_demo_md
 
 logger = structlog.get_logger()
-router = APIRouter(prefix="/v2/runs", tags=["v2"])
+router = APIRouter(prefix="/runs", tags=["Runs"])
 
 #: Events after which the stream closes: two terminals plus the two gates. A graph
 #: suspended at an interrupt publishes nothing more until a human acts, so a connection
-#: held open there waits on no one. Mirrors the V1 stream's stop-list and
+#: held open there waits on no one. Mirrors the session stream's stop-list and
 #: `sidecar._TERMINAL_EVENTS`.
 _TERMINAL_EVENTS = ("COMPLETED", "FAILED", "HITL_READY", "PLAN_READY")
 
 #: Events after which *replay* stops — only the true terminals, deliberately NOT the gates.
 #:
-#: The distinction matters and V2 originally missed it. `_TERMINAL_EVENTS` is the right
+#: The distinction matters and this route originally missed it. `_TERMINAL_EVENTS` is the right
 #: rule for the live tail: a graph suspended at an interrupt publishes nothing more, so
 #: holding the socket open waits on no one. Applying it to the backlog is a different
 #: statement — "stop reading history at the first gate" — and it is wrong. A client that
 #: reconnects without a `Last-Event-ID` (a fresh EventSource, which is what a status
 #: change creates) replays from id 0, hits the `PLAN_READY` row left over from the design
 #: gate, and returns: everything the run did *after* the gate is never delivered, and the
-#: live tail is never reached either. The V1 stream stops replay on
-#: `("COMPLETED", "FAILED")` only, for exactly this reason; V2 copied the tail's list into
+#: live tail is never reached either. The session stream stops replay on
+#: `("COMPLETED", "FAILED")` only, for exactly this reason; this route copied the tail's list into
 #: both places.
 _REPLAY_STOP_EVENTS = ("COMPLETED", "FAILED")
 
@@ -354,7 +354,7 @@ async def create_run(
     current_user: User = Depends(get_current_user),
     dispatcher: RunDispatcher = Depends(get_run_dispatcher),
 ):
-    """Open a V2-native run.
+    """Open a run.
 
     Creates the domain row only. Execution is still the existing pipeline — this milestone
     changes where a run's results are *persisted*, not how research is performed, so there
@@ -382,7 +382,7 @@ async def create_run(
         except model_routing.InvalidRouting as exc:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
-    run = await v2_runtime.create_run(
+    run = await run_lifecycle.create_run(
         db,
         owner_id=current_user.id,
         project_id=project.id,
@@ -505,7 +505,7 @@ async def submit_plan_review(
     # authorizes a run that can only produce an evidence-free report, and a recorded
     # APPROVED review is evidence in its own right.
     #
-    # V1's gate (`research.submit_plan`) has always enforced this; V2 shipped without it,
+    # The session gate (`research.submit_plan`) has always enforced this; this one shipped without it,
     # which is how a run whose four subtopics were *all* proposed `include: false` was
     # approved, searched nothing, and still reached the report gate with eleven claims and
     # zero evidence. One rule, one wording, both paths — the desktop host imports this same
@@ -518,10 +518,10 @@ async def submit_plan_review(
 
     # An edit becomes its own plan version rather than overwriting the proposal, so the
     # design a run actually executed stays readable next to what the model suggested —
-    # `origin` is what tells those two apart, and V1 could never distinguish them. The
+    # `origin` is what tells those two apart, and a single overwritten plan column never could. The
     # review is then recorded against the version it approved, not the one it replaced.
     if body.decision == "APPROVED" and body.tasks is not None and kept != proposed:
-        plan = await v2_runtime.record_plan(
+        plan = await run_lifecycle.record_plan(
             db,
             run,
             tasks=kept,
@@ -529,7 +529,7 @@ async def submit_plan_review(
             origin="HUMAN_EDITED",
         )
 
-    review = await v2_runtime.record_plan_review(
+    review = await run_lifecycle.record_plan_review(
         db, run, plan, reviewer_id=current_user.id, decision=body.decision, feedback=body.feedback
     )
     if body.decision == "APPROVED" and body.dispatch:
@@ -538,11 +538,11 @@ async def submit_plan_review(
         # success would otherwise read AWAITING_PLAN, conclude nothing is live, keep its
         # event stream closed and never learn the run had resumed — a workspace that goes
         # stale the moment you approve a plan. Found by the plan-gate journey.
-        await v2_runtime.set_status(db, run, "RUNNING")
+        await run_lifecycle.set_status(db, run, "RUNNING")
     await db.commit()
 
     # An approved plan resumes the suspended graph from the design gate — the same
-    # `runner.resume(plan=…)` the V1 path uses, so research the user already paid for is
+    # `runner.resume(plan=…)` the session path uses, so research the user already paid for is
     # not re-run.
     if body.decision == "APPROVED" and body.dispatch:
         # `kept`, not `plan.tasks`: the executor is handed exactly what was approved. The
@@ -576,7 +576,7 @@ async def submit_report_review(
         raise HTTPException(status.HTTP_409_CONFLICT, detail="This run has no report to review.")
 
     try:
-        review = await v2_runtime.record_report_review(
+        review = await run_lifecycle.record_report_review(
             db,
             run,
             revision,
@@ -587,7 +587,7 @@ async def submit_report_review(
         artifact_id = None
         if body.decision == "APPROVED":
             run.status = "COMPLETED"
-            artifact = await v2_runtime.create_artifact(db, run)
+            artifact = await run_lifecycle.create_artifact(db, run)
             artifact_id = str(artifact.id)
         elif body.decision == "REWORK_REQUESTED":
             run.status = "RUNNING"
@@ -597,7 +597,7 @@ async def submit_report_review(
             # executor — the same evidence, resynthesized — so the next revision costs one
             # synthesis rather than a whole run.
             await dispatcher.rework(str(run.id), str(current_user.id), body.feedback)
-    except v2_runtime.LifecycleError as exc:
+    except run_lifecycle.LifecycleError as exc:
         await db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
@@ -623,13 +623,13 @@ async def submit_report_review(
 
 
 async def _ingest_report_into_corpus(db: AsyncSession, run, report_markdown: str) -> None:
-    """Auto-save an approved V2 report into its project's corpus. Best-effort; never
+    """Auto-save an approved report into its project's corpus. Best-effort; never
     raises — see report_corpus.ingest_report's own docstring for why."""
     try:
         from app import adapters
         from app.config import settings
+        from app.run_execution import provider_keys_for
         from app.services.report_corpus import ingest_report
-        from app.v2_execution import provider_keys_for
         from research_engine.corpus import CorpusStore
 
         settings.corpus_path.mkdir(parents=True, exist_ok=True)
@@ -660,7 +660,7 @@ async def _ingest_report_into_memory(db: AsyncSession, run, report_markdown: str
         return
     try:
         from app import adapters
-        from app.v2_execution import provider_keys_for
+        from app.run_execution import provider_keys_for
 
         embedder = await adapters.embeddings_for(await provider_keys_for(db, run.owner_id))
         result = await memory.ingest_run(db, run, report_markdown, embedder)
@@ -690,7 +690,7 @@ async def get_bundle(
     if artifact is not None:
         payload = artifact.payload
     else:
-        manifest, reason = await v2_bundle.assemble_with_reason(db, run.id)
+        manifest, reason = await run_bundle.assemble_with_reason(db, run.id)
         if manifest is None:
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
@@ -729,11 +729,11 @@ async def get_verification(
 
         manifest, reason = BundleManifest.model_validate(artifact.payload), None
     else:
-        manifest, reason = await v2_bundle.assemble_with_reason(db, run.id)
+        manifest, reason = await run_bundle.assemble_with_reason(db, run.id)
     if manifest is None:
         return {"assembled": False, "reason": reason, "passed": None, "checks": []}
 
-    result = v2_bundle.verify(manifest)
+    result = run_bundle.verify(manifest)
     return {
         "assembled": True,
         "reason": None,
@@ -758,11 +758,11 @@ async def stream_run(
     """Live run events. **The same bus, the same channel shape, the same replay rule.**
 
     Not a second event architecture: `agent_logs` rows are the durable backlog and the
-    Redis channel is the live tail, exactly as the V1 stream works — the V2 worker writes
+    Redis channel is the live tail, exactly as the session stream works — the worker writes
     through `adapters.agent_log_sink`, which is why `agent_logs.session_id` had to become
-    polymorphic. `Last-Event-ID` therefore replays a V2 run from a durable id the same way.
+    polymorphic. `Last-Event-ID` therefore replays a run from a durable id the same way.
 
-    The stop-list is the V1 one plus nothing: a stream held open on a suspended graph waits
+    The stop-list is the session stream's plus nothing: a stream held open on a suspended graph waits
     on no one, so it closes at `PLAN_READY` and `HITL_READY` as well as the two terminals.
     """
     run = await _run_or_404(db, run_id, current_user.id)
@@ -773,7 +773,7 @@ async def stream_run(
         channel = f"session:{run_id}:events"
         pubsub = redis.pubsub()
         # Subscribe BEFORE snapshotting the backlog, so an event published in the gap is
-        # queued rather than lost from both — the trap the V1 stream already documents.
+        # queued rather than lost from both — the trap the session stream already documents.
         await pubsub.subscribe(channel)
         seen_max = after_id
         try:
@@ -837,7 +837,7 @@ async def _latest_revision(db: AsyncSession, run: ResearchRun, version: int | No
 
 async def _source_dicts(db: AsyncSession, run_id) -> list[dict]:
     """The numbered source list an export renders. Uncited sources are excluded — they
-    have no `[n]` to render against, and inventing one is the thing V2 exists to refuse."""
+    have no `[n]` to render against, and inventing one is the thing this product exists to refuse."""
     rows = (
         (
             await db.execute(
@@ -900,7 +900,7 @@ async def export_pdf(
 def _demo_stamped(run: ResearchRun, report: str) -> str:
     """Prose exports of a demo run say so; the bundle does not.
 
-    Same split the V1 exports make: `report_hash` is checked against the hash a human
+    Same split the session exports make: `report_hash` is checked against the hash a human
     approved, so injecting a banner into the bundle's report body would break verification
     for a reason that has nothing to do with the artifact's integrity. The bundle carries
     `demo` as a hash-covered field instead.
@@ -937,7 +937,7 @@ async def cancel_run(
     run = await _run_or_404(db, run_id, current_user.id)
     if run.status in ("COMPLETED", "FAILED", "CANCELLED"):
         raise HTTPException(status.HTTP_409_CONFLICT, detail=f"This run is already {run.status}.")
-    await v2_runtime.request_cancel(db, run, by=current_user.id)
+    await run_lifecycle.request_cancel(db, run, by=current_user.id)
     await db.commit()
     return {
         "status": run.status,
@@ -962,7 +962,7 @@ async def archive_run(
 ):
     """Mark a run as archived. Idempotent."""
     run = await _run_or_404(db, run_id, current_user.id)
-    await v2_runtime.archive_run(db, run)
+    await run_lifecycle.archive_run(db, run)
     await db.commit()
     return {
         "status": "ok",
@@ -979,7 +979,7 @@ async def unarchive_run(
 ):
     """Restore an archived run to active history. Idempotent."""
     run = await _run_or_404(db, run_id, current_user.id)
-    await v2_runtime.unarchive_run(db, run)
+    await run_lifecycle.unarchive_run(db, run)
     await db.commit()
     return {
         "status": "ok",
@@ -1002,8 +1002,8 @@ async def delete_run(
     """
     run = await _run_or_404(db, run_id, current_user.id)
     try:
-        await v2_runtime.delete_run(db, run)
-    except v2_runtime.LifecycleError as exc:
+        await run_lifecycle.delete_run(db, run)
+    except run_lifecycle.LifecycleError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     await db.commit()
 
@@ -1014,5 +1014,5 @@ async def delete_run(
     except Exception as e:  # noqa: BLE001 — user rows are gone; log and move on
         logger.warning("checkpoint_cleanup_failed", run_id=str(run_id), error=str(e))
 
-    logger.info("v2_run_deleted", run_id=str(run_id))
+    logger.info("run_deleted", run_id=str(run_id))
     return Response(status_code=status.HTTP_204_NO_CONTENT)

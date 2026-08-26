@@ -182,8 +182,8 @@ def _check_approval_chain(bundle: BundleManifest) -> CheckResult:
     # able to satisfy the report check below.
     #
     # This was already true by string inequality; naming the exclusion makes it a decision
-    # rather than a coincidence, and gives a V2 assembler that renames a plan approval
-    # something to fail against (M2F Amendment §5.3).
+    # rather than a coincidence, and gives an assembler that renames a plan approval
+    # something to fail against.
     approved_entries = [
         a
         for a in bundle.approval_chain

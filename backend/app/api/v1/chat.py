@@ -146,7 +146,7 @@ async def send_message(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     system = (
-        f"{prompts.CHAT_PROMPT_V2}\n\n"
+        f"{prompts.CHAT_PROMPT}\n\n"
         f"{chat_scope.system_suffix(grounding)}\n\n"
         f"<untrusted_web_content>\n{grounding.text}\n</untrusted_web_content>"
     )

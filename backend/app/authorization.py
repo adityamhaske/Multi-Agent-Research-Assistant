@@ -1,5 +1,5 @@
 """
-V2 artifact authorization — the application layer of a four-layer rule (M2F Amendment §5).
+Artifact authorization — the application layer of a four-layer rule.
 
 > Only an **APPROVED REPORT** review may authorize a `ResearchArtifact`.
 > A PLAN approval never can.
@@ -11,12 +11,12 @@ cannot reach:
 |---|---|---|
 | database | `fk_artifact_review → reviews(id, decision, gate)` + `ck_artifact_gate` | any writer, including a psql session |
 | application | **this module** | a service that queries approvals itself |
-| serialization | `bundle_equivalence.REVIEW_TO_V1_ACTION` | a bundle that renames a plan approval |
+| serialization | `run_bundle.REVIEW_TO_BUNDLE_ACTION` | a bundle that renames a plan approval |
 | verifier | `verify_bundle._check_approval_chain` | a bundle produced by something else entirely |
 
-The serialization layer is the one M2F nearly missed. `verify_bundle` treats
+The serialization layer is the one that looks redundant and is not. `verify_bundle` treats
 `action == "approved"` as report authorization and rejects `plan_approved` — but only
-because V1 happens to use a distinct string. A V2 assembler that mapped every APPROVED
+because the session path happens to use a distinct string. An assembler that mapped every APPROVED
 review to `"approved"` would satisfy the verifier's load-bearing check in a file no
 database constraint reaches.
 
@@ -96,7 +96,7 @@ async def approval_chain(db: AsyncSession, run_id: uuid.UUID) -> list[Review]:
 
     Before `reviews.run_id` existed this query was impossible: PLAN reviews hang off
     `research_plans` and REPORT reviews off `revisions`, so a single-parent read silently
-    omitted every plan approval (M2F Amendment §8.2).
+    omitted every plan approval.
     """
     return list(
         (

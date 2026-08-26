@@ -13,8 +13,8 @@ the gate is never delivered, and the live tail is never reached either. Symptom:
 approving an edited plan, the activity log sometimes never shows the executor working the
 edited query.
 
-The server's V1 stream always drew this distinction (`("COMPLETED", "FAILED")` in the
-replay loop, the wider list in the tail). Both V2 streams and the desktop host's V1 stream
+The server's session stream always drew this distinction (`("COMPLETED", "FAILED")` in the
+replay loop, the wider list in the tail). The run streams and the desktop host's session stream
 copied the tail's list into both places. This pins all four.
 """
 
@@ -47,15 +47,15 @@ def _replay_stop_names(source: str) -> list[str]:
     return found
 
 
-def test_v2_server_stream_replays_past_the_gates():
-    from app.api.v1 import v2_runs
+def test_the_server_stream_replays_past_the_gates():
+    from app.api.v1 import runs as runs_api
 
-    assert v2_runs._REPLAY_STOP_EVENTS == ("COMPLETED", "FAILED")
-    assert "PLAN_READY" in v2_runs._TERMINAL_EVENTS, "the tail must still close at a gate"
+    assert runs_api._REPLAY_STOP_EVENTS == ("COMPLETED", "FAILED")
+    assert "PLAN_READY" in runs_api._TERMINAL_EVENTS, "the tail must still close at a gate"
 
-    src = inspect.getsource(v2_runs.stream_run)
+    src = inspect.getsource(runs_api.stream_run)
     assert "_REPLAY_STOP_EVENTS" in _replay_stop_names(src), (
-        "the V2 replay loop must stop only at the true terminals"
+        "the run replay loop must stop only at the true terminals"
     )
 
 
@@ -66,7 +66,7 @@ def test_desktop_streams_replay_past_the_gates():
     assert "PLAN_READY" in sidecar._TERMINAL_EVENTS
 
     src = inspect.getsource(sidecar)
-    # Both of this host's streams: the V1-equivalent one and the V2 one.
+    # Both of this host's streams: the session one and the run one.
     for marker, expected in (
         ("async def stream_events", "_REPLAY_STOP_EVENTS"),
         ("async def v2_stream_run", "V2_REPLAY_STOP"),
@@ -82,10 +82,10 @@ def test_desktop_streams_replay_past_the_gates():
 def test_the_two_hosts_agree_on_the_replay_rule():
     """One rule, two homes — the trap AGENTS.md keeps naming."""
     import desktop.sidecar as sidecar
-    from app.api.v1 import v2_runs
+    from app.api.v1 import runs as runs_api
 
-    assert sidecar._REPLAY_STOP_EVENTS == v2_runs._REPLAY_STOP_EVENTS
-    assert sidecar._TERMINAL_EVENTS == v2_runs._TERMINAL_EVENTS
+    assert sidecar._REPLAY_STOP_EVENTS == runs_api._REPLAY_STOP_EVENTS
+    assert sidecar._TERMINAL_EVENTS == runs_api._TERMINAL_EVENTS
 
 
 def test_v1_server_stream_was_already_correct_and_stays_that_way():
@@ -96,7 +96,7 @@ def test_v1_server_stream_was_already_correct_and_stays_that_way():
     idx = src.find("async def stream_events")
     body = src[idx : idx + 4000]
     assert re.search(r'in \("COMPLETED", "FAILED"\):\s*\n\s*return', body), (
-        "the V1 replay loop must stop only at the true terminals"
+        "the session replay loop must stop only at the true terminals"
     )
 
 
@@ -110,16 +110,16 @@ def test_a_stream_on_a_suspended_run_still_closes_after_replay():
     halves.
     """
     import desktop.sidecar as sidecar
-    from app.api.v1 import v2_runs
+    from app.api.v1 import runs as runs_api
 
     for gate in ("AWAITING_PLAN", "AWAITING_REVIEW"):
-        assert gate in v2_runs._SUSPENDED_STATUSES, f"{gate} must end a V2 stream after replay"
+        assert gate in runs_api._SUSPENDED_STATUSES, f"{gate} must end a run stream after replay"
     for terminal in ("COMPLETED", "FAILED", "CANCELLED"):
-        assert terminal in v2_runs._SUSPENDED_STATUSES
+        assert terminal in runs_api._SUSPENDED_STATUSES
 
-    src = inspect.getsource(v2_runs.stream_run)
+    src = inspect.getsource(runs_api.stream_run)
     assert re.search(r"if run\.status in _SUSPENDED_STATUSES:\s*\n\s*return", src), (
-        "the V2 stream must stop before tailing when the run is suspended"
+        "the run stream must stop before tailing when the run is suspended"
     )
 
     # The desktop host expresses the same rule through `already_done`.

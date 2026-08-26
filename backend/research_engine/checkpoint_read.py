@@ -14,7 +14,7 @@ merged:
 outcome can report it.
 
 **Lives in the engine because it is pure** — a saver protocol, `enum`, `dataclass`, nothing
-else. Two callers need it: `migration/` (which is why it was written) and `app/v2_execution`,
+else. Two callers need it: `migration/` (which is why it was written) and `app/run_execution`,
 which reads the final state of a native run to persist its evidence. A copy in each would be
 the same second-home shape this repository keeps paying for. `migration/checkpoint.py`
 re-exports these names.
@@ -75,7 +75,7 @@ async def read_checkpoint(saver, thread_id: str) -> CheckpointRead:
 
     # A decode that does not raise is not a decode that succeeded.
     #
-    # Found by the M2E-2 dry run, which corrupts a real saver's stored blob: the byte
+    # Found by a dry run against a deliberately corrupted saver's stored blob: the byte
     # sequence still deserialises — to the integer `0` — and the previous
     # `(tup.checkpoint or {}).get("channel_values") or {}` turned that into an empty dict
     # and reported READ. A corrupt checkpoint was therefore indistinguishable from a run

@@ -1,8 +1,8 @@
 """A run that gathered nothing must fail, not write a report from the model's memory.
 
 The scar this pins (run `63091d21`, 2026-08-25): a local planner proposed four subtopics
-and marked every one of them `include: false`. The V2 plan-review endpoint had no guard —
-V1's `research.submit_plan` has always had one, and V2 shipped without it — so the plan
+and marked every one of them `include: false`. The run plan-review endpoint had no guard —
+`research.submit_plan` has always had one, and this one shipped without it — so the plan
 was approved as proposed. `plan_gate_node` then filtered the task list down to `[]`, the
 executor ran nothing, the critic evaluated "0 task(s)", and the synthesizer still produced
 a fluent 347-word report. Its citation-repair pass then attached markers `[1]`–`[7]` to

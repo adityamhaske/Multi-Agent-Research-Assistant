@@ -69,11 +69,11 @@ class Session(Base):
     #:
     #: Durable on purpose. Cancellation used to be advisory — a status flip plus a Redis key
     #: with a 1h TTL that nothing ever read — so the run kept going and its outcome writer
-    #: moved the session back out of the stopped state when it finished. Both V1 outcome
+    #: moved the session back out of the stopped state when it finished. Both outcome
     #: writers now consult `is_cancelled` before touching status, and they can only do that
     #: if the answer outlives a worker restart.
     #:
-    #: A timestamp rather than a flag, matching `research_runs.cancelled_at` on the V2 side:
+    #: A timestamp rather than a flag, matching `research_runs.cancelled_at` on the run side:
     #: when a user stopped a run is worth keeping, and it tells a cancelled run apart from
     #: one that failed on its own without adding a status to the vocabulary both hosts map.
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -138,7 +138,7 @@ class Session(Base):
     def is_cancelled(self) -> bool:
         """Whether the user stopped this run.
 
-        The one definition both V1 hosts read. `pipeline_runner._persist_outcome` and
+        The one definition both hosts read. `pipeline_runner._persist_outcome` and
         `sidecar._apply_outcome` are the two homes of the outcome-writing rule, and a
         predicate each re-derived would be a third thing to keep in step.
         """
@@ -148,7 +148,7 @@ class Session(Base):
     # instead of the ORM loading every child row (docs/05 §5).
     user: Mapped["User"] = relationship("User", back_populates="sessions")  # noqa: F821
     project: Mapped["Project"] = relationship("Project", back_populates="sessions")  # noqa: F821
-    # `agent_logs.session_id` is polymorphic across V1 sessions and V2 runs and carries no
+    # `agent_logs.session_id` is polymorphic across sessions and runs and carries no
     # foreign key, so the relationship states the join condition explicitly and cascades in
     # the ORM rather than relying on the database. `viewonly=False` with `delete-orphan` is
     # what keeps "delete this session removes its trace" true without an FK.

@@ -348,7 +348,7 @@ async def test_deleting_a_run_takes_its_memory_with_it(db):
     report the user cannot open — an unresolvable citation, which is the one thing this
     product exists to prevent.
     """
-    from app import v2_runtime
+    from app import run_lifecycle
 
     user = await make_user(db)
     project = await make_project(db, user, "Energy")
@@ -358,7 +358,7 @@ async def test_deleting_a_run_takes_its_memory_with_it(db):
     await memory.ingest_session(db, keep, embedder)
     await memory.ingest_run(db, run, TAX_REPORT, embedder)
 
-    await v2_runtime.delete_run(db, run)
+    await run_lifecycle.delete_run(db, run)
     await db.commit()
 
     survivors = (await db.execute(select(MemoryChunk.source_report_id).distinct())).scalars().all()

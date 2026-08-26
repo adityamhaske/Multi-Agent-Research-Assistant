@@ -1,4 +1,4 @@
-"""sessions.cancelled_at — V1 cancellation becomes durable state, not an advisory event
+"""sessions.cancelled_at — cancellation becomes durable state, not an advisory event
 
 "Stop research" recorded an intent and nothing enforced it. The run continued, and when it
 finished, the outcome writer overwrote the stopped session with AWAITING_APPROVAL or
@@ -12,12 +12,12 @@ and would not have survived a worker restart if it had. A nullable timestamp on 
 is readable by both hosts through the same ORM model, which is what keeps the guard
 single-homed.
 
-A timestamp rather than a boolean, matching `research_runs.cancelled_at` that V2 already
+A timestamp rather than a boolean, matching `research_runs.cancelled_at` that runs already
 carries: "when did the user stop this" is a fact worth keeping, and it distinguishes a
 cancelled run from one that failed on its own without adding a status to the vocabulary
 both hosts map.
 
-No CHECK constraint tying this to `status`, unlike V2's `ck_run_cancelled`. V1 reuses
+No CHECK constraint tying this to `status`, unlike `ck_run_cancelled` on runs. A session reuses
 FAILED for a stopped run, so the pair is not mutually determined the way CANCELLED and its
 timestamp are, and a constraint here would reject the FAILED rows this column is being
 added alongside.

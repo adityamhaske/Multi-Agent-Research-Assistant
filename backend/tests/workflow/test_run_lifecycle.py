@@ -1,5 +1,5 @@
 """
-One complete V2-native research lifecycle, end to end, with no migration engine involved.
+One complete native research lifecycle, end to end, with no migration engine involved.
 
     question → ResearchRun → ResearchPlan → Sources + Evidence → Revision
              → Claims → ClaimEvidenceLinks → Contradictions → REPORT Review
@@ -7,7 +7,7 @@ One complete V2-native research lifecycle, end to end, with no migration engine 
 
 The research engine is not exercised here — it is unchanged, and its own suites cover it.
 What is under test is the **persistence and domain integration**: that the outcome of a run
-lands in the V2 tables with the invariants the M2F Amendment made explicit, and that the
+lands in the domain tables with the invariants the schema makes structural, and that the
 artifact a native run produces passes the same standalone verifier a migrated one does.
 
 The dangerous cases sit beside the happy path on purpose. A lifecycle test that only proves
@@ -23,7 +23,7 @@ import pytest
 from sqlalchemy import func, insert, select
 from sqlalchemy.exc import IntegrityError
 
-from app import v2_bundle, v2_runtime
+from app import run_bundle, run_lifecycle
 from app.models.project import Project
 from app.models.research import Contradiction, Evidence, ResearchRun, Source
 from app.models.review import ResearchArtifact, Review
@@ -88,7 +88,7 @@ async def db(tmp_path):
 
 @pytest.fixture
 async def owner(db):
-    """A user and a project — the only V1 tables a native run touches, and it only reads."""
+    """A user and a project — the only shared tables a run touches, and it only reads."""
     now = datetime(2026, 8, 18, tzinfo=UTC)
     uid, pid = uuid.uuid4(), uuid.uuid4()
     await db.execute(
@@ -116,7 +116,7 @@ async def drive_lifecycle(db, owner, *, approve: bool = True) -> dict:
     Returned so the dangerous-case tests can stop partway and poke at the state, rather than
     re-deriving a fixture that has drifted from the happy path.
     """
-    run = await v2_runtime.create_run(
+    run = await run_lifecycle.create_run(
         db,
         owner_id=owner["user_id"],
         project_id=owner["project_id"],
@@ -127,37 +127,43 @@ async def drive_lifecycle(db, owner, *, approve: bool = True) -> dict:
     )
 
     # 1–2. plan proposed, then approved at the PLAN gate
-    await v2_runtime.set_status(db, run, "AWAITING_PLAN")
-    plan = await v2_runtime.record_plan(
+    await run_lifecycle.set_status(db, run, "AWAITING_PLAN")
+    plan = await run_lifecycle.record_plan(
         db,
         run,
         tasks=[{"id": 1, "query": "rag accuracy"}, {"id": 2, "query": "benchmark size"}],
         outline_sections=["Findings", "Limitations"],
         origin="MODEL_PROPOSED",
     )
-    plan_review = await v2_runtime.record_plan_review(db, run, plan, reviewer_id=owner["user_id"])
-    await v2_runtime.set_status(db, run, "RUNNING")
+    plan_review = await run_lifecycle.record_plan_review(
+        db, run, plan, reviewer_id=owner["user_id"]
+    )
+    await run_lifecycle.set_status(db, run, "RUNNING")
 
     # 3. evidence and the sources it names
     numbered, _ = _number_sources(EVIDENCE)
-    written = await v2_runtime.record_evidence(
+    written = await run_lifecycle.record_evidence(
         db, run, evidence=EVIDENCE, numbered_sources=numbered
     )
 
     # 4–6. revision 1, its claims, and their links
-    first = await v2_runtime.record_revision(db, run, report_markdown=DRAFT, evidence_index=written)
+    first = await run_lifecycle.record_revision(
+        db, run, report_markdown=DRAFT, evidence_index=written
+    )
 
     # 7. contradictions
-    await v2_runtime.record_contradictions(db, run, pairs=[CONTRADICTION], evidence_index=written)
+    await run_lifecycle.record_contradictions(
+        db, run, pairs=[CONTRADICTION], evidence_index=written
+    )
 
-    await v2_runtime.record_metrics(
+    await run_lifecycle.record_metrics(
         db, run, cost_usd=0.0123, tokens_input=4321, tokens_output=1234, elapsed_seconds=42.5
     )
-    await v2_runtime.set_status(db, run, "AWAITING_REVIEW")
+    await run_lifecycle.set_status(db, run, "AWAITING_REVIEW")
     await db.commit()
 
     # 8. rework, then a second immutable revision
-    rework = await v2_runtime.record_report_review(
+    rework = await run_lifecycle.record_report_review(
         db,
         run,
         first.revision,
@@ -165,7 +171,7 @@ async def drive_lifecycle(db, owner, *, approve: bool = True) -> dict:
         decision="REWORK_REQUESTED",
         feedback="Say which split.",
     )
-    second = await v2_runtime.record_revision(db, run, report_markdown=FINAL)
+    second = await run_lifecycle.record_revision(db, run, report_markdown=FINAL)
     await db.commit()
 
     result = {
@@ -181,11 +187,11 @@ async def drive_lifecycle(db, owner, *, approve: bool = True) -> dict:
         return result
 
     # 9–10. approval, artifact, bundle
-    approval = await v2_runtime.record_report_review(
+    approval = await run_lifecycle.record_report_review(
         db, run, second.revision, reviewer_id=owner["user_id"], decision="APPROVED"
     )
-    await v2_runtime.set_status(db, run, "COMPLETED")
-    artifact = await v2_runtime.create_artifact(db, run)
+    await run_lifecycle.set_status(db, run, "COMPLETED")
+    artifact = await run_lifecycle.create_artifact(db, run)
     await db.commit()
     return result | {"approval": approval, "artifact": artifact}
 
@@ -219,7 +225,7 @@ async def test_sources_keep_retrieved_and_cited_apart(db, owner):
     extra["source_url"] = "https://example.invalid/paper-c"
     extra["source_title"] = "Paper C"
     extra["snippet"] = "An uncited aside."
-    await v2_runtime.record_evidence(db, run, evidence=[extra], numbered_sources=None)
+    await run_lifecycle.record_evidence(db, run, evidence=[extra], numbered_sources=None)
     await db.commit()
 
     sources = {s.url: s for s in (await db.execute(select(Source))).scalars()}
@@ -231,14 +237,14 @@ async def test_sources_keep_retrieved_and_cited_apart(db, owner):
 
 
 async def test_evidence_is_never_born_attested(db, owner):
-    """V1's snippet check records nothing per item, so a native run inherits that absence."""
+    """The graph's snippet check records nothing per item, so a run inherits that absence."""
     await drive_lifecycle(db, owner, approve=False)
     rows = (await db.execute(select(Evidence))).scalars().all()
     assert rows
     for e in rows:
         assert e.provenance_state == "UNCHECKED"
         assert e.attested_against is None and e.attestation_run_at is None
-        assert e.content_hash == v2_runtime.content_hash(e.snippet)
+        assert e.content_hash == run_lifecycle.content_hash(e.snippet)
 
 
 async def test_rework_appends_a_revision_and_never_overwrites(db, owner):
@@ -332,7 +338,7 @@ async def test_a_native_artifact_passes_the_standalone_verifier(db, owner):
     private copy of the checks would verify the artifact against its own idea of validity.
     """
     state = await drive_lifecycle(db, owner)
-    manifest = await v2_bundle.assemble(db, state["run"].id)
+    manifest = await run_bundle.assemble(db, state["run"].id)
     assert manifest is not None
 
     result = verify_bundle.verify(manifest)
@@ -360,7 +366,7 @@ async def test_the_frozen_payload_verifies_on_its_own(db, owner):
 
 async def test_the_plan_approval_is_in_the_chain_but_authorizes_nothing(db, owner):
     state = await drive_lifecycle(db, owner)
-    manifest = await v2_bundle.assemble(db, state["run"].id)
+    manifest = await run_bundle.assemble(db, state["run"].id)
     actions = [a.action for a in manifest.approval_chain]
 
     assert actions == ["plan_approved", "rework_requested", "approved"]
@@ -373,24 +379,24 @@ async def test_the_plan_approval_is_in_the_chain_but_authorizes_nothing(db, owne
 
 
 async def test_a_plan_approval_cannot_create_an_artifact(db, owner):
-    run = await v2_runtime.create_run(
+    run = await run_lifecycle.create_run(
         db, owner_id=owner["user_id"], project_id=owner["project_id"], question=QUESTION
     )
-    plan = await v2_runtime.record_plan(
+    plan = await run_lifecycle.record_plan(
         db, run, tasks=[{"id": 1}], outline_sections=[], origin="MODEL_PROPOSED"
     )
-    await v2_runtime.record_plan_review(db, run, plan, reviewer_id=owner["user_id"])
+    await run_lifecycle.record_plan_review(db, run, plan, reviewer_id=owner["user_id"])
     await db.commit()
 
-    with pytest.raises(v2_runtime.LifecycleError, match="no APPROVED REPORT review"):
-        await v2_runtime.create_artifact(db, run)
+    with pytest.raises(run_lifecycle.LifecycleError, match="no APPROVED REPORT review"):
+        await run_lifecycle.create_artifact(db, run)
     assert await _count(db, ResearchArtifact) == 0
 
 
 async def test_a_rework_request_cannot_create_an_artifact(db, owner):
     state = await drive_lifecycle(db, owner, approve=False)
-    with pytest.raises(v2_runtime.LifecycleError, match="no APPROVED REPORT review"):
-        await v2_runtime.create_artifact(db, state["run"])
+    with pytest.raises(run_lifecycle.LifecycleError, match="no APPROVED REPORT review"):
+        await run_lifecycle.create_artifact(db, state["run"])
     assert await _count(db, ResearchArtifact) == 0
 
 
@@ -403,14 +409,14 @@ async def test_an_artifact_cannot_be_frozen_against_an_unapproved_revision(db, o
     """
     state = await drive_lifecycle(db, owner, approve=False)
     run = state["run"]
-    await v2_runtime.record_report_review(
+    await run_lifecycle.record_report_review(
         db, run, state["revision_2"], reviewer_id=owner["user_id"], decision="APPROVED"
     )
-    await v2_runtime.record_revision(db, run, report_markdown=FINAL + "\nAn unreviewed edit.\n")
+    await run_lifecycle.record_revision(db, run, report_markdown=FINAL + "\nAn unreviewed edit.\n")
     await db.commit()
 
-    with pytest.raises(v2_runtime.LifecycleError, match="does not match the approved"):
-        await v2_runtime.create_artifact(db, run)
+    with pytest.raises(run_lifecycle.LifecycleError, match="does not match the approved"):
+        await run_lifecycle.create_artifact(db, run)
     assert await _count(db, ResearchArtifact) == 0
 
 
@@ -444,12 +450,12 @@ async def test_a_claim_cannot_link_to_another_runs_evidence(db, owner):
 
 
 async def test_evidence_without_a_source_url_is_refused_not_invented(db, owner):
-    run = await v2_runtime.create_run(
+    run = await run_lifecycle.create_run(
         db, owner_id=owner["user_id"], project_id=owner["project_id"], question=QUESTION
     )
     await db.commit()
-    with pytest.raises(v2_runtime.LifecycleError, match="no source_url"):
-        await v2_runtime.record_evidence(
+    with pytest.raises(run_lifecycle.LifecycleError, match="no source_url"):
+        await run_lifecycle.record_evidence(
             db,
             run,
             evidence=[{"task_id": 1, "source_url": "", "snippet": "unattributable"}],
@@ -460,15 +466,17 @@ async def test_evidence_without_a_source_url_is_refused_not_invented(db, owner):
 
 async def test_a_contradiction_cannot_claim_unsupported_evidence_precision(db, owner):
     """Two evidence rows carrying the same quotation: the refinement must decline."""
-    run = await v2_runtime.create_run(
+    run = await run_lifecycle.create_run(
         db, owner_id=owner["user_id"], project_id=owner["project_id"], question=QUESTION
     )
     duplicated = [EVIDENCE[0], dict(EVIDENCE[0], task_id=9), EVIDENCE[1]]
     numbered, _ = _number_sources(duplicated)
-    written = await v2_runtime.record_evidence(
+    written = await run_lifecycle.record_evidence(
         db, run, evidence=duplicated, numbered_sources=numbered
     )
-    await v2_runtime.record_contradictions(db, run, pairs=[CONTRADICTION], evidence_index=written)
+    await run_lifecycle.record_contradictions(
+        db, run, pairs=[CONTRADICTION], evidence_index=written
+    )
     await db.commit()
 
     row = (await db.execute(select(Contradiction))).scalar_one()
@@ -479,7 +487,7 @@ async def test_a_contradiction_cannot_claim_unsupported_evidence_precision(db, o
 
 async def test_a_pair_naming_an_unknown_source_is_not_detected(db, owner):
     state = await drive_lifecycle(db, owner, approve=False)
-    await v2_runtime.record_contradictions(
+    await run_lifecycle.record_contradictions(
         db,
         state["run"],
         pairs=[dict(CONTRADICTION, source_b="https://elsewhere.invalid/x")],
@@ -491,7 +499,7 @@ async def test_a_pair_naming_an_unknown_source_is_not_detected(db, owner):
     unanchored = [r for r in rows if r.detection_state == "NOT_RUN"]
     assert len(unanchored) == 1
     assert unanchored[0].source_a_id is None and unanchored[0].source_b_id is None
-    # The quotations survive: dropping a V1/V2 fact to satisfy a constraint is the other
+    # The quotations survive: dropping a recorded fact to satisfy a constraint is the other
     # failure mode, and it is no better than inventing one.
     assert unanchored[0].quote_a and unanchored[0].nature
 
@@ -499,7 +507,7 @@ async def test_a_pair_naming_an_unknown_source_is_not_detected(db, owner):
 async def test_an_unavailable_detector_is_recorded_not_omitted(db, owner):
     """A detector that did not run and a run with no conflicts are different findings."""
     state = await drive_lifecycle(db, owner, approve=False)
-    await v2_runtime.record_contradictions(db, state["run"], pairs=[], detector_ran=False)
+    await run_lifecycle.record_contradictions(db, state["run"], pairs=[], detector_ran=False)
     await db.commit()
 
     states = {r.detection_state for r in (await db.execute(select(Contradiction))).scalars()}
@@ -507,34 +515,34 @@ async def test_an_unavailable_detector_is_recorded_not_omitted(db, owner):
 
 
 async def test_a_native_plan_may_not_claim_unknown_origin(db, owner):
-    """`UNKNOWN` exists for migrated V1 rows, which could not tell proposal from edit."""
-    run = await v2_runtime.create_run(
+    """`UNKNOWN` exists for imported rows, which could not tell proposal from edit."""
+    run = await run_lifecycle.create_run(
         db, owner_id=owner["user_id"], project_id=owner["project_id"], question=QUESTION
     )
-    with pytest.raises(v2_runtime.LifecycleError, match="migrated V1 plans only"):
-        await v2_runtime.record_plan(db, run, tasks=[], outline_sections=[], origin="UNKNOWN")
+    with pytest.raises(run_lifecycle.LifecycleError, match="imported plans only"):
+        await run_lifecycle.record_plan(db, run, tasks=[], outline_sections=[], origin="UNKNOWN")
 
 
 async def test_cancellation_must_carry_its_timestamp(db, owner):
     """`ck_run_cancelled` ties the status to the time, so there is one entry point."""
-    run = await v2_runtime.create_run(
+    run = await run_lifecycle.create_run(
         db, owner_id=owner["user_id"], project_id=owner["project_id"], question=QUESTION
     )
-    with pytest.raises(v2_runtime.LifecycleError, match="request_cancel"):
-        await v2_runtime.set_status(db, run, "CANCELLED")
+    with pytest.raises(run_lifecycle.LifecycleError, match="request_cancel"):
+        await run_lifecycle.set_status(db, run, "CANCELLED")
 
-    await v2_runtime.request_cancel(db, run, by=owner["user_id"])
+    await run_lifecycle.request_cancel(db, run, by=owner["user_id"])
     await db.commit()
     assert run.status == "CANCELLED" and run.cancelled_at is not None
 
 
 async def test_a_run_with_no_revision_yields_no_bundle(db, owner):
     """Fails closed: no report means no bundle, not an empty one."""
-    run = await v2_runtime.create_run(
+    run = await run_lifecycle.create_run(
         db, owner_id=owner["user_id"], project_id=owner["project_id"], question=QUESTION
     )
     await db.commit()
-    manifest, reason = await v2_bundle.assemble_with_reason(db, run.id)
+    manifest, reason = await run_bundle.assemble_with_reason(db, run.id)
     assert manifest is None
     assert reason == "NO_REVISION"
 
@@ -555,7 +563,7 @@ async def test_a_run_whose_evidence_was_never_read_yields_no_bundle(db, owner):
         run.evidence_outcome = outcome
         await db.commit()
 
-        manifest, reason = await v2_bundle.assemble_with_reason(db, run.id)
+        manifest, reason = await run_bundle.assemble_with_reason(db, run.id)
         assert manifest is None, f"{outcome} produced a bundle over unread evidence"
         assert reason == "EVIDENCE_UNAVAILABLE"
 
@@ -567,14 +575,14 @@ async def test_a_run_whose_evidence_was_read_still_bundles(db, owner):
     state["run"].evidence_outcome = "READ"
     await db.commit()
 
-    manifest, reason = await v2_bundle.assemble_with_reason(db, state["run"].id)
+    manifest, reason = await run_bundle.assemble_with_reason(db, state["run"].id)
     assert manifest is not None, f"a readable run was refused: {reason}"
 
 
 async def test_the_citation_resolution_rate_stays_null_until_measured(db, owner):
-    run = await v2_runtime.create_run(
+    run = await run_lifecycle.create_run(
         db, owner_id=owner["user_id"], project_id=owner["project_id"], question=QUESTION
     )
-    await v2_runtime.record_metrics(db, run, cost_usd=0, tokens_input=0, tokens_output=0)
+    await run_lifecycle.record_metrics(db, run, cost_usd=0, tokens_input=0, tokens_output=0)
     await db.commit()
     assert run.citation_resolution_rate is None, "unmeasured is NULL, never 0.0"

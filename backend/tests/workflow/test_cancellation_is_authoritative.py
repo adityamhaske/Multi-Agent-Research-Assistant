@@ -17,9 +17,9 @@ cancel, on every writer the product has.
 There are three writers and therefore three homes of one rule (AGENTS.md, "two hosts, one
 contract" — here it is two hosts *and* two generations):
 
-    V2 runs        `app/v2_execution.py::persist_outcome`
-    V1 server      `app/workers/pipeline_runner.py::_persist_outcome`
-    V1 desktop     `desktop/sidecar.py::_apply_outcome`
+    runs           `app/run_execution.py::persist_outcome`
+    sessions       `app/workers/pipeline_runner.py::_persist_outcome`
+    sessions, app  `desktop/sidecar.py::_apply_outcome`
 
 Every test below was verified to fail with its guard removed; the negative controls are
 recorded in the docstrings so a future reader can re-run them rather than trust this note.
@@ -40,7 +40,7 @@ import httpx
 import pytest
 from sqlalchemy import insert, select
 
-from app import v2_execution, v2_runtime
+from app import run_execution, run_lifecycle
 from app.models.project import Project
 from app.models.research import ResearchRun
 from app.models.session import Session as SessionRow
@@ -66,7 +66,7 @@ COMPLETING_OUTCOME = RunOutcome(
 )
 
 
-# ── V2: the primary release path ───────────────────────────────────────────────────
+# ── Runs: the primary path ───────────────────────────────────────────────────
 
 
 @pytest.fixture
@@ -90,10 +90,10 @@ async def v2_run(tmp_path):
             insert(Project).values(id=pid, user_id=uid, name="P", created_at=now, updated_at=now)
         )
         await db.commit()
-        run = await v2_runtime.create_run(
+        run = await run_lifecycle.create_run(
             db, owner_id=uid, project_id=pid, question="q", depth="fast"
         )
-        await v2_runtime.set_status(db, run, "RUNNING")
+        await run_lifecycle.set_status(db, run, "RUNNING")
         await db.commit()
         yield db, run, uid
 
@@ -104,7 +104,7 @@ async def _reload(db, run_id) -> ResearchRun:
 
 
 async def test_v2_a_cancelled_run_survives_a_completing_outcome(v2_run):
-    """t0 → t1 → t2 on the V2 adapter.
+    """t0 → t1 → t2 on the run adapter.
 
     Negative control: delete the `run.status == "CANCELLED"` guard at the top of
     `persist_outcome` and this fails — not with AWAITING_REVIEW, but with an IntegrityError
@@ -113,11 +113,11 @@ async def test_v2_a_cancelled_run_survives_a_completing_outcome(v2_run):
     it cost the spend (see the next test).
     """
     db, run, _ = v2_run
-    await v2_runtime.request_cancel(db, run, by=run.owner_id)
+    await run_lifecycle.request_cancel(db, run, by=run.owner_id)
     await db.commit()
     assert (await _reload(db, run.id)).status == "CANCELLED"
 
-    result = await v2_execution.persist_outcome(
+    result = await run_execution.persist_outcome(
         db, await _reload(db, run.id), COMPLETING_OUTCOME, state={"evidence": []}
     )
     await db.commit()
@@ -136,10 +136,10 @@ async def test_v2_a_cancelled_run_keeps_the_spend_it_incurred(v2_run):
     vanished from usage totals.
     """
     db, run, _ = v2_run
-    await v2_runtime.request_cancel(db, run, by=run.owner_id)
+    await run_lifecycle.request_cancel(db, run, by=run.owner_id)
     await db.commit()
 
-    await v2_execution.persist_outcome(
+    await run_execution.persist_outcome(
         db, await _reload(db, run.id), COMPLETING_OUTCOME, state={"evidence": []}
     )
     await db.commit()
@@ -157,10 +157,10 @@ async def test_v2_a_cancelled_run_writes_no_evidence_and_no_revision(v2_run):
     the whole defect restated one table down.
     """
     db, run, _ = v2_run
-    await v2_runtime.request_cancel(db, run, by=run.owner_id)
+    await run_lifecycle.request_cancel(db, run, by=run.owner_id)
     await db.commit()
 
-    result = await v2_execution.persist_outcome(
+    result = await run_execution.persist_outcome(
         db,
         await _reload(db, run.id),
         COMPLETING_OUTCOME,
@@ -185,8 +185,8 @@ def test_v2_a_cancelled_result_does_not_announce_completed():
     it is already on both hosts' `_TERMINAL_EVENTS`, so the stream closes, and `CANCELLED`
     is on neither.
     """
-    event = v2_execution.lifecycle_event(
-        v2_execution.PersistResult(status="CANCELLED", evidence_outcome="NOT_READ")
+    event = run_execution.lifecycle_event(
+        run_execution.PersistResult(status="CANCELLED", evidence_outcome="NOT_READ")
     )
     assert event["type"] == "FAILED"
     assert "stopped by user" in event["data"]["reason"].lower()
@@ -213,19 +213,19 @@ async def test_v2_cancellation_survives_a_worker_restart(tmp_path):
             insert(Project).values(id=pid, user_id=uid, name="P", created_at=now, updated_at=now)
         )
         await db.commit()
-        run = await v2_runtime.create_run(
+        run = await run_lifecycle.create_run(
             db, owner_id=uid, project_id=pid, question="q", depth="fast"
         )
         run_id = run.id
-        await v2_runtime.set_status(db, run, "RUNNING")
-        await v2_runtime.request_cancel(db, run, by=uid)
+        await run_lifecycle.set_status(db, run, "RUNNING")
+        await run_lifecycle.request_cancel(db, run, by=uid)
         await db.commit()
 
     # A different engine, a different session, nothing carried over in memory.
     async with open_db(db_path) as maker, maker() as db:
         reloaded = await _reload(db, run_id)
         assert reloaded.status == "CANCELLED"
-        result = await v2_execution.persist_outcome(
+        result = await run_execution.persist_outcome(
             db, reloaded, COMPLETING_OUTCOME, state={"evidence": []}
         )
         await db.commit()
@@ -237,9 +237,9 @@ async def test_v2_a_later_failure_cannot_overwrite_a_cancelled_run(v2_run):
     """The error path is a *separate* writer, and it had the same defect.
 
     `persist_outcome`'s guard covers outcomes the adapter delivers. It does not cover a
-    crash: `execute_run`'s corpus guard and `tasks._mark_v2_failed` both write FAILED
+    crash: `execute_run`'s corpus guard and `tasks._mark_run_failed` both write FAILED
     directly through `record_failure`, and on a cancelled run that violates
-    `ck_run_cancelled` and raises `IntegrityError` — from `_mark_v2_failed`, whose own
+    `ck_run_cancelled` and raises `IntegrityError` — from `_mark_run_failed`, whose own
     docstring promises it never raises, so the original error is lost too.
 
     Found live rather than by reading: cancelling a run mid-flight and letting its worker
@@ -247,13 +247,13 @@ async def test_v2_a_later_failure_cannot_overwrite_a_cancelled_run(v2_run):
     constraint violation.
 
     Negative control: drop the `run.status == "CANCELLED"` branch from
-    `v2_runtime.record_failure` and this raises IntegrityError instead of asserting.
+    `run_lifecycle.record_failure` and this raises IntegrityError instead of asserting.
     """
     db, run, _ = v2_run
-    await v2_runtime.request_cancel(db, run, by=run.owner_id)
+    await run_lifecycle.request_cancel(db, run, by=run.owner_id)
     await db.commit()
 
-    await v2_runtime.record_failure(db, await _reload(db, run.id), "worker crashed")
+    await run_lifecycle.record_failure(db, await _reload(db, run.id), "worker crashed")
     await db.commit()
 
     after = await _reload(db, run.id)
@@ -267,8 +267,8 @@ async def test_v2_a_later_failure_cannot_overwrite_a_cancelled_run(v2_run):
 async def test_v2_an_uncancelled_run_still_records_failure(v2_run):
     """The control: ordinary failures must still land FAILED."""
     db, run, _ = v2_run
-    await v2_runtime.set_status(db, run, "RUNNING")
-    await v2_runtime.record_failure(db, run, "provider quota exhausted")
+    await run_lifecycle.set_status(db, run, "RUNNING")
+    await run_lifecycle.record_failure(db, run, "provider quota exhausted")
     await db.commit()
 
     after = await _reload(db, run.id)
@@ -286,21 +286,21 @@ async def test_v2_set_status_refuses_to_move_a_cancelled_run(v2_run):
     raises IntegrityError at the flush instead of LifecycleError.
     """
     db, run, _ = v2_run
-    await v2_runtime.request_cancel(db, run, by=run.owner_id)
+    await run_lifecycle.request_cancel(db, run, by=run.owner_id)
     await db.commit()
 
-    with pytest.raises(v2_runtime.LifecycleError, match="cancelled"):
-        await v2_runtime.set_status(db, await _reload(db, run.id), "RUNNING")
+    with pytest.raises(run_lifecycle.LifecycleError, match="cancelled"):
+        await run_lifecycle.set_status(db, await _reload(db, run.id), "RUNNING")
 
 
-# ── V1 server: the Celery worker's writer ──────────────────────────────────────────
+# ── Sessions, server: the Celery worker's writer ──────────────────────────────────────────
 
 
 class _CountingDb:
     """Just enough AsyncSession for `_persist_outcome`, which only ever commits.
 
     Same shape as `test_plan_gate.py::_FakeDb`. Faking the session is safe *here* — unlike
-    the V2 tests above — because the V1 guard is a plain attribute read with no constraint
+    the run tests above — because the session guard is a plain attribute read with no constraint
     behind it, so there is no schema behaviour to reproduce.
     """
 
@@ -321,7 +321,7 @@ def _cancelled_session() -> SessionRow:
 
 
 async def test_server_v1_leaves_a_cancelled_session_terminal_and_silent():
-    """t0 → t1 on the V1 server writer.
+    """t0 → t1 on the session server writer.
 
     Negative control: remove the `session.is_cancelled` block from `_persist_outcome` and
     the status becomes AWAITING_APPROVAL and a HITL_READY event is published — the run
@@ -347,7 +347,7 @@ async def test_server_v1_leaves_a_cancelled_session_terminal_and_silent():
 
 
 async def test_server_v1_cancelled_session_keeps_the_spend():
-    """Same rule as V2: withhold the conclusion, keep the money."""
+    """Same rule as for a run: withhold the conclusion, keep the money."""
     from app.workers.pipeline_runner import _persist_outcome
 
     async def sink(_session_id: str, _event: dict) -> None:  # pragma: no cover - never called
@@ -382,7 +382,7 @@ async def test_server_v1_an_uncancelled_session_still_reaches_the_gate():
     assert [e["type"] for e in published] == ["HITL_READY"]
 
 
-# ── V1 desktop: the sidecar's writer, over real HTTP ───────────────────────────────
+# ── Sessions, desktop: the sidecar's writer, over real HTTP ───────────────────────────────
 
 
 @pytest.fixture

@@ -19,7 +19,7 @@ Prefer tasks that together give broad, well-sourced coverage of the question.
 Your output is validated against a strict schema — return exactly the requested fields.
 """
 
-EXECUTOR_PROMPT_V2 = f"""You are the Research Executor. You have web_search, read_webpage,
+EXECUTOR_PROMPT = f"""You are the Research Executor. You have web_search, read_webpage,
 and calculate tools. For the given task:
 1. Search the web for relevant sources.
 2. Read the most promising pages.
@@ -153,14 +153,14 @@ Example that IS a contradiction:
 Your output is validated against a strict schema — return exactly the requested fields.
 """
 
-CHAT_PROMPT_V2 = f"""You are an analyst answering follow-up questions about a research
+CHAT_PROMPT = f"""You are an analyst answering follow-up questions about a research
 report you produced. Answer using ONLY the report and its sources below. If the report
 does not cover something, say so plainly rather than inventing an answer. Be concise and
 use Markdown.
 {UNTRUSTED_CONTENT_NOTE}
 """
 
-# Project chat (docs/14 §5). Differs from CHAT_PROMPT_V2 in what it is grounded on: not
+# Project chat (docs/14 §5). Differs from CHAT_PROMPT in what it is grounded on: not
 # one report, but the excerpts retrieved from every *approved* report in one project.
 #
 # The refusal instruction is the load-bearing line. Retrieval always returns its nearest

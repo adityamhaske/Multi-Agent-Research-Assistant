@@ -1,9 +1,9 @@
 """
-V2-native research lifecycle — the persistence side of a run that never touches V1.
+The research lifecycle — the persistence side of a run, host-free.
 
 The research *engine* is unchanged: `research_engine.graph` plans, executes, criticises and
 synthesizes exactly as it does today, and `RunOutcome` is still the plain-data handoff. What
-changes is where a host writes that outcome. This module is the V2 destination:
+changes is where a host writes that outcome. This module is the destination:
 
     question → ResearchRun → ResearchPlan → Sources + Evidence → Revision
              → Claims → ClaimEvidenceLinks → Contradictions → Review → Artifact → Bundle
@@ -12,13 +12,12 @@ changes is where a host writes that outcome. This module is the V2 destination:
 the desktop sidecar both call these functions, so the lifecycle has one home rather than the
 two that this repository keeps rediscovering (AGENTS.md, "two hosts, one contract").
 
-Four rules the M2F Amendment made explicit, and this module is where they become behaviour
-for *new* runs rather than only for migrated ones:
+Four rules, and this module is where each becomes behaviour rather than documentation:
 
 * **Retrieved is not cited.** A `Source` gets a `citation_index` only if the synthesizer
   numbered it. Never generated (I6).
-* **Nothing is attested.** Evidence lands `UNCHECKED`: V1's in-graph snippet check records
-  nothing per item, so a V2-native run inherits exactly the same absence of evidence (I…§14).
+* **Nothing is attested.** Evidence lands `UNCHECKED`: the graph's in-line snippet check records
+  nothing per item, so a run inherits exactly the same absence of evidence (I…§14).
 * **A contradiction is a conflict between two attributed quotations.** `DETECTED` needs both
   source anchors; an evidence anchor is set only on an exact, unique quotation match (I7, I8).
 * **Only an APPROVED REPORT review authorizes an artifact**, and the check goes through
@@ -48,8 +47,8 @@ from app.services import memory
 from research_engine import claims as claim_rules
 from research_engine.graph import _norm_url
 
-#: V1 status strings from `RunOutcome.status` → V2 `research_runs.status`.
-#: `awaiting_approval` is the rename M2E documented; nothing else moves, and `CANCELLED` is
+#: Engine `RunOutcome.status` strings → `research_runs.status`.
+#: `awaiting_approval` becomes `AWAITING_REVIEW`; nothing else moves, and `CANCELLED` is
 #: reachable only through `request_cancel`, never inferred from a message.
 OUTCOME_STATUS = {
     "awaiting_plan": "AWAITING_PLAN",
@@ -129,7 +128,7 @@ async def set_status(db: AsyncSession, run: ResearchRun, status: str) -> None:
 
 
 async def request_cancel(db: AsyncSession, run: ResearchRun, *, by: uuid.UUID) -> None:
-    """Durable cancellation — a row, not a TTL'd cache key (M2A §3.11)."""
+    """Durable cancellation — a row, not a TTL'd cache key."""
     run.status = "CANCELLED"
     run.cancelled_at = datetime.now(UTC)
     run.cancel_requested_by = by
@@ -147,7 +146,7 @@ async def record_failure(db: AsyncSession, run: ResearchRun, error: str | None) 
 
     The guard lives here rather than at the call sites because this is the only function
     that writes FAILED, and the call sites are three and growing (`persist_outcome` twice,
-    the corpus-mode guard in `execute_run`, and `tasks._mark_v2_failed`). The message is
+    the corpus-mode guard in `execute_run`, and `tasks._mark_run_failed`). The message is
     still kept: what went wrong is worth knowing even when the run's fate was already
     decided by the user.
     """
@@ -192,14 +191,14 @@ async def record_plan(
     outline_sections: list,
     origin: str = "MODEL_PROPOSED",
 ) -> ResearchPlan:
-    """Append a plan version. V1 overwrote `plan_json`; V2 inserts and never updates.
+    """Append a plan version. The session pipeline overwrote `plan_json`; this inserts and never updates.
 
-    `origin` is a real value here — a V2-native run knows whether the model proposed the
-    plan or a human edited it. `UNKNOWN` exists for migrated rows and new code must not
-    write it.
+    `origin` is a real value here — a run knows whether the model proposed the
+    plan or a human edited it. `UNKNOWN` exists only for rows written before origin was
+    recorded, and nothing may write it now — a run that cannot say has not been asked.
     """
     if origin == "UNKNOWN":
-        raise LifecycleError("UNKNOWN is for migrated V1 plans only; a native run knows")
+        raise LifecycleError("UNKNOWN is for imported plans only; a native run knows")
     version = (
         await db.execute(
             select(func.coalesce(func.max(ResearchPlan.version), 0)).where(
@@ -306,8 +305,8 @@ async def record_evidence(
                     normalized_url=norm,
                     title=title_by_url.get(norm) or item.get("source_title") or None,
                     kind="CORPUS" if url.startswith("corpus://") else "WEB",
-                    # A V2-native run knows this, unlike a migrated one — the executor
-                    # records whether it fetched a body or quoted a search result.
+                    # The executor records whether it fetched a body or quoted a
+                    # search result, so this is observed rather than assumed.
                     retrieval_status=(
                         "CORPUS_DOCUMENT"
                         if url.startswith("corpus://")
@@ -336,7 +335,7 @@ async def record_evidence(
                 snippet=snippet,
                 content_hash=content_hash(snippet),
                 key_fact=item.get("key_fact") or None,
-                # V1's snippet check records nothing per item, so a native run has no
+                # The graph's snippet check records nothing per item, so a run has no
                 # per-item attestation either. UNCHECKED until something actually attests.
                 provenance_state="UNCHECKED",
                 attested_against=None,
@@ -547,7 +546,7 @@ async def record_contradictions(
                 summary_a=pair.get("claim_a") or None,
                 summary_b=pair.get("claim_b") or None,
                 nature=pair.get("nature") or None,
-                # V1's detector assigns no dimension, and neither does a native run yet.
+                # The detector assigns no dimension, and neither does a run yet.
                 dimension="UNCLASSIFIED",
                 detection_state="DETECTED" if detected else "NOT_RUN",
                 review_state="UNREVIEWED",
@@ -589,7 +588,7 @@ async def record_plan_review(
         gate="PLAN",
         decision=decision,
         feedback=feedback,
-        # The plan's canonical serialisation. Opaque in V1, computed here — but still not
+        # The plan's canonical serialisation. Opaque on the session path, computed here — but still not
         # checked by the bundle verifier, which only binds report approvals.
         reviewed_hash=content_hash(f"{plan.version}|{plan.tasks}|{plan.outline_sections}"),
     )
@@ -660,7 +659,7 @@ async def create_artifact(db: AsyncSession, run: ResearchRun) -> ResearchArtifac
 
     The authorization decision is `app.authorization`'s, not this module's: one accessor,
     so a second copy cannot drift. The payload is a frozen bundle rather than a set of
-    joins, so reading it never touches live tables (M2A C4).
+    joins, so reading it never touches live tables.
     """
     review = await authorization.approving_report_review(db, run.id)
     if review is None:
@@ -670,9 +669,9 @@ async def create_artifact(db: AsyncSession, run: ResearchRun) -> ResearchArtifac
         )
     values = authorization.artifact_authorization_values(review)
 
-    from app import v2_bundle
+    from app import run_bundle
 
-    manifest = await v2_bundle.assemble(db, run.id)
+    manifest = await run_bundle.assemble(db, run.id)
     if manifest is None:
         raise LifecycleError("the run has no assemblable bundle; refusing to freeze nothing")
     if manifest.report_hash != review.reviewed_hash:

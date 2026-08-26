@@ -138,7 +138,7 @@ def test_the_draft_hash_column_carries_two_different_hashed_objects():
     plan_window = text[plan_at : plan_at + 600]
     assert "json.dumps" in plan_window and "sort_keys=True" in plan_window, (
         "the design gate no longer hashes a canonicalised plan; if the hashed object "
-        "changed, docs/05 and the V2 Review mapping both need updating"
+        "changed, docs/05 and the Review mapping both need updating"
     )
 
     approved_at = text.index('action="approved"')

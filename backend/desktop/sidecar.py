@@ -80,12 +80,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 # route reaches `app.config` and this host has no server settings to build (#50).
 from app.services.document_headers import download_headers
 
-# The V2 request models are imported, not restated: the desktop host must accept exactly
+# The run request models are imported, not restated: the desktop host must accept exactly
 # the body the server does, and two Pydantic models with the same name in two files is how
 # that stops being true.
-from app.schemas.v2 import CreateRunRequest as V2CreateRunRequest
-from app.schemas.v2 import PlanReviewRequest as V2PlanReviewRequest
-from app.schemas.v2 import ReportReviewRequest as V2ReportReviewRequest
+from app.schemas.runs import CreateRunRequest as V2CreateRunRequest
+from app.schemas.runs import PlanReviewRequest as V2PlanReviewRequest
+from app.schemas.runs import ReportReviewRequest as V2ReportReviewRequest
 from app.models import POSTGRES_ONLY_TABLES, Base
 from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
@@ -155,11 +155,11 @@ _KEYRING_SERVICE = "research-assistant-desktop"
 _TERMINAL_EVENTS = ("COMPLETED", "FAILED", "HITL_READY", "PLAN_READY")
 
 #: Events after which *replay* stops — the true terminals only, deliberately not the gates.
-#: Second home of `app.api.v1.v2_runs._REPLAY_STOP_EVENTS`; see the reasoning there. The
+#: Second home of `app.api.v1.runs._REPLAY_STOP_EVENTS`; see the reasoning there. The
 #: stop-list above is right for the live tail and wrong for the backlog: a client that
 #: reconnects without a `Last-Event-ID` replays from 0, and stopping at the design gate
-#: hides everything the run did after it. The server's V1 stream has always drawn this
-#: distinction; both V2 streams and this host's V1 stream did not.
+#: hides everything the run did after it. The server's session stream has always drawn
+#: this distinction; the run streams and this host's session stream did not.
 _REPLAY_STOP_EVENTS = ("COMPLETED", "FAILED")
 
 
@@ -575,12 +575,12 @@ def create_sidecar_app(
     data_path.mkdir(parents=True, exist_ok=True)
     bearer = token or secrets.token_urlsafe(32)
 
-    # The V2 routes below import their handlers from `app.api.v1.v2_runs` rather than
+    # The run routes below import their handlers from `app.api.v1.runs` rather than
     # restating them — one contract, one implementation — and that module reaches
     # `app.config` through `app.db.base`. `app/config.py` builds its `Settings` at import
     # time and requires `database_url` and `jwt_secret_key`: a *server* contract this host
     # has no use for, since auth here is the per-launch bearer token above and the database
-    # is the SQLite file below. Absent those two names the import raises, so every V2 route
+    # is the SQLite file below. Absent those two names the import raises, so every run route
     # answers 500 on its first request while the server is perfectly healthy.
     #
     # That asymmetry is why it survived to a release build. A dev shell and CI both export
@@ -648,7 +648,7 @@ def create_sidecar_app(
         # (docs/12 M10). Everything else in the schema is dialect-portable
         # (app/models/types.py). The exclusion set lives in `app.models` rather than being
         # filtered by name here — this was a single inline name comparison, which is the
-        # "two homes, one contract" shape that keeps biting: M2D added two more
+        # "two homes, one contract" shape that keeps biting: the domain tables added two more
         # pgvector-dependent tables and an inline filter would have silently tried to
         # create them.
         tables = [t for t in Base.metadata.sorted_tables if t.name not in POSTGRES_ONLY_TABLES]
@@ -1039,7 +1039,7 @@ def create_sidecar_app(
         client that receives COMPLETED and re-fetches never sees a stale status.
         """
         # A run the user stopped stays stopped (issue #54). Second home of the guard in
-        # `pipeline_runner._persist_outcome`; `v2_execution.persist_outcome` is the third.
+        # `pipeline_runner._persist_outcome`; `run_execution.persist_outcome` is the third.
         # Cancellation is advisory on both hosts — nothing interrupts the asyncio.Task any
         # more than it interrupts the Celery task — so the outcome still arrives, and
         # without this it would move the session back out of its terminal state minutes
@@ -1092,7 +1092,7 @@ def create_sidecar_app(
         await db.commit()
 
         if outcome.status == "completed":
-            # Desktop's V1 counterpart to `pipeline_runner._ingest_report_into_corpus`.
+            # Desktop's session counterpart to `pipeline_runner._ingest_report_into_corpus`.
             # There is no desktop project-memory ingestion to mirror alongside it (project
             # memory is pgvector-only — AGENTS.md), but the corpus is plain SQLite and has
             # no such constraint, so this is not skipped the way memory is.
@@ -1144,7 +1144,7 @@ def create_sidecar_app(
         async with session_factory() as db:
             session = await _authorized_session(db, session_id, sidecar["user_id"])
             # Third home of the server's rule (`pipeline_runner._run_config_for`, and
-            # `v2_execution.run_config_for_run` for V2): a run whose models are scripted is
+            # `run_execution.run_config_for_run` for runs): a run whose models are scripted is
             # *recorded* as a demo run, whichever way it got there. `app.state.fake` is the
             # whole-process `--fake` flag, and a run under it used to persist `demo = false`
             # — so its bundle named models nothing had called and its `.md` export skipped
@@ -1257,9 +1257,9 @@ def create_sidecar_app(
 
     # ── Research runs, driven in this process ─────────────────────────────────────
     #
-    # The desktop's answer to `app/v2_execution.py::execute_run`, which is server-only:
+    # The desktop's answer to `app/run_execution.py::execute_run`, which is server-only:
     # it takes a Redis lock, opens the server engine and checkpoints to Postgres, none of
-    # which exist here. Everything *above* that function in `v2_execution` is host-free and
+    # which exist here. Everything *above* that function in `run_execution` is host-free and
     # is imported rather than restated — `persist_outcome` writes the domain rows and
     # `lifecycle_event` names the terminal event, so a desktop run and a server run cannot
     # record different things about the same outcome.
@@ -1282,7 +1282,7 @@ def create_sidecar_app(
         plan: dict | None = None,
     ) -> None:
         """Run or resume one research run in-process — the desktop's worker."""
-        from app import v2_execution, v2_runtime
+        from app import run_execution, run_lifecycle
         from app.models.research import ResearchRun
 
         key = str(run_id)
@@ -1308,7 +1308,7 @@ def create_sidecar_app(
 
                 # Fourth home of "the row records what actually ran, not what was
                 # requested" (AGENTS.md): `pipeline_runner._run_config_for`,
-                # `v2_execution.run_config_for_run`, `sidecar._drive_session`, and here.
+                # `run_execution.run_config_for_run`, `sidecar._drive_session`, and here.
                 # A run under the process-wide `--fake` flag must persist `demo = true`, or
                 # its bundle names models nothing called and its export skips the stamp.
                 is_demo = bool(run.demo) or bool(app.state.fake)
@@ -1321,7 +1321,7 @@ def create_sidecar_app(
                 }
                 question, depth = run.question, run.depth
                 run_routing = run.model_routing
-                await v2_runtime.set_status(db, run, "RUNNING")
+                await run_lifecycle.set_status(db, run, "RUNNING")
                 await db.commit()
 
             try:
@@ -1335,7 +1335,7 @@ def create_sidecar_app(
             except RuntimeError as e:
                 async with session_factory() as db:
                     run = await db.get(ResearchRun, run_id)
-                    await v2_runtime.record_failure(db, run, str(e)[:500])
+                    await run_lifecycle.record_failure(db, run, str(e)[:500])
                     await db.commit()
                 await sink(key, make_event("FAILED", message=str(e)))
                 return
@@ -1384,20 +1384,20 @@ def create_sidecar_app(
 
             async with session_factory() as db:
                 run = await db.get(ResearchRun, run_id)
-                result = await v2_execution.persist_outcome(
+                result = await run_execution.persist_outcome(
                     db, run, outcome, saver=sidecar["saver"]
                 )
                 # Persist, commit, then publish — a client acting on COMPLETED must never
                 # re-read a status that has not caught up.
                 await db.commit()
-            await sink(key, v2_execution.lifecycle_event(result))
+            await sink(key, run_execution.lifecycle_event(result))
         finally:
             _runs_in_flight.discard(key)
 
     class _SidecarDispatcher:
         """`RunDispatcher` for this host: an asyncio task instead of a broker message.
 
-        The handlers in `app/api/v1/v2_runs.py` are shared verbatim; only this is swapped,
+        The handlers in `app/api/v1/runs.py` are shared verbatim; only this is swapped,
         so the ordering rules they encode — commit before dispatch, RUNNING in the same
         transaction as the decision — hold identically on both hosts.
         """
@@ -1542,7 +1542,7 @@ def create_sidecar_app(
         # until a human acts, so the stream ends after the backlog instead of tailing.
         # The gates moved here from the replay stop-list — stopping replay at a gate also
         # hid every event after it (see `_REPLAY_STOP_EVENTS`), which is a different and
-        # wrong statement. Second home of `v2_runs._SUSPENDED_STATUSES`.
+        # wrong statement. Second home of `runs_api._SUSPENDED_STATUSES`.
         already_done = session.status in (
             SessionStatus.COMPLETED,
             SessionStatus.FAILED,
@@ -1791,7 +1791,7 @@ def create_sidecar_app(
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
         system = (
-            f"{prompts.CHAT_PROMPT_V2}\n\n"
+            f"{prompts.CHAT_PROMPT}\n\n"
             f"{chat_scope.system_suffix(grounding)}\n\n"
             f"<untrusted_web_content>\n{grounding.text}\n</untrusted_web_content>"
         )
@@ -2610,9 +2610,9 @@ def create_sidecar_app(
         data, filename, kind = found
         return Response(content=data, headers=download_headers(kind, filename))
 
-    # ── The V2 run surface ────────────────────────────────────────────────────────
+    # ── The research run surface ──────────────────────────────────────────────────
     #
-    # Second home of `app/api/v1/v2_runs.py`, added in the SAME milestone as the server
+    # Second home of `app/api/v1/runs.py`, added in the SAME milestone as the server
     # routes rather than a release later. The chat panel and the bundle export both shipped
     # server-only and 404'd in the desktop build for a whole release; `test_host_parity`
     # exists to stop the third instance, and it caught these five before they landed.
@@ -2622,17 +2622,17 @@ def create_sidecar_app(
     # from `app/` rather than restated — one contract, one implementation.
 
     async def _v2_run_or_404(db: AsyncSession, run_id: uuid.UUID, owner_id: uuid.UUID):
-        from app.api.v1.v2_runs import _run_or_404
+        from app.api.v1.runs import _run_or_404
 
         return await _run_or_404(db, run_id, owner_id)
 
-    @api.post("/v2/runs", status_code=201)
+    @api.post("/runs", status_code=201)
     async def v2_create_run(
         body: V2CreateRunRequest,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        # This used to answer 501: executing a run meant `v2_execution.execute_run`, which
+        # This used to answer 501: executing a run meant `run_execution.execute_run`, which
         # takes a Redis lock and checkpoints to Postgres, or a Celery task this host has no
         # broker for. That made the packaged app's primary control — Start research — a
         # button that could not work, because the desktop UI does call this path.
@@ -2640,11 +2640,11 @@ def create_sidecar_app(
         # The fix is the in-process driver, not a wider bundle: `_dispatcher` runs the same
         # engine against this host's SQLite saver. The handler below is the server's, byte
         # for byte, so the ordering rules it encodes are not restated here.
-        from app.api.v1.v2_runs import create_run
+        from app.api.v1.runs import create_run
 
         return await create_run(body, db, user, dispatcher=_dispatcher)
 
-    @api.get("/v2/runs")
+    @api.get("/runs")
     async def v2_list_runs(
         project_id: uuid.UUID | None = None,
         archived: bool = False,
@@ -2652,45 +2652,45 @@ def create_sidecar_app(
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        from app.api.v1.v2_runs import list_runs
+        from app.api.v1.runs import list_runs
 
         return await list_runs(project_id, archived, limit, db, user)
 
-    @api.get("/v2/runs/{run_id}")
+    @api.get("/runs/{run_id}")
     async def v2_get_run(
         run_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        from app.api.v1.v2_runs import project_run
+        from app.api.v1.runs import project_run
 
         return await project_run(db, await _v2_run_or_404(db, run_id, user.id))
 
-    @api.post("/v2/runs/{run_id}/plan-review", status_code=201)
+    @api.post("/runs/{run_id}/plan-review", status_code=201)
     async def v2_submit_plan_review(
         run_id: uuid.UUID,
         body: V2PlanReviewRequest,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        from app.api.v1.v2_runs import submit_plan_review
+        from app.api.v1.runs import submit_plan_review
 
         return await submit_plan_review(run_id, body, db, user, dispatcher=_dispatcher)
 
-    @api.post("/v2/runs/{run_id}/report-review", status_code=201)
+    @api.post("/runs/{run_id}/report-review", status_code=201)
     async def v2_submit_report_review(
         run_id: uuid.UUID,
         body: V2ReportReviewRequest,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        from app.api.v1.v2_runs import submit_report_review
+        from app.api.v1.runs import submit_report_review
 
         result = await submit_report_review(run_id, body, db, user, dispatcher=_dispatcher)
 
         if body.decision == "APPROVED":
             # `submit_report_review` already tried its own server-side corpus ingest and
-            # swallowed it (app/api/v1/v2_runs.py::_ingest_report_into_corpus) — it imports
+            # swallowed it (app/api/v1/runs.py::_ingest_report_into_corpus) — it imports
             # `app.config`/`app.adapters`, which `make_corpus_store`'s own docstring
             # documents as excluded from this bundle, so that attempt always fails cleanly
             # here and never completes the save. This is the completion: desktop's actual,
@@ -2719,23 +2719,23 @@ def create_sidecar_app(
 
         return result
 
-    @api.get("/v2/runs/{run_id}/stream")
+    @api.get("/runs/{run_id}/stream")
     async def v2_stream_run(
         run_id: uuid.UUID,
         request: Request,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        """The V2 stream, over this host's in-process bus rather than Redis.
+        """The run stream, over this host's in-process bus rather than Redis.
 
-        The only difference from the server, and the same one the V1 stream already has:
+        The only difference from the server, and the same one the session stream already has:
         there is no Redis here, so the live tail comes from `SessionEventBus`. Backlog,
         `Last-Event-ID` replay and the stop-list are identical, and the backlog query works
         unchanged because `agent_logs.session_id` is polymorphic.
         """
-        from app.api.v1.v2_runs import _REPLAY_STOP_EVENTS as V2_REPLAY_STOP
-        from app.api.v1.v2_runs import _TERMINAL_EVENTS as V2_TERMINAL
-        from app.api.v1.v2_runs import _run_or_404
+        from app.api.v1.runs import _REPLAY_STOP_EVENTS as V2_REPLAY_STOP
+        from app.api.v1.runs import _TERMINAL_EVENTS as V2_TERMINAL
+        from app.api.v1.runs import _run_or_404
 
         run = await _run_or_404(db, run_id, user.id)
         bus: SessionEventBus = app.state.sidecar["bus"]
@@ -2785,20 +2785,20 @@ def create_sidecar_app(
 
         return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
 
-    @api.get("/v2/runs/{run_id}/export.md")
+    @api.get("/runs/{run_id}/export.md")
     async def v2_export_markdown(
         run_id: uuid.UUID,
         revision_version: int | None = None,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        from app.api.v1.v2_runs import export_markdown
+        from app.api.v1.runs import export_markdown
 
         return await export_markdown(run_id, revision_version, db, user)
 
-    @api.get("/v2/runs/{run_id}/export.pdf", status_code=501)
+    @api.get("/runs/{run_id}/export.pdf", status_code=501)
     async def v2_export_pdf(run_id: uuid.UUID):
-        # By design (docs/13 §7), same as the V1 route: desktop PDF is the WebView's
+        # By design (docs/13 §7), same as the session route: desktop PDF is the WebView's
         # print-to-PDF, and WeasyPrint stays out of the bundle. Declaring the route rather
         # than omitting it is what makes the 501 a documented answer instead of a 404 the
         # UI has to guess about.
@@ -2808,49 +2808,49 @@ def create_sidecar_app(
             "not part of the desktop bundle.",
         )
 
-    @api.post("/v2/runs/{run_id}/cancel")
+    @api.post("/runs/{run_id}/cancel")
     async def v2_cancel_run(
         run_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        from app.api.v1.v2_runs import cancel_run
+        from app.api.v1.runs import cancel_run
 
         return await cancel_run(run_id, db, user)
 
-    @api.post("/v2/runs/{run_id}/archive")
+    @api.post("/runs/{run_id}/archive")
     async def v2_archive_run(
         run_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        from app.api.v1.v2_runs import archive_run
+        from app.api.v1.runs import archive_run
 
         return await archive_run(run_id, db, user)
 
-    @api.post("/v2/runs/{run_id}/unarchive")
+    @api.post("/runs/{run_id}/unarchive")
     async def v2_unarchive_run(
         run_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        from app.api.v1.v2_runs import unarchive_run
+        from app.api.v1.runs import unarchive_run
 
         return await unarchive_run(run_id, db, user)
 
-    @api.delete("/v2/runs/{run_id}", status_code=204)
+    @api.delete("/runs/{run_id}", status_code=204)
     async def v2_delete_run(
         run_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        from app import v2_runtime
-        from app.api.v1.v2_runs import _run_or_404
+        from app import run_lifecycle
+        from app.api.v1.runs import _run_or_404
 
         run = await _run_or_404(db, run_id, user.id)
         try:
-            await v2_runtime.delete_run(db, run)
-        except v2_runtime.LifecycleError as exc:
+            await run_lifecycle.delete_run(db, run)
+        except run_lifecycle.LifecycleError as exc:
             raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
         await db.commit()
 
@@ -2861,23 +2861,23 @@ def create_sidecar_app(
 
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-    @api.get("/v2/runs/{run_id}/bundle.json")
+    @api.get("/runs/{run_id}/bundle.json")
     async def v2_get_bundle(
         run_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        from app.api.v1.v2_runs import get_bundle
+        from app.api.v1.runs import get_bundle
 
         return await get_bundle(run_id, db, user)
 
-    @api.get("/v2/runs/{run_id}/verification")
+    @api.get("/runs/{run_id}/verification")
     async def v2_get_verification(
         run_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        from app.api.v1.v2_runs import get_verification
+        from app.api.v1.runs import get_verification
 
         return await get_verification(run_id, db, user)
 

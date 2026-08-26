@@ -333,7 +333,7 @@ async def status(db: AsyncSession, *, project_id: uuid.UUID, current_model: str)
         )
     ).all()
 
-    v1_approved = (
+    session_approved = (
         await db.execute(
             select(func.count())
             .select_from(Session)
@@ -341,7 +341,7 @@ async def status(db: AsyncSession, *, project_id: uuid.UUID, current_model: str)
         )
     ).scalar_one()
 
-    v2_approved = (
+    run_approved = (
         await db.execute(
             select(func.count())
             .select_from(ResearchRun)
@@ -349,7 +349,7 @@ async def status(db: AsyncSession, *, project_id: uuid.UUID, current_model: str)
         )
     ).scalar_one()
 
-    approved = v1_approved + v2_approved
+    approved = session_approved + run_approved
 
     pg_chunks = sum(chunks for _, chunks, _, _ in by_model)
     pg_indexed = sum(reports for model, _, reports, _ in by_model if model == current_model)

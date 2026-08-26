@@ -40,12 +40,12 @@ EVIDENCE = [
         "source_url": "https://e.org/b",
         "source_title": "B",
         "snippet": "",
-        "key_fact": "blanked by V1 verification",
+        "key_fact": "blanked by snippet verification",
     },
 ]
 #: Evidence the executor recorded with no URL at all. `_number_sources` skips it,
-#: `group_snippets_by_source` skips it, and no other V1 location records an identity for
-#: it — so it is the one source case that stays non-migratable (M2F Amendment §6.3).
+#: `group_snippets_by_source` skips it, and no other location records an identity for
+#: it — so it is the one source case that stays non-migratable.
 EVIDENCE_NO_URL = [
     {"task_id": 1, "source_url": "", "source_title": "", "snippet": "orphaned", "key_fact": "x"}
 ]
@@ -62,9 +62,9 @@ CONTRADICTIONS = [
 ]
 PLAN = [{"id": 1, "query": "q", "rationale": "r"}]
 
-#: V1's `sessions.sources` is not free-form JSON — `graph._number_sources` writes it, from
+#: `sessions.sources` is not free-form JSON — `graph._number_sources` writes it, from
 #: the evidence list, at synthesis time. Deriving the fixture the same way is what makes
-#: bundle equivalence a real measurement: a hand-written source list that no V1 code path
+#: bundle equivalence a real measurement: a hand-written source list that no code path
 #: could have produced would make the comparison test its own fixture rather than the
 #: migration.
 SOURCES = _number_sources(EVIDENCE)[0]
@@ -136,9 +136,9 @@ async def seed(
     routing=None,
     descending_audit_times=False,
 ):
-    """Insert one representative V1 session (plus its user, project, audit and trace rows).
+    """Insert one representative session (plus its user, project, audit and trace rows).
 
-    `ids` pins the identity so the same V1 source can be seeded into two databases.
+    `ids` pins the identity so the same source can be seeded into two databases.
     """
     now = datetime(2026, 8, 17, 12, 0, tzinfo=UTC) if ids else datetime.now(UTC)
     uid, pid, sid = ids or (uuid.uuid4(), uuid.uuid4(), uuid.uuid4())
@@ -184,13 +184,13 @@ async def seed(
                 action=action,
                 feedback=None,
                 draft_hash=h,
-                # Distinct timestamps: V2 has no per-run review ordinal, so `reviews` can
+                # Distinct timestamps: there is no per-run review ordinal, so `reviews` can
                 # only be ordered by (created_at, id). Two reviews sharing a timestamp are
                 # a genuine ordering ambiguity, recorded as a limitation rather than
                 # papered over here.
                 # Descending on request: a later `audit_log.id` with an EARLIER timestamp,
                 # so ordering by `created_at` gives a different answer from ordering by
-                # decision order. V1 guarantees no distinctness or monotonicity here.
+                # decision order. The clock guarantees no distinctness or monotonicity here.
                 created_at=(
                     now - timedelta(seconds=i)
                     if descending_audit_times

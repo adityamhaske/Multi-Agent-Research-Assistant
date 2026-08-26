@@ -3,14 +3,14 @@ The research domain: a run and everything it gathers.
 
 Two mechanisms carry most of the invariants, and both were chosen because they work
 identically on Postgres and SQLite — triggers and column privileges do not, so immutability
-is enforced in the application and by the offline verifier instead (M2B §0, §3).
+is enforced in the application and by the offline verifier instead.
 
 **Composite foreign keys.** `evidence` references `(source_id, run_id) → sources(id, run_id)`
 rather than `source_id → sources(id)`. One `run_id` column must satisfy both the parent
 reference and the row's own scoping, so evidence cannot reference another run's source. The
 `UNIQUE (id, run_id)` constraints that look redundant in isolation exist to be the targets.
 
-**CHECK constraints encode the three-valued provenance model** (M2A §4). A row cannot claim
+**CHECK constraints encode the three-valued provenance model**. A row cannot claim
 attestation without recording when it happened, and cannot be `UNCHECKED` while carrying
 evidence that a check ran. That makes the "unmeasured became zero" failure unstorable rather
 than merely discouraged.
@@ -93,7 +93,7 @@ def _in(column: str, values: tuple[str, ...]) -> str:
 
 
 class ResearchRun(Base):
-    """One execution of research. The execution record, not the result (M2A §3.12)."""
+    """One execution of research. The execution record, not the result."""
 
     __tablename__ = "research_runs"
 
@@ -102,7 +102,7 @@ class ResearchRun(Base):
         UuidType, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
     # Denormalised from `projects` so every authorization predicate is single-table. An
-    # isolation rule that needs a join is one a future query gets wrong (M2B §9.6).
+    # isolation rule that needs a join is one a future query gets wrong.
     owner_id: Mapped[uuid.UUID] = mapped_column(
         UuidType, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -131,7 +131,7 @@ class ResearchRun(Base):
     )
 
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Cancellation state is durable and on the row, not a TTL'd cache key (M2A §3.11).
+    # Cancellation state is durable and on the row, not a TTL'd cache key.
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancel_requested_by: Mapped[uuid.UUID | None] = mapped_column(
         UuidType, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
@@ -163,16 +163,16 @@ class ResearchRun(Base):
             "(citation_resolution_rate >= 0 AND citation_resolution_rate <= 1)",
             name="ck_run_resolution",
         ),
-        # The history list: this project, unarchived, newest first (M2B §5).
+        # The history list: this project, unarchived, newest first.
         Index("ix_run_project_recent", "project_id", "archived_at", "created_at"),
         Index("ix_run_owner_status", "owner_id", "status"),
     )
 
 
 class ResearchPlan(Base):
-    """A versioned, immutable plan proposal or edit (M2A §2.3).
+    """A versioned, immutable plan proposal or edit.
 
-    V1 overwrote `plan_json` with the approved plan, destroying both the model's proposal and
+    The session pipeline overwrote `plan_json` with the approved plan, destroying both the model's proposal and
     the diff a human made to it. Versions here are inserted, never updated.
     """
 
@@ -194,13 +194,13 @@ class ResearchPlan(Base):
     __table_args__ = (
         UniqueConstraint("run_id", "version", name="uq_plan_version"),
         CheckConstraint("version >= 1", name="ck_plan_version"),
-        # UNKNOWN exists for migrated V1 rows only — V1 cannot tell a model proposal from a
-        # human edit (M2C §13.2). New code must never write it.
+        # UNKNOWN exists only for rows that predate origin recording, which could not tell a proposal from a
+        # human edit. New code must never write it.
         CheckConstraint(_in("origin", PLAN_ORIGINS), name="ck_plan_origin"),
     )
 
 
-# At most one approved plan per run (M2A §6.2), as a partial unique index.
+# At most one approved plan per run, as a partial unique index.
 #
 # Declared after the class rather than in `__table_args__` because the predicate needs a
 # column object, which does not exist until the mapper has run. Both dialect keywords are
@@ -218,7 +218,7 @@ Index(
 
 
 class Source(Base):
-    """One retrieved document. What a citation resolves to (M2A §2.4)."""
+    """One retrieved document. What a citation resolves to."""
 
     __tablename__ = "sources"
 
@@ -230,17 +230,17 @@ class Source(Base):
     normalized_url: Mapped[str] = mapped_column(Text, nullable=False)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
     kind: Mapped[str] = mapped_column(String(8), nullable=False)
-    # New in V2: V1 could not distinguish a fetched page from a search-result mention, and
-    # the attestation grade in `evidence` needs that difference (M2A §2.4).
+    # The session pipeline could not distinguish a fetched page from a search-result mention, and
+    # the attestation grade in `evidence` needs that difference.
     retrieval_status: Mapped[str] = mapped_column(String(20), nullable=False)
     # NULL means "retrieved but never assigned a citation number" — a real state, reached
     # by a run that gathered evidence and failed before the synthesizer numbered anything,
-    # and by a V2-native run that fetches a page it does not cite. Never generated: an
+    # and by a run that fetches a page it does not cite. Never generated: an
     # index the synthesizer did not assign would be a fabricated historical fact
-    # (M2F Amendment §6).
+    # .
     citation_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Deliberately NOT a foreign key: deleting an uploaded file must not invalidate a
-    # historical source record (M2A §10).
+    # historical source record.
     corpus_document_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -274,11 +274,11 @@ Index(
 
 
 class Evidence(Base):
-    """One immutable extracted snippet with its provenance state (M2A §2.5).
+    """One immutable extracted snippet with its provenance state.
 
-    V1's `verify_evidence_snippets` blanks the snippet in place on failure. This table keeps
+    `verify_evidence_snippets` blanks the snippet in place on failure. This table keeps
     the text and records `UNATTESTED`, because destroying fabricated text makes the
-    fabrication unauditable (M2A §3.7).
+    fabrication unauditable.
     """
 
     __tablename__ = "evidence"
@@ -288,7 +288,7 @@ class Evidence(Base):
         UuidType, ForeignKey("research_runs.id", ondelete="CASCADE"), nullable=False
     )
     source_id: Mapped[uuid.UUID] = mapped_column(UuidType, nullable=False)
-    # An ordering value, not a gap-free ordinal (M2B §9.2). `executor_node` gathers
+    # An ordering value, not a gap-free ordinal. `executor_node` gathers
     # concurrently; guaranteeing contiguity would need a lock for no benefit. Order by
     # (sequence, id) — `sequence` alone can tie.
     sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
@@ -315,7 +315,7 @@ class Evidence(Base):
         ),
         UniqueConstraint("run_id", "sequence", name="uq_evidence_seq"),
         UniqueConstraint("id", "run_id", name="uq_evidence_run"),
-        # The provenance model, made structural (M2A §4).
+        # The provenance model, made structural.
         CheckConstraint(_in("provenance_state", PROVENANCE_STATES), name="ck_ev_state"),
         CheckConstraint(
             "(provenance_state = 'UNCHECKED') = (attestation_run_at IS NULL)",
@@ -337,15 +337,14 @@ class Evidence(Base):
 class Contradiction(Base):
     """A detected conflict between two **attributed quotations**. Preserved, never resolved.
 
-    Not "between two pieces of evidence", which is what this said until M2F. V1's detector
+    Not "between two pieces of evidence". The detector
     is shown `group_snippets_by_source(evidence)` — a `{source_url: [snippets]}` map — and
     returns a pair naming two source URLs and quoting text from each. It never sees an
-    evidence row. Modelling the pair at evidence level therefore asserted a precision V1
-    never observed, and `ck_contra_pair` made that assertion mandatory, which is why the
-    migration had to write `NOT_RUN` for pairs the detector genuinely found.
+    evidence row. Modelling the pair at evidence level would assert a precision the detector
+    never observed, and a CHECK constraint demanding it would make that assertion mandatory.
 
-    The source anchor is what V1 guarantees; the evidence anchor is a *refinement*, set only
-    when a quotation matches exactly one evidence row (M2F Amendment §7).
+    The source anchor is what the detector guarantees; the evidence anchor is a *refinement*, set only
+    when a quotation matches exactly one evidence row.
     """
 
     __tablename__ = "contradictions"
@@ -355,7 +354,7 @@ class Contradiction(Base):
         UuidType, ForeignKey("research_runs.id", ondelete="CASCADE"), nullable=False, index=True
     )
     # The authoritative anchors. `validate_pairs` drops any pair whose URL was not in the
-    # detector's input, so for a surviving V1 pair both of these resolve.
+    # detector's input, so for an imported pair both of these resolve.
     source_a_id: Mapped[uuid.UUID | None] = mapped_column(UuidType, nullable=True)
     source_b_id: Mapped[uuid.UUID | None] = mapped_column(UuidType, nullable=True)
     # The refinement. NULL when the quotation matched no evidence row, or more than one.
@@ -363,13 +362,13 @@ class Contradiction(Base):
     evidence_b_id: Mapped[uuid.UUID | None] = mapped_column(UuidType, nullable=True)
     # The verbatim text the detector quoted, and its own restatement of each side. Both are
     # authoritative as *what the detector said*, which is not the same as a fact about the
-    # world — hence `summary`, not `claim`: a V2 `Claim` is a report sentence.
+    # world — hence `summary`, not `claim`: a `Claim` is a report sentence.
     quote_a: Mapped[str | None] = mapped_column(Text, nullable=True)
     quote_b: Mapped[str | None] = mapped_column(Text, nullable=True)
     summary_a: Mapped[str | None] = mapped_column(Text, nullable=True)
     summary_b: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Why the two cannot both be true. V1 records it and renders it into the report's
-    # conflict block; until M2F it had no column here and survived only as prose.
+    # Why the two cannot both be true. It is recorded and rendered into the report's
+    # conflict block; it had no column here at first and survived only as prose.
     nature: Mapped[str | None] = mapped_column(Text, nullable=True)
     dimension: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # A detector that did not run and a detector that found nothing are different findings.

@@ -44,25 +44,25 @@ class CeleryDispatcher:
     """The server's mechanism: hand the run to a worker over the broker.
 
     Every import is deferred to the call. `app.workers.tasks` pulls in Celery and the whole
-    pipeline module tree, and this module is imported by the V2 routes on *both* hosts — an
+    pipeline module tree, and this module is imported by the run routes on *both* hosts — an
     import at module scope here would reintroduce the packaged-app `ModuleNotFoundError`
     this seam exists to remove.
     """
 
     async def start(self, run_id: str, user_id: str) -> None:
-        from app.workers.tasks import run_v2_pipeline
+        from app.workers.tasks import run_research_pipeline
 
-        run_v2_pipeline.delay(run_id, user_id)
+        run_research_pipeline.delay(run_id, user_id)
 
     async def resume_plan(self, run_id: str, user_id: str, plan: dict) -> None:
-        from app.workers.tasks import resume_v2_plan_gate
+        from app.workers.tasks import resume_research_plan_gate
 
-        resume_v2_plan_gate.delay(run_id, user_id, plan)
+        resume_research_plan_gate.delay(run_id, user_id, plan)
 
     async def rework(self, run_id: str, user_id: str, feedback: str | None) -> None:
-        from app.workers.tasks import resume_v2_pipeline
+        from app.workers.tasks import resume_research_pipeline
 
-        resume_v2_pipeline.delay(run_id, user_id, False, feedback)
+        resume_research_pipeline.delay(run_id, user_id, False, feedback)
 
 
 def get_run_dispatcher() -> RunDispatcher:

@@ -30,13 +30,13 @@ from app.models.revision import Revision
 from research_engine import bundle as bundle_mod
 from research_engine import verify_bundle
 
-#: Reverse of the migration's `AUDIT_MAP`, and the vocabulary a bundle uses for a decision.
-#: Injective, which is what makes the V1↔V2 approval chain comparable.
-REVIEW_TO_V1_ACTION = {
+#: The vocabulary a bundle uses for a review decision, and the only place it is written.
+#: Injective, so a decision and its serialised action determine each other.
+REVIEW_TO_BUNDLE_ACTION = {
     ("REPORT", "APPROVED"): "approved",
     ("REPORT", "REWORK_REQUESTED"): "rework_requested",
-    # V1 had no `rejected` action, so this pair has no V1 counterpart — but it must still
-    # be DISTINCT, or the map stops being injective and the V1↔V2 approval chain stops
+    # The session exports had no `rejected` action, so this pair has no counterpart there —
+    # but it must still be DISTINCT, or the map stops being injective and the approval chain stops
     # being comparable. `verify_bundle` counts only `approved`, so an action it does not
     # know authorizes nothing, which is the correct outcome for a rejection.
     ("REPORT", "REJECTED"): "rejected",
@@ -47,7 +47,7 @@ REVIEW_TO_V1_ACTION = {
 
 
 async def _trace(db: AsyncSession, run_id) -> list[dict]:
-    """`agent_logs` is keyed by the run id on both hosts and is not migrated."""
+    """`agent_logs` is keyed by the run id on both hosts — one query, either kind of run."""
     rows = (
         (
             await db.execute(
@@ -63,7 +63,7 @@ async def _trace(db: AsyncSession, run_id) -> list[dict]:
 async def assemble_with_reason(
     db: AsyncSession, run_id
 ) -> tuple[bundle_mod.BundleManifest | None, str | None]:
-    """Rebuild the same bundle from the migrated V2 domain tables."""
+    """Assemble the bundle from the research domain tables, or say why it cannot be."""
     run = (
         await db.execute(select(ResearchRun).where(ResearchRun.id == run_id))
     ).scalar_one_or_none()
@@ -125,12 +125,11 @@ async def assemble_with_reason(
         for e in evidence
     ]
 
-    # V1's `sessions.sources` is derived by `graph._number_sources` from the evidence list,
-    # and V2's `sources` table does not carry the snippet columns — so the V1 shape is
-    # rebuilt here by replaying that same derivation over the migrated evidence. This is
-    # reconstruction of a documented derivation, not a normalisation: if the migrated
-    # evidence disagrees with what V1 recorded, the rebuilt list differs and the comparison
-    # says so.
+    # The bundle's `sources` shape is what `graph._number_sources` derives from the evidence
+    # list, and the `sources` table does not carry the snippet columns — so it is rebuilt
+    # here by replaying that same derivation over the stored evidence. Reconstruction of a
+    # documented derivation, not a normalisation: if the stored evidence disagrees with what
+    # the run recorded, the rebuilt list differs and the bundle's own checks say so.
     source_dicts = []
     for src in sources:
         snippets: list[str] = []
@@ -161,8 +160,8 @@ async def assemble_with_reason(
         .scalars()
         .all()
     )
-    # All seven V1 fields, from the columns S4 added. V1's pair is
-    # `(claim_a, snippet_a, source_a, claim_b, snippet_b, source_b, nature)` and V2 now
+    # All seven fields of the exported shape. The pair is
+    # `(claim_a, snippet_a, source_a, claim_b, snippet_b, source_b, nature)` and the domain now
     # holds every one of them, at the source granularity the detector actually worked in.
     contradiction_dicts = [
         {
@@ -179,14 +178,14 @@ async def assemble_with_reason(
 
     # Run-scoped and ordered by `sequence`, not by revision: a PLAN review has no
     # `revision_id` at all, so the old single-parent read would silently omit every plan
-    # approval from the chain (M2F Amendment §8.2).
+    # approval from the chain.
     reviews = await approval_chain(db, run_id)
     approval_chain_dicts = []
     for r in reviews:
-        action = REVIEW_TO_V1_ACTION.get((r.gate, r.decision))
+        action = REVIEW_TO_BUNDLE_ACTION.get((r.gate, r.decision))
         if action is None:  # pragma: no cover — AUDIT_MAP invertibility is pinned by a test
-            raise ValueError(f"review {r.id} has no V1 action for {r.gate}/{r.decision}")
-        # The serialization layer of the artifact-authorization rule (M2F Amendment §5.3).
+            raise ValueError(f"review {r.id} has no serialised action for {r.gate}/{r.decision}")
+        # The serialization layer of the artifact-authorization rule.
         # `verify_bundle` treats `action == "approved"` as report authorization; emitting
         # that string for a plan approval would satisfy the verifier's load-bearing check
         # in a file no database constraint reaches.
@@ -235,7 +234,7 @@ async def assemble(db: AsyncSession, run_id) -> bundle_mod.BundleManifest | None
 def verify(manifest: bundle_mod.BundleManifest):
     """The shipped standalone verifier, imported rather than reimplemented.
 
-    A private copy of the checks would verify a V2 bundle against V2's own idea of validity,
+    A private copy of the checks would verify a bundle against this module's own idea of validity,
     which is the one thing this must not do.
     """
     return verify_bundle.verify(manifest)

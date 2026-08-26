@@ -1,4 +1,4 @@
-"""v2 research domain tables
+"""research domain tables
 
 Revision ID: eafdf189af24
 Revises: 0015_citation_resolution_rate

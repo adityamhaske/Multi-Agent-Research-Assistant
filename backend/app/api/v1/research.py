@@ -265,7 +265,7 @@ async def stream_events(
 
 #: The demo banner and the "stamped iff demo" rule now live in `research_engine.bundle`,
 #: the host-agnostic export home, so the desktop sidecar stamps `.md` identically (#52).
-#: Aliased here because this module and `v2_runs` have always referred to `_DEMO_STAMP`.
+#: Aliased here because this module and `runs` have always referred to `_DEMO_STAMP`.
 _DEMO_STAMP = bundle.DEMO_STAMP_MD
 
 

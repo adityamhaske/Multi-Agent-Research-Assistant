@@ -1,7 +1,9 @@
-"""Initial v2 schema (docs/architecture/05-data-model.md).
+"""Initial schema (docs/architecture/05-data-model.md).
 
-Single hand-authored baseline replacing the previous iteration's two stale
-migrations. Covers users, sessions, agent_logs (event stream), chat_messages,
+Single hand-authored baseline replacing two earlier stale migrations.
+
+The revision id below is `0001_initial_v2` and must stay that string: it is the value in
+every deployed `alembic_version` row, so renaming it strands every existing database. Covers users, sessions, agent_logs (event stream), chat_messages,
 audit_log, refresh_tokens. LangGraph checkpoint tables are created by the saver's
 own setup on first run (docs/09 §4).
 

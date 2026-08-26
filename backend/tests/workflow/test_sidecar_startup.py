@@ -14,7 +14,7 @@ launch, on all three platforms, with:
 
 The desktop host has neither: it uses SQLite and the OS keychain by design. Three
 different startup imports reached `app.config` transitively — the corpus route (for the
-download header policy), the V2 route module (for its request models), and
+download header policy), the run route module (for its request models), and
 `app.services.local_llm`. The `Sidecar` CI job failed, the Tauri `Shell` job was skipped
 because it `needs: sidecar`, and **no installer was produced at all**.
 
@@ -89,14 +89,14 @@ def test_shared_modules_the_sidecar_imports_are_configuration_free():
     """
     for module in (
         "app.services.document_headers",
-        "app.schemas.v2",
+        "app.schemas.runs",
         "app.services.local_llm",
         "app.services.sse",
         # In the lifecycle's import tree since run deletion had to clear project memory.
         # It reads `settings.corpus_path`, and doing so at module scope pulled `app.config`
         # — and its two required environment variables — into every sidecar startup.
         "app.services.memory",
-        "app.v2_runtime",
+        "app.run_lifecycle",
     ):
         result = _run(f"import {module}\n", strip_server_env=True)
         assert result.returncode == 0, f"{module} needs server configuration:\n{result.stderr}"
@@ -117,25 +117,25 @@ def test_download_header_policy_has_exactly_one_home():
     assert corpus.media_type_for is document_headers.media_type_for
 
 
-def test_v2_request_models_have_exactly_one_home():
-    """Same rule for the V2 request bodies: both hosts must accept the same contract."""
-    from app.api.v1 import v2_runs
-    from app.schemas import v2
+def test_run_request_models_have_exactly_one_home():
+    """Same rule for the run request bodies: both hosts must accept the same contract."""
+    from app.api.v1 import runs as runs_api
+    from app.schemas import runs as run_schemas
 
-    assert v2_runs.CreateRunRequest is v2.CreateRunRequest
-    assert v2_runs.PlanReviewRequest is v2.PlanReviewRequest
-    assert v2_runs.ReportReviewRequest is v2.ReportReviewRequest
+    assert runs_api.CreateRunRequest is run_schemas.CreateRunRequest
+    assert runs_api.PlanReviewRequest is run_schemas.PlanReviewRequest
+    assert runs_api.ReportReviewRequest is run_schemas.ReportReviewRequest
 
 
-#: Imported by the sidecar's V2 routes at *request* time rather than at startup, which is
+#: Imported by the sidecar's run routes at *request* time rather than at startup, which is
 #: why the startup assertions above never saw them. `create_sidecar_app` imports each
 #: handler inside the route body so the module stays out of the launch path.
 #: Modules the sidecar imports when a request arrives rather than at startup, so the
-#: guard below can walk them. `app.v2_execution` joined the list when the desktop gained an
+#: guard below can walk them. `app.run_execution` joined the list when the desktop gained an
 #: in-process run driver: `_drive_run` imports it per run for `persist_outcome` and
 #: `lifecycle_event`, and it reaches `app.runtime` → `app.config` → `app.db.base`, which is
 #: precisely the chain that decides whether a server-only driver gets pulled in.
-LAZY_REQUEST_IMPORTS = ("app.api.v1.v2_runs", "app.v2_execution", "app.v2_dispatch")
+LAZY_REQUEST_IMPORTS = ("app.api.v1.runs", "app.run_execution", "app.run_dispatch")
 
 
 def _spec_excludes() -> list[str]:
@@ -163,10 +163,10 @@ def test_lazy_v2_imports_pull_in_no_excluded_package():
     """What the desktop imports *per request* must also fit in the bundle.
 
     `test_sidecar_import_tree_excludes_weasyprint` walks the startup tree only, so it is
-    blind by construction to the V2 handlers — they are imported when the first V2 request
+    blind by construction to the run handlers — they are imported when the first run request
     arrives. That blind spot shipped: the spec excludes `redis` because the desktop speaks
-    SQLite only, `app.api.v1.v2_runs` imported it at module scope for the server stream's
-    `Depends(get_redis)`, and every V2 route on the packaged app answered 500 with
+    SQLite only, `app.api.v1.runs` imported it at module scope for the server stream's
+    `Depends(get_redis)`, and every run route on the packaged app answered 500 with
     `ModuleNotFoundError: No module named 'redis'`. From a source checkout the package is
     installed, so nothing anywhere was red.
 

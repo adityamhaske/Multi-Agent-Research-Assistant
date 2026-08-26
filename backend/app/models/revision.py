@@ -1,16 +1,14 @@
 """
-V2 report versions and the claim graph (M2B §2.6–2.8).
+Report versions and the claim graph.
 
-**Created, not yet used.** M2D builds the contract; nothing writes these tables.
-
-`revisions` has **zero mutable columns** (M2B §9.1). `state` and `superseded_by_id` were
+`revisions` has **zero mutable columns**. `state` and `superseded_by_id` were
 removed once both were shown to derive from reviews, run status and version position —
 `state` had been mixing generation lifecycle, review decision, approval and supersession in
 one field. A table with no mutable columns cannot drift from facts it does not hold.
 
 `claim_evidence_links` is where the claim graph becomes a graph, and it is **authoritative**:
 the `[n]` markers in report prose are a rendering of this table, not the other way round
-(M2A C7). That inversion is the single most important difference from V1, where the markers
+That inversion is the single most important difference from the session path, where the markers
 *were* the data.
 """
 
@@ -51,7 +49,7 @@ LINK_ORIGINS = ("CITATION_MARKER", "MODEL_ASSERTED", "HUMAN_ASSERTED")
 
 
 class Revision(Base):
-    """One report version. Not a research-state snapshot (M2A §13.1).
+    """One report version. Not a research-state snapshot.
 
     Evidence and Sources belong to the Run, because rework re-synthesizes from the same
     evidence — `graph.route_after_gate` sends a rejected draft back to the synthesizer, not
@@ -90,13 +88,13 @@ class Revision(Base):
 
 
 class Claim(Base):
-    """One persisted assertion belonging to one revision (M2A §2.6).
+    """One persisted assertion belonging to one revision.
 
-    `lineage_id` is reserved and **NULL in every row V2 initially writes** (M2A §13.3).
+    `lineage_id` is reserved and **NULL in every row written today**.
     Claims are derived from prose today, and nothing in that process observes that a
     sentence in revision 2 *is* the assertion from revision 1. Assigning lineage by fuzzy
     text matching would manufacture a relationship the system never observed — the same
-    error as marking migrated evidence ATTESTED because it looks fine. It is populated only
+    error as marking evidence ATTESTED because it looks fine. It is populated only
     once the synthesizer emits structured claims, and never backfilled by matching.
     """
 
@@ -140,17 +138,17 @@ class Claim(Base):
             "(verification_state = 'UNCHECKED') = (verification_method = 'NOT_RUN')",
             name="ck_claim_unchecked",
         ),
-        # No index on `lineage_id`: it is NULL in every row V2 writes, so an index would be
-        # pure write cost. It arrives with the first non-NULL writer (M2B §5).
+        # No index on `lineage_id`: it is NULL in every row written today, so an index would be
+        # pure write cost. It arrives with the first non-NULL writer.
     )
 
 
 class ClaimEvidenceLink(Base):
-    """The claim↔evidence relation. Authoritative; `[n]` is presentation (M2A C7).
+    """The claim↔evidence relation. Authoritative; `[n]` is presentation.
 
     The two composite foreign keys share this row's single `run_id`, so one value must
     satisfy both parents. A claim therefore cannot link to another run's evidence — the
-    contamination is unrepresentable rather than merely detected (M2B §9.6).
+    contamination is unrepresentable rather than merely detected.
     """
 
     __tablename__ = "claim_evidence_links"
@@ -161,7 +159,7 @@ class ClaimEvidenceLink(Base):
     evidence_id: Mapped[uuid.UUID] = mapped_column(UuidType, nullable=False)
     stance: Mapped[str] = mapped_column(String(12), nullable=False)
     # CITATION_MARKER says plainly that a link came from a typographic marker rather than a
-    # considered judgement. V1 has only this kind and cannot say so.
+    # considered judgement. A plain report has only this kind and cannot say so.
     origin: Mapped[str] = mapped_column(String(20), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -185,6 +183,6 @@ class ClaimEvidenceLink(Base):
         CheckConstraint(_in("origin", LINK_ORIGINS), name="ck_link_origin"),
         Index("ix_link_claim", "claim_id"),
         # The reverse direction — "which claims cite this evidence?" — is what the evidence
-        # drawer asks, and the question V1 cannot answer at all.
+        # drawer asks, and the question a flat report cannot answer at all.
         Index("ix_link_evidence", "evidence_id"),
     )

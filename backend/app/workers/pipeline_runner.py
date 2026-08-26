@@ -137,7 +137,7 @@ async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
     # one branch also keeps the config stable across resumes: were the stamp applied
     # without this, `demo` would flip False→True between a run and its resume, and `demo`
     # selects the seeded content (docs/17 §6.1) while `llm_mode` keeps the run offline.
-    # Desktop counterpart: `sidecar._drive_session`. V2: `v2_execution.run_config_for_run`.
+    # Other homes: `sidecar._drive_session` and `run_execution.run_config_for_run`.
     if session.demo or base.llm_mode == "fake":
         if not session.demo:
             session.demo = True
@@ -370,8 +370,8 @@ async def _persist_outcome(
     # `sources`, and the lifecycle event — because the conclusion is not the user's decision
     # and the decision is the one that stands.
     #
-    # Two more homes of this rule: `desktop/sidecar.py::_apply_outcome` for the desktop's V1
-    # journey, and `v2_execution.persist_outcome` for V2 runs. Change all three.
+    # Two more homes of this rule: `desktop/sidecar.py::_apply_outcome` for the desktop's
+    # session journey, and `run_execution.persist_outcome` for runs. Change all three.
     if session.is_cancelled:
         await db.commit()
         logger.info(

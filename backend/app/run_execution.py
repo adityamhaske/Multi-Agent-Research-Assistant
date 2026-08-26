@@ -1,25 +1,25 @@
 """
-V2 execution wiring: the existing research engine, persisted into the V2 domain.
+Execution wiring: the research engine, persisted into the research domain.
 
 This is an **adapter**, not a second pipeline. `research_engine.runner.run` and `.resume` are
 called exactly as `app/workers/pipeline_runner.py` calls them, with the same ports, the same
 `RunConfig`, the same LangGraph topology and the same checkpointer. Nothing in
-`research_engine/` learns that V2 exists — the dependency points one way, from here into the
+`research_engine/` learns the domain exists — the dependency points one way, from here into the
 engine.
 
-    POST /v2/runs ──► ResearchRun (PENDING)
+    POST /runs ──► ResearchRun (PENDING)
                        │
-                       ├─ Celery: run_v2_pipeline
-                       │    ├─ resolve routing + BYOK + RunConfig   (shared with V1)
+                       ├─ Celery: run_research_pipeline
+                       │    ├─ resolve routing + BYOK + RunConfig   (shared)
                        │    ├─ runner.run(...)                      (unchanged engine)
                        │    ├─ RunOutcome  +  final checkpoint state
-                       │    └─ persist_outcome() ──► v2_runtime ──► V2 rows
+                       │    └─ persist_outcome() ──► run_lifecycle ──► run rows
                        │
                        └─ POST /report-review APPROVED ──► Artifact ──► bundle ──► verifier
 
 **Two sources, because the engine has two outputs.** `RunOutcome` carries the report, the
 numbered source list, cost and tokens. Evidence and contradictions live in the LangGraph
-checkpoint and always have — the V1 bundle route reads them the same way. So the adapter
+checkpoint and always have — the session bundle route reads them the same way. So the adapter
 reads the final state once, through the tri-state reader, and persists it transactionally.
 After that the `evidence` table is authoritative and the checkpoint is execution history.
 
@@ -41,7 +41,7 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import v2_runtime
+from app import run_lifecycle
 from app.models.research import ResearchRun
 from app.models.user import User
 from app.runtime import run_config_from_settings
@@ -53,7 +53,7 @@ from research_engine.runner import RunOutcome
 
 logger = structlog.get_logger()
 
-#: Preference keys that map 1:1 onto a `RunConfig` field. Same list the V1 worker uses; it
+#: Preference keys that map 1:1 onto a `RunConfig` field. Same list the session worker uses; it
 #: is imported rather than restated so the two hosts cannot drift on which preferences a
 #: run honours.
 from app.workers.pipeline_runner import (  # noqa: E402
@@ -91,14 +91,14 @@ class PersistResult:
 
 
 async def provider_keys_for(db: AsyncSession, owner_id: uuid.UUID) -> dict[str, str]:
-    """This run's BYOK keys. Shared with the V1 worker — one decrypt path, one fallback."""
+    """This run's BYOK keys. Shared with the session worker — one decrypt path, one fallback."""
     return await _user_provider_keys(db, str(owner_id))
 
 
 async def run_config_for_run(db: AsyncSession, run: ResearchRun) -> RunConfig:
-    """The engine config for a V2 run.
+    """The engine config for a run.
 
-    Deliberately the same resolution order as the V1 worker — run → user → deployment — and
+    Deliberately the same resolution order as the session worker — run → user → deployment — and
     the same snapshot rule: once `model_routing` is stamped on the run it wins, so a resumed
     run keeps the models it started with rather than producing a report whose halves were
     written by different models.
@@ -145,7 +145,7 @@ async def persist_outcome(
     saver=None,
     state: dict | None = None,
 ) -> PersistResult:
-    """Write one graph invocation's result into the V2 domain. Caller owns the transaction.
+    """Write one graph invocation's result into the research domain. Caller owns the transaction.
 
     `state` is the final checkpoint values; pass it directly (a test that already has them)
     or pass `saver` and let this read them through the tri-state reader. Passing neither
@@ -165,10 +165,10 @@ async def persist_outcome(
     # real; dropping them would make usage totals lie. Nothing else is written: the run's own
     # conclusion is not the user's decision, and the user's decision is the one that stands.
     #
-    # Two more homes of this rule for V1 sessions — `pipeline_runner._persist_outcome` and
+    # Two more homes of this rule for sessions — `pipeline_runner._persist_outcome` and
     # `sidecar._apply_outcome`. Change all three.
     if run.status == "CANCELLED":
-        await v2_runtime.record_metrics(
+        await run_lifecycle.record_metrics(
             db,
             run,
             cost_usd=outcome.cost_usd,
@@ -177,7 +177,7 @@ async def persist_outcome(
             elapsed_seconds=outcome.elapsed_seconds,
         )
         logger.info(
-            "v2_outcome_discarded_run_cancelled",
+            "outcome_discarded_run_cancelled",
             run_id=str(run.id),
             outcome_status=outcome.status,
             cost_usd=round(outcome.cost_usd, 4),
@@ -185,28 +185,28 @@ async def persist_outcome(
         return PersistResult(status="CANCELLED", evidence_outcome="NOT_READ")
 
     if outcome.status == "failed":
-        await v2_runtime.record_failure(db, run, outcome.error)
+        await run_lifecycle.record_failure(db, run, outcome.error)
         return PersistResult(status="FAILED", evidence_outcome="NOT_READ")
 
     # ── the plan gate ─────────────────────────────────────────────────────────────
     if outcome.status == "awaiting_plan":
         # The proposal, not a decision: `approved_at` stays NULL until a PLAN review
         # stamps it, and `origin` says the model wrote it.
-        await v2_runtime.record_plan(
+        await run_lifecycle.record_plan(
             db,
             run,
             tasks=outcome.plan_tasks,
             outline_sections=outcome.plan_outline,
             origin="MODEL_PROPOSED",
         )
-        await v2_runtime.record_metrics(
+        await run_lifecycle.record_metrics(
             db,
             run,
             cost_usd=outcome.cost_usd,
             tokens_input=outcome.tokens_input,
             tokens_output=outcome.tokens_output,
         )
-        await v2_runtime.set_status(db, run, "AWAITING_PLAN")
+        await run_lifecycle.set_status(db, run, "AWAITING_PLAN")
         return PersistResult(status="AWAITING_PLAN", evidence_outcome="NOT_READ")
 
     # ── evidence, from the checkpoint, tri-state ──────────────────────────────────
@@ -233,11 +233,11 @@ async def persist_outcome(
         usable = [e for e in evidence if (e.get("source_url") or "").strip()]
         if len(usable) != len(evidence):
             logger.warning(
-                "v2_evidence_without_source_url_skipped",
+                "evidence_without_source_url_skipped",
                 run_id=str(run.id),
                 skipped=len(evidence) - len(usable),
             )
-        written = await v2_runtime.record_evidence(
+        written = await run_lifecycle.record_evidence(
             db, run, evidence=usable, numbered_sources=outcome.sources
         )
 
@@ -245,7 +245,7 @@ async def persist_outcome(
     revision_version = claim_count = link_count = 0
     report = outcome.report
     if report:
-        result = await v2_runtime.record_revision(
+        result = await run_lifecycle.record_revision(
             db, run, report_markdown=report, evidence_index=written
         )
         revision_version = result.revision.version
@@ -258,7 +258,7 @@ async def persist_outcome(
         # `detector_ran=True` even for an empty list: the engine runs the detector on every
         # non-corpus path and surfaces nothing when it is unavailable, so "no pairs" here is
         # a measured absence. A caller that knows the detector was skipped passes False.
-        contradiction_count = await v2_runtime.record_contradictions(
+        contradiction_count = await run_lifecycle.record_contradictions(
             db, run, pairs=pairs, evidence_index=written
         )
 
@@ -266,9 +266,9 @@ async def persist_outcome(
     rate = None
     if outcome.status == "completed" and report:
         # Measured once, when the report becomes final — the same rule and the same
-        # function the V1 worker uses. NULL when there was nothing to measure.
+        # function the session worker uses. NULL when there was nothing to measure.
         rate = citation_rate.resolution_rate(report, outcome.sources)
-    await v2_runtime.record_metrics(
+    await run_lifecycle.record_metrics(
         db,
         run,
         cost_usd=outcome.cost_usd,
@@ -283,14 +283,14 @@ async def persist_outcome(
     # itself — a log line cannot be consulted at export time.
     run.evidence_outcome = evidence_outcome
 
-    status = v2_runtime.OUTCOME_STATUS.get(outcome.status, "RUNNING")
+    status = run_lifecycle.OUTCOME_STATUS.get(outcome.status, "RUNNING")
     if status == "COMPLETED" and not report:
         # A completed run with no report is not completed. Fail closed rather than mark a
         # run finished with nothing to review.
-        await v2_runtime.record_failure(db, run, "the graph completed without a report")
+        await run_lifecycle.record_failure(db, run, "the graph completed without a report")
         status = "FAILED"
     else:
-        await v2_runtime.set_status(db, run, status)
+        await run_lifecycle.set_status(db, run, status)
 
     return PersistResult(
         status=status,
@@ -307,7 +307,7 @@ async def persist_outcome(
 def lifecycle_event(result: PersistResult) -> dict:
     """The event a host publishes after `persist_outcome`, in the existing vocabulary.
 
-    Reuses `research_engine.events.make_event` and the same four names the V1 stream and
+    Reuses `research_engine.events.make_event` and the same four names the session stream and
     both hosts' stop-lists already know (`PLAN_READY`, `HITL_READY`, `COMPLETED`, `FAILED`),
     so no second event architecture appears and no stream is left waiting on a name nothing
     publishes.
@@ -359,7 +359,7 @@ async def execute_run(
     resume: tuple[bool, str | None] | None = None,
     plan: dict | None = None,
 ) -> None:
-    """Drive one V2 run through the existing engine and persist it into the V2 domain."""
+    """Drive one run through the engine and persist it into the research domain."""
     from app import adapters
     from app.config import settings
     from app.db.base import AsyncSessionLocal, engine
@@ -375,11 +375,11 @@ async def execute_run(
     await init_redis_pool()
     try:
         # Celery can redeliver, so double execution is a real risk here in a way it is not
-        # in a single-process desktop app. Same lock, same key space as V1.
+        # in a single-process desktop app. Same lock, same key space as the session worker.
         if not await acquire_session_lock(
             run_id, lock_token, ttl=settings.celery_task_timeout_seconds + 60
         ):
-            logger.warning("v2_run_lock_busy", run_id=run_id)
+            logger.warning("run_lock_busy", run_id=run_id)
             return
         try:
             async with AsyncSessionLocal() as db:
@@ -387,7 +387,7 @@ async def execute_run(
                     await db.execute(select(ResearchRun).where(ResearchRun.id == uuid.UUID(run_id)))
                 ).scalar_one_or_none()
                 if run is None:
-                    logger.error("v2_run_not_found", run_id=run_id)
+                    logger.error("run_not_found", run_id=run_id)
                     return
 
                 # "No new research will be started for this run" is what `POST /cancel`
@@ -401,10 +401,10 @@ async def execute_run(
                 # the user asked for, nothing is wrong, and there is nothing new to publish
                 # — the stream closed when the cancel did.
                 if run.status == "CANCELLED":
-                    logger.info("v2_run_start_skipped_cancelled", run_id=run_id)
+                    logger.info("run_start_skipped_cancelled", run_id=run_id)
                     return
 
-                await v2_runtime.set_status(db, run, "RUNNING")
+                await run_lifecycle.set_status(db, run, "RUNNING")
                 await db.commit()
 
                 sink = adapters.agent_log_sink(db, run_id)
@@ -419,7 +419,7 @@ async def execute_run(
                 if run.corpus_mode:
                     guard = await _corpus_port(db, run, ports)
                     if guard is not None:
-                        await v2_runtime.record_failure(db, run, guard)
+                        await run_lifecycle.record_failure(db, run, guard)
                         await db.commit()
                         await sink(run_id, events.make_event("FAILED", data={"reason": guard}))
                         return
@@ -460,7 +460,7 @@ async def execute_run(
                 await db.commit()
                 await sink(run_id, lifecycle_event(result))
                 logger.info(
-                    "v2_run_persisted",
+                    "run_persisted",
                     run_id=run_id,
                     status=result.status,
                     evidence_outcome=result.evidence_outcome,
@@ -477,7 +477,7 @@ async def execute_run(
 async def _corpus_port(db: AsyncSession, run: ResearchRun, ports: dict) -> str | None:
     """Attach the corpus store, or return the reason the run cannot proceed.
 
-    Both guards are the V1 worker's, unchanged: a remote embedder would egress the corpus,
+    Both guards are the session worker's, unchanged: a remote embedder would egress the corpus,
     and a missing corpus database means the documents were never ingested. Returning the
     reason rather than raising keeps the caller's failure path in one place.
     """

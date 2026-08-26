@@ -536,7 +536,7 @@ async def _forced_submit(
         default=str,
     )
     messages = [
-        SystemMessage(content=prompts.EXECUTOR_PROMPT_V2),
+        SystemMessage(content=prompts.EXECUTOR_PROMPT),
         HumanMessage(
             content=(
                 f"Task {task['id']}: {task['query']}\n\n"
@@ -667,7 +667,7 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
 
     model = get_llm("executor").bind_tools(EXECUTOR_TOOLS + [submit_evidence])
     messages: list = [
-        SystemMessage(content=prompts.EXECUTOR_PROMPT_V2),
+        SystemMessage(content=prompts.EXECUTOR_PROMPT),
         HumanMessage(content=f"Task {task['id']}: {task['query']}"),
     ]
     if feedback:

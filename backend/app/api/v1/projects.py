@@ -42,7 +42,7 @@ DEFAULT_PROJECT_NAME = "General"
 
 
 async def _counts(db: AsyncSession, project_ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
-    """Session counts for a page of projects — sums across both V1 sessions and V2 runs."""
+    """Session counts for a page of projects — sums across both sessions and runs."""
     if not project_ids:
         return {}
     norm_ids = [uuid.UUID(str(pid)) for pid in project_ids]
@@ -53,7 +53,7 @@ async def _counts(db: AsyncSession, project_ids: list[uuid.UUID]) -> dict[uuid.U
             .group_by(Session.project_id)
         )
     ).all()
-    v2_rows = (
+    run_rows = (
         await db.execute(
             select(ResearchRun.project_id, func.count())
             .where(ResearchRun.project_id.in_(norm_ids))
@@ -63,7 +63,7 @@ async def _counts(db: AsyncSession, project_ids: list[uuid.UUID]) -> dict[uuid.U
     counts: dict[uuid.UUID, int] = {pid: 0 for pid in norm_ids}
     for pid, n in v1_rows:
         counts[uuid.UUID(str(pid))] = counts.get(uuid.UUID(str(pid)), 0) + n
-    for pid, n in v2_rows:
+    for pid, n in run_rows:
         counts[uuid.UUID(str(pid))] = counts.get(uuid.UUID(str(pid)), 0) + n
     return counts
 
@@ -221,7 +221,7 @@ async def delete_project(
             .where(Session.project_id == project.id, Session.status == SessionStatus.RUNNING)
         )
     ).scalar_one()
-    running_v2 = (
+    running_runs = (
         await db.execute(
             select(func.count())
             .select_from(ResearchRun)
@@ -231,10 +231,10 @@ async def delete_project(
             )
         )
     ).scalar_one()
-    if running_v1 or running_v2:
+    if running_v1 or running_runs:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            detail=f"{running_v1 + running_v2} run(s)/session(s) in this project are still running.",
+            detail=f"{running_v1 + running_runs} run(s)/session(s) in this project are still running.",
         )
 
     session_ids = (

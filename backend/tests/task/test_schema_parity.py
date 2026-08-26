@@ -1,5 +1,5 @@
 """
-The V2 database contract, proven identical on PostgreSQL and SQLite (M2D).
+The database contract, proven identical on PostgreSQL and SQLite.
 
 The server runs Postgres via Alembic; the desktop sidecar runs SQLite via `create_all`. One
 model set serves both (`app/models/types.py`), and every prior release of this project has
@@ -14,9 +14,6 @@ Three exclusions are expected and asserted rather than assumed: `memory_chunks`,
 `project_memory_items` and `project_memory_provenance` carry pgvector and cannot exist on
 SQLite (`POSTGRES_ONLY_TABLES`). Project memory is the one feature absent on desktop by
 design (docs/12 M10).
-
-**Nothing reads or writes these tables in production yet.** M2D builds the contract; the
-migration plan's later phases fill it (`internal/V2_Migration_Plan_M2C.md`).
 """
 
 from __future__ import annotations
@@ -161,11 +158,11 @@ def test_postgres_has_every_v2_table_including_pgvector(pg_engine):
 
 
 def test_the_exclusion_set_is_the_only_difference(sqlite_engine, pg_engine):
-    """The two hosts' V2 surfaces differ by exactly the declared exclusions and nothing else."""
-    sqlite_v2 = set(inspect(sqlite_engine).get_table_names()) & set(V2_TABLES)
-    pg_v2 = set(inspect(pg_engine).get_table_names()) & set(V2_TABLES)
-    assert pg_v2 - sqlite_v2 == POSTGRES_ONLY_TABLES & set(V2_TABLES)
-    assert sqlite_v2 - pg_v2 == set(), "SQLite has a V2 table Postgres does not"
+    """The two hosts' schema surfaces differ by exactly the declared exclusions and nothing else."""
+    sqlite_domain = set(inspect(sqlite_engine).get_table_names()) & set(V2_TABLES)
+    pg_domain = set(inspect(pg_engine).get_table_names()) & set(V2_TABLES)
+    assert pg_domain - sqlite_domain == POSTGRES_ONLY_TABLES & set(V2_TABLES)
+    assert sqlite_domain - pg_domain == set(), "SQLite has a domain table Postgres does not"
 
 
 # ── 2. Constraints and indexes are present on both ───────────────────────────────
@@ -367,7 +364,7 @@ def _accepts(engine, build):
             trans.rollback()
 
 
-# --- the provenance model (M2A §4) ---
+# --- the provenance model ---
 
 
 def test_unchecked_evidence_cannot_carry_an_attestation_timestamp(sqlite_engine, pg_engine):
@@ -455,7 +452,7 @@ def test_a_valid_unchecked_row_is_accepted_on_both(sqlite_engine, pg_engine):
         assert _accepts(engine, build), f"{label} refused a valid UNCHECKED row"
 
 
-# --- cross-run contamination (M2B §9.6) ---
+# --- cross-run contamination ---
 
 
 def test_a_link_cannot_join_a_claim_to_another_runs_evidence(sqlite_engine, pg_engine):
@@ -505,7 +502,7 @@ def test_a_link_cannot_join_a_claim_to_another_runs_evidence(sqlite_engine, pg_e
         assert _refuses(engine, build), f"{label} allowed a cross-run claim/evidence link"
 
 
-# --- approval is the only path to an artifact (M2A §13.2) ---
+# --- approval is the only path to an artifact ---
 
 
 def test_an_artifact_cannot_reference_a_rework_review(sqlite_engine, pg_engine):
@@ -585,7 +582,7 @@ def test_an_artifact_from_an_approving_review_is_accepted(sqlite_engine, pg_engi
 
 
 def test_only_one_approving_review_per_revision(sqlite_engine, pg_engine):
-    """The partial unique index (M2A §6.1 race table)."""
+    """The partial unique index."""
 
     def build(conn, ids):
         for _ in range(2):
@@ -632,7 +629,7 @@ def test_two_rework_reviews_of_one_revision_are_allowed(sqlite_engine, pg_engine
         assert _accepts(engine, build), f"{label} forbade a second rework — index is not partial"
 
 
-# --- the draft_hash overload, resolved (M2A §3.2) ---
+# --- the draft_hash overload, resolved ---
 
 
 def test_a_plan_gate_review_must_name_the_plan_version(sqlite_engine, pg_engine):
@@ -688,7 +685,7 @@ def test_a_report_gate_review_must_not_name_a_plan_version(sqlite_engine, pg_eng
         assert _refuses(engine, build), f"{label} accepted a REPORT review naming a plan"
 
 
-# --- cancellation coherence (M2A §3.11) ---
+# --- cancellation coherence ---
 
 
 def test_cancelled_requires_a_timestamp(sqlite_engine, pg_engine):
@@ -773,7 +770,7 @@ def test_a_corpus_source_must_name_its_document(sqlite_engine, pg_engine):
         assert _refuses(engine, build), f"{label} accepted a CORPUS source with no document"
 
 
-# --- approved research survives the ordinary delete path (M2B §9.3) ---
+# --- approved research survives the ordinary delete path ---
 
 
 def test_deleting_a_run_that_carries_a_review_is_refused(sqlite_engine, pg_engine):
@@ -811,7 +808,7 @@ def test_deleting_a_run_with_no_review_is_allowed(sqlite_engine, pg_engine):
         assert _accepts(engine, build), f"{label} refused to delete an unreviewed run"
 
 
-# --- evidence.sequence tolerates gaps (M2B §9.2) ---
+# --- evidence.sequence tolerates gaps ---
 
 
 def test_evidence_sequence_may_have_gaps(sqlite_engine, pg_engine):
@@ -858,13 +855,13 @@ def test_evidence_sequence_must_be_unique_within_a_run(sqlite_engine, pg_engine)
         assert _refuses(engine, build), f"{label} allowed a duplicate sequence"
 
 
-# --- the contradiction pair, at the granularity V1 observed (M2F/S4) ---
+# --- the contradiction pair, at the granularity the detector observes ---
 
 
 def test_a_detected_contradiction_needs_both_source_anchors(sqlite_engine, pg_engine):
     """`ck_contra_pair` moved from evidence level to source level and must still bite.
 
-    V1's detector is shown `{source_url: [snippets]}` and never sees an evidence row, so
+    The detector is shown `{source_url: [snippets]}` and never sees an evidence row, so
     the source anchors are what a detection means. A DETECTED row without them claims a
     finding nothing recorded.
     """

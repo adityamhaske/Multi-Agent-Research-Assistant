@@ -1,20 +1,20 @@
-"""M2F domain fidelity: review target, artifact gate, source recovery, contradiction quotations
+"""domain fidelity: review target, artifact gate, source recovery, contradiction quotations
 
-The five approved M2F Amendment schema items, as one revision because S1 and S2 must not
-exist apart: relaxing `reviews.revision_id` without pinning the artifact's gate would let a
-PLAN approval authorize a `research_artifacts` row, and "approval is a database fact" is the
-strongest property in the V2 schema.
+Five schema items, as one revision because the first two must not exist apart: relaxing
+`reviews.revision_id` without pinning the artifact's gate would let a PLAN approval
+authorize a `research_artifacts` row, and "approval is a database fact" is the strongest
+property this schema has.
 
 | Item | Change |
 |---|---|
-| S1 | `reviews.revision_id` nullable + `ck_review_report` — a PLAN review targets a plan |
-| S2 | `research_artifacts.review_gate` + composite FK to `reviews(id, decision, gate)` |
-| S3 | `sources.citation_index` nullable + partial unique — retrieved is not cited |
-| S4 | `contradictions` gains source anchors, quotations and `nature`; pair becomes source-level |
-| S5 | `reviews.run_id` + `sequence` — a review belongs to a run and has a position |
+| 1 | `reviews.revision_id` nullable + `ck_review_report` — a PLAN review targets a plan |
+| 2 | `research_artifacts.review_gate` + composite FK to `reviews(id, decision, gate)` |
+| 3 | `sources.citation_index` nullable + partial unique — retrieved is not cited |
+| 4 | `contradictions` gains source anchors, quotations and `nature`; pair becomes source-level |
+| 5 | `reviews.run_id` + `sequence` — a review belongs to a run and has a position |
 
-**These tables are empty in every environment** (M2D created them and nothing writes them
-outside the migration tool), so the NOT NULL columns added here need no backfill and the
+**These tables were empty in every environment when this shipped** — they had been created
+and nothing wrote them yet — so the NOT NULL columns added here need no backfill and the
 `ALTER` path is not exercised against real rows. That is stated rather than assumed: the
 upgrade drops and recreates the two constraint-bearing tables' constraints only, and adds
 columns as NOT NULL with a server default where the dialect requires one.

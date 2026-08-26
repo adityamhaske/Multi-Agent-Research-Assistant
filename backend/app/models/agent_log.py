@@ -20,11 +20,11 @@ class AgentLog(Base):
     __tablename__ = "agent_logs"
 
     id: Mapped[int] = mapped_column(BigIntAutoType, primary_key=True, autoincrement=True)
-    # The run this event belongs to — a V1 `sessions.id` or a V2 `research_runs.id`.
+    # The run this event belongs to — a `sessions.id` or a `research_runs.id`.
     #
     # **No foreign key**, deliberately, and for the same reason `audit_events` has none
-    # (M2B §9.4): the column is polymorphic across two run tables, so an FK could only
-    # point at one of them. Before the V2 native runtime it pointed at `sessions`, which
+    #: the column is polymorphic across two run tables, so an FK could only
+    # point at one of them. Before the run runtime it pointed at `sessions`, which
     # made the trace — the thing a bundle's `trace_available` claims — unwritable for a
     # native run. Cascade-on-delete is replaced by the explicit cleanup the delete paths
     # already perform for checkpoints, which have never had an FK either.

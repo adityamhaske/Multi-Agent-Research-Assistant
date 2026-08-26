@@ -1,15 +1,16 @@
 """
-V2 project memory, with provenance to approved artifacts only (M2B §2.14).
+Project memory, with provenance to approved artifacts only.
 
-**Created, not yet used.** M2D builds the contract; nothing writes these tables.
+**Created ahead of its writer.** The provenance tables define the boundary; the chunk
+store in `memory_chunk.py` is what retrieval reads today.
 
 **The memory boundary is two foreign keys and a check constraint.** `project_memory_provenance`
 has exactly one artifact-side foreign key, pointing at `research_artifacts` — and an artifact
 cannot exist without an approving review (see `review.py`). So "only approved research becomes
-memory" is structural, not a status comparison in a service (M2A §3.10). There is no column
+memory" is structural, not a status comparison in a service. There is no column
 anywhere that could point a memory item at a revision, a run, or a chat message.
 
-**Cardinality is deliberately not fixed** (M2A §13.5). Provenance is a link table rather than
+**Cardinality is deliberately not fixed**. Provenance is a link table rather than
 an `artifact_id` column, because the justification for one-artifact-per-item is "that is what
 today's chunker does" — an implementation fact, not a domain one. The relationship is
 one-to-many in the model and one-to-one in practice until something justifies otherwise.
@@ -84,7 +85,7 @@ class ProjectMemoryProvenance(Base):
     The only artifact-side foreign key in the memory subsystem, and therefore the boundary
     itself. Every durable memory item must reach at least one approved ResearchArtifact
     through this table — a rule the database cannot express ("a child row must exist"), so
-    that remainder is application-enforced (M2B §9.4).
+    that remainder is application-enforced.
     """
 
     __tablename__ = "project_memory_provenance"

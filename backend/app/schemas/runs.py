@@ -1,8 +1,8 @@
 """
-Request bodies for the V2 run routes.
+Request bodies for the run routes.
 
-**Why these live in `app/schemas/` rather than beside the routes.** The V2 surface has two
-hosts — `app/api/v1/v2_runs.py` on the server and `desktop/sidecar.py` on the desktop — and
+**Why these live in `app/schemas/` rather than beside the routes.** The run surface has two
+hosts — `app/api/v1/runs.py` on the server and `desktop/sidecar.py` on the desktop — and
 the desktop host must accept *exactly* the same bodies, so the models are imported rather
 than restated (AGENTS.md, "two hosts, one contract").
 
@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 
 
 class CreateRunRequest(BaseModel):
-    """The domain entry point for a V2-native run."""
+    """The domain entry point for a run."""
 
     project_id: uuid.UUID
     question: str = Field(min_length=1, max_length=2000)

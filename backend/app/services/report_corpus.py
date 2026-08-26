@@ -2,7 +2,7 @@
 Auto-save an approved report into its project's corpus.
 
 One pure function shared by all three hosts (AGENTS.md — "two hosts, one contract"):
-`app/workers/pipeline_runner.py` (V1), `app/v2_execution.py` (V2), and
+`app/workers/pipeline_runner.py`, `app/run_execution.py`, and
 `desktop/sidecar.py`. Each host already knows how to build the right `CorpusStore` for
 itself — a per-project SQLite file on the server/worker, one flat app-wide file on
 desktop (AGENTS.md — a real, documented infra difference, not a gap) — so this module

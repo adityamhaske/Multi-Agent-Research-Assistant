@@ -1,11 +1,14 @@
-"""migration ledger
+"""import ledger (superseded by 0021)
 
-The V1 → V2 migration's own audit record (M2C §5, M2E §2). One row per V1 session the
-migration **considered**; absence from this table means `NOT_PROCESSED` and never `EMPTY`.
+The audit record of the one-shot tool that brought session-pipeline research into the
+research domain tables: one row per session considered, where absence meant "not
+processed" and never "empty".
 
-Separate from the M2D domain tables on purpose: this is not part of the product's schema,
-it is the record of how the product's data got here. It outlives the migration (M2C §12),
-so it is created by a migration rather than by the tool that writes it.
+**Dropped again in `0021_run_evidence_outcome`**, which moves the one fact the product
+actually read — whether a run's evidence was recovered — onto `research_runs` itself,
+where it covers every run rather than only imported ones. This revision stays because the
+chain does; a deployment that upgrades straight past it creates and drops the table in the
+same session, which is correct and cheap.
 
 Revision ID: 0016_migration_ledger
 Revises: eafdf189af24
@@ -27,7 +30,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         "migration_ledger",
-        # The V1 session id IS the identity: a second migration pass finds the existing
+        # The session id IS the identity: a second import pass finds the existing
         # row rather than writing a competing terminal outcome.
         sa.Column("session_id", sa.Uuid().with_variant(sa.UUID(), "postgresql"), nullable=False),
         sa.Column("status", sa.String(length=24), nullable=False),
@@ -50,7 +53,7 @@ def upgrade() -> None:
     )
     # No foreign key to `sessions`, deliberately: the ledger must survive the deletion of
     # the row it describes, for the same reason `audit_events` has no FK to its subject
-    # (M2B §9.4). A migration record that vanishes with its session cannot answer "what
+    # An import record that vanishes with its session cannot answer "what
     # happened to that run?", which is the only question it exists to answer.
 
 

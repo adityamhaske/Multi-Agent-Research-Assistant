@@ -1,5 +1,5 @@
 """
-Artifact authorization, at all four layers (M2F Amendment §5, F2).
+Artifact authorization, at all four layers.
 
 > Only an **APPROVED REPORT** review may authorize a `ResearchArtifact`.
 
@@ -339,7 +339,7 @@ async def test_two_reviews_of_one_run_cannot_share_a_position(db):
 
 
 async def test_ordering_does_not_depend_on_the_timestamp(db):
-    """V1 guarantees no distinctness on `created_at`, so ordering must not rest on it."""
+    """The clock guarantees no distinctness on `created_at`, so ordering must not rest on it."""
     ids = await _scaffold(db)
     await _review(db, ids, gate="REPORT", decision="REWORK_REQUESTED", sequence=2)
     await _review(db, ids, gate="PLAN", decision="APPROVED", sequence=1)

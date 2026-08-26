@@ -17,12 +17,12 @@ _redis_pool: aioredis.Redis | None = None
 async def init_redis_pool() -> None:
     """Open the shared pool. Importing `redis` here, not at module scope, is load-bearing.
 
-    The desktop sidecar reaches this module at request time — its V2 routes import their
-    handlers from `app.api.v1.v2_runs`, which declares `Depends(get_redis)` for the
+    The desktop sidecar reaches this module at request time — its run routes import their
+    handlers from `app.api.v1.runs`, which declares `Depends(get_redis)` for the
     server's stream. The desktop mounts no such route and never calls this function, but
     the import still had to resolve, and `research-sidecar.spec` excludes `redis` on
     purpose: the desktop speaks SQLite only and has no Redis to speak to. A module-level
-    import therefore cost the packaged app every V2 route with a `ModuleNotFoundError`,
+    import therefore cost the packaged app every run route with a `ModuleNotFoundError`,
     while running fine from a source checkout where the package is installed.
     """
     global _redis_pool

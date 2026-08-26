@@ -1,10 +1,10 @@
-"""agent_logs.session_id becomes polymorphic across V1 sessions and V2 runs
+"""agent_logs.session_id becomes polymorphic across sessions and runs
 
 The column identifies "the run this event belongs to", and there are now two run tables. An
-FK can only point at one of them, so before this a V2-native run could not write a trace at
+FK can only point at one of them, so before this a run could not write a trace at
 all — and `trace_available` in a bundle is a claim about exactly that trace.
 
-Same reasoning as `audit_events`, which has never had an FK to its subject (M2B §9.4):
+Same reasoning as `audit_events`, which has never had an FK to its subject:
 a polymorphic reference with no FK, and deletion handled explicitly by the paths that delete
 a run. `checkpoints` have always worked this way too — `app/services/checkpoints.py` exists
 precisely because the checkpointer's `thread_id` has no FK back to `sessions`.
@@ -60,7 +60,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Reinstating the FK will fail if any V2-native run has written a trace, which is
+    # Reinstating the FK will fail if any run has written a trace, which is
     # correct: those rows reference `research_runs`, and the constraint would be a lie.
     op.create_foreign_key(
         "fk_agent_logs_session_id_sessions",

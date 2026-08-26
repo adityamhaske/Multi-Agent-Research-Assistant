@@ -1,5 +1,5 @@
 """
-The desktop host's V2 routes must work with no server configuration present.
+The desktop host's run routes must work with no server configuration present.
 
 AGENTS.md's recurring bug is "two hosts, one contract", and every instance so far has been
 a *missing* route — a control the UI rendered and the sidecar had no handler for.
@@ -8,9 +8,9 @@ the route exists on both hosts, registration is identical, and parity is satisfi
 invoking it on the desktop raises.
 
 `app/config.py` builds its `Settings` at import time and requires `database_url` and
-`jwt_secret_key`. The sidecar's V2 routes import their handlers from `app.api.v1.v2_runs`
+`jwt_secret_key`. The sidecar's run routes import their handlers from `app.api.v1.runs`
 rather than restating them, and that module reaches `app.config` through `app.db.base`, so
-absent those two variables every V2 route answers 500 on its first request.
+absent those two variables every run route answers 500 on its first request.
 
 What let it reach a release build is that nothing in the test environment resembles an
 installed app: `conftest.py` sets both variables via `setdefault` and `ci.yml` exports them
@@ -41,14 +41,14 @@ BACKEND = Path(__file__).resolve().parents[2]
 # answers 404. Any 500 here is the import failing, not the query.
 MISSING_RUN = "00000000-0000-0000-0000-000000000000"
 
-# One route per distinct handler import in `create_sidecar_app`'s V2 block. `GET /v2/runs`
+# One route per distinct handler import in `create_sidecar_app`'s run block. `GET /runs`
 # is the cheapest positive: it lists an empty table, so a working import answers 200.
 PROBES = [
-    ("/api/v1/v2/runs", 200),
-    (f"/api/v1/v2/runs/{MISSING_RUN}", 404),
-    (f"/api/v1/v2/runs/{MISSING_RUN}/bundle.json", 404),
-    (f"/api/v1/v2/runs/{MISSING_RUN}/verification", 404),
-    (f"/api/v1/v2/runs/{MISSING_RUN}/export.md", 404),
+    ("/api/v1/runs", 200),
+    (f"/api/v1/runs/{MISSING_RUN}", 404),
+    (f"/api/v1/runs/{MISSING_RUN}/bundle.json", 404),
+    (f"/api/v1/runs/{MISSING_RUN}/verification", 404),
+    (f"/api/v1/runs/{MISSING_RUN}/export.md", 404),
 ]
 
 # A template rather than an f-string or `.format` target: the body is mostly dict and set
@@ -92,7 +92,7 @@ asyncio.run(main())
 
 @pytest.fixture(scope="module")
 def probe_results(tmp_path_factory) -> dict:
-    """Boot the sidecar in a child with no server config and probe its V2 routes."""
+    """Boot the sidecar in a child with no server config and probe its run routes."""
     data_dir = tmp_path_factory.mktemp("desktop-data")
     # cwd is deliberately *not* `backend/`: it is what `env_file="../.env"` resolves
     # against, and a real repo checkout has one.
@@ -124,7 +124,7 @@ def test_a_v2_route_answers_without_server_configuration(path, expected, probe_r
     status, body = probe_results[path]
     assert status != 500, (
         f"{path} raised on the desktop host with no server config — this is what the "
-        f"shipped app does on every V2 request. Body: {body}"
+        f"shipped app does on every run request. Body: {body}"
     )
     assert status == expected, f"{path} -> {status}, expected {expected}. Body: {body}"
 
@@ -150,7 +150,7 @@ def _drive(fake_app_dir, *, skip_plan_gate: bool):
         deadline = asyncio.get_running_loop().time() + timeout
         last = None
         while asyncio.get_running_loop().time() < deadline:
-            r = await client.get(f"/api/v1/v2/runs/{run_id}", headers=head)
+            r = await client.get(f"/api/v1/runs/{run_id}", headers=head)
             last = r.json()["run"]["status"] if r.status_code == 200 else f"HTTP {r.status_code}"
             if last in wanted:
                 return last
@@ -167,7 +167,7 @@ def _drive(fake_app_dir, *, skip_plan_gate: bool):
                     "id"
                 ]
                 created = await c.post(
-                    "/api/v1/v2/runs",
+                    "/api/v1/runs",
                     json={
                         "question": "What is retrieval-augmented generation?",
                         "depth": "fast",
@@ -185,7 +185,7 @@ def _drive(fake_app_dir, *, skip_plan_gate: bool):
                 if not skip_plan_gate:
                     await poll(c, head, run_id, {"AWAITING_PLAN"})
                     approved = await c.post(
-                        f"/api/v1/v2/runs/{run_id}/plan-review",
+                        f"/api/v1/runs/{run_id}/plan-review",
                         json={"decision": "APPROVED"},
                         headers=head,
                     )
@@ -193,16 +193,16 @@ def _drive(fake_app_dir, *, skip_plan_gate: bool):
 
                 await poll(c, head, run_id, {"AWAITING_REVIEW"})
                 approved = await c.post(
-                    f"/api/v1/v2/runs/{run_id}/report-review",
+                    f"/api/v1/runs/{run_id}/report-review",
                     json={"decision": "APPROVED"},
                     headers=head,
                 )
                 assert approved.status_code == 201, approved.text[:300]
 
-                final = (await c.get(f"/api/v1/v2/runs/{run_id}", headers=head)).json()
+                final = (await c.get(f"/api/v1/runs/{run_id}", headers=head)).json()
                 exports = {}
                 for suffix in ("export.md", "bundle.json"):
-                    r = await c.get(f"/api/v1/v2/runs/{run_id}/{suffix}", headers=head)
+                    r = await c.get(f"/api/v1/runs/{run_id}/{suffix}", headers=head)
                     exports[suffix] = (r.status_code, r.text)
                 return final, exports
 
@@ -215,7 +215,7 @@ def test_the_desktop_host_starts_and_completes_a_research_run_in_process():
     This previously asserted the opposite — that dispatch answered 501 — because executing a
     run meant Redis, Postgres and a Celery worker the desktop has none of. That made
     "Start research", the one action the product is named after, a button that could not
-    work in the packaged app; the desktop UI calls `POST /v2/runs` and always has.
+    work in the packaged app; the desktop UI calls `POST /runs` and always has.
 
     The fix is a different *mechanism*, not a different contract: the same engine, the same
     shared handlers, driven by an asyncio task against this host's SQLite saver. So the
@@ -295,7 +295,7 @@ async def poll(c, head, run_id, wanted, timeout=90.0):
     deadline = asyncio.get_running_loop().time() + timeout
     last = None
     while asyncio.get_running_loop().time() < deadline:
-        r = await c.get("/api/v1/v2/runs/" + run_id, headers=head)
+        r = await c.get("/api/v1/runs/" + run_id, headers=head)
         last = r.json()["run"]["status"] if r.status_code == 200 else "HTTP %d" % r.status_code
         if last in wanted:
             return last
@@ -311,18 +311,18 @@ async def main():
             head = {"Authorization": "Bearer " + TOKEN}
             pid = (await c.post("/api/v1/projects", json={"name": "p"}, headers=head)).json()["id"]
             created = await c.post(
-                "/api/v1/v2/runs",
+                "/api/v1/runs",
                 json={"question": "q about RAG", "depth": "fast", "project_id": pid,
                       "skip_plan_gate": True, "dispatch": True},
                 headers=head,
             )
             run_id = created.json()["run_id"]
             await poll(c, head, run_id, {"AWAITING_REVIEW"})
-            await c.post("/api/v1/v2/runs/" + run_id + "/report-review",
+            await c.post("/api/v1/runs/" + run_id + "/report-review",
                          json={"decision": "APPROVED"}, headers=head)
             out = {"create": created.status_code}
             for suffix in ("export.md", "bundle.json"):
-                r = await c.get("/api/v1/v2/runs/" + run_id + "/" + suffix, headers=head)
+                r = await c.get("/api/v1/runs/" + run_id + "/" + suffix, headers=head)
                 out[suffix] = [r.status_code, r.text[:300]]
             print(json.dumps(out))
 

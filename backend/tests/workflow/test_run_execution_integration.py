@@ -1,13 +1,13 @@
 """
-The real engine, into the V2 domain, to a bundle the standalone verifier accepts.
+The real engine, into the research domain, to a bundle the standalone verifier accepts.
 
 This is the milestone's stop condition, and it is deliberately **not** a synthetic
-`RunOutcome`. Every test here calls `research_engine.runner.run` — the same function the V1
+`RunOutcome`. Every test here calls `research_engine.runner.run` — the same function the session
 worker calls, with the same LangGraph graph, the same executor, the same critic loop and the
 same synthesizer — against a real `AsyncSqliteSaver`. Only the models and retrievers are
 scripted, which is what `llm_mode="fake"` already does for a demo run in production.
 
-    question → runner.run → RunOutcome + checkpoint → v2_execution.persist_outcome
+    question → runner.run → RunOutcome + checkpoint → run_execution.persist_outcome
             → Sources + Evidence → Revision → Claims → Links → Contradictions
             → REPORT Review → Artifact → bundle → verify_bundle PASS
 
@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 import pytest
 from sqlalchemy import func, insert, select
 
-from app import v2_bundle, v2_execution, v2_runtime
+from app import run_bundle, run_execution, run_lifecycle
 from app.models.project import Project
 from app.models.research import Contradiction, Evidence, Source
 from app.models.review import ResearchArtifact
@@ -82,8 +82,8 @@ def fake_config(**overrides) -> RunConfig:
 
 
 async def execute(db, owner, saver, *, config=None, question=QUESTION) -> dict:
-    """Create a V2 run, drive the REAL graph, and persist the outcome into V2."""
-    run = await v2_runtime.create_run(
+    """Create a run, drive the REAL graph, and persist the outcome into the domain."""
+    run = await run_lifecycle.create_run(
         db,
         owner_id=owner["user_id"],
         project_id=owner["project_id"],
@@ -102,7 +102,7 @@ async def execute(db, owner, saver, *, config=None, question=QUESTION) -> dict:
         depth="fast",
         run_config=config or fake_config(),
     )
-    result = await v2_execution.persist_outcome(db, run, outcome, saver=saver)
+    result = await run_execution.persist_outcome(db, run, outcome, saver=saver)
     await db.commit()
     return {"run": run, "outcome": outcome, "result": result}
 
@@ -118,7 +118,7 @@ async def _count(db, model, **where) -> int:
 
 
 async def test_a_real_run_reaches_a_verifiable_artifact(db, owner, saver):
-    """REAL QUESTION → REAL ENGINE → V2 → ARTIFACT → BUNDLE → VERIFIER PASS."""
+    """REAL QUESTION → REAL ENGINE → DOMAIN → ARTIFACT → BUNDLE → VERIFIER PASS."""
     state = await execute(db, owner, saver)
     run, result = state["run"], state["result"]
 
@@ -132,7 +132,7 @@ async def test_a_real_run_reaches_a_verifiable_artifact(db, owner, saver):
     assert result.claim_count > 0
     assert run.status == "AWAITING_REVIEW", run.status
 
-    # Everything landed in the V2 domain.
+    # Everything landed in the research domain.
     assert await _count(db, Source, run_id=run.id) == result.source_count
     assert await _count(db, Evidence, run_id=run.id) == result.evidence_count
     assert await _count(db, Revision, run_id=run.id) == 1
@@ -141,21 +141,21 @@ async def test_a_real_run_reaches_a_verifiable_artifact(db, owner, saver):
 
     # Approve at the REPORT gate and freeze the artifact.
     revision = (await db.execute(select(Revision).where(Revision.run_id == run.id))).scalars().one()
-    await v2_runtime.record_report_review(
+    await run_lifecycle.record_report_review(
         db, run, revision, reviewer_id=owner["user_id"], decision="APPROVED"
     )
-    await v2_runtime.set_status(db, run, "COMPLETED")
-    artifact = await v2_runtime.create_artifact(db, run)
+    await run_lifecycle.set_status(db, run, "COMPLETED")
+    artifact = await run_lifecycle.create_artifact(db, run)
     await db.commit()
 
     assert artifact.review_gate == "REPORT"
     assert artifact.payload["report_hash"] == revision.report_hash
 
     # The standalone verifier — the shipped script, not a private copy.
-    manifest = await v2_bundle.assemble(db, run.id)
+    manifest = await run_bundle.assemble(db, run.id)
     verdict = verify_bundle.verify(manifest)
     failed = [c.name for c in verdict.checks if not c.passed]
-    assert verdict.passed, f"the verifier rejected a real V2-native artifact: {failed}"
+    assert verdict.passed, f"the verifier rejected a real native artifact: {failed}"
     assert {c.name for c in verdict.checks} >= {
         "bundle_integrity",
         "report_integrity",
@@ -171,10 +171,10 @@ async def test_the_frozen_payload_verifies_without_the_database(db, owner, saver
     state = await execute(db, owner, saver)
     run = state["run"]
     revision = (await db.execute(select(Revision).where(Revision.run_id == run.id))).scalars().one()
-    await v2_runtime.record_report_review(
+    await run_lifecycle.record_report_review(
         db, run, revision, reviewer_id=owner["user_id"], decision="APPROVED"
     )
-    artifact = await v2_runtime.create_artifact(db, run)
+    artifact = await run_lifecycle.create_artifact(db, run)
     await db.commit()
 
     from research_engine.bundle import BundleManifest
@@ -192,7 +192,7 @@ async def test_real_evidence_lands_unchecked_with_a_matching_content_hash(db, ow
     for e in rows:
         assert e.provenance_state == "UNCHECKED"
         assert e.attested_against is None and e.attestation_run_at is None
-        assert e.content_hash == v2_runtime.content_hash(e.snippet)
+        assert e.content_hash == run_lifecycle.content_hash(e.snippet)
         assert e.sequence >= 1
 
 
@@ -216,7 +216,7 @@ async def test_a_retrieved_but_uncited_source_keeps_a_null_index(db, owner, save
     run = state["run"]
     before = await _count(db, Source, run_id=run.id)
 
-    await v2_runtime.record_evidence(
+    await run_lifecycle.record_evidence(
         db,
         run,
         evidence=[
@@ -255,7 +255,7 @@ async def test_contradictions_from_the_real_detector_are_source_anchored(db, own
 
 async def test_an_execution_failure_lands_FAILED_with_no_artifact(db, owner, saver):
     """A budget of one cent stops the real graph mid-run; the run must fail, not hang."""
-    run = await v2_runtime.create_run(
+    run = await run_lifecycle.create_run(
         db,
         owner_id=owner["user_id"],
         project_id=owner["project_id"],
@@ -275,7 +275,7 @@ async def test_an_execution_failure_lands_FAILED_with_no_artifact(db, owner, sav
         # A guard that fires must say which one and by how much — `failer_node`'s job.
         run_config=fake_config(max_input_tokens=1),
     )
-    result = await v2_execution.persist_outcome(db, run, outcome, saver=saver)
+    result = await run_execution.persist_outcome(db, run, outcome, saver=saver)
     await db.commit()
 
     assert outcome.status == "failed", outcome.status
@@ -285,19 +285,19 @@ async def test_an_execution_failure_lands_FAILED_with_no_artifact(db, owner, sav
     assert await _count(db, Revision, run_id=run.id) == 0
     assert await _count(db, ResearchArtifact) == 0
 
-    with pytest.raises(v2_runtime.LifecycleError):
-        await v2_runtime.create_artifact(db, run)
+    with pytest.raises(run_lifecycle.LifecycleError):
+        await run_lifecycle.create_artifact(db, run)
 
 
 async def test_a_completed_run_with_no_report_fails_closed(db, owner, saver):
     """`COMPLETED` with nothing to review is not completed."""
-    run = await v2_runtime.create_run(
+    run = await run_lifecycle.create_run(
         db, owner_id=owner["user_id"], project_id=owner["project_id"], question=QUESTION
     )
     await db.commit()
     from research_engine.runner import RunOutcome
 
-    result = await v2_execution.persist_outcome(
+    result = await run_execution.persist_outcome(
         db, run, RunOutcome(status="completed", final_report=None), state={"evidence": []}
     )
     await db.commit()
@@ -317,7 +317,7 @@ async def test_persisting_the_same_outcome_twice_duplicates_no_domain_objects(db
     run, outcome = state["run"], state["outcome"]
     sources_before = await _count(db, Source, run_id=run.id)
 
-    await v2_execution.persist_outcome(db, run, outcome, saver=saver)
+    await run_execution.persist_outcome(db, run, outcome, saver=saver)
     await db.commit()
 
     assert await _count(db, Source, run_id=run.id) == sources_before, (
@@ -344,7 +344,7 @@ async def test_rework_through_the_real_graph_produces_a_second_immutable_revisio
     first = (await db.execute(select(Revision).where(Revision.run_id == run.id))).scalars().one()
     first_hash, first_id = first.report_hash, first.id
 
-    await v2_runtime.record_report_review(
+    await run_lifecycle.record_report_review(
         db,
         run,
         first,
@@ -361,7 +361,7 @@ async def test_rework_through_the_real_graph_produces_a_second_immutable_revisio
         feedback="Add the benchmark size.",
         run_config=fake_config(),
     )
-    result = await v2_execution.persist_outcome(db, run, outcome, saver=saver)
+    result = await run_execution.persist_outcome(db, run, outcome, saver=saver)
     await db.commit()
 
     assert result.revision_version == 2
@@ -389,7 +389,7 @@ async def test_rework_through_the_real_graph_produces_a_second_immutable_revisio
 
 async def test_a_plan_approval_on_a_real_run_creates_no_artifact(db, owner, saver):
     """The plan gate, driven by the real graph, then approved — and still no artifact."""
-    run = await v2_runtime.create_run(
+    run = await run_lifecycle.create_run(
         db,
         owner_id=owner["user_id"],
         project_id=owner["project_id"],
@@ -409,21 +409,21 @@ async def test_a_plan_approval_on_a_real_run_creates_no_artifact(db, owner, save
         run_config=fake_config(skip_plan_gate=False),
     )
     assert outcome.status == "awaiting_plan", outcome.status
-    result = await v2_execution.persist_outcome(db, run, outcome, saver=saver)
+    result = await run_execution.persist_outcome(db, run, outcome, saver=saver)
     await db.commit()
 
     assert result.status == "AWAITING_PLAN"
     assert run.status == "AWAITING_PLAN"
-    plan = (await db.execute(select(v2_runtime.ResearchPlan))).scalar_one()
+    plan = (await db.execute(select(run_lifecycle.ResearchPlan))).scalar_one()
     assert plan.origin == "MODEL_PROPOSED"
     assert plan.approved_at is None, "the proposal is not a decision"
     assert plan.tasks, "the real planner produced no tasks"
 
-    review = await v2_runtime.record_plan_review(db, run, plan, reviewer_id=owner["user_id"])
+    review = await run_lifecycle.record_plan_review(db, run, plan, reviewer_id=owner["user_id"])
     await db.commit()
     assert review.revision_id is None
-    with pytest.raises(v2_runtime.LifecycleError, match="no APPROVED REPORT review"):
-        await v2_runtime.create_artifact(db, run)
+    with pytest.raises(run_lifecycle.LifecycleError, match="no APPROVED REPORT review"):
+        await run_lifecycle.create_artifact(db, run)
     assert await _count(db, ResearchArtifact) == 0
 
 
@@ -462,7 +462,7 @@ async def test_a_tampered_approved_report_fails_verification(db, owner, saver):
     state = await execute(db, owner, saver)
     run = state["run"]
     revision = (await db.execute(select(Revision).where(Revision.run_id == run.id))).scalars().one()
-    await v2_runtime.record_report_review(
+    await run_lifecycle.record_report_review(
         db, run, revision, reviewer_id=owner["user_id"], decision="APPROVED"
     )
     await db.commit()
@@ -471,7 +471,7 @@ async def test_a_tampered_approved_report_fails_verification(db, owner, saver):
     revision.report_markdown = revision.report_markdown + "\n\nAn inserted sentence.\n"
     await db.commit()
 
-    manifest = await v2_bundle.assemble(db, run.id)
+    manifest = await run_bundle.assemble(db, run.id)
     verdict = verify_bundle.verify(manifest)
     assert not verdict.passed
     failed = {c.name for c in verdict.checks if not c.passed}
@@ -484,13 +484,13 @@ async def test_a_tampered_approved_report_fails_verification(db, owner, saver):
 async def test_an_unreadable_checkpoint_is_not_persisted_as_no_evidence(db, owner, saver):
     """A run whose evidence cannot be read has an unknown amount, not zero."""
     state = await execute(db, owner, saver)
-    run2 = await v2_runtime.create_run(
+    run2 = await run_lifecycle.create_run(
         db, owner_id=owner["user_id"], project_id=owner["project_id"], question=QUESTION
     )
     await db.commit()
 
     # No checkpoint for this thread at all.
-    result = await v2_execution.persist_outcome(db, run2, state["outcome"], saver=saver)
+    result = await run_execution.persist_outcome(db, run2, state["outcome"], saver=saver)
     await db.commit()
     assert result.evidence_outcome == "CHECKPOINT_MISSING"
     assert result.evidence_count == 0
@@ -500,24 +500,24 @@ async def test_an_unreadable_checkpoint_is_not_persisted_as_no_evidence(db, owne
     assert run2.evidence_outcome == "CHECKPOINT_MISSING"
     # A revision is still written — the report exists — but the bundle is refused outright
     # rather than exporting an evidence list nobody read.
-    assert await v2_bundle.assemble(db, run2.id) is None
+    assert await run_bundle.assemble(db, run2.id) is None
 
 
 async def test_the_lifecycle_event_uses_the_existing_vocabulary(db, owner, saver):
     """No second event architecture: the same four names both hosts' stop-lists know."""
     state = await execute(db, owner, saver)
-    event = v2_execution.lifecycle_event(state["result"])
+    event = run_execution.lifecycle_event(state["result"])
     assert event["type"] == "HITL_READY"
     assert event["data"]["revision_version"] == 1
 
-    from app.v2_execution import PersistResult
+    from app.run_execution import PersistResult
 
-    assert v2_execution.lifecycle_event(PersistResult("FAILED", "NOT_READ"))["type"] == "FAILED"
+    assert run_execution.lifecycle_event(PersistResult("FAILED", "NOT_READ"))["type"] == "FAILED"
     assert (
-        v2_execution.lifecycle_event(PersistResult("AWAITING_PLAN", "NOT_READ"))["type"]
+        run_execution.lifecycle_event(PersistResult("AWAITING_PLAN", "NOT_READ"))["type"]
         == "PLAN_READY"
     )
-    done = v2_execution.lifecycle_event(PersistResult("COMPLETED", "CHECKPOINT_MISSING"))
+    done = run_execution.lifecycle_event(PersistResult("COMPLETED", "CHECKPOINT_MISSING"))
     assert done["type"] == "COMPLETED"
     # The tri-state reaches the client: "no evidence" and "evidence unknown" differ.
     assert done["data"]["evidence_outcome"] == "CHECKPOINT_MISSING"

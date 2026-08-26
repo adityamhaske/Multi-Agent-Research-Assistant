@@ -24,9 +24,9 @@ a `LLM_MODE=fake` server exported a bundle with `demo: False`, five Google model
 The rule now: **the row records what actually ran, not what was requested.** It has three
 homes, one per config resolver, and they must not drift:
 
-    V1 server   `app/workers/pipeline_runner.py::_run_config_for`
-    V2          `app/v2_execution.py::run_config_for_run`
-    V1 desktop  `desktop/sidecar.py::_drive_session`
+    sessions    `app/workers/pipeline_runner.py::_run_config_for`
+    runs        `app/run_execution.py::run_config_for_run`
+    sessions, app `desktop/sidecar.py::_drive_session`
 
 Deciding both routes in a single branch is also what keeps a resumed run consistent: `demo`
 selects the seeded content (docs/17 §6.1) while `llm_mode` keeps the run offline, so a
@@ -44,7 +44,7 @@ import httpx
 import pytest
 from sqlalchemy import insert, select
 
-from app import v2_execution, v2_runtime
+from app import run_execution, run_lifecycle
 from app.models.project import Project
 from app.models.session import Session as SessionRow
 from app.models.user import User
@@ -64,7 +64,7 @@ def _real_deployment_config():
     return replace(run_config_from_settings(), llm_mode="real")
 
 
-# ── V1 server ──────────────────────────────────────────────────────────────────────
+# ── Sessions, server ──────────────────────────────────────────────────────────────────────
 
 
 class _Db:
@@ -136,7 +136,7 @@ async def test_server_v1_an_explicit_demo_request_still_works_on_a_real_deployme
     assert (cfg.llm_mode, cfg.demo, row.demo) == ("fake", True, True)
 
 
-# ── V2 ─────────────────────────────────────────────────────────────────────────────
+# ── Runs ─────────────────────────────────────────────────────────────────────────────
 
 
 @pytest.fixture
@@ -153,7 +153,7 @@ async def v2_run(tmp_path):
             insert(Project).values(id=pid, user_id=uid, name="P", created_at=now, updated_at=now)
         )
         await db.commit()
-        run = await v2_runtime.create_run(
+        run = await run_lifecycle.create_run(
             db, owner_id=uid, project_id=pid, question="q", depth="fast"
         )
         await db.commit()
@@ -161,32 +161,32 @@ async def v2_run(tmp_path):
 
 
 async def test_v2_a_fake_deployment_records_the_run_as_a_demo(monkeypatch, v2_run):
-    """Same rule on the V2 path, which is the one this release leads with."""
+    """Same rule on the run path, which is the one the product leads with."""
     db, run = v2_run
-    monkeypatch.setattr(v2_execution, "run_config_from_settings", _fake_deployment_config)
+    monkeypatch.setattr(run_execution, "run_config_from_settings", _fake_deployment_config)
 
-    cfg = await v2_execution.run_config_for_run(db, run)
+    cfg = await run_execution.run_config_for_run(db, run)
     await db.commit()
 
     assert (cfg.llm_mode, cfg.demo) == ("fake", True)
     from app.models.research import ResearchRun
 
     fresh = (await db.execute(select(ResearchRun).where(ResearchRun.id == run.id))).scalars().one()
-    assert fresh.demo is True, "a scripted V2 run was recorded as real research"
+    assert fresh.demo is True, "a scripted run was recorded as real research"
 
 
 async def test_v2_a_real_deployment_leaves_an_ordinary_run_alone(monkeypatch, v2_run):
     db, run = v2_run
-    monkeypatch.setattr(v2_execution, "run_config_from_settings", _real_deployment_config)
+    monkeypatch.setattr(run_execution, "run_config_from_settings", _real_deployment_config)
 
-    cfg = await v2_execution.run_config_for_run(db, run)
+    cfg = await run_execution.run_config_for_run(db, run)
     await db.commit()
 
     assert (cfg.llm_mode, cfg.demo) == ("real", False)
     assert run.demo is False
 
 
-# ── V1 desktop ─────────────────────────────────────────────────────────────────────
+# ── Sessions, desktop ─────────────────────────────────────────────────────────────────────
 
 
 async def test_desktop_a_fake_app_records_its_runs_as_demos(tmp_path):
