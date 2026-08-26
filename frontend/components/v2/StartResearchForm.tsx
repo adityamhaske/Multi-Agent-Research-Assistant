@@ -158,23 +158,35 @@ export function StartResearchForm({
   };
 
   return (
-    <form onSubmit={submit} className="card space-y-5" aria-describedby="start-context">
+    <form onSubmit={submit} className="card space-y-5 border border-border bg-bg-surface p-5 sm:p-6" aria-describedby="start-context">
+      {/* 1. Research Question Input Area */}
       <div>
-        <label htmlFor="question" className="text-[0.8125rem] font-medium text-text-secondary">
-          Research question
-        </label>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <label htmlFor="question" className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            Research question
+          </label>
+          {question.length === 0 && (
+            <button
+              type="button"
+              onClick={() => setQuestion(SAMPLE_QUERY)}
+              className="font-mono text-xs text-accent hover:underline"
+            >
+              Use a sample question ↗
+            </button>
+          )}
+        </div>
         <textarea
           id="question"
           rows={4}
           value={question}
           onChange={(e) => setQuestion(e.target.value.slice(0, MAX_QUERY))}
           placeholder={`e.g. ${SAMPLE_QUERY}`}
-          className="textarea-base mt-1.5 w-full resize-y font-serif text-base leading-relaxed"
+          className="textarea-base w-full resize-y border border-border bg-bg-surface p-3.5 font-serif text-base leading-relaxed transition-colors focus:border-accent"
           aria-describedby="query-counter"
           aria-invalid={tooShort || undefined}
           disabled={start.isPending}
         />
-        <div id="query-counter" className="mt-1 flex justify-between font-mono text-xs">
+        <div id="query-counter" className="mt-1.5 flex justify-between font-mono text-xs">
           <span style={{ color: tooShort ? "var(--warning)" : "var(--text-muted)" }}>
             {tooShort ? `At least ${MIN_QUERY} characters` : " "}
           </span>
@@ -182,82 +194,30 @@ export function StartResearchForm({
             {trimmed.length} / {MAX_QUERY}
           </span>
         </div>
-        {question.length === 0 && (
-          <button
-            type="button"
-            onClick={() => setQuestion(SAMPLE_QUERY)}
-            className="text-xs text-accent hover:underline"
-          >
-            Use a sample question
-          </button>
-        )}
       </div>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="order-2 flex flex-col gap-2 sm:order-1">
-          <button type="submit" disabled={!canSubmit} className="btn btn-primary self-start">
-            {start.isPending && <span className="spinner" />}
-            {start.isPending ? "Starting…" : "Start research"}
-          </button>
-          {/* A disabled button with no reason is the worst state a first-run user can meet:
-              it looks broken rather than blocked. Say which of the two it is. */}
-          <p id="start-context" className="max-w-sm text-xs leading-snug text-text-muted">
-            {projectsLoading
-              ? "Loading your projects…"
-              : noProject
-                ? "Create a project first — research is always scoped to one."
-                : start.isPending
-                  ? "Opening the run. You will land on its workspace."
-                  : planGate
-                    ? `Saved to ${active?.name}. The run pauses for your plan review before searching, and again for your report review.`
-                    : `Saved to ${active?.name}. The run pauses for your review before anything is finalised.`}
-          </p>
-          {/* The models this run will actually use, stated before it starts and whether or
-              not anything was chosen. Routing resolves user → deployment behind the
-              scenes, and until it was shown here the first place it became visible was the
-              finished report's attribution — after the run had already spent. */}
-          <p className="max-w-sm font-mono text-[length:var(--text-micro)] text-text-muted">
-            {kind === null ? (
-              "Models: resolving…"
-            ) : (
-              <>
-                Models:{" "}
-                <span className="text-text-secondary">
-                  {chosenRoute ?? `${PROVIDER_LABEL[kind]} — not configured`}
-                </span>
-                {isUnpricedRoute(chosenRoute) && (
-                  // The cap is computed from catalog prices, which this provider has none
-                  // of, so a run on it reports $0.00 whatever it cost. Said here rather
-                  // than left for the run to display an unmeasured zero as a total.
-                  <span className="block text-text-muted">
-                    Cost is not measurable for this provider — cap spend at the provider.
-                  </span>
-                )}
-              </>
-            )}
-          </p>
-        </div>
-
-        <div className="order-1 flex flex-col gap-2 sm:order-2 sm:items-end">
+      {/* 2. Controls & Configuration Bar (Depth & Options) */}
+      <div className="flex flex-col gap-3 border border-border bg-bg-elevated/40 p-3.5 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
           {/* Real radios in a fieldset, so arrow keys and screen readers work. */}
           <fieldset className="flex items-center gap-2.5">
             <legend className="sr-only">Research depth</legend>
             <span
               aria-hidden
-              className="font-mono text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted"
+              className="font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-wider text-text-muted"
             >
               Depth
             </span>
-            <div className="inline-flex border border-border">
+            <div className="inline-flex border border-border bg-bg-surface">
               {DEPTHS.map((d) => {
                 const selected = depth === d.value;
                 return (
                   <label
                     key={d.value}
-                    className="cursor-pointer border-r border-border px-2.5 py-1 text-xs font-medium transition-colors last:border-r-0"
+                    className="cursor-pointer border-r border-border px-3 py-1.5 text-xs font-medium transition-colors last:border-r-0 hover:bg-bg-elevated"
                     style={{
-                      backgroundColor: selected ? "var(--accent-muted)" : "var(--bg-surface)",
-                      color: selected ? "var(--accent)" : "var(--text-secondary)",
+                      backgroundColor: selected ? "var(--accent)" : "transparent",
+                      color: selected ? "var(--accent-contrast)" : "var(--text-secondary)",
                     }}
                   >
                     <input
@@ -275,98 +235,136 @@ export function StartResearchForm({
               })}
             </div>
           </fieldset>
-
-          <p className="max-w-xs text-xs leading-snug text-text-muted sm:text-right">
+          <span className="text-xs text-text-muted">
             {DEPTHS.find((d) => d.value === depth)?.hint}
-          </p>
-
-          <button
-            type="button"
-            onClick={() => setShowAdvanced((v) => !v)}
-            aria-expanded={showAdvanced}
-            aria-controls="run-options"
-            className="flex items-center gap-1.5 font-mono text-xs text-text-muted transition-colors hover:text-text-primary"
-          >
-            <span aria-hidden className="inline-block w-2 text-center">
-              {showAdvanced ? "▾" : "▸"}
-            </span>
-            <span className="uppercase tracking-wider">Options</span>
-            {/* Closed state still names what the run will do, so nothing is hidden. */}
-            {!showAdvanced &&
-              (overrides.length > 0 ? (
-                <span className="font-semibold text-accent">{overrides.join(" · ")}</span>
-              ) : (
-                <span>Web search · plan and report review</span>
-              ))}
-          </button>
+          </span>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          aria-expanded={showAdvanced}
+          aria-controls="run-options"
+          className="inline-flex items-center gap-1.5 self-start border border-transparent px-2.5 py-1 font-mono text-xs text-text-muted transition-colors hover:border-border hover:bg-bg-surface/80 hover:text-text-primary sm:self-auto"
+        >
+          <span aria-hidden className="inline-block w-2 text-center text-text-muted">
+            {showAdvanced ? "▾" : "▸"}
+          </span>
+          <span className="font-semibold uppercase tracking-wider">Options</span>
+          {!showAdvanced && overrides.length > 0 && (
+            <span className="text-[length:var(--text-micro)] font-semibold text-accent">
+              · {overrides.join(" · ")}
+            </span>
+          )}
+        </button>
       </div>
 
+      {/* 3. Advanced Options Panel */}
       {showAdvanced && (
-        <div id="run-options" className="space-y-3 border-t border-border pt-5">
-          <ProviderPicker
-            value={kind ?? "custom"}
-            onChange={setPicked}
-            disabled={start.isPending}
-          />
-
-          <label className="flex cursor-pointer items-start gap-3 border border-border bg-bg-surface p-3">
-            <input
-              type="checkbox"
-              checked={corpusMode}
-              onChange={(e) => setCorpusMode(e.target.checked)}
-              className="mt-0.5 h-4 w-4 shrink-0 border-border accent-[var(--accent)]"
+        <div id="run-options" className="space-y-3.5 border border-border bg-bg-elevated/30 p-4">
+          <div className="border-b border-border/60 pb-3">
+            <ProviderPicker
+              value={kind ?? "custom"}
+              onChange={setPicked}
               disabled={start.isPending}
             />
-            <span>
-              <span className="block text-sm font-medium text-text-primary">
-                Restrict to uploaded corpus
-              </span>
-              <span className="block text-xs leading-relaxed text-text-muted">
-                No web search. Evidence comes only from this project&apos;s documents.
-              </span>
-              {/* Checked against the project's real corpus, not assumed: a corpus-only run
-                  over an empty corpus produces a report with nothing behind it, and the
-                  time to learn that is before the run, not after. */}
-              {corpusMode && corpus.data && corpus.data.documents === 0 && (
-                <span className="mt-1 block text-xs" style={{ color: "var(--warning)" }}>
-                  This project has no documents yet.{" "}
-                  <Link href="/corpus" className="underline">
-                    Upload some
-                  </Link>{" "}
-                  or the run will have nothing to read.
-                </span>
-              )}
-              {corpusMode && corpus.data && corpus.data.documents > 0 && (
-                <span className="mt-1 block text-xs text-text-secondary">
-                  {corpus.data.documents} document
-                  {corpus.data.documents === 1 ? "" : "s"} available.
-                </span>
-              )}
-            </span>
-          </label>
+          </div>
 
-          <label className="flex cursor-pointer items-start gap-3 border border-border bg-bg-surface p-3">
-            <input
-              type="checkbox"
-              checked={planGate}
-              onChange={(e) => setPlanGate(e.target.checked)}
-              className="mt-0.5 h-4 w-4 shrink-0 border-border accent-[var(--accent)]"
-              disabled={start.isPending}
-            />
-            <span>
-              <span className="block text-sm font-medium text-text-primary">
-                Review the research plan before searching
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex cursor-pointer items-start gap-3 border border-border bg-bg-surface p-3 transition-colors hover:border-text-secondary">
+              <input
+                type="checkbox"
+                checked={corpusMode}
+                onChange={(e) => setCorpusMode(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 border-border accent-[var(--accent)]"
+                disabled={start.isPending}
+              />
+              <span>
+                <span className="block text-sm font-medium text-text-primary">
+                  Restrict to uploaded corpus
+                </span>
+                <span className="block text-xs leading-relaxed text-text-muted">
+                  No web search. Evidence comes only from this project&apos;s documents.
+                </span>
+                {corpusMode && corpus.data && corpus.data.documents === 0 && (
+                  <span className="mt-1 block text-xs font-medium" style={{ color: "var(--warning)" }}>
+                    This project has no documents yet.{" "}
+                    <Link href="/corpus" className="underline font-semibold">
+                      Upload some
+                    </Link>{" "}
+                    or the run will have nothing to read.
+                  </span>
+                )}
+                {corpusMode && corpus.data && corpus.data.documents > 0 && (
+                  <span className="mt-1 block text-xs text-text-secondary">
+                    {corpus.data.documents} document
+                    {corpus.data.documents === 1 ? "" : "s"} available.
+                  </span>
+                )}
               </span>
-              <span className="block text-xs leading-relaxed text-text-muted">
-                The run pauses after the planner so you can see the subtopics it chose and
-                drop the ones you did not ask for. Nothing is spent until you approve them.
-                Turning this off starts searching immediately.
+            </label>
+
+            <label className="flex cursor-pointer items-start gap-3 border border-border bg-bg-surface p-3 transition-colors hover:border-text-secondary">
+              <input
+                type="checkbox"
+                checked={planGate}
+                onChange={(e) => setPlanGate(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 border-border accent-[var(--accent)]"
+                disabled={start.isPending}
+              />
+              <span>
+                <span className="block text-sm font-medium text-text-primary">
+                  Review the research plan before searching
+                </span>
+                <span className="block text-xs leading-relaxed text-text-muted">
+                  The run pauses after the planner so you can see the subtopics it chose and
+                  drop the ones you did not ask for. Nothing is spent until you approve them.
+                  Turning this off starts searching immediately.
+                </span>
               </span>
-            </span>
-          </label>
+            </label>
+          </div>
         </div>
       )}
+
+      {/* 4. Action & Status Bar */}
+      <div className="flex flex-col gap-4 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex max-w-xl flex-col gap-1.5">
+          <p id="start-context" className="text-xs font-medium leading-snug text-text-secondary">
+            {projectsLoading
+              ? "Loading your projects…"
+              : noProject
+                ? "Create a project first — research is always scoped to one."
+                : start.isPending
+                  ? "Opening the run. You will land on its workspace."
+                  : planGate
+                    ? `Saved to ${active?.name}. The run pauses for your plan review before searching, and again for your report review.`
+                    : `Saved to ${active?.name}. The run pauses for your review before anything is finalised.`}
+          </p>
+          <p className="flex flex-wrap items-center gap-1.5 font-mono text-[length:var(--text-micro)] text-text-muted">
+            {kind === null ? (
+              "Models: resolving…"
+            ) : (
+              <>
+                <span className="text-text-muted">Models:</span>
+                <span className="border border-border bg-bg-elevated px-1.5 py-0.5 font-medium text-text-primary">
+                  {chosenRoute ?? `${PROVIDER_LABEL[kind]} — not configured`}
+                </span>
+                {isUnpricedRoute(chosenRoute) && (
+                  <span className="text-text-muted">
+                    · Cost is not measurable for this provider — cap spend at the provider.
+                  </span>
+                )}
+              </>
+            )}
+          </p>
+        </div>
+
+        <button type="submit" disabled={!canSubmit} className="btn btn-primary self-start px-5 py-2.5 font-medium sm:self-auto">
+          {start.isPending && <span className="spinner" />}
+          {start.isPending ? "Starting…" : "Start research"}
+        </button>
+      </div>
 
       {start.isError && (
         <div

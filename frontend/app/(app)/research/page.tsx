@@ -93,9 +93,9 @@ function ResearchPageInner() {
           >
             Waiting on you
           </h2>
-          <ul className="grid gap-3">
+          <ul className="grid gap-3.5 sm:grid-cols-2">
             {waiting.map((r) => (
-              <li key={r.id}>
+              <li key={r.id} className="h-full">
                 <RunCard run={r} />
               </li>
             ))}
@@ -124,9 +124,9 @@ function ResearchPageInner() {
         </div>
 
         {projectsLoading || isLoading ? (
-          <div className="grid gap-3">
+          <div className="grid gap-3.5 sm:grid-cols-2">
             {[0, 1].map((i) => (
-              <div key={i} className="card h-20 animate-pulse" aria-hidden />
+              <div key={i} className="card h-28 animate-pulse" aria-hidden />
             ))}
             <span className="sr-only">Loading this project&apos;s research…</span>
           </div>
@@ -150,9 +150,9 @@ function ResearchPageInner() {
             }
           />
         ) : (
-          <ul className="grid gap-3">
+          <ul className="grid gap-3.5 sm:grid-cols-2">
             {recent.map((r) => (
-              <li key={r.id}>
+              <li key={r.id} className="h-full">
                 <RunCard run={r} />
               </li>
             ))}
