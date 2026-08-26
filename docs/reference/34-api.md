@@ -132,7 +132,136 @@ Token and cost usage for the current month, the rolling 7 days, and the last ses
 
 ---
 
-## Research
+## Research runs
+
+The product's research surface. A run produces a structured record — a plan, sources,
+evidence, claims, claim→evidence links, contradictions, revisions, review decisions and an
+artifact — and the report is a rendering of it. See
+[the research record](../getting-started/19-research-record.md) for what each part means.
+
+### `POST /runs`
+
+`201`. Creates the run and, unless `dispatch` is `false`, starts it.
+
+```json
+{
+  "project_id": "uuid",
+  "question": "1 to 2000 characters",
+  "depth": "fast | balanced | comprehensive",
+  "corpus_mode": false,
+  "skip_plan_gate": true,
+  "topic_seeds": null,
+  "outline_template": null,
+  "model_routing": null,
+  "dispatch": true
+}
+```
+
+`{"run_id": "...", "status": "PENDING", "dispatched": true}`.
+
+**`skip_plan_gate` defaults to `true` here and the run form sends `false`.** The default
+keeps an un-updated script on the journey it already had; the product default is the design
+gate, and the form states it explicitly on every run. `model_routing` is one
+`provider:model` per agent role — `422` on an unknown provider, an unpriceable model, or a
+role this deployment does not know. `dispatch: false` stages the row without running it.
+
+**`501`** on the desktop host is no longer possible — it drives the run in-process — but a
+deployment with no worker and no in-process driver will say so rather than persist a run
+nothing advances.
+
+### `GET /runs`
+
+Query: `project_id` (optional), `archived` (default `false`), `limit` (default 50, capped
+at 200). `{"runs": [...]}`, newest first, each row carrying `id`, `project_id`, `question`,
+`status`, `depth`, `demo`, `cost_usd`, `citation_resolution_rate`, `has_artifact`,
+`archived_at` and `created_at`.
+
+`citation_resolution_rate` is `null` when nothing was measured and a number when something
+was. **Never read `null` as `0`** — a report with no citable claims and a report whose every
+marker is broken are opposite findings.
+
+### `GET /runs/{id}`
+
+The whole run graph in one response: `run`, `plans`, `sources`, `evidence`, `revisions`,
+`claims`, `claim_evidence_links`, `contradictions`, `reviews`, `artifact`.
+
+One aggregate rather than nine endpoints, because every view of a run needs a slice of the
+same graph and nine round trips would mean nine places to get the ownership predicate
+wrong. Nothing is flattened and no three-valued vocabulary is collapsed: a client must be
+able to tell `UNCHECKED` from `UNATTESTED`, and `citation_index: null` — retrieved but never
+cited — from a source the report used.
+
+### `GET /runs/{id}/stream`
+
+Server-sent events for one run. See the [SSE protocol](35-sse.md).
+
+### `POST /runs/{id}/plan-review`
+
+`201`. The design gate.
+
+```json
+{ "decision": "APPROVED | REWORK_REQUESTED | REJECTED", "feedback": null, "tasks": null, "dispatch": true }
+```
+
+`tasks: null` means "unedited". `tasks: []` is refused (`422`) rather than treated as no
+edit — a reviewer who excluded everything is a run with nothing to research, and the
+approval would authorize a search that never happens. An edit is recorded as its own plan
+version, so the plan a run executed is the plan a later reader sees.
+
+**A plan approval never creates an artifact**, and the response carries no `artifact_id`.
+
+### `POST /runs/{id}/report-review`
+
+`201`. The report gate. On `APPROVED` the artifact is frozen in the same transaction, so an
+approval that cannot produce a verifiable artifact is not recorded as an approval.
+
+```json
+{ "revision_version": null, "decision": "APPROVED | REWORK_REQUESTED | REJECTED", "feedback": null, "dispatch": true }
+```
+
+`{"review_id": "...", "gate": "REPORT", "decision": "...", "artifact_id": "..." | null}`.
+`REWORK_REQUESTED` resumes from the synthesizer, not the executor — the same evidence,
+resynthesized — so a rework costs one synthesis rather than a whole run. `409` when the run
+has no report to review.
+
+### `GET /runs/{id}/bundle.json`
+
+The verifiable bundle. Served from the frozen artifact once one exists; before approval it
+is assembled live, which is the honest answer to "what would be frozen if I approved this?".
+
+**`409`** with a reason when it cannot be assembled — `NO_REVISION` (no report yet) or
+`EVIDENCE_UNAVAILABLE` (the run's evidence was never read out of its checkpoint, so an
+empty evidence list would be an unmeasured zero presented as a measured one).
+
+### `GET /runs/{id}/verification`
+
+Every check the standalone verifier ran over this run's bundle, with its verdict. The same
+code path `python -m research_engine.verify_bundle` uses, so the answer here and the answer
+offline cannot disagree.
+
+### Exports
+
+| Method | Path | Returns |
+|---|---|---|
+| `GET` | `/runs/{id}/export.md` | `text/markdown`, as an attachment |
+| `GET` | `/runs/{id}/export.pdf` | `application/pdf`. **`501`** if WeasyPrint's native libraries are unavailable (always on desktop) |
+
+### Lifecycle
+
+| Method | Path | Notes |
+|---|---|---|
+| `POST` | `/runs/{id}/cancel` | Durable. A cancelled run stays cancelled — no outcome arriving later can move it back. It does **not** interrupt work in flight; that work runs to its next checkpoint and the tokens it spends are recorded. |
+| `POST` | `/runs/{id}/archive` | Idempotent. Out of History without deleting. |
+| `POST` | `/runs/{id}/unarchive` | Idempotent. |
+| `DELETE` | `/runs/{id}` | `204`. **`409`** while the run is still active (`PENDING`, `RUNNING`, `AWAITING_PLAN`, `AWAITING_REVIEW`) — cancel it first. Removes the run, its plans, sources, evidence, revisions, claims, links, contradictions, reviews, artifact, trace and project-memory chunks. |
+
+---
+
+## Research sessions
+
+Research recorded before runs. These endpoints stay so existing sessions remain readable,
+chattable and exportable; **nothing in the interface starts a new one**. New research goes
+through `POST /runs`.
 
 ### `POST /research`
 
@@ -264,6 +393,9 @@ content. `409` while the session is `RUNNING`.
 ---
 
 ## Report chat
+
+Over a session's approved report. Runs use
+[project chat](#project-chat), which cites every approved report in a project.
 
 ### `GET /research/{id}/chat`
 
