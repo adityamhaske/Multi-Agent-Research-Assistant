@@ -78,7 +78,13 @@ class PlannerOutput(BaseModel):
 
 class EvidenceChunk(BaseModel):
     task_id: int = 0
-    source_url: str = ""
+    # Required, and it must stay required. A chunk with no URL still validates if this
+    # carries a default, so it reaches `state["evidence"]` and makes the list non-empty —
+    # and non-empty is the exact predicate `route_after_critic` and `_no_research_reason`
+    # use to decide the run has something to report. Sourceless chunks would then count as
+    # evidence and carry an uncitable run into synthesis. The alias normalisation below is
+    # the right way to be generous to loosely-shaped model output; a default is not.
+    source_url: str
     source_title: str = ""
     snippet: str = Field("", max_length=500, description="Verbatim supporting text")
     key_fact: str = Field("", description="The claim this snippet supports")

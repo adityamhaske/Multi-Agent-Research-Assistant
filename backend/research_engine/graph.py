@@ -46,6 +46,7 @@ from research_engine.schemas import (
     ContradictionReport,
     CriticVerdict,
     EvidenceChunk,
+    ExecutorOutput,
     PlannerOutput,
     Source,
 )
@@ -71,6 +72,13 @@ _MAX_PAGES_PER_TASK = 5
 #: quotations against the *whole* of `seen_text`, so a snippet taken from the part we sent
 #: always verifies. The cap bounds one request, it does not narrow what counts as seen.
 _FORCED_SUBMIT_SOURCE_CHARS = 6_000
+
+#: How many sources the forced extraction pass is shown, richest first.
+#:
+#: A task accumulates far more one-line search hits than read pages, and handing a model
+#: nineteen sources of which fourteen are a sentence long buries the page bodies that
+#: actually carry quotable text. Bounded for focus, not for cost.
+_FORCED_SUBMIT_SOURCES = 8
 
 
 # ── Structured-output helper ──────────────────────────────────────────────────────
@@ -325,19 +333,33 @@ def record_tool_output(seen: dict[str, str], tool_name: str, observation) -> Non
     are model-authored end to end — `source_url`, `source_title` and `snippet` alike — and
     engine code overwrites exactly one field afterwards (`task_id`). Without this record
     there is nothing to check a quotation against.
+
+    Keyed by the URL **as the tool reported it**, scheme and all. Matching is
+    case/scheme-insensitive and happens at lookup (`_seen_get`, `verify_evidence_snippets`),
+    so normalising the key here would only discard the one thing a citation needs: a URL a
+    reader can open. Storing the normalised form cost exactly that — snippet repair wrote
+    `a.example/paper` into `source_url` and every downstream link stopped resolving.
     """
     if tool_name == "read_webpage" and isinstance(observation, dict):
         body = observation.get("text") or ""
         for key in (observation.get("url"), observation.get("final_url")):
             if key:
-                seen[_norm_url(key)] = seen.get(_norm_url(key), "") + "\n" + body
+                seen[key] = seen.get(key, "") + "\n" + body
     elif tool_name == "web_search" and isinstance(observation, list):
         # A snippet may legitimately be quoted from a search result rather than a fetched
         # page, so search hits count as seen text too.
         for hit in observation:
             if isinstance(hit, dict) and hit.get("url"):
-                key = _norm_url(hit["url"])
+                key = hit["url"]
                 seen[key] = seen.get(key, "") + "\n" + (hit.get("snippet") or "")
+
+
+def _seen_get(seen: dict[str, str], url: str | None) -> str:
+    """Text fetched for `url`, matched without regard to scheme, case or trailing slash."""
+    target = _norm_url(url or "")
+    if not target:
+        return ""
+    return "\n".join(text for key, text in seen.items() if _norm_url(key) == target)
 
 
 def verify_evidence_snippets(evidence: list[dict], seen: dict[str, str]) -> list[dict]:
@@ -356,35 +378,43 @@ def verify_evidence_snippets(evidence: list[dict], seen: dict[str, str]) -> list
     Blanking rather than dropping the chunk: `key_fact` and the URL may still be sound, and
     `_number_sources` already skips empty snippets, so the citation loses its quote instead
     of displaying an invented one. Returns the chunks that failed, for logging.
+
+    Repair, not laundering: a model that quotes a page faithfully but labels it with the
+    wrong URL has made a citation error, and blanking a genuine quotation over it throws
+    away real evidence. So a snippet that is verbatim in exactly ONE other fetched source
+    is re-pointed at that source — and the URL the model claimed is kept on the chunk under
+    `snippet_reattributed`, because a repair a reader cannot see is a silent rewrite of what
+    the model said. Two conditions keep this from becoming a guess:
+
+    - **exactly one** match, or the chunk is blanked like any other unverifiable quote. A
+      sentence appearing in several fetched pages has no determinable source, and taking
+      whichever the dict yielded first would attribute the same run differently on a rerun.
+    - the URL written back is the one the tool reported, scheme intact — see
+      `record_tool_output` on why `seen` is keyed that way.
     """
     fabricated: list[dict] = []
-    norm_seen = {_norm_url(k): (k, v) for k, v in seen.items()}
 
     for chunk in evidence:
         snippet = chunk.get("snippet") or ""
         if not snippet.strip():
             continue
-        norm_chunk_url = _norm_url(chunk.get("source_url", ""))
-        haystack = ""
-        if norm_chunk_url in norm_seen:
-            haystack = norm_seen[norm_chunk_url][1]
 
+        claimed = chunk.get("source_url", "")
         norm_snip = _norm_text(snippet)
-        if norm_snip in _norm_text(haystack):
+        if norm_snip in _norm_text(_seen_get(seen, claimed)):
             continue
 
-        # If not found in the specified URL, check if the quote was present in any other fetched URL
-        found_in_other = False
-        for original_url, text in seen.items():
-            if norm_snip in _norm_text(text):
-                chunk["source_url"] = original_url
-                found_in_other = True
-                break
+        matches = [url for url, text in seen.items() if norm_snip in _norm_text(text)]
+        # Several keys can be the same page (a redirect records both `url` and
+        # `final_url`), which is one source, not an ambiguity.
+        if len({_norm_url(u) for u in matches}) == 1:
+            chunk["source_url"] = matches[0]
+            chunk["snippet_reattributed"] = claimed
+            continue
 
-        if not found_in_other:
-            chunk["snippet"] = ""
-            chunk["snippet_unverified"] = True
-            fabricated.append(chunk)
+        chunk["snippet"] = ""
+        chunk["snippet_unverified"] = True
+        fabricated.append(chunk)
     return fabricated
 
 
@@ -482,6 +512,12 @@ async def _forced_submit(
     - `verify_evidence_snippets` still rules on what comes back, exactly as it does for a
       voluntary submission.
 
+    **Two mechanisms, because one is not reliable on a router alias.** `custom:auto/*`
+    resolves per call — a single task was served by three different models in one observed
+    run — and a named `tool_choice` that most honour, some silently ignore, returning an
+    assistant message with no tool call. So a refusal is retried as structured output,
+    which is a differently shaped request rather than the same one twice.
+
     Returns empty when nothing was fetched. A task with no sources in hand has nothing to
     quote, and asking anyway is asking a model to invent one.
     """
@@ -489,8 +525,13 @@ async def _forced_submit(
     if not sources or guard.exceeded():
         return [], 0.0, 0, 0
 
+    # Richest sources first. A run accumulates far more search hits than read pages, and a
+    # one-line hit crowds out the page bodies that actually carry quotable text. Dropping
+    # the tail costs nothing: `verify_evidence_snippets` still rules against the whole of
+    # `seen_text`, so anything quoted from what we send verifies either way.
+    ranked = sorted(sources.items(), key=lambda kv: len(kv[1]), reverse=True)
     digest = json.dumps(
-        {url: text[:_FORCED_SUBMIT_SOURCE_CHARS] for url, text in sources.items()},
+        {url: text[:_FORCED_SUBMIT_SOURCE_CHARS] for url, text in ranked[:_FORCED_SUBMIT_SOURCES]},
         indent=1,
         default=str,
     )
@@ -500,7 +541,7 @@ async def _forced_submit(
             content=(
                 f"Task {task['id']}: {task['query']}\n\n"
                 "Stop searching. Below is every source already fetched for this task, "
-                "keyed by URL. Call `submit_evidence` now with the findings it supports. "
+                "keyed by URL. Report the findings it supports now. "
                 "Each snippet must be copied VERBATIM from the text of its own URL — a "
                 "quotation that is not in its source is dropped. If a source supports "
                 "nothing relevant, leave it out.\n\n"
@@ -509,54 +550,93 @@ async def _forced_submit(
         ),
     ]
 
-    # `tool_choice` rather than `with_structured_output`: it reuses the schema, the
-    # validation and the truncation the voluntary path already goes through, so both
-    # routes into `evidence` are the same code. Verified against an OpenAI-compatible
-    # gateway, Anthropic and Google — all three honour a named tool choice.
-    model = get_llm("executor").bind_tools([submit_evidence], tool_choice="submit_evidence")
-    try:
-        resp = await model.ainvoke(messages)
-    except Exception as e:  # noqa: BLE001
-        # Fail closed and *say so*. A provider error here costs the task its evidence, so
-        # it must never be reported as "the sources supported nothing".
-        logger.warning(
-            "forced_submit_failed", session_id=sid, task_id=task["id"], error=str(e)[:400]
-        )
-        return [], 0.0, 0, 0
+    cost = 0.0
+    i_tot = o_tot = 0
+    evidence: list[dict] = []
 
-    cost = estimate_cost(resp, "executor")
-    await guard.add(cost)
-    i, o = token_counts(resp)
-
-    for call in getattr(resp, "tool_calls", None) or []:
-        if call["name"] != "submit_evidence":
-            continue
+    for mechanism in ("tool_choice", "structured"):
+        if guard.exceeded():
+            break
         try:
-            evidence = _parse_submission(call["args"])
+            if mechanism == "tool_choice":
+                # Preferred: reuses the schema, validation and truncation the voluntary
+                # path already goes through, so both routes into `evidence` are one code
+                # path.
+                model = get_llm("executor").bind_tools(
+                    [submit_evidence], tool_choice="submit_evidence"
+                )
+                resp = await model.ainvoke(messages)
+                cost += estimate_cost(resp, "executor")
+                di, do = token_counts(resp)
+                i_tot += di
+                o_tot += do
+                calls = [
+                    c
+                    for c in (getattr(resp, "tool_calls", None) or [])
+                    if c["name"] == "submit_evidence"
+                ]
+                if not calls:
+                    logger.warning(
+                        "forced_submit_returned_nothing",
+                        session_id=sid,
+                        task_id=task["id"],
+                        mechanism=mechanism,
+                        served_model=served_model_id(resp),
+                        text=(text_of(resp) or "")[:200],
+                    )
+                    continue
+                evidence = _parse_submission(calls[0]["args"])
+            else:
+                parsed, c, di, do = await _structured("executor", messages, ExecutorOutput)
+                cost += c
+                i_tot += di
+                o_tot += do
+                if parsed is None:
+                    logger.warning(
+                        "forced_submit_returned_nothing",
+                        session_id=sid,
+                        task_id=task["id"],
+                        mechanism=mechanism,
+                        error=(_last_api_error.get() or "")[:200],
+                    )
+                    continue
+                evidence = _parse_submission(
+                    {"evidence": [e.model_dump() for e in parsed.evidence]}
+                )
         except Exception as e:  # noqa: BLE001
+            # Fail closed and *say so*. A provider error here costs the task its evidence,
+            # so it must never be reported as "the sources supported nothing".
             logger.warning(
-                "submit_evidence_rejected",
+                "forced_submit_failed",
                 session_id=sid,
                 task_id=task["id"],
-                forced=True,
+                mechanism=mechanism,
                 error=str(e)[:400],
             )
             continue
-        await emit(
-            sid,
-            "agent_log",
-            agent="executor",
-            message=(
-                f"Extracted {len(evidence)} evidence item(s) for task {task['id']} from the "
-                f"{len(sources)} source(s) already fetched — the model did not submit on "
-                f"its own"
-            ),
-            detail={"task_id": task["id"], "forced": True, "evidence": evidence},
-        )
-        return evidence, cost, i, o
+        finally:
+            await guard.add(cost)
 
-    logger.warning("forced_submit_returned_nothing", session_id=sid, task_id=task["id"])
-    return [], cost, i, o
+        if evidence:
+            await emit(
+                sid,
+                "agent_log",
+                agent="executor",
+                message=(
+                    f"Extracted {len(evidence)} evidence item(s) for task {task['id']} from "
+                    f"the {len(sources)} source(s) already fetched — the model did not "
+                    f"submit on its own"
+                ),
+                detail={
+                    "task_id": task["id"],
+                    "forced": True,
+                    "mechanism": mechanism,
+                    "evidence": evidence,
+                },
+            )
+            return evidence, cost, i_tot, o_tot
+
+    return [], cost, i_tot, o_tot
 
 
 async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> dict:
@@ -662,7 +742,7 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
                 # round it costs is a round not spent concluding.
                 observation = {
                     "url": url,
-                    "text": seen_text.get(_norm_url(url), ""),
+                    "text": _seen_get(seen_text, url),
                     "error": None,
                     "note": "already read this page — quote it or move on",
                 }
@@ -742,6 +822,35 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
                 f"source — a quote we cannot find is not evidence"
             ),
             detail={"task_id": task["id"], "urls": [c.get("source_url", "") for c in fabricated]},
+        )
+
+    # A repaired citation is not a clean one. `verify_evidence_snippets` re-points a quote
+    # it found in a different fetched page, and that changes what the model said its source
+    # was — so it is reported here rather than left to be noticed in a diff of the bundle.
+    repaired = [c for c in evidence if c.get("snippet_reattributed")]
+    if repaired:
+        logger.warning(
+            "evidence_snippet_reattributed",
+            session_id=sid,
+            task_id=task["id"],
+            count=len(repaired),
+            moves=[(c["snippet_reattributed"], c.get("source_url", "")) for c in repaired][:5],
+        )
+        await emit(
+            sid,
+            "agent_log",
+            agent="executor",
+            message=(
+                f"Re-attributed {len(repaired)} quotation(s) to the page they were actually "
+                f"found on — the model cited a source that does not contain them"
+            ),
+            detail={
+                "task_id": task["id"],
+                "moves": [
+                    {"claimed": c["snippet_reattributed"], "actual": c.get("source_url", "")}
+                    for c in repaired
+                ],
+            },
         )
 
     for e in evidence:

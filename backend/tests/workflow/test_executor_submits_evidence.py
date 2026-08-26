@@ -335,3 +335,66 @@ async def test_the_same_url_is_not_fetched_twice(monkeypatch):
         reset_run_config(token)
 
     assert fetched.count(URL) == 1, f"fetched the same URL {fetched.count(URL)} times"
+
+
+# ── 4. One forcing mechanism is not enough on a rotating router ────────────────────
+
+
+@pytest.mark.asyncio
+async def test_a_model_that_ignores_tool_choice_falls_back_to_structured_output(monkeypatch):
+    """`custom:auto/best-fast` is a router alias, not a pinned model.
+
+    Observed live: one task's turns were served by `big-pickle`, then `hy3-free`, then
+    `gemini-3.6-flash-high` — a different model on nearly every call. A named `tool_choice`
+    is honoured by most and silently ignored by some, which returned an assistant message
+    with no tool call at all and cost the task its evidence even though the engine had the
+    text in hand. So the forced pass tries a second, differently-shaped request rather than
+    giving up on the first refusal (AGENTS.md: router aliases resolve differently per call).
+    """
+    seen: list[str] = []
+
+    class _Refuser(_FakeLLM):
+        """Never emits a tool call, whatever `tool_choice` says."""
+
+        def bind_tools(self, tools, tool_choice=None):
+            bound = _FakeBound(self, tool_choice)
+            if tool_choice is None:
+                # The ordinary tool loop still runs, so the task really does fetch a page —
+                # otherwise there would be no `seen_text` and no forced pass to test.
+                return bound
+            seen.append("tool_choice")
+
+            async def refuse(messages):
+                return AIMessage(content="I could not find anything.", tool_calls=[])
+
+            bound.ainvoke = refuse
+            return bound
+
+        def with_structured_output(self, schema, include_raw=False):
+            seen.append("structured")
+
+            class _Structured:
+                async def ainvoke(_self, messages):
+                    parsed = schema.model_validate(
+                        {
+                            "evidence": [
+                                {
+                                    "source_url": URL,
+                                    "source_title": "Emergence",
+                                    "snippet": PAGE,
+                                    "key_fact": "Emergent abilities appear only in larger models.",
+                                }
+                            ]
+                        }
+                    )
+                    return {"raw": AIMessage(content=""), "parsed": parsed, "parsing_error": None}
+
+            return _Structured()
+
+    llm = _Refuser([_read_turn(URL, "r1")] + [_search_turn("more", f"s{i}") for i in range(20)])
+
+    out = await _research(monkeypatch, llm)
+
+    assert "structured" in seen, "a refused tool call must be retried a different way"
+    assert out["evidence"], "the fallback must recover the evidence"
+    assert out["evidence"][0]["snippet"] == PAGE, "and it is still checked against seen text"
