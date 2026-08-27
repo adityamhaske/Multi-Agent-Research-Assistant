@@ -360,19 +360,8 @@ these routes will meet it.
 
 ### 0.10 Where this stands
 
-**937 passed / 90 skipped; ruff clean; parity goldens unmoved from Phase 2b onward.**
-Ten commits on `main`.
-
-| Commit | |
-|---|---|
-| `75ad770` | Phases 0–4 + the corpus-mode fix |
-| `5095686` | the demo rule, four homes → one |
-| `ca060db` | canonical ownership proved by identity |
-| `16d3e58` | the dispatch port stops shipping the server's adapter |
-| `a0f242f` | four SSE loops → one, testable for the first time |
-| `63a0df7` | P10 `CorpusLocator` — one home per host |
-| `3c5452d` | P12 `MemoryIndex` — the pgvector query leaves the domain layer |
-| `1d4935a` | Phase 9 — one version constant, and a build that knows its commit |
+**Backend 952 passed / 90 skipped. Frontend typecheck, lint, 315 tests, and all three
+build targets. Ruff clean. Parity goldens unmoved since Phase 2b.** Twelve commits.
 
 #### Done
 
@@ -380,13 +369,14 @@ Ten commits on `main`.
 |---|---|
 | 0 | recorded contract, non-degeneracy guards, both drivers |
 | 1 | the response-shape hole closed; eight models relocated for #50 |
-| 2 | three live defects fixed (SSE ids, corpus contract, lifecycle payloads) |
+| 2 | three live defects fixed — SSE ids, corpus contract, lifecycle payloads |
 | — | desktop corpus-only mode removed; per-run `corpus_mode` now honoured |
 | 3 | the layer boundary declared and enforced; `KNOWN_EXCEPTIONS` empty |
 | 4 | one error taxonomy, one status table, both hosts |
-| 5 | the demo rule, P10 `CorpusLocator`, P12 `MemoryIndex` |
-| 6 | canonical-owner check, dispatch port split, four SSE loops → one |
-| 9 | `VERSION`, `sync_version.py`, `stamp_build.py`, `GET /api/v1/version` on both hosts |
+| 5 | the demo rule; P10 `CorpusLocator`; P12 `MemoryIndex` |
+| 6 | canonical-owner check; dispatch port split; four SSE loops → one |
+| 9 | `VERSION`, `sync_version.py`, `stamp_build.py`, `GET /api/v1/version` |
+| 10 | `GET /api/v1/capabilities`; five frontend branches off the build flag |
 
 #### Not done
 
@@ -394,35 +384,41 @@ Ten commits on `main`.
 |---|---|
 | **Phase 5** P9 `SecretStore`, P11 `RoutingStore` | not started. Both small; neither is a recorded defect |
 | **Phase 6** moving the 14 run handlers into `app/handlers/` | not started. `app/handlers/` is empty and its layer rule holds vacuously |
-| **Phase 7** the session journey | not started — the largest behavioural surface in the plan, four gated commits |
+| **Phase 7** the session journey | not started — the largest behavioural surface, four gated commits |
 | **Phase 8** projects, corpus, models | not started |
-| **Phase 10** capabilities | not started. `CapabilityUnavailable` exists and carries the code; the frontend still branches on `isDesktop` for product behaviour in three places |
 | **Phase 11** release orchestration | **not written, deliberately** |
 
 **Phase 9's packaging half is written and unrun.** `research-sidecar.spec` names
-`research_engine._build` as a hidden import and `desktop.yml` stamps before `pyinstaller`.
-Neither has been executed — this environment has no Tauri toolchain and no macOS runner.
-**The assertion that the SHA reaches the shipped bundle is still owed**, and until someone
-runs it, `GET /api/v1/version` on a packaged app is unproven. `AGENTS.md` records a 5 MB
-`.app` that passed CI and died on first launch; the same caution applies.
+`research_engine._build`; `desktop.yml` stamps before `pyinstaller`. Neither has executed —
+no Tauri toolchain, no macOS runner. **The assertion that the SHA reaches the shipped
+bundle is still owed**, so `GET /api/v1/version` on a *packaged* app is unproven.
+`AGENTS.md` records a 5 MB `.app` that passed CI and died on first launch.
 
-**Phase 11 was left unwritten on purpose.** Its acceptance is
-`release-artifact-revision` mounting a `.dmg` and unpacking an `.AppImage` on a macOS
-runner. The design is §10 and is unchanged. Writing the YAML without running it would
-produce release plumbing that looks finished, and the one change with real blast radius —
-removing `desktop.yml`'s `release` job so the orchestrator owns the GitHub Release — is
-exactly the kind that is discovered at the worst possible moment. Whoever takes it can
-verify it in one tag push; nobody can verify it from here.
+**Phase 11 was left unwritten on purpose.** Its acceptance is `release-artifact-revision`
+mounting a `.dmg` on a macOS runner. The design in §10 is unchanged and complete. Its one
+change with real blast radius — removing `desktop.yml`'s `release` job so the orchestrator
+owns the GitHub Release — only shows up during a release, and YAML that looks finished is
+worse than an absence anyone can see. One tag push verifies it; nothing here can.
 
-#### Two rules that went stale, recorded rather than left
+#### What remained of `isDesktop`, and why it is correct
 
-- `AGENTS.md` still says the README download badge carries a version and must be bumped
-  "both the badge label and the href". It points at
-  `docs/getting-started/23-desktop-app.md` now and carries no version, which is why
-  `sync_version.py` deliberately omits it.
-- `test_one_canonical_owner`'s reason for the run stream said the `EventStream` port was
-  what would let the generator be shared. The generator is shared; what remains per host is
-  the backlog source and the live feed. Corrected in `2929459`.
+Transport, all of it: cookies vs bearer token, `withCredentials` on an `EventSource`, a
+dynamic route vs a static export, the refresh-token flow. Those are properties of the
+build. The five that were about *what a person can do* now ask the host.
+
+One genuine contract difference survives and is not arbitrary: provider health takes a
+provider on the desktop and not on the server, because the server stores one active
+connection while a keychain holds one entry per provider. It keys off `byok_storage` — the
+fact it follows from — rather than off the build.
+
+#### Rules that went stale, recorded rather than left
+
+- `AGENTS.md` still says the README download badge carries a version. It points at
+  `docs/getting-started/23-desktop-app.md` and carries none, which is why
+  `sync_version.py` omits it.
+- The run stream's `DIVERGENT_BY_DESIGN` reason said the `EventStream` port would let the
+  generator be shared. It is shared; what remains per host is the backlog source and the
+  live feed. Corrected in `2929459`.
 
 ---
 
