@@ -160,6 +160,28 @@ locally.
 Prefer extracting shared logic into one function over keeping two copies in step by
 discipline — `map_local_host` is the worked example of doing that after the fact.
 
+**The invariant that replaces the discipline:**
+
+> A new product feature must be implementable **once** in the canonical
+> application/domain layer and exposed by both hosts through thin adapters.
+
+`tests/workflow/test_layer_boundaries.py` enforces the direction that makes it possible —
+transport → application → domain → ports → infrastructure, downward only. `app/handlers/`
+is the application layer: plain `async` functions taking their collaborators as arguments,
+with **no** FastAPI, no `app.config`/`app.db`/`app.dependencies`/`app.adapters`/
+`app.workers`, no Celery, Redis or keyring, and nothing from `desktop/`. `app/ports.py`
+holds the interfaces whose implementations genuinely differ per host.
+
+The rule exists because `Depends(...)` is the coupling vector: a route written the ordinary
+FastAPI way binds `get_db`, `get_current_user`, `get_redis` and `settings` into the same
+function as the product rule, so the desktop *cannot* reuse it and restates it instead.
+`app/api/v1/runs.py` is what avoiding that looks like — handlers as plain functions with
+`Depends` only as defaults — and nothing enforced it, so every other module drifted back.
+
+`KNOWN_EXCEPTIONS` there is one entry per real violation, each naming the phase that
+removes it. Adding one should take an argument; an entry that stops being true fails the
+suite.
+
 **A route that exists on both hosts can still be desktop-only broken, and parity won't see
 it.** The sidecar's run routes import their handlers from `app.api.v1.runs` rather than
 restating them, so registration matched on both hosts while every run route on the packaged

@@ -97,6 +97,11 @@ def test_shared_modules_the_sidecar_imports_are_configuration_free():
         # — and its two required environment variables — into every sidecar startup.
         "app.services.memory",
         "app.run_lifecycle",
+        # Relocated so the desktop could declare the same `response_model` the server does
+        # on the twelve shared operations that had none. They sat in `app/api/v1/models.py`
+        # and `app/api/v1/corpus.py`, which reach `app.config`.
+        "app.schemas.models",
+        "app.schemas.corpus",
     ):
         result = _run(f"import {module}\n", strip_server_env=True)
         assert result.returncode == 0, f"{module} needs server configuration:\n{result.stderr}"
@@ -125,6 +130,49 @@ def test_run_request_models_have_exactly_one_home():
     assert runs_api.CreateRunRequest is run_schemas.CreateRunRequest
     assert runs_api.PlanReviewRequest is run_schemas.PlanReviewRequest
     assert runs_api.ReportReviewRequest is run_schemas.ReportReviewRequest
+
+
+def test_model_and_corpus_response_shapes_have_exactly_one_home():
+    """The twelve operations that used to escape the parity shape check.
+
+    The desktop declared no `response_model` on any of them, so its hand-built dicts were
+    never compared to the server's declared shape — `GET /auth/me` omitted `is_active`,
+    every `api_key_*` field and the whole `preferences` object, and nothing objected. The
+    shapes could not be declared where they were, because both route modules reach
+    `app.config` and an installed app has none of it (#50).
+
+    Identity, not equality: two classes with the same fields are two homes, and the second
+    is the one that gets forgotten.
+    """
+    from app.api.v1 import corpus as corpus_api
+    from app.api.v1 import models as models_api
+    from app.schemas import corpus as corpus_schemas
+    from app.schemas import models as model_schemas
+
+    assert corpus_api.DocumentResponse is corpus_schemas.DocumentResponse
+    assert corpus_api.CorpusStatusResponse is corpus_schemas.CorpusStatusResponse
+    assert models_api.CatalogResponse is model_schemas.CatalogResponse
+    assert models_api.RoutingResponse is model_schemas.RoutingResponse
+    assert models_api.LocalLLMStatusResponse is model_schemas.LocalLLMStatusResponse
+    assert models_api.CustomEndpointStatusResponse is model_schemas.CustomEndpointStatusResponse
+
+
+def test_the_desktop_declares_the_same_response_shapes_it_now_imports():
+    """The relocation is only worth anything if the desktop actually uses it.
+
+    Asserted on the module the sidecar imports rather than on its routes, so this fails at
+    the import boundary — the place the fix has to hold — rather than after an app is built.
+    """
+    from app.schemas.auth import UserResponse
+    from app.schemas.corpus import CorpusStatusResponse, DocumentResponse
+    from app.schemas.models import CatalogResponse, RoutingResponse
+    from desktop import sidecar
+
+    assert sidecar.UserResponse is UserResponse
+    assert sidecar.DocumentResponse is DocumentResponse
+    assert sidecar.CorpusStatusResponse is CorpusStatusResponse
+    assert sidecar.CatalogResponse is CatalogResponse
+    assert sidecar.RoutingResponse is RoutingResponse
 
 
 #: Imported by the sidecar's run routes at *request* time rather than at startup, which is

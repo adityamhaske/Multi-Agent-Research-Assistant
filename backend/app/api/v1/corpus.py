@@ -20,6 +20,11 @@ from app.db.base import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
 
+# Re-exported, not restated — see `app/schemas/corpus.py` for why the shapes moved, and
+# `app/services/corpus_ingest.py` for the validation and shaping both hosts share.
+from app.schemas.corpus import CorpusStatusResponse, DocumentResponse
+from app.services import corpus_ingest
+
 # The download response policy lives in a stdlib-only module so the desktop sidecar can
 # import it without dragging this route's `app.config` chain in with it (#50). Re-exported
 # here because this module is where callers and tests have always found it.
@@ -46,39 +51,24 @@ async def _get_corpus_store(project_id: uuid.UUID) -> CorpusStore:
     return CorpusStore(db_path, embedder)
 
 
-# Re-exported, not restated — see `app/schemas/corpus.py` for why the shapes moved.
-from app.schemas.corpus import CorpusStatusResponse, DocumentResponse  # noqa: E402
-
-
-@router.post("/documents", response_model=DocumentResponse)
+@router.post("/documents", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     project_id: uuid.UUID,
     file: UploadFile,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Ingest a new document into the project's corpus."""
+    """Ingest a new document into the project's corpus.
+
+    Validation, failure mapping and the response shape come from
+    `app.services.corpus_ingest` — the one home for them, because the desktop serves this
+    same path and each host used to choose its own status codes for the same rejection.
+    """
     # Enforce isolation: verify the user owns the project
     await resolve_project(db, current_user.id, project_id)
 
-    if not file.filename:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No filename provided")
-
-    data = await file.read()
-    if not data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file")
-
     store = await _get_corpus_store(project_id)
-    try:
-        ingested = await store.ingest(file.filename, data)
-        return DocumentResponse(
-            id=ingested.doc_id or "skip",
-            filename=ingested.filename,
-            chunks=ingested.chunks_written,
-        )
-    except ValueError as e:
-        # e.g., unsupported extension
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    return await corpus_ingest.ingest_document(store, file.filename, await file.read())
 
 
 @router.get("/documents", response_model=list[DocumentResponse])
@@ -91,19 +81,7 @@ async def list_documents(
     await resolve_project(db, current_user.id, project_id)
 
     store = await _get_corpus_store(project_id)
-    docs = await store.documents()
-    return [
-        DocumentResponse(
-            id=d["id"],
-            filename=d["filename"],
-            chunks=d["chunk_count"],
-            created_at=d["ingested_at"],
-            size_bytes=d.get("size_bytes"),
-            downloadable=d.get("downloadable", False),
-            origin=d.get("origin", "uploaded"),
-        )
-        for d in docs
-    ]
+    return [corpus_ingest.document_response(d) for d in await store.documents()]
 
 
 @router.get("/documents/{doc_id}/download")
@@ -152,9 +130,13 @@ async def delete_document(
     await resolve_project(db, current_user.id, project_id)
 
     store = await _get_corpus_store(project_id)
-    deleted = await store.delete(doc_id)
-    if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if not await store.delete(doc_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=corpus_ingest.DOCUMENT_NOT_FOUND
+        )
+    # Explicit, because returning `None` from a 204 route makes FastAPI send
+    # `content-type: application/json` with an empty body — a response that does not parse.
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/status", response_model=CorpusStatusResponse)
@@ -167,6 +149,4 @@ async def get_status(
     await resolve_project(db, current_user.id, project_id)
 
     store = await _get_corpus_store(project_id)
-    stat = await store.status()
-    stat["chunks"] = sum(stat["chunks_by_model"].values())
-    return CorpusStatusResponse(**stat)
+    return corpus_ingest.status_response(await store.status())

@@ -45,41 +45,26 @@ RECORDING = os.environ.get("PARITY_RECORD") == "1"
 #: it. A step named here is asserted to STILL diverge, so a fix that lands without deleting
 #: its entry fails the suite and the list can only shrink.
 XFAIL_DIVERGENCES: dict[str, str] = {
-    # ── The §2.4 hole: the desktop route declares no `response_model`, so it returns a
-    # hand-built dict and the server's declared fields simply are not there. Phase 1
-    # declares the models and the fields come back.
+    # ── Identity. Not a defect and not a shape problem: the desktop host IS one local
+    # user with a fixed sentinel address and display name (docs/13 §7). Phase 1 closed the
+    # field-omission half — `is_active`, every `api_key_*`, `connection_verdict` and the
+    # whole `preferences` object are present now — and what remains is the identity itself.
     "identity-and-models/who am I": (
-        "plan phase 1 — desktop omits is_active, api_key_*, connection_verdict and every "
-        "preferences key the server's UserResponse declares"
+        "plan phase 10 — the desktop is a single local user, so email and display_name are "
+        "fixed sentinels. Reclassify as a capability difference rather than a divergence"
     ),
+    # ── Two unrelated things in one response, kept together only because they arrive in
+    # one step. The first is environment; the second is a real product divergence.
     "identity-and-models/the model catalog": (
-        "plan phase 1 — desktop omits available_providers entirely; per-model `available` "
-        "also differs because the two hosts read keys from different places"
+        "plan phase 8 — (a) available_providers and per-model `available` differ because "
+        "the server reads keys from settings and the desktop from the keychain, which the "
+        "harness does not yet pin; (b) the server enriches presets.ollama from installed "
+        "models via _ollama_presets_from_installed() and the desktop returns the static "
+        "table. (b) is a real divergence, found by this suite"
     ),
-    # ── §2.5 #2, confirmed exactly as the audit predicted, plus two the audit missed.
-    "corpus/upload a document": (
-        "plan phase 2b — 200 vs 201, and the desktop body omits created_at, size_bytes, "
-        "downloadable and origin"
-    ),
-    "corpus/upload an empty document": "plan phase 2b — 400 'Empty file' vs 422",
-    "corpus/upload an unsupported format": "plan phase 2b — 400 vs 422",
-    "corpus/an unknown document is not found": (
-        "plan phase 2b — detail differs only in punctuation, which a client matching on "
-        "the string still sees"
-    ),
-    "corpus/download the original bytes": (
-        "plan phase 2b — the desktop serves the download with NO content-type; the server "
-        "sends text/plain. Not in the original audit"
-    ),
-    "corpus/corpus status": (
-        "plan phase 2b — the desktop adds a corpus_only field the server does not have. "
-        "Not in the original audit"
-    ),
-    "corpus/delete the document": (
-        "plan phase 2b — the SERVER sends 204 with content-type application/json and an "
-        "empty body, so the response does not parse. The desktop sends no content-type. "
-        "A server-side finding, not a desktop one"
-    ),
+    # §2.5 #2 is gone: Phase 1 filled the body fields by declaring the model, and Phase 2b
+    # made the status codes, the failure mapping, the download's Content-Type and the
+    # body-less 204 one contract in `app/services/corpus_ingest.py`.
     # ── First-launch state.
     "projects/list projects": (
         "plan phase 8 — the desktop seeds a General project at launch and the server "

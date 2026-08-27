@@ -35,6 +35,7 @@ from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.runtime import run_config_from_settings
 from app.services import crypto, model_routing
+from app.services.session_events import lifecycle_event
 from research_engine import citation_rate, events, runner
 from research_engine.runconfig import RunConfig
 from research_engine.runner import RunOutcome
@@ -394,45 +395,21 @@ async def _persist_outcome(
         session.plan_json = {"tasks": outcome.plan_tasks}
         session.outline_json = {"sections": outcome.plan_outline}
         await db.commit()
-        await sink(
-            session_id,
-            events.make_event(
-                "PLAN_READY",
-                data={
-                    "task_count": len(outcome.plan_tasks),
-                    "outline_section_count": len(outcome.plan_outline),
-                    # Zero on every ordinary run: the gate sits before the executor, so
-                    # nothing has been spent. Reported anyway rather than assumed, since
-                    # a resumed or reworked run reaching here would have a real number
-                    # and silently printing 0.00 is the unmeasured-vs-zero bug.
-                    "cost_usd": round(outcome.cost_usd, 4),
-                },
-            ),
-        )
+        await sink(session_id, lifecycle_event(outcome))
         return
 
     if outcome.status == "awaiting_approval":
         session.status = SessionStatus.AWAITING_APPROVAL
         session.draft_report = outcome.draft_report
         await db.commit()
-        await sink(
-            session_id,
-            events.make_event(
-                "HITL_READY",
-                data={
-                    "word_count": len((outcome.draft_report or "").split()),
-                    "source_count": len(outcome.sources),
-                    "cost_usd": round(outcome.cost_usd, 4),
-                },
-            ),
-        )
+        await sink(session_id, lifecycle_event(outcome))
         return
 
     if outcome.status == "failed":
         session.status = SessionStatus.FAILED
         session.error_message = outcome.error
         await db.commit()
-        await sink(session_id, events.make_event("FAILED", data={"reason": outcome.error}))
+        await sink(session_id, lifecycle_event(outcome))
         return
 
     session.status = SessionStatus.COMPLETED
@@ -445,16 +422,7 @@ async def _persist_outcome(
         outcome.final_report or "", outcome.sources
     )
     await db.commit()
-    await sink(
-        session_id,
-        events.make_event(
-            "COMPLETED",
-            data={
-                "elapsed_s": float(outcome.elapsed_seconds or 0),
-                "cost_usd": round(outcome.cost_usd, 4),
-            },
-        ),
-    )
+    await sink(session_id, lifecycle_event(outcome))
     # The one place approved research enters project memory (docs/14 §2).
     await _ingest_into_project_memory(db, session, provider_keys or {})
     # And its project's corpus (docs/12 M10 follow-up) — see report_corpus.py.

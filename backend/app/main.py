@@ -12,6 +12,7 @@ from app.db.base import engine
 from app.db.redis import close_redis_pool, get_redis, init_redis_pool
 from app.logconfig import configure_logging
 from app.runtime import install_process_default
+from app.services.error_responses import install_error_handlers
 from app.services.security_headers import SecurityHeadersMiddleware
 from research_engine.llm_factory import validate_pricing
 
@@ -61,6 +62,11 @@ app = FastAPI(
 )
 
 app.add_middleware(SecurityHeadersMiddleware)
+
+# Domain refusals become statuses through the one shared table, which the desktop installs
+# too — the handlers in `app/api/v1/runs.py` are called by both hosts, so the status a
+# client sees cannot be this host's private choice.
+install_error_handlers(app)
 
 # Dev convenience only: the browser talks to the API through the Next.js same-origin
 # proxy in real deployments (docs/02 §1), so CORS is unnecessary there. In dev the

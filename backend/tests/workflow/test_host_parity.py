@@ -131,7 +131,6 @@ INTENTIONAL_DESKTOP_ONLY: dict[str, str] = {
     "POST /corpus/documents": "flat per-app corpus; the server scopes a corpus file per project",
     "DELETE /corpus/documents/{doc_id}": "flat per-app corpus, one corpus.sqlite for the app",
     "GET /corpus/status": "flat per-app corpus, one corpus.sqlite for the whole app",
-    "PUT /corpus/mode": "corpus-only is persistent desktop state; the server takes it per run",
     "POST /models/local/start": "the desktop app can spawn a local Ollama; a container cannot",
     "POST /models/local/stop": "the desktop app can stop the Ollama process it spawned",
     "GET /models/providers/health/{provider}": (

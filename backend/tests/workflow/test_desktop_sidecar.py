@@ -588,7 +588,8 @@ async def test_corpus_upload_list_delete_round_trip(sidecar):
         headers=_auth(),
         content=b"PK\x03\x04",
     )
-    assert rejected.status_code == 422
+    # 400, matching the server — see app/services/corpus_ingest.py.
+    assert rejected.status_code == 400
 
     delete = await sidecar.delete(f"/api/v1/corpus/documents/{body['id']}", headers=_auth())
     assert delete.status_code == 204
@@ -596,17 +597,17 @@ async def test_corpus_upload_list_delete_round_trip(sidecar):
     assert gone.status_code == 404
 
 
-async def test_corpus_only_run_cites_corpus_locations(sidecar, tmp_path):
-    """The desktop's M10 DoD: with corpus-only mode switched on, a run's sources
-    are corpus:// locations — not a single web URL — and the switch persists."""
+async def test_a_run_asking_for_corpus_mode_actually_runs_in_it(sidecar, tmp_path):
+    """The desktop's M10 DoD, now driven by the run rather than by a global switch.
+
+    `corpus_mode` arrives on the request, is persisted onto the session, and has to reach
+    `RunConfig` — otherwise it is "a field the schema accepts and the run never reads",
+    which `app/schemas/research.py` names as the exact bug this repository records for
+    `corpus_mode`. On the desktop it *was* that bug: the row stored the flag and
+    `sidecar_run_config` read corpus mode from a JSON file instead, so a run requested as
+    airgapped was recorded as airgapped and executed over the open web.
+    """
     _install_fake_embedder(sidecar)
-
-    mode = await sidecar.put("/api/v1/corpus/mode", headers=_auth(), json={"corpus_only": True})
-    assert mode.json() == {"corpus_only": True}
-    assert (tmp_path / "corpus.json").exists()
-
-    status_resp = await sidecar.get("/api/v1/corpus/status", headers=_auth())
-    assert status_resp.json()["corpus_only"] is True
 
     upload = await sidecar.post(
         "/api/v1/corpus/documents",
@@ -619,7 +620,11 @@ async def test_corpus_only_run_cites_corpus_locations(sidecar, tmp_path):
     start = await sidecar.post(
         "/api/v1/research",
         headers=_auth(),
-        json={"query": "What does the corpus say about RAG?", "depth": "fast"},
+        json={
+            "query": "What does the corpus say about RAG?",
+            "depth": "fast",
+            "corpus_mode": True,
+        },
     )
     assert start.status_code == 202
     detail = await _until(sidecar, start.json()["session_id"], "AWAITING_APPROVAL")
@@ -628,9 +633,56 @@ async def test_corpus_only_run_cites_corpus_locations(sidecar, tmp_path):
     for source in detail["sources"]:
         assert source["url"].startswith("corpus://"), source["url"]
 
-    # Switching back off persists too.
-    off = await sidecar.put("/api/v1/corpus/mode", headers=_auth(), json={"corpus_only": False})
-    assert off.json() == {"corpus_only": False}
+    # No global switch, and no file left behind to carry state between runs.
+    assert not (tmp_path / "corpus.json").exists()
+
+
+async def test_a_run_that_did_not_ask_for_corpus_mode_is_not_airgapped(sidecar):
+    """The other half, and the one a global flag could not express: two runs in the same
+    app, one airgapped and one not. With the switch this was impossible — whichever way it
+    was set applied to every run until someone changed it."""
+    _install_fake_embedder(sidecar)
+
+    start = await sidecar.post(
+        "/api/v1/research",
+        headers=_auth(),
+        json={"query": "What is retrieval-augmented generation?", "depth": "fast"},
+    )
+    assert start.status_code == 202
+    detail = await _until(sidecar, start.json()["session_id"], "AWAITING_APPROVAL")
+
+    assert detail["sources"], "a normal run still gathers sources"
+    assert not any(s["url"].startswith("corpus://") for s in detail["sources"]), (
+        "a run that did not ask for corpus mode must not be silently restricted to it"
+    )
+
+
+async def test_a_corpus_mode_run_with_an_empty_corpus_fails_rather_than_using_the_web(sidecar):
+    """`docs/25 §Corpus only`: "A run in this mode with no corpus installed fails rather
+    than quietly falling back to the web."
+
+    Newly reachable on the desktop: until corpus mode came from the run row, this host had
+    no way to request it per run at all. The server enforces the promise by refusing to
+    start when the corpus database is absent; here the database always exists (the lifespan
+    creates it), so the promise has to hold by the other mechanism — no evidence, no
+    report. Which of the two fires is an implementation detail; that the run does not
+    silently research the open web is not.
+    """
+    _install_fake_embedder(sidecar)
+
+    start = await sidecar.post(
+        "/api/v1/research",
+        headers=_auth(),
+        json={"query": "What does the empty corpus say?", "depth": "fast", "corpus_mode": True},
+    )
+    assert start.status_code == 202
+    session_id = start.json()["session_id"]
+
+    detail = await _until(sidecar, session_id, "FAILED")
+    assert detail["status"] == "FAILED"
+    assert not any((s.get("url") or "").startswith("http") for s in (detail["sources"] or [])), (
+        "a corpus-mode run must not fall back to the web, even when the corpus is empty"
+    )
 
 
 async def test_stream_replays_to_the_terminal_event(sidecar):

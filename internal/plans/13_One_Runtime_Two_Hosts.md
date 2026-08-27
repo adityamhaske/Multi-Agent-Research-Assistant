@@ -102,6 +102,262 @@ reduces to presence only, because the harness supplies the server's `EventSink`;
 port work is what makes it comparable. The server's session path still cannot be driven
 in-process at all, which is the point being made.
 
+### 0.5 Phase 1 is complete — the shape hole is closed
+
+**Full backend suite 802 passed / 90 skipped; `ruff check` and `ruff format --check` clean.**
+
+The hole itself is now a test: `test_no_shared_route_declares_a_model_on_only_one_host`
+fails when a shared operation declares a `response_model` on one host and none on the
+other, which is the condition that made the old shape check skip exactly the twelve routes
+the desktop hand-writes.
+
+**It could not be closed by declaring the models where they were.** Six of the eight shapes
+lived in `app/api/v1/models.py` and two in `app/api/v1/corpus.py`, both of which import
+`app.config` — the exact chain that killed the packaged sidecar in #50. So they moved to
+`app/schemas/models.py` and `app/schemas/corpus.py`, pure pydantic, re-exported from the
+route modules, with identity assertions (`is`, not `==`) in `test_sidecar_startup.py`.
+The same relocation `app/schemas/runs.py` and `app/services/document_headers.py` already
+made, for the same reason.
+
+`GET /auth/me` and `PATCH /auth/me` now return the ORM row and let `UserResponse` project
+it, instead of assembling a dict that omitted `is_active`, every `api_key_*` field,
+`connection_verdict` and the whole `preferences` object.
+
+**A test was removing itself from usefulness.** `test_desktop_contract_gaps.py::
+test_per_project_corpus_status_matches_the_flat_one` asserted the desktop's per-project
+route equalled the desktop's *flat* route — two implementations compared against each
+other, the anti-pattern `AGENTS.md` names — and then required `corpus_only` to appear in
+the canonical response, "or the Corpus page's airgap toggle would read as off". There is no
+such toggle: `corpus_only` appears nowhere in `frontend/`, and nothing calls
+`PUT /corpus/mode`. The reason was stale and it was pinning a divergence. It now asserts
+against `CorpusStatusResponse.model_fields` — the server's shape — and checks that
+`corpus_only` stays on the desktop-only flat route where it belongs.
+
+**Closed:** the `corpus status` shape; the field-omission half of `/auth/me`; the missing
+`available_providers` key; the missing body fields on corpus upload.
+
+**One new finding (N-7).** The server enriches `presets.ollama` from the models actually
+installed on the machine (`_ollama_presets_from_installed()`); the desktop returns the
+static `catalog.PRESETS` table. So the host that can *see* a local Ollama is the one that
+does not ask it — the picker offers a desktop user preset tags that may not exist locally,
+which is the failure `_ollama_presets_from_installed` was written to prevent. Recorded for
+Phase 8.
+
+**Reclassified rather than fixed.** `who am I` still differs on `email` and `display_name`,
+and always will: the desktop is one local user with a fixed sentinel identity. That is a
+capability difference, not a divergence, and its `XFAIL_DIVERGENCES` reason now says so and
+points at Phase 10. The catalog's `available` flags differ because the server reads keys
+from settings and the desktop from the keychain — a declared infrastructure difference the
+harness does not yet pin.
+
+Nine divergences remain recorded, every reason rewritten to match what is actually true.
+
+---
+
+### 0.6 Phase 2 is complete — the three live defects are fixed
+
+**Full backend suite 835 passed / 90 skipped; ruff clean. Divergences recorded: 10 → 3.**
+Regression test written first for each; every fix is one commit's worth of change with a
+shared home, not a patch applied twice.
+
+#### 2a — one SSE id space
+
+`SessionEventBus` no longer mints ids. `persist_and_publish` writes the durable
+`agent_logs` row, takes **its** id as the cursor, stamps it into the payload and only then
+fans out live — the ordering `adapters.agent_log_sink` already had on the server, now the
+one home for it on the desktop. The event sink and both lifecycle publishers call it; all
+three previously got the order wrong in the same way.
+
+Two things surfaced while fixing it that the audit had not seen:
+
+- **Every persisted payload's `id` was null.** The old sink assigned it *after* the commit.
+- Assigning it before the commit is not enough either: the row held the caller's own dict,
+  so mutating and reassigning left SQLAlchemy with an old value equal to the new one and no
+  net change to write. The row takes a copy now, and the comment says why.
+
+An event whose durable write fails is now delivered live **without** an id, and both stream
+generators leave `Last-Event-ID` where it was — a client cannot resume from an event that
+was never stored.
+
+#### 2b — one corpus contract
+
+`app/services/corpus_ingest.py` holds the validation, the failure mapping and the response
+shaping; both hosts call it. Stdlib/pydantic/FastAPI only, so the sidecar can import it
+(#50). Phase 4 replaces its `HTTPException` with the domain taxonomy.
+
+| | was (server / desktop) | now, both |
+|---|---|---|
+| success | `200` / `201` | **`201`** |
+| empty, unsupported, no basename | `400` / `422` | **`400`** |
+| over the size limit | *unenforced* / `413` | **`413`** — a real robustness gain on the server |
+| embedder unreachable | *500* / `503` | **`503`** |
+| body | full / three fields | **full `DocumentResponse`** |
+| download `Content-Type` | `text/plain` / **absent** | **`media_type_for(kind)`** |
+| delete | `204` **+ `application/json`, unparseable** / `204` | **body-less `204`** |
+
+The desktop's missing `Content-Type` was worse than cosmetic: the same response sends
+`X-Content-Type-Options: nosniff`, so the browser was forbidden from guessing the type it
+had not been given.
+
+The golden was re-recorded and the diff read: exactly four server changes, nothing else.
+Two existing desktop tests asserted the old `422` and were updated with the reason.
+
+#### 2c — one lifecycle mapping
+
+`app/services/session_events.py::lifecycle_event` is the single `RunOutcome` → event
+mapping. The desktop published the right event *type* with `data: null` for all four
+outcomes, so a desktop client had no task count at the design gate, no word or source count
+at the review gate, no elapsed time or cost on completion, and a failure reason in
+`message` where the server puts it in `data.reason`.
+
+This closes the `AGENTS.md` trap directly — *"a new `RunOutcome.status` →
+`pipeline_runner::_persist_outcome` and **both** dict literals in
+`sidecar::_apply_outcome`"* — from three homes to one, with a test that asserts both hosts
+resolve to the same function object rather than that two copies agree.
+
+#### What is left
+
+| Divergence | Why it remains | Phase |
+|---|---|---|
+| `who am I` | the desktop is one local user with a sentinel identity — a capability difference | 10 |
+| `the model catalog` | key source (settings vs keychain), plus N-7: the server enriches `presets.ollama` from installed models and the desktop does not | 8 |
+| `list projects` | `General` seeded eagerly on desktop, lazily on the server | 8 |
+
+---
+
+### 0.7 Desktop corpus-only mode — removed, and a P0-class bug with it
+
+Spun off from Phase 2 as its own decision. The chip proposed (a) surface the switch or
+(b) delete it. **Neither was sufficient on its own**, because inspecting it first turned up
+something the chip had not described.
+
+**What was actually wrong, in two opposite directions.**
+
+1. `PUT /corpus/mode` wrote a persistent `corpus_only` flag that **nothing in `frontend/`
+   ever set or read** — the bundle-export class inverted: not a control that 404s, but a
+   piece of state with no control at all.
+2. That flag was the **only** input to `RunConfig.corpus_mode` on this host
+   (`sidecar_run_config`). Meanwhile `POST /research` and `POST /runs` accepted
+   `corpus_mode` and persisted it onto the row — and neither `_drive_session` nor
+   `_drive_run` ever read it back. **A desktop run requested as airgapped was recorded as
+   airgapped and executed over the open web.** Verified before fixing: the failing test
+   reported sources of `https://arxiv.org/abs/2005.11401`.
+
+`app/schemas/research.py:39` names this exact class in a comment — *"a field the schema
+accepts and the run never reads is the exact bug AGENTS.md records for corpus_mode/demo."*
+The comment describes a defect that had been fixed for the request→row hop and was still
+live on the row→`RunConfig` hop.
+
+**And `docs/` was right the whole time.** `docs/25 §Corpus only` and
+`docs/28 §Corpus-only mode` describe a **per-run** option; no document anywhere describes a
+persistent desktop switch. So this was code contradicting the build contract, not a
+documented feature being removed — `docs/` needed no change.
+
+**What was done.** Deleted the route, `corpus_only_enabled`, `save_corpus_config`,
+`_corpus_config_path` and the `corpus.json` file; dropped the `INTENTIONAL_DESKTOP_ONLY`
+entry (the anti-rot guard caught it immediately); and carried `corpus_mode` from the row
+into `RunConfig` in both drivers, beside the other per-run overrides, matching
+`pipeline_runner._execute` and `run_execution.execute_run`.
+
+The flat `/corpus/status` now returns exactly `CorpusStatusResponse` — identical in body to
+the canonical per-project route, differing only in path, which is the real infrastructure
+difference (one `corpus.sqlite` for the app).
+
+**Three tests, written first.** A run asking for corpus mode gets `corpus://` sources; a
+run that did not ask is *not* silently restricted to the corpus — impossible to express
+with a global switch, and the clearest argument that per-run is the right contract; and a
+corpus-mode run with an empty corpus fails rather than falling back to the web, which is
+`docs/25`'s promise, newly reachable on this host and confirmed to hold.
+
+**837 passed / 90 skipped; ruff clean.**
+
+---
+
+### 0.8 Phase 3 is complete — the boundary is declared and enforced
+
+**846 passed / 90 skipped; ruff clean.** Nine tests, and the acceptance criterion the
+phase was written around was checked rather than assumed: a violation planted in
+`app/handlers/` fires all three application rules, and the tree greps clean afterwards.
+
+`tests/workflow/test_layer_boundaries.py` walks the AST for the full direction —
+transport → application → domain → ports → infrastructure, downward only. **Deferred
+imports count**: moving an import inside a function keeps a dependency out of *startup*,
+which is a real and separate concern (`test_sidecar_startup`), but the layer still depends
+on it at request time — and `app/run_execution.py` reaching `app.runtime` inside a function
+is exactly how the packaged sidecar's run routes came to 500.
+
+`app/handlers/` and `app/ports.py` exist and are empty, with docstrings saying what belongs
+in each. The rule is declared before anything moves into it, because a boundary drawn after
+the fact is drawn around whatever the code already does.
+
+The invariant is now in `AGENTS.md`, beside the “two hosts, one contract” table it
+replaces the discipline for.
+
+#### It found a violation on its first run
+
+`app/run_dispatch.py` imports `app.workers.tasks`. The module holds the `RunDispatcher`
+Protocol **and** the server's `CeleryDispatcher`, whose methods import the tasks lazily —
+the deferral being load-bearing today, because the desktop imports this module and
+`research-sidecar.spec` excludes `celery`.
+
+The implementation belongs beside the other server adapters. It cannot move yet:
+`app/api/v1/runs.py` is simultaneously the shared handler module *and* the server's
+router, so it binds `Depends(get_run_dispatcher)` at module scope and the desktop imports
+it. Phase 6 splits those two, and the import moves with the split.
+
+Recorded in `KNOWN_EXCEPTIONS` with that reason. The allowlist is a dict, not a set:
+every entry names the phase that removes it, a test asserts the reason is real, and an
+entry that stops being true fails the suite.
+
+---
+
+### 0.9 Phase 4 is complete — the error contract has one home
+
+**867 passed / 90 skipped; ruff clean.** The acceptance criterion was that the parity
+goldens **do not move**, and they did not: the only golden change in the working tree is
+still Phase 2b's recorded corpus contract. Every status and `detail` string this product
+emits is byte-identical either side of the conversion.
+
+`app/api/v1/runs.py` raised `HTTPException` at 13 sites while **both hosts call it**. So
+the status a client saw was never actually shared — it was thirteen literals reached from
+two places, and the module could not move into `app/handlers/` without the layer test
+refusing it, correctly: "not found" is a product fact and `404` is a delivery detail.
+
+Two modules, and the split is the point:
+
+| Module | Layer | Holds |
+|---|---|---|
+| `app/errors.py` | domain | `AppError` + seven subclasses. No FastAPI, no host. |
+| `app/services/error_responses.py` | shared transport | `ERROR_STATUS`, `status_for`, `error_body`, `install_error_handlers`. Same shape as `document_headers.py` and `sse.py`. |
+
+The table is keyed by **class, not class name** — mapping by name would make a rename a
+silent status change, which is the kind of edit that looks safe in review. `status_for`
+walks the MRO, so a future `RunNotFound(NotFound)` inherits `404` without an entry.
+`CapabilityUnavailable` carries a machine-readable `capability`, which is what will make
+Phase 10's capability differences observable rather than a claim in a table.
+
+Both hosts install the handler, and the test asserts they install the **same function
+object** — two handlers that agree today are two homes.
+
+`app/services/corpus_ingest.py` came off `HTTPException` too, which let the layer test
+gain a rule it could not hold before: **the domain layer imports no transport.**
+
+#### Two things worth stating plainly
+
+**`Invalid` (400) and `Unprocessable` (422) both mean "the domain refuses this".** They are
+two errors only because the product already answers two codes: the run surface has always
+used `422` for an unknown depth, an unroutable model or an emptied task list, while the
+corpus surface uses `400`. Phase 4 is a refactor, so it preserves both. Unifying them is a
+client-visible contract change and needs its own decision — **open question, see §14 Q5.**
+
+**The phase introduces one footgun.** An app that mounts these routes and does not install
+the handler turns every refusal into an unhandled 500. `test_runs_api` built its own bare
+`FastAPI()` and hit exactly that, which is how it surfaced. Both real hosts are asserted;
+the requirement is documented at `install_error_handlers`, where the next person mounting
+these routes will meet it.
+
+---
+
 ---
 
 ## 1. Current architecture
@@ -794,7 +1050,14 @@ once and then only change when a contract deliberately changes. **Recommendation
 **Answered by constraint 7.** It is a declared capability difference (`rate_limits: false`),
 not a port and not a no-op. No longer an open question.
 
-**Q4 — new.** Phase 4 strips `HTTPException` from `app/api/v1/runs.py`, which the desktop
+**Q5 — new, from Phase 4.** `Invalid` maps to `400` and `Unprocessable` to `422`, and the
+only reason both exist is that the run surface and the corpus surface already answered
+different codes for the same *kind* of refusal. Unifying them would be a cleaner contract
+and a client-visible change. **Recommendation: leave both until the frontend's error
+handling is reviewed in Phase 10, then unify on `422` and re-record the goldens in one
+deliberate commit.** Not urgent, and not something to fold into a refactor.
+
+**Q4 — answered by doing it.** Phase 4 strips `HTTPException` from `app/api/v1/runs.py`, which the desktop
 already imports and calls today. During that phase the desktop must map domain errors
 itself. **Recommendation: land `app/errors.py` and both mapping call sites in one PR** —
 splitting it would leave one host translating and the other raising, which is precisely the

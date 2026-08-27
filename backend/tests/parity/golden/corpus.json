@@ -13,7 +13,7 @@
   },
   {
     "step": "upload a document",
-    "status": 200,
+    "status": 201,
     "body": {
       "id": "<uuid>",
       "filename": "retrieval.txt",
@@ -63,7 +63,7 @@
     "step": "upload an empty document",
     "status": 400,
     "body": {
-      "detail": "Empty file"
+      "detail": "The document is empty."
     }
   },
   {
@@ -77,7 +77,7 @@
     "step": "an unknown document is not found",
     "status": 404,
     "body": {
-      "detail": "Document not found"
+      "detail": "Document not found."
     }
   },
   {
@@ -91,7 +91,8 @@
     "step": "delete the document",
     "status": 204,
     "body": {
-      "malformed_json": true
+      "media_type": "",
+      "empty": true
     }
   },
   {

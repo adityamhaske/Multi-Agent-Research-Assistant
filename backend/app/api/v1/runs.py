@@ -28,7 +28,7 @@ import uuid
 from collections.abc import AsyncGenerator
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,6 +37,7 @@ from app import run_bundle, run_lifecycle
 from app.db.base import AsyncSessionLocal, get_db
 from app.db.redis import get_redis
 from app.dependencies import get_current_user
+from app.errors import Conflict, NotFound, Unprocessable
 from app.models.agent_log import AgentLog
 from app.models.project import Project
 from app.models.research import (
@@ -111,7 +112,7 @@ async def _run_or_404(db: AsyncSession, run_id: uuid.UUID, owner_id: uuid.UUID) 
         )
     ).scalar_one_or_none()
     if run is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Run not found.")
+        raise NotFound("Run not found.")
     return run
 
 
@@ -366,9 +367,9 @@ async def create_run(
         )
     ).scalar_one_or_none()
     if project is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Project not found.")
+        raise NotFound("Project not found.")
     if body.depth not in RESEARCH_DEPTHS:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown depth.")
+        raise Unprocessable("Unknown depth.")
 
     # Refused here rather than repaired: a routing that survives `validate` is startable,
     # so a run cannot die halfway through on a model that was never routable. Stamping the
@@ -380,7 +381,7 @@ async def create_run(
         try:
             routing = model_routing.validate(body.model_routing)
         except model_routing.InvalidRouting as exc:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+            raise Unprocessable(str(exc)) from exc
 
     run = await run_lifecycle.create_run(
         db,
@@ -494,7 +495,7 @@ async def submit_plan_review(
         .first()
     )
     if plan is None:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="This run has no plan to review.")
+        raise Conflict("This run has no plan to review.")
     # `None` means "unedited, use the proposal" — not the same as `[]`, which is a reviewer
     # who excluded everything and gets the 422 below.
     proposed = plan.tasks or []
@@ -511,9 +512,8 @@ async def submit_plan_review(
     # zero evidence. One rule, one wording, both paths — the desktop host imports this same
     # handler, so it is fixed there by construction (AGENTS.md, "two hosts, one contract").
     if body.decision == "APPROVED" and not kept:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Keep at least one task — a plan with nothing in it researches nothing.",
+        raise Unprocessable(
+            "Keep at least one task — a plan with nothing in it researches nothing."
         )
 
     # An edit becomes its own plan version rather than overwriting the proposal, so the
@@ -573,7 +573,7 @@ async def submit_report_review(
         query = query.where(Revision.version == body.revision_version)
     revision = (await db.execute(query.order_by(Revision.version.desc()))).scalars().first()
     if revision is None:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="This run has no report to review.")
+        raise Conflict("This run has no report to review.")
 
     try:
         review = await run_lifecycle.record_report_review(
@@ -602,7 +602,7 @@ async def submit_report_review(
             await dispatcher.rework(str(run.id), str(current_user.id), body.feedback)
     except run_lifecycle.LifecycleError as exc:
         await db.rollback()
-        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise Conflict(str(exc)) from exc
 
     # Read off the ORM rows *before* the ingest attempts. Either may fail and roll back,
     # and a rollback expires every object in the identity map — so a response assembled
@@ -695,10 +695,7 @@ async def get_bundle(
     else:
         manifest, reason = await run_bundle.assemble_with_reason(db, run.id)
         if manifest is None:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                detail=f"No bundle can be assembled for this run ({reason}).",
-            )
+            raise Conflict(f"No bundle can be assembled for this run ({reason}).")
         payload = manifest.model_dump()
 
     import json
@@ -834,7 +831,7 @@ async def _latest_revision(db: AsyncSession, run: ResearchRun, version: int | No
         query = query.where(Revision.version == version)
     revision = (await db.execute(query.order_by(Revision.version.desc()))).scalars().first()
     if revision is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="This run has no report yet.")
+        raise NotFound("This run has no report yet.")
     return revision
 
 
@@ -939,7 +936,7 @@ async def cancel_run(
     """
     run = await _run_or_404(db, run_id, current_user.id)
     if run.status in ("COMPLETED", "FAILED", "CANCELLED"):
-        raise HTTPException(status.HTTP_409_CONFLICT, detail=f"This run is already {run.status}.")
+        raise Conflict(f"This run is already {run.status}.")
     await run_lifecycle.request_cancel(db, run, by=current_user.id)
     await db.commit()
     return {
@@ -1007,7 +1004,7 @@ async def delete_run(
     try:
         await run_lifecycle.delete_run(db, run)
     except run_lifecycle.LifecycleError as exc:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise Conflict(str(exc)) from exc
     await db.commit()
 
     from app.services import checkpoints

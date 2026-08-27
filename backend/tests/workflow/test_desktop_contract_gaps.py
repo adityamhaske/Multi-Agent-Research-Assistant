@@ -24,6 +24,7 @@ import httpx
 import pytest
 
 from app.models.session import SessionStatus
+from app.schemas.corpus import CorpusStatusResponse
 from desktop.sidecar import create_sidecar_app
 
 TOKEN = "test-gaps-token"
@@ -198,10 +199,23 @@ async def test_per_project_corpus_status_matches_the_flat_one(sidecar):
     via_project = await sidecar.get(f"/api/v1/projects/{pid}/corpus/status", headers=_auth())
     via_flat = await sidecar.get("/api/v1/corpus/status", headers=_auth())
     assert via_project.status_code == 200
-    assert via_project.json() == via_flat.json()
-    # `corpus_only` is desktop state and must survive the alias, or the Corpus page's
-    # airgap toggle would read as off while the next run is airgapped.
-    assert "corpus_only" in via_project.json()
+
+    # Against the SERVER's shape, not against the other desktop route. Asserting the two
+    # desktop responses are equal only proves they are consistent with each other, which
+    # is what AGENTS.md means by "compare two implementations against themselves and call
+    # that parity" — and it is how the `{"documents": [...]}` wrapper survived review.
+    assert set(via_project.json()) == set(CorpusStatusResponse.model_fields)
+    assert via_project.json()["documents"] == 1
+    assert via_project.json()["chunks"] >= 1
+
+    # The flat route is desktop-only in its *path* — one `corpus.sqlite` for the whole app
+    # rather than one file per project — and identical in its body. It used to carry an
+    # extra `corpus_only` field for a persistent airgap switch that nothing in `frontend/`
+    # could set or read, and that was the only input to `RunConfig.corpus_mode` on this
+    # host, so the `corpus_mode` a run requested was stored and never read. The switch is
+    # gone and the desktop takes corpus mode per run, exactly as the server does.
+    assert set(via_flat.json()) == set(CorpusStatusResponse.model_fields)
+    assert via_flat.json() == via_project.json()
 
 
 async def test_upload_accepts_the_multipart_body_the_browser_sends(sidecar):
@@ -228,7 +242,10 @@ async def test_upload_rejects_an_empty_document(sidecar):
         headers=_auth(),
         files={"file": ("empty.txt", b"", "text/plain")},
     )
-    assert resp.status_code == 422
+    # 400, matching the server: the status codes for a refused upload are one contract now
+    # (app/services/corpus_ingest.py). This asserted 422 while the server asserted 400 for
+    # the same rejection, which is the divergence Phase 2b closed.
+    assert resp.status_code == 400
 
 
 async def test_delete_through_the_canonical_path_removes_the_document(sidecar):

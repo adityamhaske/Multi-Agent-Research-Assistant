@@ -39,6 +39,7 @@ async def api(tmp_path):
         from sqlalchemy import insert
 
         from app.models.project import Project
+        from app.services.error_responses import install_error_handlers
 
         now = datetime(2026, 8, 18, tzinfo=UTC)
         uid, pid = uuid.uuid4(), uuid.uuid4()
@@ -54,6 +55,11 @@ async def api(tmp_path):
 
         app = FastAPI()
         app.include_router(v2_router, prefix="/api/v1")
+        # These handlers raise domain errors, not `HTTPException` — the desktop calls them
+        # too, so the status a client sees comes from the one shared table rather than from
+        # thirteen literals in this module. Any app that mounts them has to install the
+        # translation, which both real hosts do at construction.
+        install_error_handlers(app)
         app.dependency_overrides[get_db] = lambda: db
         app.dependency_overrides[get_current_user] = lambda: User(
             id=uid, email=f"{uid}@x.invalid", hashed_pw="x", is_active=True, created_at=now

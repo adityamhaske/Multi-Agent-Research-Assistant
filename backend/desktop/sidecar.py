@@ -69,23 +69,10 @@ from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from sqlalchemy import event, func, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-# `download_headers` is the shared response-header policy for uploaded documents (the
-# no-render rule plus the narrow PDF exception). Imported, never restated: a second copy
-# of a security header policy is the worst kind of duplication this repo has. It lives in
-# a stdlib-only module rather than in the server's corpus route, because importing that
-# route reaches `app.config` and this host has no server settings to build (#50).
-from app.services.document_headers import download_headers
-
-# The run request models are imported, not restated: the desktop host must accept exactly
-# the body the server does, and two Pydantic models with the same name in two files is how
-# that stops being true.
-from app.schemas.runs import CreateRunRequest as V2CreateRunRequest
-from app.schemas.runs import PlanReviewRequest as V2PlanReviewRequest
-from app.schemas.runs import ReportReviewRequest as V2ReportReviewRequest
 from app.models import POSTGRES_ONLY_TABLES, Base
 from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
@@ -122,11 +109,38 @@ from app.schemas.research import (
     SessionListResponse,
     SessionSummary,
 )
-from app.services import chat_scope, custom_endpoint, local_llm, provider_health, usage
+
+# The run request models are imported, not restated: the desktop host must accept exactly
+# the body the server does, and two Pydantic models with the same name in two files is how
+# that stops being true.
+from app.schemas.runs import CreateRunRequest as V2CreateRunRequest
+from app.schemas.runs import PlanReviewRequest as V2PlanReviewRequest
+from app.schemas.runs import ReportReviewRequest as V2ReportReviewRequest
+
+# The corpus upload contract — validation, failure mapping and response shape — lives in
+# one module because both hosts serve the canonical per-project path and each used to
+# choose its own status codes for the same rejection. Stdlib/pydantic/FastAPI only, so it
+# is importable here (#50).
+from app.services import (
+    chat_scope,
+    corpus_ingest,
+    custom_endpoint,
+    local_llm,
+    provider_health,
+    usage,
+)
+
+# `download_headers` is the shared response-header policy for uploaded documents (the
+# no-render rule plus the narrow PDF exception). Imported, never restated: a second copy
+# of a security header policy is the worst kind of duplication this repo has. It lives in
+# a stdlib-only module rather than in the server's corpus route, because importing that
+# route reaches `app.config` and this host has no server settings to build (#50).
+from app.services.document_headers import download_headers, media_type_for
+from app.services.error_responses import install_error_handlers
+from app.services.session_events import lifecycle_event
 from app.services.sse import SSE_HEADERS
 from research_engine import bundle, catalog, citation_rate, outlines, prompts
 from research_engine.corpus import CorpusStore
-from research_engine.documents import MAX_DOCUMENT_BYTES
 from research_engine.embeddings import EmbeddingsUnavailable, LocalEmbeddings
 from research_engine.events import make_event
 from research_engine.graph import build_graph
@@ -183,20 +197,30 @@ class SessionEventBus:
     """
 
     def __init__(self) -> None:
-        self._logs: dict[str, list[tuple[int, dict]]] = {}
-        self._next: dict[str, int] = {}
+        self._logs: dict[str, list[tuple[int | None, dict]]] = {}
         self._listeners: dict[str, list[asyncio.Queue]] = {}
 
-    def append(self, session_id: str, payload: dict) -> int:
-        eid = self._next.get(session_id, 0) + 1
-        self._next[session_id] = eid
-        self._logs.setdefault(session_id, []).append((eid, payload))
-        for queue in self._listeners.get(session_id, []):
-            queue.put_nowait((eid, payload))
-        return eid
+    def append(self, session_id: str, payload: dict, event_id: int | None) -> None:
+        """Fan one event out live under the id it was durably given.
 
-    def backlog(self, session_id: str, after_id: int = 0) -> list[tuple[int, dict]]:
-        return [(i, p) for i, p in self._logs.get(session_id, []) if i > after_id]
+        The id is supplied, never generated here. This bus used to mint its own
+        per-session counter starting at 1 while the backlog — what a reconnecting client
+        replays — is framed with `agent_logs.id`, a global autoincrement: two id spaces for
+        one `Last-Event-ID` cursor. A client that reconnected mid-run replayed the whole
+        backlog again and then went silent, because every live id compared as
+        already-seen against a much larger row id. The server never had this
+        (`adapters.agent_log_sink` sets `event["id"] = row.id`), and now neither does this.
+
+        `None` means the durable write failed, so the event has no replayable identity.
+        It is still delivered — a live listener should see it — but it carries no cursor,
+        and the stream generators leave `Last-Event-ID` where it was.
+        """
+        self._logs.setdefault(session_id, []).append((event_id, payload))
+        for queue in self._listeners.get(session_id, []):
+            queue.put_nowait((event_id, payload))
+
+    def backlog(self, session_id: str, after_id: int = 0) -> list[tuple[int | None, dict]]:
+        return [(i, p) for i, p in self._logs.get(session_id, []) if i is not None and i > after_id]
 
     @asynccontextmanager
     async def subscribe(self, session_id: str) -> AsyncGenerator[asyncio.Queue, None]:
@@ -208,33 +232,56 @@ class SessionEventBus:
             self._listeners.get(session_id, []).remove(queue)
 
 
-class PersistingSink:
-    """The run's EventSink: assigns ids, fans out live, persists for replay.
+async def persist_and_publish(
+    session_factory: async_sessionmaker,
+    bus: SessionEventBus,
+    session_id: str | uuid.UUID,
+    payload: dict,
+) -> None:
+    """Write the durable row, take its id as the cursor, then fan out live.
 
-    Matches the server worker's sink semantics (docs/13 §4): durable row first, then
-    live delivery — so a reconnecting stream never loses an event either way.
+    The one home for that ordering on this host — the event sink and both lifecycle
+    publishers call it, and every one of them used to get the order wrong in the same way
+    (mint a bus id, deliver, then insert a row with a different id).
+
+    Row first is what the server's sink does too (`adapters.agent_log_sink`) and it is
+    load-bearing twice over: the id a live listener sees has to be the id that event will
+    replay under, and a client that acts on a terminal event must never re-read a state
+    that has not been committed.
     """
+    row_id: int | None = None
+    try:
+        async with session_factory() as db:
+            row = AgentLog(
+                session_id=uuid.UUID(str(session_id)),
+                event_type=payload.get("type") or "agent_log",
+                agent_name=payload.get("agent"),
+                # A copy, deliberately: the row must not hold the caller's dict. Mutating
+                # one object and then assigning it back leaves SQLAlchemy with an old value
+                # equal to the new one and no net change to write, which is why the stored
+                # `id` stayed null through two attempts at this.
+                payload=dict(payload),
+            )
+            db.add(row)
+            await db.flush()
+            row_id = row.id
+            payload["id"] = row_id
+            row.payload = dict(payload)
+            await db.commit()
+    except Exception as e:  # noqa: BLE001 — live delivery must not die on persistence
+        logger.warning("sidecar_event_persist_failed", session_id=str(session_id), error=str(e))
+    bus.append(str(session_id), payload, row_id)
+
+
+class PersistingSink:
+    """The run's EventSink. Durable row first, then live delivery — see `persist_and_publish`."""
 
     def __init__(self, bus: SessionEventBus, session_factory: async_sessionmaker) -> None:
         self.bus = bus
         self._session_factory = session_factory
 
     async def __call__(self, session_id: str, event_payload: dict) -> None:
-        eid = self.bus.append(session_id, event_payload)
-        try:
-            async with self._session_factory() as db:
-                db.add(
-                    AgentLog(
-                        session_id=uuid.UUID(session_id),
-                        event_type=event_payload.get("type") or "agent_log",
-                        agent_name=event_payload.get("agent"),
-                        payload=event_payload,
-                    )
-                )
-                await db.commit()
-        except Exception as e:  # noqa: BLE001 — live delivery must not die on persistence
-            logger.warning("sidecar_event_persist_failed", session_id=session_id, error=str(e))
-        event_payload["id"] = eid
+        await persist_and_publish(self._session_factory, self.bus, session_id, event_payload)
 
 
 # ── Keys ─────────────────────────────────────────────────────────────────────────
@@ -443,27 +490,17 @@ def save_custom_endpoint(data_dir: str | Path, url: str | None) -> None:
 # refuses). Persisted so the choice survives restarts, exactly like the routing.
 
 
-def _corpus_config_path(data_dir: str | Path) -> Path:
-    return Path(data_dir) / "corpus.json"
-
-
-def corpus_only_enabled(data_dir: str | Path | None) -> bool:
-    """Whether corpus-only mode is switched on. A corrupt file degrades to off."""
-    if data_dir is None:
-        return False
-    try:
-        raw = json.loads(_corpus_config_path(data_dir).read_text(encoding="utf-8"))
-        return bool(raw.get("corpus_only"))
-    except FileNotFoundError:
-        return False
-    except Exception:  # noqa: BLE001 — bad JSON must not sink launch
-        return False
-
-
-def save_corpus_config(data_dir: str | Path, *, corpus_only: bool) -> None:
-    _corpus_config_path(data_dir).write_text(
-        json.dumps({"corpus_only": corpus_only}, indent=2), encoding="utf-8"
-    )
+# Corpus-only mode used to be a persistent per-app switch here, written to `corpus.json`
+# by `PUT /corpus/mode` and read into every run's `RunConfig`. It is gone, and the desktop
+# takes `corpus_mode` per run exactly as the server does.
+#
+# Two things were wrong with the switch, in opposite directions. Nothing in `frontend/`
+# ever referenced `corpus_only` or called `PUT /corpus/mode`, so the state could not be set
+# or seen by a user — the class AGENTS.md records for bundle export, "a shipped control
+# that 404'd" turned inside out. And because the switch was the *only* input to
+# `RunConfig.corpus_mode` on this host, the `corpus_mode` a request set and the session row
+# stored was never read: a run asked for as airgapped was recorded as airgapped and
+# executed over the open web. `app/schemas/research.py` names that exact class.
 
 
 def make_corpus_store(data_dir: str | Path) -> CorpusStore:
@@ -524,9 +561,7 @@ def sidecar_run_config(
                 models.update(saved)  # the user's saved preference beats MODEL_* env
 
     if fake:
-        return RunConfig(
-            llm_mode="fake", demo=demo, corpus_mode=corpus_only_enabled(data_dir), models=models
-        )
+        return RunConfig(llm_mode="fake", demo=demo, models=models)
 
     env_names = {
         "google": "GOOGLE_API_KEY",
@@ -567,7 +602,6 @@ def sidecar_run_config(
         provider_keys=keys,
         tavily_api_key=os.environ.get("TAVILY_API_KEY", ""),
         brave_api_key=os.environ.get("BRAVE_API_KEY", ""),
-        corpus_mode=corpus_only_enabled(data_dir),
         enforce_ssrf_guards=False,
         max_critic_loops=_int_env("MAX_CRITIC_LOOPS", 2),
         max_cost_per_session_usd=_float_env("MAX_COST_PER_SESSION_USD", 0.50),
@@ -743,6 +777,9 @@ def create_sidecar_app(
         await engine.dispose()
 
     app = FastAPI(title="Research Assistant Desktop Sidecar", lifespan=lifespan)
+    # The same table the server installs. The run handlers this host imports raise domain
+    # errors, so without it every refusal would surface as an unhandled 500 here.
+    install_error_handlers(app)
     app.state.sidecar = state
     app.state.data_dir = data_path
     app.state.fake = fake
@@ -1106,23 +1143,12 @@ def create_sidecar_app(
                 report_markdown=outcome.final_report,
             )
 
-        lifecycle = {
-            "awaiting_plan": "PLAN_READY",
-            "awaiting_approval": "HITL_READY",
-            "completed": "COMPLETED",
-            "failed": "FAILED",
-        }[outcome.status]
-        bus = app.state.sidecar["bus"]
-        payload = make_event(lifecycle, message=outcome.error)
-        eid = bus.append(str(session.id), payload)
-        payload["id"] = eid
-        async with session_factory() as log_db:
-            log_db.add(
-                AgentLog(
-                    session_id=session.id, event_type=lifecycle, agent_name=None, payload=payload
-                )
-            )
-            await log_db.commit()
+        # One mapping, shared with `pipeline_runner._persist_outcome`. This used to be a
+        # second dict literal here, publishing the right event type with `data: null` —
+        # so a desktop client saw the gate but none of the numbers the server sends with it.
+        await persist_and_publish(
+            session_factory, app.state.sidecar["bus"], session.id, lifecycle_event(outcome)
+        )
 
     async def _drive_session(
         session_id: uuid.UUID,
@@ -1164,6 +1190,11 @@ def create_sidecar_app(
                 "skip_plan_gate": bool(session.skip_plan_gate),
                 "topic_seeds": tuple(session.topic_seeds or ()),
                 "outline_template": session.outline_template,
+                # Read from the row for the same reason as the rest of this dict: it is
+                # rebuilt on every resume, long after the request is gone. Server
+                # counterpart: `pipeline_runner._execute`, which branches on
+                # `session.corpus_mode`.
+                "corpus_mode": bool(session.corpus_mode),
             }
             local_user = await db.get(User, sidecar["user_id"])
             # Same mapping as the server's `pipeline_runner._preference_overrides`
@@ -1200,8 +1231,9 @@ def create_sidecar_app(
                 session.status = SessionStatus.FAILED
                 session.error_message = str(e)[:500]
                 await db.commit()
-            payload = make_event("FAILED", message=str(e))
-            payload["id"] = sidecar["bus"].append(str(session_id), payload)
+            await persist_and_publish(
+                session_factory, sidecar["bus"], session_id, make_event("FAILED", message=str(e))
+            )
             return
 
         # Snapshot exactly what this run is about to dial — mirrors the server's
@@ -1320,6 +1352,9 @@ def create_sidecar_app(
                     "skip_plan_gate": bool(run.skip_plan_gate),
                     "topic_seeds": tuple(run.topic_seeds or ()),
                     "outline_template": run.outline_template,
+                    # Server counterpart: `run_execution.execute_run`, which branches on
+                    # `run.corpus_mode`.
+                    "corpus_mode": bool(run.corpus_mode),
                 }
                 question, depth = run.question, run.depth
                 run_routing = run.model_routing
@@ -1565,10 +1600,17 @@ def create_sidecar_app(
             async with bus.subscribe(str(session_id)) as queue:
                 while True:
                     eid, payload = await queue.get()
-                    if eid <= seen_max:
-                        continue  # already replayed from the backlog
-                    yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
-                    seen_max = eid
+                    if eid is None:
+                        # The durable write failed, so this event has no replayable id.
+                        # Deliver it without one: SSE leaves `Last-Event-ID` where it was,
+                        # which is right, because a reconnect cannot resume from an event
+                        # that was never stored.
+                        yield f"data: {json.dumps(payload)}\n\n"
+                    else:
+                        if eid <= seen_max:
+                            continue  # already replayed from the backlog
+                        yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
+                        seen_max = eid
                     if payload.get("type") in _TERMINAL_EVENTS:
                         return
 
@@ -2031,14 +2073,12 @@ def create_sidecar_app(
 
         # Same ordering as `_apply_outcome`: the row is committed before the terminal
         # event leaves, so a client acting on FAILED never re-reads a stale status.
-        bus = app.state.sidecar["bus"]
-        payload = make_event("FAILED", message="Research stopped by user.")
-        eid = bus.append(str(session_id), payload)
-        payload["id"] = eid
-        db.add(
-            AgentLog(session_id=session_id, event_type="FAILED", agent_name=None, payload=payload)
+        await persist_and_publish(
+            session_factory,
+            app.state.sidecar["bus"],
+            session_id,
+            make_event("FAILED", message="Research stopped by user."),
         )
-        await db.commit()
 
         logger.info("sidecar_research_stopped_by_user", session_id=str(session_id))
         return SessionSummary.model_validate(session)
@@ -2405,37 +2445,9 @@ def create_sidecar_app(
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="Corpus not ready.")
         return store
 
-    def _document_response(d: dict) -> dict:
-        """`CorpusStore.documents()`'s raw shape → the server's `DocumentResponse` field
-        names (`app/api/v1/corpus.py`) — the same client contract on both hosts.
-
-        Registration alone made these routes look done: `test_desktop_contract_gaps.py`
-        called them and got 200s, but nothing checked the *body* against the server's
-        actual field names (`id`/`chunks`/`created_at`) versus this store's own
-        (`chunk_count`/`ingested_at`) — id vs doc_id, chunks vs chunks_written. The
-        frontend hook types the response as a bare `CorpusDocument[]`
-        (`hooks/queries.ts::useCorpusDocuments`); the wrapped `{"documents": [...]}` this
-        used to return has `.length` read as `undefined` off the wrapper object, which is
-        falsy, so the Corpus page rendered "no documents" for a corpus that was never
-        empty — silent data loss in the UI, not a crash, which is why it went unnoticed.
-        """
-        return {
-            "id": d["id"],
-            "filename": d["filename"],
-            "chunks": d["chunk_count"],
-            "created_at": d["ingested_at"],
-            "size_bytes": d.get("size_bytes"),
-            "downloadable": d.get("downloadable", False),
-            "origin": d.get("origin", "uploaded"),
-        }
-
-    def _corpus_status_response(info: dict) -> dict:
-        """Same shape gap as `_document_response`, in `CorpusStatusResponse`: the server
-        adds a top-level `chunks` sum (`app/api/v1/corpus.py::get_status`) that
-        `CorpusStore.status()` itself does not compute — this host must add it too."""
-        info = dict(info)
-        info["chunks"] = sum(info["chunks_by_model"].values())
-        return info
+    # `_document_response` and `_corpus_status_response` used to be shaped here, by hand,
+    # against the server's field names from memory. They are `corpus_ingest`'s job now —
+    # one mapping, both hosts.
 
     @api.post("/corpus/documents", status_code=201)
     async def upload_document(request: Request, filename: str):
@@ -2446,54 +2458,21 @@ def create_sidecar_app(
         unsupported format or an unreachable embedding server is a 4xx/5xx, never a
         silent skip.
         """
-        clean_name = Path(filename).name  # the name is metadata only; never a path
-        if not clean_name:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY, detail="filename is required."
-            )
-        body = await request.body()
-        if not body:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The document body is empty."
-            )
-        if len(body) > MAX_DOCUMENT_BYTES:
-            raise HTTPException(
-                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"Document is {len(body)} bytes; the limit is {MAX_DOCUMENT_BYTES}.",
-            )
-        try:
-            result = await _corpus().ingest(clean_name, body)
-        except ValueError as e:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
-        except EmbeddingsUnavailable as e:
-            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
-        # Same field names as the server's DocumentResponse (app/api/v1/corpus.py), not
-        # `Ingested`'s own doc_id/chunks_written/skipped/reason — see _document_response.
-        return {"id": result.doc_id, "filename": result.filename, "chunks": result.chunks_written}
+        return await corpus_ingest.ingest_document(_corpus(), filename, await request.body())
 
-    @api.get("/corpus/documents")
+    @api.get("/corpus/documents", response_model=list[DocumentResponse])
     async def list_corpus_documents():
-        return [_document_response(d) for d in await _corpus().documents()]
+        return [corpus_ingest.document_response(d) for d in await _corpus().documents()]
 
     @api.delete("/corpus/documents/{doc_id}", status_code=204)
     async def delete_corpus_document(doc_id: str):
         if not await _corpus().delete(doc_id):
-            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Document not found.")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail=corpus_ingest.DOCUMENT_NOT_FOUND)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-    @api.get("/corpus/status")
+    @api.get("/corpus/status", response_model=CorpusStatusResponse)
     async def corpus_status():
-        info = _corpus_status_response(await _corpus().status())
-        info["corpus_only"] = corpus_only_enabled(app.state.data_dir)
-        return info
-
-    @api.put("/corpus/mode")
-    async def set_corpus_mode(payload: dict):
-        """Flip corpus-only mode. Persisted; the next run picks it up via RunConfig."""
-        corpus_only = bool(payload.get("corpus_only"))
-        save_corpus_config(app.state.data_dir, corpus_only=corpus_only)
-        logger.info("sidecar_corpus_mode", corpus_only=corpus_only)
-        return {"corpus_only": corpus_only}
+        return corpus_ingest.status_response(await _corpus().status())
 
     # -- canonical per-project corpus contract (M1.5) ---------------------------
     #
@@ -2524,7 +2503,7 @@ def create_sidecar_app(
         user: User = Depends(get_local_user),
     ):
         await _resolve_project(db, user.id, project_id)
-        return [_document_response(d) for d in await _corpus().documents()]
+        return [corpus_ingest.document_response(d) for d in await _corpus().documents()]
 
     @api.get("/projects/{project_id}/corpus/status", response_model=CorpusStatusResponse)
     async def project_corpus_status(
@@ -2533,9 +2512,7 @@ def create_sidecar_app(
         user: User = Depends(get_local_user),
     ):
         await _resolve_project(db, user.id, project_id)
-        info = _corpus_status_response(await _corpus().status())
-        info["corpus_only"] = corpus_only_enabled(app.state.data_dir)
-        return info
+        return corpus_ingest.status_response(await _corpus().status())
 
     @api.post(
         "/projects/{project_id}/corpus/documents", status_code=201, response_model=DocumentResponse
@@ -2556,30 +2533,7 @@ def create_sidecar_app(
         names it explicitly because nothing else in the sidecar's import graph pulls it in.
         """
         await _resolve_project(db, user.id, project_id)
-
-        clean_name = Path(file.filename or "").name  # metadata only; never a path
-        if not clean_name:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY, detail="filename is required."
-            )
-        body = await file.read()
-        if not body:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY, detail="The document body is empty."
-            )
-        if len(body) > MAX_DOCUMENT_BYTES:
-            raise HTTPException(
-                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"Document is {len(body)} bytes; the limit is {MAX_DOCUMENT_BYTES}.",
-            )
-        try:
-            result = await _corpus().ingest(clean_name, body)
-        except ValueError as e:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
-        except EmbeddingsUnavailable as e:
-            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
-        # Same field names as the server's DocumentResponse — see _document_response.
-        return {"id": result.doc_id, "filename": result.filename, "chunks": result.chunks_written}
+        return await corpus_ingest.ingest_document(_corpus(), file.filename, await file.read())
 
     @api.delete("/projects/{project_id}/corpus/documents/{doc_id}", status_code=204)
     async def delete_project_corpus_document(
@@ -2590,7 +2544,7 @@ def create_sidecar_app(
     ):
         await _resolve_project(db, user.id, project_id)
         if not await _corpus().delete(doc_id):
-            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Document not found.")
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail=corpus_ingest.DOCUMENT_NOT_FOUND)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @api.get("/projects/{project_id}/corpus/documents/{doc_id}/download")
@@ -2612,7 +2566,15 @@ def create_sidecar_app(
         if found is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Document not found.")
         data, filename, kind = found
-        return Response(content=data, headers=download_headers(kind, filename))
+        # `media_type` is not optional here: `download_headers` sets
+        # `X-Content-Type-Options: nosniff`, so a response with no declared type forbids
+        # the browser from guessing one. The desktop omitted it and served every document
+        # untyped.
+        return Response(
+            content=data,
+            media_type=media_type_for(kind),
+            headers=download_headers(kind, filename),
+        )
 
     # ── The research run surface ──────────────────────────────────────────────────
     #
@@ -2780,10 +2742,15 @@ def create_sidecar_app(
             async with bus.subscribe(str(run_id)) as queue:
                 while True:
                     eid, payload = await queue.get()
-                    if eid <= seen_max:
-                        continue
-                    yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
-                    seen_max = eid
+                    if eid is None:
+                        # See the session stream: an event whose durable write failed is
+                        # delivered without advancing the client's cursor.
+                        yield f"data: {json.dumps(payload)}\n\n"
+                    else:
+                        if eid <= seen_max:
+                            continue
+                        yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
+                        seen_max = eid
                     if payload.get("type") in V2_TERMINAL:
                         return
 
