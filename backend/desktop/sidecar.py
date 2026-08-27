@@ -135,6 +135,7 @@ from app.services import (
 # of a security header policy is the worst kind of duplication this repo has. It lives in
 # a stdlib-only module rather than in the server's corpus route, because importing that
 # route reaches `app.config` and this host has no server settings to build (#50).
+from app.services.delegation import delegates_to
 from app.services.document_headers import download_headers, media_type_for
 from app.services.error_responses import install_error_handlers
 from app.services.run_config import apply_demo_rule, is_scripted
@@ -2611,6 +2612,7 @@ def create_sidecar_app(
         return await _run_or_404(db, run_id, owner_id)
 
     @api.post("/runs", status_code=201)
+    @delegates_to("app.api.v1.runs:create_run")
     async def v2_create_run(
         body: V2CreateRunRequest,
         db: AsyncSession = Depends(get_db),
@@ -2629,6 +2631,7 @@ def create_sidecar_app(
         return await create_run(body, db, user, dispatcher=_dispatcher)
 
     @api.get("/runs")
+    @delegates_to("app.api.v1.runs:list_runs")
     async def v2_list_runs(
         project_id: uuid.UUID | None = None,
         archived: bool = False,
@@ -2641,16 +2644,21 @@ def create_sidecar_app(
         return await list_runs(project_id, archived, limit, db, user)
 
     @api.get("/runs/{run_id}")
+    @delegates_to("app.api.v1.runs:get_run")
     async def v2_get_run(
         run_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        from app.api.v1.runs import project_run
+        # `get_run` rather than `project_run`: this used to restate the server route's own
+        # two lines — resolve-then-project — which is a second implementation of the
+        # ownership check, however short.
+        from app.api.v1.runs import get_run
 
-        return await project_run(db, await _v2_run_or_404(db, run_id, user.id))
+        return await get_run(run_id, db, user)
 
     @api.post("/runs/{run_id}/plan-review", status_code=201)
+    @delegates_to("app.api.v1.runs:submit_plan_review")
     async def v2_submit_plan_review(
         run_id: uuid.UUID,
         body: V2PlanReviewRequest,
@@ -2662,6 +2670,7 @@ def create_sidecar_app(
         return await submit_plan_review(run_id, body, db, user, dispatcher=_dispatcher)
 
     @api.post("/runs/{run_id}/report-review", status_code=201)
+    @delegates_to("app.api.v1.runs:submit_report_review")
     async def v2_submit_report_review(
         run_id: uuid.UUID,
         body: V2ReportReviewRequest,
@@ -2775,6 +2784,7 @@ def create_sidecar_app(
         return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
 
     @api.get("/runs/{run_id}/export.md")
+    @delegates_to("app.api.v1.runs:export_markdown")
     async def v2_export_markdown(
         run_id: uuid.UUID,
         revision_version: int | None = None,
@@ -2798,6 +2808,7 @@ def create_sidecar_app(
         )
 
     @api.post("/runs/{run_id}/cancel")
+    @delegates_to("app.api.v1.runs:cancel_run")
     async def v2_cancel_run(
         run_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
@@ -2808,6 +2819,7 @@ def create_sidecar_app(
         return await cancel_run(run_id, db, user)
 
     @api.post("/runs/{run_id}/archive")
+    @delegates_to("app.api.v1.runs:archive_run")
     async def v2_archive_run(
         run_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
@@ -2818,6 +2830,7 @@ def create_sidecar_app(
         return await archive_run(run_id, db, user)
 
     @api.post("/runs/{run_id}/unarchive")
+    @delegates_to("app.api.v1.runs:unarchive_run")
     async def v2_unarchive_run(
         run_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
@@ -2851,6 +2864,7 @@ def create_sidecar_app(
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @api.get("/runs/{run_id}/bundle.json")
+    @delegates_to("app.api.v1.runs:get_bundle")
     async def v2_get_bundle(
         run_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
@@ -2861,6 +2875,7 @@ def create_sidecar_app(
         return await get_bundle(run_id, db, user)
 
     @api.get("/runs/{run_id}/verification")
+    @delegates_to("app.api.v1.runs:get_verification")
     async def v2_get_verification(
         run_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
