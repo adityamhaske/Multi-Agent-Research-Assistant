@@ -63,3 +63,46 @@ class CorpusLocator(Protocol):
         ...
 
     def delete(self, project_id: uuid.UUID) -> None: ...
+
+
+@runtime_checkable
+class MemoryIndex(Protocol):
+    """Nearest-neighbour search over project memory.
+
+    A port because the *storage* is genuinely host-specific: pgvector on the server, and
+    absent on the desktop, where project memory does not exist at all. What is NOT here is
+    everything else `app/services/memory.py` does — chunking an approved report, deciding
+    which reports count as indexed, the `status` accounting. That is product rule, it runs
+    on either dialect, and hiding it behind an interface would obscure it rather than
+    isolate anything.
+
+    `available` is read from the port, never re-derived. `memory.is_available(db)` tests
+    the SQL dialect, which is a fact about storage standing in for a fact about the
+    product; a caller writing its own dialect test is a caller that will disagree with it.
+
+    A host without memory **raises `CapabilityUnavailable`** rather than returning `[]`.
+    An empty list says "this project has nothing indexed", which is a different and false
+    claim, and it is the shape that makes a missing feature look like a working one.
+    """
+
+    @property
+    def available(self) -> bool: ...
+
+    async def nearest(
+        self,
+        db,
+        *,
+        project_id: uuid.UUID,
+        query_vector: list[float],
+        embedding_model: str,
+        limit: int,
+    ) -> list[tuple[object, float]]:
+        """`(chunk, distance)` pairs, nearest first, already filtered to this project.
+
+        Both predicates are the caller's isolation boundary and must be applied:
+        `project_id` scopes the search, and `embedding_model` keeps vectors written by a
+        different model out — they are not comparable to this query vector even at equal
+        width, and ranking them together produces confident nonsense rather than an
+        obvious error.
+        """
+        ...

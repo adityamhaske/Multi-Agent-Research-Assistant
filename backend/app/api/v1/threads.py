@@ -267,6 +267,7 @@ async def send_thread_message(
 
         retrieved = await memory.retrieve(
             db,
+            index=adapters.PgVectorMemoryIndex(),
             project_id=thread.project_id,
             query_vector=query_vector,
             embedding_model=embedder.model_id,

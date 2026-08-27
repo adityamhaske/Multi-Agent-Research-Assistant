@@ -260,6 +260,7 @@ async def _resolve_reports(db: AsyncSession, ids: list[uuid.UUID]) -> dict[uuid.
 async def retrieve(
     db: AsyncSession,
     *,
+    index,
     project_id: uuid.UUID,
     query_vector: list[float],
     embedding_model: str,
@@ -272,19 +273,17 @@ async def retrieve(
     not comparable to this query vector, and silently ranking them together would produce
     confident nonsense rather than an obvious error.
     """
-    distance = MemoryChunk.embedding.cosine_distance(query_vector).label("distance")
-    rows = (
-        await db.execute(
-            select(MemoryChunk, distance)
-            .where(
-                MemoryChunk.project_id == project_id,
-                MemoryChunk.embedding_model == embedding_model,
-                distance <= MAX_COSINE_DISTANCE,
-            )
-            .order_by(distance)
-            .limit(limit)
-        )
-    ).all()
+    # The nearest-neighbour query is `app.ports.MemoryIndex`'s. Its distance operator is
+    # pgvector's — the most dialect-specific expression in this codebase — and it used to
+    # sit here, in a module the desktop imports. Both predicates travel with the call
+    # because both are isolation boundaries, not optimisations.
+    rows = await index.nearest(
+        db,
+        project_id=project_id,
+        query_vector=query_vector,
+        embedding_model=embedding_model,
+        limit=limit,
+    )
 
     reports = await _resolve_reports(db, [chunk.source_report_id for chunk, _ in rows])
     # A chunk whose report has gone is dropped, not cited: a grounding block naming a

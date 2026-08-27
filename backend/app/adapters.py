@@ -113,6 +113,38 @@ async def redis_event_stream(pubsub):
         yield payload.get("id"), payload
 
 
+class PgVectorMemoryIndex:
+    """`MemoryIndex` over `memory_chunks`, using pgvector's cosine distance.
+
+    The one place that operator appears. It used to sit inline in
+    `app/services/memory.py`, a module both hosts import — so the domain layer carried the
+    most dialect-specific expression in the codebase, and the desktop imported it.
+    """
+
+    available = True
+
+    async def nearest(self, db, *, project_id, query_vector, embedding_model, limit):
+        from sqlalchemy import select
+
+        from app.models.memory_chunk import MemoryChunk
+        from app.services.memory import MAX_COSINE_DISTANCE
+
+        distance = MemoryChunk.embedding.cosine_distance(query_vector).label("distance")
+        rows = (
+            await db.execute(
+                select(MemoryChunk, distance)
+                .where(
+                    MemoryChunk.project_id == project_id,
+                    MemoryChunk.embedding_model == embedding_model,
+                    distance <= MAX_COSINE_DISTANCE,
+                )
+                .order_by(distance)
+                .limit(limit)
+            )
+        ).all()
+        return [(chunk, float(dist)) for chunk, dist in rows]
+
+
 class ServerCorpusLocator:
     """`CorpusLocator` for the server: one SQLite file per project, under `corpus_path`.
 

@@ -276,6 +276,28 @@ async def persist_and_publish(
     bus.append(str(session_id), payload, row_id)
 
 
+class UnavailableMemoryIndex:
+    """`MemoryIndex` for a host that has no project memory.
+
+    `memory_chunks` is pgvector-backed and excluded from this host's `create_all`
+    (`POSTGRES_ONLY_TABLES`), so there is nothing to search. Raising names the missing
+    capability; returning `[]` would say "this project has nothing indexed", which is a
+    different and false claim and the shape that makes an absent feature look like a
+    working one.
+    """
+
+    available = False
+
+    async def nearest(self, db, *, project_id, query_vector, embedding_model, limit):  # noqa: ARG002
+        from app.errors import CapabilityUnavailable
+
+        raise CapabilityUnavailable(
+            "Project memory is not available on the desktop app: it is backed by pgvector, "
+            "which this host does not have.",
+            capability="project_memory",
+        )
+
+
 async def bus_events(bus: SessionEventBus, session_id: str):
     """This host's live feed as `(id, payload)` pairs — the shape `sse_frames` consumes.
 
