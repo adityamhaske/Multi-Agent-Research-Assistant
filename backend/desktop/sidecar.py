@@ -81,6 +81,7 @@ from app.models.project import Project
 from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.schemas.auth import ConnectionVerdict, UsageResponse, UserResponse
+from app.schemas.capabilities import DESKTOP, Capabilities
 from app.schemas.corpus import CorpusStatusResponse, DocumentResponse
 from app.schemas.models import (
     CatalogResponse,
@@ -862,6 +863,17 @@ def create_sidecar_app(
 
     # ── Routes ───────────────────────────────────────────────────────────────────
     api = APIRouter(prefix="/api/v1")
+
+    @api.get("/capabilities", response_model=Capabilities)
+    async def capabilities() -> Capabilities:
+        """The desktop's answer, from the same shape the server serves.
+
+        A constant rather than something probed at request time: every one of these is a
+        property of how this host is built, not of its current state. `project_memory` is
+        false because `memory_chunks` is pgvector-backed and excluded from this host's
+        schema, and that cannot become true while the app is running.
+        """
+        return DESKTOP
 
     @api.get("/version")
     async def version():

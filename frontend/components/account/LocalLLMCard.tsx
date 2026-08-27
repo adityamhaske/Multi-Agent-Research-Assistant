@@ -9,8 +9,8 @@ import {
   useLocalLLMStatus,
   useStartLocalServer,
   useStopLocalServer,
+  useCapabilities,
 } from "@/hooks/queries";
-import { isDesktop } from "@/lib/desktop";
 import type { LocalModelInfo, PullProgress } from "@/lib/types";
 
 import { Section } from "./Section";
@@ -216,7 +216,12 @@ function PullButton({ model, disabled }: { model: string; disabled?: boolean }) 
 }
 
 export function LocalLLMCard() {
-  const { data, isLoading, isFetching } = useLocalLLMStatus(!isDesktop);
+  // `local_llm_control` is a capability the host reports: the desktop app can spawn and
+  // stop `ollama serve`, a container cannot reach the host's process table and should not.
+  // Everything below keyed off it used to read `isDesktop`, which answered "which build am
+  // I" in place of "can this host do the thing".
+  const { local_llm_control: canControlServer } = useCapabilities();
+  const { data, isLoading, isFetching } = useLocalLLMStatus(!canControlServer);
   const [expanded, setExpanded] = useState(false);
   const startServer = useStartLocalServer();
   const stopServer = useStopLocalServer();
@@ -250,7 +255,7 @@ export function LocalLLMCard() {
         </>
       }
       footer={
-        isDesktop ? (
+        canControlServer ? (
           data?.install_state === "installed_not_running" ? (
             <button
               type="button"
@@ -285,12 +290,12 @@ export function LocalLLMCard() {
               <span style={{ color: tone?.color }}>{tone?.label}</span>
             </span>
             <code className="font-mono text-xs text-text-muted">{data?.configured_base_url}</code>
-            {isFetching && !isDesktop && data?.install_state !== "running" && (
+            {isFetching && !canControlServer && data?.install_state !== "running" && (
               <span className="font-mono text-[0.6875rem] text-text-muted">checking…</span>
             )}
           </div>
 
-          {!isDesktop && data?.install_state !== "running" && <WebInstallGuide />}
+          {!canControlServer && data?.install_state !== "running" && <WebInstallGuide />}
 
           {data?.hint && (
             <p

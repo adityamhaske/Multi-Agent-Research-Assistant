@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 
-import { useCorpusStatus, useMemoryStatus } from "@/hooks/queries";
-import { isDesktop } from "@/lib/desktop";
+import { useCapabilities, useCorpusStatus, useMemoryStatus } from "@/hooks/queries";
+
 import { formatCost } from "@/lib/format";
 import type { RunSummary } from "@/lib/types";
 
@@ -40,7 +40,10 @@ export function ProjectHealth({
   runsLoading: boolean;
   runsError: boolean;
 }) {
-  const memory = useMemoryStatus(isDesktop ? undefined : projectId);
+  // Asked of the host, not inferred from the build: project memory is pgvector-backed and
+  // the desktop has none, but that is the host's fact to state.
+  const { project_memory: hasMemory } = useCapabilities();
+  const memory = useMemoryStatus(hasMemory ? projectId : undefined);
   const corpus = useCorpusStatus(projectId);
 
   const spend = runs?.reduce((total, r) => total + (r.cost_usd || 0), 0) ?? 0;
@@ -81,7 +84,7 @@ export function ProjectHealth({
               </Link>
             </div>
 
-            {isDesktop ? (
+            {!hasMemory ? (
               <p className="text-xs leading-relaxed text-text-secondary">
                 Needs Postgres with pgvector, so it isn&apos;t part of the desktop app. Your
                 reports and corpus are all here — only cross-report recall is missing.

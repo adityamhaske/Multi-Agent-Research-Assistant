@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError, apiFetch } from "@/lib/api";
+import { UNKNOWN_CAPABILITIES, type Capabilities } from "@/lib/capabilities";
 import { apiBase, authHeaders, isDesktop } from "@/lib/desktop";
 import type {
   ApiKeyProvider,
@@ -157,16 +158,43 @@ export function useTestProviderKey() {
  * nothing is stored — the caller should only enable this once a key exists.
  */
 export function useProviderHealth(provider: ApiKeyProvider | null, enabled: boolean) {
+  // The two hosts genuinely differ here, and not arbitrarily: the server stores ONE active
+  // connection and checks it, while a keychain holds one entry per provider and has to be
+  // told which. So the path takes a provider on one host and not the other.
+  //
+  // Keyed off the reported storage rather than off `isDesktop`, because that is the fact
+  // the difference actually follows from. A future host with per-provider storage gets the
+  // right path without another branch.
+  const { byok_storage } = useCapabilities();
   return useQuery({
-    queryKey: ["provider-health", provider],
+    queryKey: ["provider-health", provider, byok_storage],
     queryFn: () =>
       apiFetch<ConnectionVerdict>(
-        isDesktop ? `/models/providers/health/${provider}` : "/models/providers/health",
+        byok_storage === "os_keychain"
+          ? `/models/providers/health/${provider}`
+          : "/models/providers/health",
       ),
     enabled: enabled && !!provider,
     retry: false,
     staleTime: 30_000,
   });
+}
+
+/**
+ * What this host can do, asked once and cached for the session.
+ *
+ * `staleTime: Infinity` because every capability is a property of how the host was built,
+ * not of its current state — project memory does not appear while the app is running. The
+ * fallback is the all-off default, so a control is never offered and then withdrawn.
+ */
+export function useCapabilities(): Capabilities {
+  const { data } = useQuery({
+    queryKey: ["capabilities"],
+    queryFn: () => apiFetch<Capabilities>("/capabilities"),
+    staleTime: Infinity,
+    retry: false,
+  });
+  return data ?? UNKNOWN_CAPABILITIES;
 }
 
 export function useUsage() {

@@ -6,8 +6,9 @@ import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
-import { useLogout } from "@/hooks/queries";
-import { isDesktop } from "@/lib/desktop";
+import { useLogout,
+  useCapabilities,
+} from "@/hooks/queries";
 import type { User } from "@/lib/types";
 import { firstNameOf } from "@/lib/user";
 
@@ -23,6 +24,9 @@ export function AccountMenu({ user, collapsed = false }: { user: User; collapsed
   const router = useRouter();
   const pathname = usePathname();
   const logout = useLogout();
+  // Profile and Log out are account features; the desktop is one local user with neither.
+  // Asked of the host rather than inferred from the build flag.
+  const { accounts } = useCapabilities();
   const { resolvedTheme, setTheme } = useTheme();
 
   const [open, setOpen] = useState(false);
@@ -144,7 +148,7 @@ export function AccountMenu({ user, collapsed = false }: { user: User; collapsed
           <div className="my-1 border-t border-border/50" />
 
           {/* Nav items */}
-          {!isDesktop && (
+          {accounts && (
             <Link
               href="/profile"
               role="menuitem"
@@ -235,7 +239,7 @@ export function AccountMenu({ user, collapsed = false }: { user: User; collapsed
             </span>
           </button>
 
-          {!isDesktop && (
+          {accounts && (
             <>
               <div className="my-1 border-t border-border/50" />
 

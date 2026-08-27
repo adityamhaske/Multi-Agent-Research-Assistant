@@ -21,17 +21,15 @@ let corpusState: {
   isLoading?: boolean;
   isError?: boolean;
 };
-let desktop = false;
-
-vi.mock("@/lib/desktop", () => ({
-  get isDesktop() {
-    return desktop;
-  },
-}));
+// Whether the *host* reports project memory, not which build this is. The component used
+// to read `isDesktop`, which answered "which build am I" in place of "what can the product
+// do" — see lib/capabilities.ts.
+let hasProjectMemory = true;
 
 vi.mock("@/hooks/queries", () => ({
   useMemoryStatus: () => memoryState,
   useCorpusStatus: () => corpusState,
+  useCapabilities: () => ({ project_memory: hasProjectMemory }),
 }));
 
 function memory(overrides: Partial<MemoryStatus> = {}): Partial<MemoryStatus> {
@@ -79,7 +77,7 @@ function view(
 }
 
 beforeEach(() => {
-  desktop = false;
+  hasProjectMemory = true;
   memoryState = { data: memory(), isLoading: false, isError: false };
   corpusState = { data: { documents: 3, chunks: 90 }, isLoading: false, isError: false };
 });
@@ -187,8 +185,8 @@ describe("ProjectHealth", () => {
     expect(screen.getByText(/a re-index would bring them back/)).toBeInTheDocument();
   });
 
-  it("says project memory is absent on desktop instead of showing it as empty", () => {
-    desktop = true;
+  it("says project memory is absent when the host lacks it, instead of showing it as empty", () => {
+    hasProjectMemory = false;
     view();
     expect(screen.getByText(/isn't part of the desktop app/)).toBeInTheDocument();
     expect(screen.queryByText("Approved")).not.toBeInTheDocument();

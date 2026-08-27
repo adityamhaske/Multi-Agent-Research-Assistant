@@ -8,7 +8,12 @@ import type { User } from "@/lib/types";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/research", useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 vi.mock("next-themes", () => ({ useTheme: () => ({ resolvedTheme: "light", setTheme: vi.fn() }) }));
-vi.mock("@/hooks/queries", () => ({ useLogout: () => ({ mutate: vi.fn(), isPending: false }) }));
+vi.mock("@/hooks/queries", () => ({
+  useLogout: () => ({ mutate: vi.fn(), isPending: false }),
+  // A host WITH accounts, so the menu renders its full set — these tests are about what the
+  // chrome must never show (the address), which is the harder case to keep honest.
+  useCapabilities: () => ({ accounts: true }),
+}));
 
 const EMAIL = "ada.lovelace@analytical-engine.org";
 

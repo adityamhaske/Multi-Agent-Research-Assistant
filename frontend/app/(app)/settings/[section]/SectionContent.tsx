@@ -13,9 +13,10 @@ import { ModelPicker } from "@/components/account/ModelPicker";
 import { Field, Section } from "@/components/account/Section";
 import { ProjectsSection } from "@/components/settings/ProjectsSection";
 import { ResetToDefault } from "@/components/settings/ResetToDefault";
-import { useMe, useUpdateProfile, useUsage } from "@/hooks/queries";
+import { useMe, useUpdateProfile, useUsage,
+  useCapabilities,
+} from "@/hooks/queries";
 import { ApiError } from "@/lib/api";
-import { isDesktop } from "@/lib/desktop";
 import { formatCost, formatNumber } from "@/lib/format";
 import type { UsageWindow } from "@/lib/types";
 
@@ -61,7 +62,9 @@ function ModelsSection() {
 // lives in lib/ rather than in app/(app)/project/.
 
 function ConnectionsSection() {
-  return isDesktop ? <DesktopKeysCard /> : <ApiKeyCard />;
+  // Both hosts store provider keys; where is the difference, and the host says which.
+  const { byok_storage } = useCapabilities();
+  return byok_storage === "os_keychain" ? <DesktopKeysCard /> : <ApiKeyCard />;
 }
 
 // ─── Research ────────────────────────────────────────────────────────────────────
@@ -269,13 +272,17 @@ function AppearanceSection() {
 
 function AdvancedSection() {
   const { data: user, isLoading } = useMe();
+  const capabilities = useCapabilities();
   const { data: usage } = useUsage();
   const updateProfile = useUpdateProfile();
   const [limit, setLimit] = useState<string | null>(null);
 
-  if (isDesktop) {
+  // Spending limits are an account feature, so the question is whether this host has
+  // accounts — not whether it throttles. Those are absent for the same underlying reason
+  // today and are still two different claims.
+  if (!capabilities.accounts) {
     return (
-      <Section title="Advanced" description="Usage tracking and spending limits are account features — the desktop build has no server-side account, so there is nothing to show here.">
+      <Section title="Advanced" description="Usage tracking and spending limits are account features — this host has no server-side account, so there is nothing to show here.">
         <p className="text-sm text-text-muted">Nothing to configure.</p>
       </Section>
     );

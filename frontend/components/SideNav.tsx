@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-import { isDesktop } from "@/lib/desktop";
+import { useCapabilities } from "@/hooks/queries";
 import type { User } from "@/lib/types";
 
 import { AccountMenu } from "./AccountMenu";
@@ -70,6 +70,7 @@ function NavItem({ href, label, icon, collapsed, onClick }: NavItemProps) {
 
 export function SideNav({ user }: { user?: User }) {
   const [collapsed, setCollapsed] = useState(false);
+  const { project_chat: projectChat } = useCapabilities();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const renderNavContent = (isMobile = false) => (
@@ -167,10 +168,12 @@ export function SideNav({ user }: { user?: User }) {
           collapsed={collapsed && !isMobile}
           onClick={() => isMobile && setMobileOpen(false)}
         />
-        {!isDesktop && (
+        {/* Project chat sits on project memory, which is pgvector-backed — so the host
+            says whether it has it, rather than the build flag standing in for the answer. */}
+        {projectChat && (
           <div className="my-2 border-t border-border" aria-hidden />
         )}
-        {!isDesktop && (
+        {projectChat && (
           <NavItem
             href="/chat"
             label="Chat"
