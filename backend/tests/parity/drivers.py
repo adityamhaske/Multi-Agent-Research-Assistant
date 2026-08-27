@@ -319,22 +319,21 @@ async def server_driver(data_dir: Path):
         # deterministic implementation on both hosts is what makes the corpus comparable;
         # the store and the routes above it stay real.
         import app.adapters as adapters
-        import app.api.v1.corpus as corpus_routes
 
         shared_embedder = _embedder()
 
         async def _embeddings_for(_keys=None):
             return shared_embedder
 
-        # Two bindings, because the corpus route does `from app.adapters import
-        # embeddings_for` and therefore holds its own reference from import time. Patching
-        # only the module attribute leaves the corpus routes on the deployment default —
-        # which is how the first recorded run ended up with two different embedding models
-        # in one journey.
+        # One binding now. This used to patch `app.api.v1.corpus.embeddings_for` as well,
+        # because that route did `from app.adapters import embeddings_for` and held its own
+        # reference from import time — patching only the module attribute left the corpus
+        # routes on the deployment default, which is how the first recorded run ended up
+        # with two different embedding models in one journey. The routes go through
+        # `ServerCorpusLocator` now, which resolves its factory from this attribute when it
+        # is constructed, so there is one place to substitute.
         previous_embeddings_for = adapters.embeddings_for
-        previous_route_embeddings_for = corpus_routes.embeddings_for
         adapters.embeddings_for = _embeddings_for
-        corpus_routes.embeddings_for = _embeddings_for
 
         overrides = server_app.dependency_overrides
         previous_overrides = dict(overrides)
@@ -363,7 +362,6 @@ async def server_driver(data_dir: Path):
             overrides.clear()
             overrides.update(previous_overrides)
             adapters.embeddings_for = previous_embeddings_for
-            corpus_routes.embeddings_for = previous_route_embeddings_for
             settings.corpus_dir = previous_corpus_dir
             settings.llm_mode = previous_llm_mode
             await saver_cm.__aexit__(None, None, None)

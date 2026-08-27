@@ -18,7 +18,6 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.db.base import get_db
 from app.dependencies import get_current_user
 from app.models.agent_log import AgentLog
@@ -273,13 +272,11 @@ async def delete_project(
     # deleted project's corpus) while still holding every document and embedding that
     # was in it, contradicting the "no orphan vectors after a delete" standard the
     # project model itself documents (app/models/project.py).
-    corpus_stem = settings.corpus_path / f"corpus_{project_id}"
-    for suffix in (".sqlite", ".sqlite-wal", ".sqlite-shm"):
-        path = corpus_stem.with_name(corpus_stem.name + suffix)
-        try:
-            path.unlink(missing_ok=True)
-        except OSError as e:
-            logger.warning("corpus_cleanup_failed", project_id=str(project_id), error=str(e))
+    # Including the SQLite sidecars: removing only `.sqlite` leaves a write-ahead log
+    # holding rows that were never checkpointed. The locator knows which files those are.
+    from app.adapters import ServerCorpusLocator
+
+    ServerCorpusLocator().delete(project_id)
 
     logger.info("project_deleted", project_id=str(project_id), sessions=len(session_ids))
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -13,9 +13,8 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters import embeddings_for
+from app.adapters import ServerCorpusLocator
 from app.api.v1.projects import resolve_project
-from app.config import settings
 from app.db.base import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
@@ -40,15 +39,13 @@ router = APIRouter(prefix="/projects/{project_id}/corpus", tags=["Corpus"])
 
 
 async def _get_corpus_store(project_id: uuid.UUID) -> CorpusStore:
-    """Returns a CorpusStore instance for the given project."""
-    # `corpus_path`, not `corpus_dir`: the raw setting is relative by default and resolves
-    # against the working directory, so the same project got a different corpus depending
-    # on where the process was started from (app/config.py).
-    settings.corpus_path.mkdir(parents=True, exist_ok=True)
-    db_path = settings.corpus_path / f"corpus_{project_id}.sqlite"
-    # We resolve the embedder to whatever the deployment defaults to.
-    embedder = await embeddings_for(None)
-    return CorpusStore(db_path, embedder)
+    """This project's corpus, created if it does not exist yet.
+
+    Where it lives is `ServerCorpusLocator`'s to know — seven modules used to spell out
+    the same filename, and the last time that convention drifted, upload and run stopped
+    seeing the same corpus (AGENTS.md).
+    """
+    return await ServerCorpusLocator().ensure(project_id)
 
 
 @router.post("/documents", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)

@@ -632,15 +632,12 @@ async def _ingest_report_into_corpus(db: AsyncSession, run, report_markdown: str
     raises — see report_corpus.ingest_report's own docstring for why."""
     try:
         from app import adapters
-        from app.config import settings
         from app.run_execution import provider_keys_for
         from app.services.report_corpus import ingest_report
-        from research_engine.corpus import CorpusStore
 
-        settings.corpus_path.mkdir(parents=True, exist_ok=True)
-        db_path = settings.corpus_path / f"corpus_{run.project_id}.sqlite"
-        embedder = await adapters.embeddings_for(await provider_keys_for(db, run.owner_id))
-        store = CorpusStore(db_path, embedder)
+        store = await adapters.ServerCorpusLocator().ensure(
+            run.project_id, keys=await provider_keys_for(db, run.owner_id)
+        )
         await ingest_report(store, session_id=str(run.id), report_markdown=report_markdown)
     except Exception as e:  # noqa: BLE001 — see report_corpus.ingest_report's own docstring
         logger.warning("report_corpus_ingest_setup_failed", run_id=str(run.id), error=str(e))

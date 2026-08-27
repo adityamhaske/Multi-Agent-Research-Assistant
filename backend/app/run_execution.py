@@ -477,14 +477,15 @@ async def _corpus_port(db: AsyncSession, run: ResearchRun, ports: dict) -> str |
     reason rather than raising keeps the caller's failure path in one place.
     """
     from app import adapters
-    from app.config import settings
-    from research_engine.corpus import CorpusStore
 
     embedder = await adapters.embeddings_for(ports["provider_keys"])
     if not (embedder.model_id.startswith("ollama:") or embedder.model_id.startswith("local:")):
         return f"Corpus mode requires a local embedder (Ollama), but got {embedder.model_id}."
-    db_path = settings.corpus_path / f"corpus_{run.project_id}.sqlite"
-    if not db_path.exists():
+
+    store = await adapters.ServerCorpusLocator().for_project(
+        run.project_id, keys=ports["provider_keys"]
+    )
+    if store is None:
         return f"Corpus database not found for project {run.project_id}. Ingest documents first."
-    ports["corpus"] = CorpusStore(db_path, embedder)
+    ports["corpus"] = store
     return None

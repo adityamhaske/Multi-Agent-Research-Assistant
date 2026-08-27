@@ -112,23 +112,18 @@ async def send_message(
     # did, so it has to be resolved before the grounding is gathered.
     user_keys = _user_provider_keys(current_user)
 
-    def _corpus_store():
-        """The project's corpus, or None when it has none. Built lazily — `report` scope
-        must not touch the filesystem to answer a question about a report."""
-        from app.config import settings
-
-        db_path = settings.corpus_path / f"corpus_{session.project_id}.sqlite"
-        if not db_path.exists():
-            return None
-        from research_engine.corpus import CorpusStore
-
-        return CorpusStore(db_path, _embedder_cache["value"])
-
-    _embedder_cache: dict = {"value": None}
+    # Resolved only for the scopes that need it: `report` scope must not touch the
+    # filesystem to answer a question about a report, and must not embed anything either.
+    # `store_factory` stays a callable because that is `chat_scope.gather`'s contract; what
+    # changed is that the corpus's location is the locator's to know, not this route's.
+    store = None
     if payload.scope in ("corpus", "everything"):
         from app import adapters
 
-        _embedder_cache["value"] = await adapters.embeddings_for(user_keys)
+        store = await adapters.ServerCorpusLocator().for_project(session.project_id, keys=user_keys)
+
+    def _corpus_store():
+        return store
 
     try:
         grounding = await chat_scope.gather(

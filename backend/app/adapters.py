@@ -18,6 +18,7 @@ import asyncio
 import json
 import time
 import uuid
+from pathlib import Path  # noqa: F401  (used in annotations)
 
 import httpx
 import structlog
@@ -110,6 +111,63 @@ async def redis_event_stream(pubsub):
         except (json.JSONDecodeError, TypeError):
             continue
         yield payload.get("id"), payload
+
+
+class ServerCorpusLocator:
+    """`CorpusLocator` for the server: one SQLite file per project, under `corpus_path`.
+
+    **`corpus_path`, never `corpus_dir`.** The raw setting is relative by default and
+    resolves against the working directory, and the API and the worker are separate
+    processes with different ones — which is how a document uploaded through one became
+    invisible to the run that needed it (`AGENTS.md`). Reading it here, once, is what stops
+    that being seven modules' problem.
+    """
+
+    def __init__(self, embedder_factory=None) -> None:
+        # Injected so a test can supply a deterministic embedder without reaching a
+        # provider, and so the parity harness can pin the same one on both hosts.
+        self._embedder_factory = embedder_factory or embeddings_for
+
+    def _root(self):
+        from app.config import settings
+
+        return settings.corpus_path
+
+    def path_for(self, project_id) -> Path:
+        return self._root() / f"corpus_{project_id}.sqlite"
+
+    def paths_to_delete(self, project_id) -> list[Path]:
+        stem = self.path_for(project_id)
+        return [
+            stem.with_name(stem.name.replace(".sqlite", suffix))
+            for suffix in (".sqlite", ".sqlite-wal", ".sqlite-shm")
+        ]
+
+    async def _open(self, project_id, keys):
+        from research_engine.corpus import CorpusStore
+
+        factory = self._embedder_factory
+        embedder = factory(keys)
+        if hasattr(embedder, "__await__"):
+            embedder = await embedder
+        return CorpusStore(self.path_for(project_id), embedder)
+
+    async def for_project(self, project_id, *, keys=None):
+        return (
+            None if not self.path_for(project_id).exists() else await self._open(project_id, keys)
+        )
+
+    async def ensure(self, project_id, *, keys=None):
+        self._root().mkdir(parents=True, exist_ok=True)
+        return await self._open(project_id, keys)
+
+    def delete(self, project_id) -> None:
+        """Best effort: a corpus that cannot be removed must not fail the project delete."""
+        for path in self.paths_to_delete(project_id):
+            try:
+                path.unlink(missing_ok=True)
+            except OSError as e:  # noqa: PERF203
+                logger.warning("corpus_cleanup_failed", project_id=str(project_id), error=str(e))
 
 
 # ── Embeddings (docs/14 §4) ────────────────────────────────────────────────────────

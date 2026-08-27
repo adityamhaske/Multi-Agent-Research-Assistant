@@ -199,8 +199,6 @@ async def _execute(
                 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
                 if session.corpus_mode:
-                    from research_engine.corpus import CorpusStore
-
                     embedder = await adapters.embeddings_for(ports["provider_keys"])
                     # Egress guard: require local embedder for airgapped mode
                     if not (
@@ -216,12 +214,14 @@ async def _execute(
                         )
                         return
 
-                    # Must be `corpus_path`, matching app/api/v1/corpus.py. The worker and
-                    # the API are separate processes with their own working directories,
-                    # so resolving a relative setting independently is what let a document
-                    # upload succeed and then be invisible to the run that needed it.
-                    db_path = settings.corpus_path / f"corpus_{session.project_id}.sqlite"
-                    if not db_path.exists():
+                    # One locator, so the API and this worker — separate processes with
+                    # separate working directories — cannot resolve the same project to
+                    # different paths, which is what let an upload become invisible to the
+                    # run that needed it.
+                    store = await adapters.ServerCorpusLocator().for_project(
+                        session.project_id, keys=ports["provider_keys"]
+                    )
+                    if store is None:
                         session.status = SessionStatus.FAILED
                         session.error_message = f"Corpus database not found for project {session.project_id}. Ingest documents first."
                         await db.commit()
@@ -231,7 +231,7 @@ async def _execute(
                         )
                         return
 
-                    ports["corpus"] = CorpusStore(db_path, embedder)
+                    ports["corpus"] = store
 
                 async with AsyncPostgresSaver.from_conn_string(_checkpointer_dsn()) as saver:
                     await saver.setup()
@@ -315,14 +315,9 @@ async def _ingest_report_into_corpus(session: Session, provider_keys: dict[str, 
     """
     try:
         from app import adapters
-        from app.config import settings
         from app.services.report_corpus import ingest_report
-        from research_engine.corpus import CorpusStore
 
-        settings.corpus_path.mkdir(parents=True, exist_ok=True)
-        db_path = settings.corpus_path / f"corpus_{session.project_id}.sqlite"
-        embedder = await adapters.embeddings_for(provider_keys)
-        store = CorpusStore(db_path, embedder)
+        store = await adapters.ServerCorpusLocator().ensure(session.project_id, keys=provider_keys)
         await ingest_report(store, session_id=str(session.id), report_markdown=session.final_report)
     except Exception as e:  # noqa: BLE001 — see report_corpus.ingest_report's own docstring
         logger.warning(

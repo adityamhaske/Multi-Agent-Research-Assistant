@@ -33,7 +33,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import adapters
 from app.api.v1.projects import resolve_project
-from app.config import settings
 from app.db.base import get_db
 from app.dependencies import enforce_chat_rate_limit, get_current_user
 from app.models.chat_message import ChatMessage
@@ -274,15 +273,16 @@ async def send_thread_message(
         )
         excerpts, citations = _grounding(retrieved)
 
-    def _corpus_store():
-        """This project's uploaded corpus, or None. Built lazily so a scope that never
-        reads it does not touch the filesystem."""
-        db_path = settings.corpus_path / f"corpus_{thread.project_id}.sqlite"
-        if not db_path.exists():
-            return None
-        from research_engine.corpus import CorpusStore
+    # Resolved only for the scopes that read it, so one that never does still does not
+    # touch the filesystem. `for_project` answers `None` when this project has no corpus.
+    corpus_store = None
+    if scope in ("report", "corpus", "everything"):
+        from app.adapters import ServerCorpusLocator
 
-        return CorpusStore(db_path, embedder)
+        corpus_store = await ServerCorpusLocator().for_project(thread.project_id, keys=keys)
+
+    def _corpus_store():
+        return corpus_store
 
     if scope in ("report", "everything") and not excerpts:
         store = _corpus_store()
