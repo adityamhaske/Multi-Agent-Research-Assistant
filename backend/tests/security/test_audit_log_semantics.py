@@ -23,13 +23,17 @@ from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parent.parent.parent
 
-#: The complete set of writers, by file and enclosing function. Server and desktop hosts
-#: write the same two decisions each: one at the design gate, one at the report gate.
+#: The complete set of writers, by file and enclosing function: one at the design gate, one
+#: at the report gate.
+#:
+#: **Two entries, not four.** The desktop used to restate both gate routes and therefore
+#: wrote its own audit rows; it delegates to these two now (plan phase 7), so the record of
+#: who approved what has one implementation instead of two kept in step by hand. An audit
+#: trail is the one thing in this product that must not have a second home — it is what
+#: `verify_bundle`'s `approval_chain` check reads.
 EXPECTED_WRITERS = {
     ("app/api/v1/research.py", "submit_plan"),
     ("app/api/v1/research.py", "approve_or_rework"),
-    ("desktop/sidecar.py", "submit_plan"),
-    ("desktop/sidecar.py", "approve_or_rework"),
 }
 
 #: Every module that could plausibly write one. Scanned in full, so a new writer added

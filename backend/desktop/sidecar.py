@@ -1535,59 +1535,44 @@ def create_sidecar_app(
 
     _dispatcher = _SidecarDispatcher()
 
+    class _SidecarSessionDispatcher:
+        """`SessionDispatcher` for this host: an asyncio task instead of a broker message.
+
+        The session counterpart of `_SidecarDispatcher`, and it exists for the same reason:
+        with it, the handlers in `app/api/v1/research.py` can be shared verbatim, so every
+        ordering rule they encode holds identically on both hosts instead of being restated
+        here and kept in step by hand.
+        """
+
+        async def start(self, session_id: str, user_id: str) -> None:
+            asyncio.create_task(_drive_session(uuid.UUID(session_id), approved=None, feedback=None))
+
+        async def resume_plan(self, session_id: str, user_id: str, plan: dict) -> None:
+            asyncio.create_task(_drive_session(uuid.UUID(session_id), plan=plan))
+
+        async def resume_review(self, session_id, user_id, approved, feedback) -> None:
+            asyncio.create_task(
+                _drive_session(uuid.UUID(session_id), approved=approved, feedback=feedback)
+            )
+
+    _session_dispatcher = _SidecarSessionDispatcher()
+
     @api.post("/research", response_model=ResearchStartResponse, status_code=202)
+    @delegates_to("app.api.v1.research:start_research")
     async def start_research(
         payload: ResearchStartRequest,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        # Per-run model choice, validated here so an unroutable model is rejected before
-        # a session exists — same contract as the server (`app/api/v1/research.py`).
-        # None means "use my saved settings"; `start_research` previously accepted this
-        # field and then never read it again, so a request that did NOT omit it still
-        # ran on the saved settings — the same "accepted by the schema, dropped on the
-        # floor" bug `corpus_mode`/`demo` document just below.
-        routing = None
-        if payload.model_routing:
-            try:
-                routing = validate_routing(payload.model_routing)
-            except ValueError as e:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
+        """`_rl=None`: the rate-limit dependency is a server concern this host does not
+        have (`rate_limits: false` in its capabilities), and passing None is how a
+        positional call declines a `Depends` it does not want.
+        """
+        from app.api.v1.research import start_research
 
-        project = await _resolve_project(db, user.id, payload.project_id)
-        session = Session(
-            user_id=user.id,
-            project_id=project.id,
-            prompt=payload.query,
-            status=SessionStatus.PENDING,
-            research_depth=payload.depth,
-            model_routing=routing,
-            # Both were accepted by the request schema and then dropped, exactly as they
-            # were on the server path: the session silently took the column default, so
-            # "restrict to corpus" ran an ordinary search and a demo run produced an
-            # unstamped report indistinguishable from real research.
-            corpus_mode=payload.corpus_mode,
-            demo=payload.demo,
-            # Research design gate (docs/07 §2, Phase 4). Third home of the
-            # request→`Session(...)` contract, and the one AGENTS.md records as having
-            # been wrong all three times; server counterpart is `api/v1/research.py`.
-            skip_plan_gate=payload.skip_plan_gate,
-            topic_seeds=payload.topic_seeds or None,
-            outline_template=payload.outline_template,
-        )
-        db.add(session)
-        await db.commit()
-        await db.refresh(session)
-        # PENDING, matching the server: the row is created, then handed to whatever drives
-        # it, and the driver moves it to RUNNING. This host used to stamp RUNNING here, so
-        # `POST /research` answered a different status on each host for the same request —
-        # found by the parity suite the moment the session journey became recordable on
-        # both. `_drive_session` sets RUNNING exactly as the Celery task does.
-        asyncio.create_task(_drive_session(session.id, approved=None, feedback=None))
-        logger.info("sidecar_research_started", session_id=str(session.id))
-        return ResearchStartResponse(session_id=session.id, status=session.status)
-
+        return await start_research(payload, db, user, None, _session_dispatcher)
     @api.get("/research", response_model=SessionListResponse)
+    @delegates_to("app.api.v1.research:list_sessions")
     async def list_sessions(
         page: int = 1,
         limit: int = 20,
@@ -1596,40 +1581,19 @@ def create_sidecar_app(
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        limit = max(1, min(limit, 100))
-        filters = [
-            Session.user_id == user.id,
-            Session.archived_at.is_not(None) if archived else Session.archived_at.is_(None),
-        ]
-        if project_id is not None:
-            filters.append(Session.project_id == project_id)
-        base = select(Session).where(*filters)
-        total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
-        rows = (
-            (
-                await db.execute(
-                    base.order_by(Session.created_at.desc()).offset((page - 1) * limit).limit(limit)
-                )
-            )
-            .scalars()
-            .all()
-        )
-        return SessionListResponse(
-            sessions=[SessionSummary.model_validate(s) for s in rows],
-            total=total,
-            page=page,
-            limit=limit,
-        )
+        from app.api.v1.research import list_sessions
 
+        return await list_sessions(page, limit, archived, project_id, db, user)
     @api.get("/research/{session_id}", response_model=SessionDetail)
+    @delegates_to("app.api.v1.research:get_session")
     async def get_session(
         session_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        session = await _authorized_session(db, session_id, user.id)
-        return SessionDetail.model_validate(session)
+        from app.api.v1.research import get_session
 
+        return await get_session(session_id, db, user)
     @api.get("/research/{session_id}/stream")
     async def stream_events(
         session_id: uuid.UUID,
@@ -1718,132 +1682,41 @@ def create_sidecar_app(
         return [OutlineTemplateSchema.model_validate(t) for t in outlines.catalog()]
 
     @api.get("/research/{session_id}/plan", response_model=PlanResponse)
+    @delegates_to("app.api.v1.research:get_plan")
     async def get_plan(
         session_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        session = await _authorized_session(db, session_id, user.id)
-        if session.plan_json is None:
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND,
-                detail=(
-                    "This session has no research plan to review — it did not use the design gate."
-                ),
-            )
-        return _plan_response(session)
+        from app.api.v1.research import get_plan
 
+        return await get_plan(session_id, db, user)
     @api.post("/research/{session_id}/plan", response_model=PlanResponse)
+    @delegates_to("app.api.v1.research:submit_plan")
     async def submit_plan(
         session_id: uuid.UUID,
         payload: PlanDecisionRequest,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        session = await _authorized_session(db, session_id, user.id)
-        if session.status != SessionStatus.AWAITING_PLAN:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                detail=f"Session must be AWAITING_PLAN (currently {session.status}).",
-            )
+        """The design gate. Every rule it encodes — the 409 when the thread is not
+        suspended at the matching interrupt, "None means unedited", writing the decision
+        before resuming — is the server's, not a second copy kept in step by hand.
+        """
+        from app.api.v1.research import submit_plan
 
-        proposed = (session.plan_json or {}).get("tasks") or []
-        tasks = [t.model_dump() for t in payload.tasks] if payload.tasks is not None else proposed
-        outline = (
-            [s.model_dump() for s in payload.outline]
-            if payload.outline is not None
-            else (session.outline_json or {}).get("sections") or []
-        )
-        kept = [t for t in tasks if t.get("include", True)]
-        if not kept:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Keep at least one task — a plan with nothing in it researches nothing.",
-            )
-
-        session.plan_json = {"tasks": kept}
-        session.outline_json = {"sections": outline}
-        session.plan_approved_at = datetime.now(UTC)
-        # Second home of `app/api/v1/research.py::submit_plan`'s audit row, and hashed the
-        # same way, so the bundle's approval chain carries the design decision on this host
-        # too. The sidecar recorded neither gate's decision until M0C — the table existed
-        # (create_all builds it from `app.models`) and stayed empty.
-        db.add(
-            AuditLog(
-                session_id=session.id,
-                user_id=user.id,
-                action="plan_approved",
-                feedback=None,
-                draft_hash=hashlib.sha256(
-                    json.dumps({"tasks": kept, "outline": outline}, sort_keys=True).encode("utf-8")
-                ).hexdigest(),
-            )
-        )
-        session.status = SessionStatus.RUNNING
-        await db.commit()
-        await db.refresh(session)
-
-        asyncio.create_task(_drive_session(session_id, plan={"tasks": kept, "outline": outline}))
-        logger.info("sidecar_plan_approved", session_id=str(session_id), task_count=len(kept))
-        return _plan_response(session)
-
+        return await submit_plan(session_id, payload, db, user, _session_dispatcher)
     @api.post("/research/{session_id}/approve")
+    @delegates_to("app.api.v1.research:approve_or_rework")
     async def approve_or_rework(
         session_id: uuid.UUID,
         payload: ApprovalRequest,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        session = await _authorized_session(db, session_id, user.id)
-        if session.status != SessionStatus.AWAITING_APPROVAL:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                detail=f"Session must be AWAITING_APPROVAL (currently {session.status}).",
-            )
-        if not payload.approved and session.rework_count >= 3:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                detail="Rework limit reached. Approve or abandon this session.",
-            )
-        # The load-bearing half of the bundle's approval chain, and the reason a desktop
-        # bundle can be verified at all: `verify_bundle._check_approval_chain` fails a
-        # bundle whose chain is empty ("this report was never human-reviewed"), and fails
-        # again unless an `approved` entry's `draft_hash` equals the report hash.
-        #
-        # Hashed over `draft_report` exactly as the server does, which links because
-        # `finalizer_node` sets `final_report = draft_report` — so the text a human
-        # approved and the text the bundle carries are the same bytes.
-        #
-        # Written before the run is resumed, matching the server: a human's decision is
-        # evidence, and evidence is recorded when it is made, not after the work it
-        # authorises has succeeded.
-        db.add(
-            AuditLog(
-                session_id=session.id,
-                user_id=user.id,
-                action="approved" if payload.approved else "rework_requested",
-                feedback=None if payload.approved else payload.feedback,
-                draft_hash=hashlib.sha256((session.draft_report or "").encode("utf-8")).hexdigest(),
-            )
-        )
-        session.status = SessionStatus.RUNNING
-        session.rework_count = session.rework_count + (0 if payload.approved else 1)
-        await db.commit()
-        asyncio.create_task(
-            _drive_session(session_id, approved=payload.approved, feedback=payload.feedback)
-        )
-        return {"message": "Approved. Finalizing." if payload.approved else "Rework requested."}
+        from app.api.v1.research import approve_or_rework
 
-    # ── Follow-up chat (docs/07 §2, Phase 5) ───────────────────────────────────
-    # Second home of `app/api/v1/chat.py`. The sidecar had none of this, while the
-    # desktop build rendered `ChatPanel.tsx` and POSTed to it — a shipped control that
-    # 404'd. Three things differ from the server and nothing else should:
-    #   * keys come from the OS keychain, not a `crypto.decrypt` of a DB column;
-    #   * no rate-limit dependency — `enforce_chat_rate_limit` needs `get_current_user`
-    #     and Redis, and this host is one local user with neither;
-    #   * the corpus is a single `corpus.sqlite` for the whole app, already built at
-    #     boot, rather than one file per project. Reuse it; do not rebuild a path.
-
+        return await approve_or_rework(session_id, payload, db, user, _session_dispatcher)
     @api.get("/research/{session_id}/chat", response_model=list[ChatMessageSchema])
     async def chat_history(
         session_id: uuid.UUID,
@@ -1964,31 +1837,15 @@ def create_sidecar_app(
         return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
 
     @api.get("/research/{session_id}/export.md")
+    @delegates_to("app.api.v1.research:export_markdown")
     async def export_markdown(
         session_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        session = await _authorized_session(db, session_id, user.id)
-        report = session.final_report or session.draft_report
-        if not report:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No report available to export.")
-        # Demo-stamped exactly as the server stamps it (#52). Both hosts call the same
-        # `bundle.stamp_demo_md`, so the rule has one implementation rather than two that
-        # have to be kept in step by discipline. The desktop `.md` shipped unstamped for a
-        # whole release while docs/29 promised every export path stamps — an unmarked
-        # fixture report leaving the app is the one thing the demo flag exists to prevent.
-        # The bundle stays unstamped on both hosts: prose in the report body would break
-        # `report_hash` against the approval chain.
-        report = bundle.stamp_demo_md(report, demo=bool(session.demo))
-        report += bundle.render_model_attribution_md(session.model_routing)
-        filename = f"research-{str(session.id)[:8]}.md"
-        return Response(
-            content=report,
-            media_type="text/markdown; charset=utf-8",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-        )
+        from app.api.v1.research import export_markdown
 
+        return await export_markdown(session_id, db, user)
     @api.get("/research/{session_id}/export.bundle.json")
     async def export_bundle_json(
         session_id: uuid.UUID,
@@ -2159,56 +2016,35 @@ def create_sidecar_app(
         return SessionSummary.model_validate(session)
 
     @api.post("/research/{session_id}/archive", response_model=SessionSummary)
+    @delegates_to("app.api.v1.research:archive_session")
     async def archive_session(
         session_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        session = await _authorized_session(db, session_id, user.id)
-        if session.archived_at is None:
-            session.archived_at = datetime.now(UTC)
-            await db.commit()
-            await db.refresh(session)
-        return SessionSummary.model_validate(session)
+        from app.api.v1.research import archive_session
 
+        return await archive_session(session_id, db, user)
     @api.post("/research/{session_id}/unarchive", response_model=SessionSummary)
+    @delegates_to("app.api.v1.research:unarchive_session")
     async def unarchive_session(
         session_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        session = await _authorized_session(db, session_id, user.id)
-        if session.archived_at is not None:
-            session.archived_at = None
-            await db.commit()
-            await db.refresh(session)
-        return SessionSummary.model_validate(session)
+        from app.api.v1.research import unarchive_session
 
+        return await unarchive_session(session_id, db, user)
     @api.delete("/research/{session_id}", status_code=204)
+    @delegates_to("app.api.v1.research:delete_session")
     async def delete_session(
         session_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        session = await _authorized_session(db, session_id, user.id)
-        if session.status == SessionStatus.RUNNING:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                detail="This session is still running. Wait for it to finish before deleting.",
-            )
-        # Explicit and guarded — see `memory.purge_report`. The relationship no
-        # longer cascades, because a cascade promises a table one host does not have.
-        await memory.purge_report(db, session_id)
-        await db.delete(session)
-        await db.commit()
-        try:
-            await app.state.sidecar["saver"].adelete_thread(str(session_id))
-        except Exception as e:  # noqa: BLE001 — the rows are gone; log and move on
-            logger.warning("checkpoint_cleanup_failed", session_id=str(session_id), error=str(e))
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        from app.api.v1.research import delete_session
 
-    # -- models -----------------------------------------------------------------
-
+        return await delete_session(session_id, db, user)
     @api.get("/models", response_model=CatalogResponse)
     async def get_catalog(user: User = Depends(get_local_user)):  # noqa: ARG001
         """The picker's catalog. Availability is judged by keys, desktop-style:

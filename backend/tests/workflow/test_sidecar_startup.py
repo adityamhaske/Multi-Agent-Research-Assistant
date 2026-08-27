@@ -192,6 +192,8 @@ LAZY_REQUEST_IMPORTS = (
     # its own dispatcher — but it does import it, so it has to stay free of `celery` at
     # module scope exactly as it was when it lived in `app.run_dispatch`.
     "app.workers.dispatch",
+    # Phase 7: the desktop delegates its session routes the way it delegates `/runs`.
+    "app.api.v1.research",
 )
 
 

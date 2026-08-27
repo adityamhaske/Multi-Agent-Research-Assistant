@@ -44,6 +44,18 @@ SHARED_OWNERSHIP: dict[str, str] = {
     "POST /runs/{run_id}/unarchive": "app.api.v1.runs",
     "GET /runs/{run_id}/bundle.json": "app.api.v1.runs",
     "GET /runs/{run_id}/verification": "app.api.v1.runs",
+    # The session surface, delegated in Phase 7. The desktop restated all of this — roughly
+    # 700 lines — and the two copies were kept in step by a note in AGENTS.md.
+    "POST /research": "app.api.v1.research",
+    "GET /research": "app.api.v1.research",
+    "GET /research/{session_id}": "app.api.v1.research",
+    "GET /research/{session_id}/plan": "app.api.v1.research",
+    "POST /research/{session_id}/plan": "app.api.v1.research",
+    "POST /research/{session_id}/approve": "app.api.v1.research",
+    "POST /research/{session_id}/archive": "app.api.v1.research",
+    "POST /research/{session_id}/unarchive": "app.api.v1.research",
+    "DELETE /research/{session_id}": "app.api.v1.research",
+    "GET /research/{session_id}/export.md": "app.api.v1.research",
 }
 
 #: Shared operations whose two hosts legitimately run different code, with the reason.
@@ -155,6 +167,66 @@ def test_every_declared_divergence_is_still_divergent(hosts):
 def test_every_declared_divergence_states_a_reason(hosts):
     for operation, reason in DIVERGENT_BY_DESIGN.items():
         assert len(reason) > 40, f"{operation} needs a real reason, not {reason!r}"
+
+
+SESSION_DIVERGENT: dict[str, str] = {
+    "POST /research/{session_id}/cancel": (
+        "plan phase 7 — cancelling publishes a terminal event, and publishing is the host's: "
+        "the server writes to Redis and the desktop to its in-process bus. Everything else "
+        "about the route is already identical; sharing it needs the EventSink behind a port. "
+        "Delegating it without that made the desktop raise 'Redis pool not initialized'"
+    ),
+    "GET /research/{session_id}/stream": (
+        "by design — same as the run stream: the frame generator is shared "
+        "(app/services/event_stream.py) and what differs is where the backlog is read and "
+        "what the live feed is, which is the infrastructure difference itself"
+    ),
+    "GET /research/{session_id}/export.bundle.json": (
+        "plan phase 7 — the session bundle reads evidence from the LangGraph checkpoint, "
+        "and the saver is the host's: AsyncPostgresSaver against AsyncSqliteSaver. Sharing "
+        "it needs the checkpoint read behind a port"
+    ),
+    "GET /research/{session_id}/export.pdf": (
+        "capability difference — server_pdf is false on the desktop, which prints through "
+        "the WebView; reclassified in plan phase 10"
+    ),
+    "GET /research/{session_id}/chat": (
+        "plan phase 7 — chat resolves provider keys per host (decrypted column against the "
+        "OS keychain) and picks a corpus store differently; the grounding itself is already "
+        "shared through app/services/chat_scope.py"
+    ),
+    "POST /research/{session_id}/chat": ("plan phase 7 — see the chat history route above"),
+    "GET /research/outline-templates": (
+        "trivially duplicated — both return research_engine.outlines.TEMPLATES verbatim; "
+        "worth folding in when the session routes finish moving"
+    ),
+}
+
+
+def test_no_session_operation_is_unaccounted_for(hosts):
+    """Same rule as the run surface: declared shared and proved by identity, or declared
+    divergent with a reason. There is no third category."""
+    server, desktop = hosts
+    shared = {
+        op for op in set(server) & set(desktop) if op.split(" ", 1)[1].startswith("/research")
+    }
+    unaccounted = shared - set(SHARED_OWNERSHIP) - set(SESSION_DIVERGENT)
+    assert not unaccounted, (
+        "These session operations exist on both hosts and nobody has said whether they "
+        f"share an implementation: {sorted(unaccounted)}"
+    )
+
+
+def test_every_declared_session_divergence_is_still_divergent(hosts):
+    server, desktop = hosts
+    resolved = {
+        op
+        for op in SESSION_DIVERGENT
+        if op in server
+        and op in desktop
+        and canonical_owner(server[op]) is canonical_owner(desktop[op])
+    }
+    assert not resolved, f"Now shared — remove from SESSION_DIVERGENT: {sorted(resolved)}"
 
 
 def test_no_run_operation_is_unaccounted_for(hosts):

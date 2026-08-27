@@ -85,13 +85,22 @@ def test_both_hosts_route_markdown_export_through_the_shared_rule():
 
     assert "stamp_demo_md" in _calls_in(inspect.getsource(server._report_or_404), "_report_or_404")
 
-    import desktop.sidecar as sidecar
+    # The desktop's `.md` export no longer has a body of its own to inspect: it delegates
+    # to the server's route (plan phase 7), so the rule cannot be missing from one host
+    # without being missing from both. Asserted by identity, which is stronger than the
+    # source check this used to make — a second implementation could have called
+    # `stamp_demo_md` and still drifted in some other way.
+    import tempfile
 
-    src = inspect.getsource(sidecar)
-    export_md = src[src.index("    async def export_markdown") :]
-    export_md = export_md[: export_md.index("\n    @api.")]
-    assert "stamp_demo_md" in _calls_in(export_md, "export_markdown"), (
-        "desktop .md export no longer calls the shared demo-stamp rule"
+    from app.services.delegation import canonical_owner
+    from desktop.sidecar import create_sidecar_app
+    from tests.workflow.test_one_canonical_owner import _endpoints
+
+    desktop = _endpoints(create_sidecar_app(data_dir=tempfile.mkdtemp(), token="stamp", fake=True))
+    owner = canonical_owner(desktop["GET /research/{session_id}/export.md"])
+    assert owner is server.export_markdown, (
+        "the desktop .md export is no longer the server's, so the demo-stamp rule has two "
+        "homes again"
     )
 
 
