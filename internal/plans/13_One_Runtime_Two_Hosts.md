@@ -378,24 +378,37 @@ identity-and-models, a full research run, and a full research session.
 | Remaining | State |
 |---|---|
 | **Phase 5** P9 `SecretStore` | worth doing — four `crypto.decrypt` sites on the server |
-| **Phase 5** P11 `RoutingStore` | **not worth building.** One home per host already; a port would be abstraction with no duplication to remove, which the plan's own §5 forbids |
+| **Phase 5** P11 `RoutingStore` | **not worth building.** One home per host already; a port would be abstraction with no duplication to remove, which §5 forbids |
 | **Phase 6** moving the run handlers into `app/handlers/` | ownership is already proven by identity, so this buys layering purity rather than parity |
-| **Phase 7** moving the session journey | the baseline exists now. This is where the real duplication lives — ~700 lines of `sidecar.py` |
-| **Phase 8** projects, corpus, models | not started |
+| **Phase 7** the last four session routes | each recorded with why, below |
+| **Phase 8** projects, corpus, models | not started — the same delegation the session surface just had |
 | **Phase 11** release orchestration | **not written, deliberately** |
 
-**Phase 9's packaging half is written and unrun.** The spec names `research_engine._build`
-and `desktop.yml` stamps before `pyinstaller`; neither has executed. **The assertion that
-the SHA reaches the shipped bundle is still owed.**
+**Phase 7 is substantially done.** Ten session routes delegate to
+`app/api/v1/research.py`; `test_one_canonical_owner` proves it by object identity.
+`sidecar.py` is 2,851 lines, from 3,015. The audit trail in particular now has one
+implementation — that is what `verify_bundle`'s `approval_chain` check reads, and it is
+the last thing in this product that should have a second home.
 
-**Phase 11 stays unwritten.** Its acceptance is `release-artifact-revision` mounting a
-`.dmg` on a macOS runner. Its one change with real blast radius — removing `desktop.yml`'s
-`release` job — only fails during a release. One tag push verifies it; nothing here can.
+Four session routes did not delegate, and the reasons are in `SESSION_DIVERGENT`:
 
-**A recorded limit in the harness:** the session journey omits `export.bundle.json`,
-because that route reads evidence from the LangGraph checkpoint and on the server that is
-`AsyncPostgresSaver`. Closing it needs the server driver on Postgres. The *run* bundle is
-covered — it reads the `evidence` table.
+| Route | Why |
+|---|---|
+| `cancel` | publishing the terminal event is the host's — Redis vs an in-process bus. Needs the `EventSink` behind a port |
+| `export.bundle.json` | reads evidence from the LangGraph checkpoint, and the saver is the host's |
+| `chat` (2 routes) | resolves provider keys per host — decrypted column vs OS keychain |
+| `stream` | the frame generator is already shared; the backlog source and live feed are the infrastructure difference itself |
+
+I delegated `cancel` first and the tests caught it — "Redis pool not initialized". That is
+the ladder working: a move is gated on the behaviour, not on looking right.
+
+**Phase 9's packaging half is written and unrun**, and **Phase 11 stays unwritten**. Both
+need a macOS runner and a real build. The assertion that the SHA reaches the shipped bundle
+is still owed.
+
+**A recorded harness limit:** the session journey omits `export.bundle.json`, because that
+route reads the checkpoint and on the server that is `AsyncPostgresSaver` while this driver
+is SQLite-backed. The *run* bundle is covered.
 
 #### What the checks found, in order
 
@@ -418,6 +431,10 @@ Every one was surfaced by a check written in the phase before it.
 | 13 | `POST /research` answered a different status on each host |
 | 14 | `_drive_session` never set `RUNNING`, so a desktop session showed "Pending" for its whole run |
 | 15 | Project-memory ingest attempted a write on a host without the table, then rolled back under its caller |
+| 16 | `cancel` cannot be shared without an `EventSink` port — found by delegating it and watching it fail |
+
+Twelve of the sixteen were not in the original audit. Every one was surfaced by a check
+written in the phase before it.
 
 ---
 
