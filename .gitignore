@@ -87,3 +87,4 @@ future-plans/
 # explanation of how this works is README.md and docs/, and a second one in the tree would
 # drift from them silently.
 /PRESENTATION.md
+backend/research_engine/_build.py

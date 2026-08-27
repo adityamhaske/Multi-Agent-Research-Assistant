@@ -143,6 +143,7 @@ from app.services.run_config import apply_demo_rule, is_scripted
 from app.services.session_events import lifecycle_event
 from app.services.sse import SSE_HEADERS
 from research_engine import bundle, catalog, citation_rate, outlines, prompts
+from research_engine.build_info import build_info
 from research_engine.corpus import CorpusStore
 from research_engine.embeddings import EmbeddingsUnavailable, LocalEmbeddings
 from research_engine.events import make_event
@@ -861,6 +862,18 @@ def create_sidecar_app(
 
     # ── Routes ───────────────────────────────────────────────────────────────────
     api = APIRouter(prefix="/api/v1")
+
+    @api.get("/version")
+    async def version():
+        """The same payload the server serves, from the same reader.
+
+        This is what makes an installed `.dmg` traceable: a developer opens Settings and
+        reads the commit that produced the bundle they are running. It is behind the
+        per-launch token like every other route here — not because the contents are
+        sensitive, but because this host's boundary is "one token, no exceptions" and a
+        second rule is a second thing to get wrong (docs/13 §7).
+        """
+        return build_info().as_dict()
 
     @api.get("/auth/me", response_model=UserResponse)
     async def me(user: User = Depends(get_local_user)):

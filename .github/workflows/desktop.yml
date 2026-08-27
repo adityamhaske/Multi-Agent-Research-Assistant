@@ -35,6 +35,11 @@ jobs:
       - name: Install dependencies
         working-directory: backend
         run: pip install -r requirements.txt pyinstaller
+      # Before pyinstaller, not after: `research-sidecar.spec` names `research_engine._build`
+      # as a hidden import, and the module has to exist for the frozen app to carry its own
+      # commit. Without it the packaged app answers `unknown` when asked what it is.
+      - name: Stamp the build with this commit
+        run: python scripts/stamp_build.py
       - name: Build one-dir bundle
         working-directory: backend
         run: pyinstaller desktop/research-sidecar.spec --noconfirm

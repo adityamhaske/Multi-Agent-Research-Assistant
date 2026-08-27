@@ -159,6 +159,20 @@ jobs:
         continue-on-error: true
         run: npm audit --audit-level=critical
 
+  version-consistency:
+    name: One version, everywhere
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      # No dependencies: the script reads files and compares strings. Keeping it that way
+      # is deliberate — a consistency check that needs the app to import is a check that
+      # stops running the moment the app stops importing.
+      - name: VERSION agrees with every derived constant
+        run: python scripts/sync_version.py
+
   golden-e2e:
     runs-on: ubuntu-latest
     needs: [backend, frontend]

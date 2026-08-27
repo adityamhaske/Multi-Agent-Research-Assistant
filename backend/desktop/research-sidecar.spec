@@ -55,6 +55,13 @@ hiddenimports = [
     # which PyInstaller's module-level scan does not see.
     "pypdf",
     "numpy",
+    # The build stamp (scripts/stamp_build.py), which `research_engine.build_info` imports
+    # inside a function so an unstamped source checkout can answer `unknown` instead of
+    # failing. That same deferral hides it from the static scan, so it has to be named —
+    # and `scripts/stamp_build.py` must run BEFORE pyinstaller, or the module does not
+    # exist and the packaged app reports `unknown` for its own commit, which is the one
+    # thing this whole mechanism exists to prevent.
+    "research_engine._build",
 ]
 
 # OS keychain backends are chosen at runtime by keyring; ship them all and let
