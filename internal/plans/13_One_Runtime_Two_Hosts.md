@@ -358,9 +358,10 @@ these routes will meet it.
 
 ---
 
-### 0.10 Phases 5 and 6 — what landed
+### 0.10 Where this stands
 
-**912 passed / 90 skipped; ruff clean; parity goldens unmoved.** Six commits on `main`.
+**937 passed / 90 skipped; ruff clean; parity goldens unmoved from Phase 2b onward.**
+Ten commits on `main`.
 
 | Commit | |
 |---|---|
@@ -369,55 +370,59 @@ these routes will meet it.
 | `ca060db` | canonical ownership proved by identity |
 | `16d3e58` | the dispatch port stops shipping the server's adapter |
 | `a0f242f` | four SSE loops → one, testable for the first time |
+| `63a0df7` | P10 `CorpusLocator` — one home per host |
+| `3c5452d` | P12 `MemoryIndex` — the pgvector query leaves the domain layer |
+| `1d4935a` | Phase 9 — one version constant, and a build that knows its commit |
 
-**The demo rule.** `AGENTS.md` names three homes; there were four. `is_scripted` is the
-rule, `apply_demo_rule` is the rule plus the config edit. The predicate is separate because
-the desktop needs the answer *before* it can build a config — `sidecar_run_config` branches
-for a scripted run and raises when a real one has no key — so deciding it inline there would
-have been a fifth home. Tested structurally *and* over the AST: no host may still write the
-branch, even unused.
+#### Done
 
-**Canonical ownership.** Identity, which agreement cannot fake. `@delegates_to` takes a
-`"module:function"` string, not the function: holding the object would resolve
-`app.api.v1.runs` at import time and reintroduce #50. Three guards keep it honest — the
-walker is asserted to have found the run surface, every `/runs` operation must be declared
-shared or divergent-with-a-reason so the list cannot be kept short by omission, and a
-divergence that becomes shared must leave. It found one immediately: `GET /runs/{run_id}`
-delegated to `project_run` on the desktop and `get_run` on the server, because the desktop
-had restated the server route's own resolve-then-project pair.
-
-**The dispatch port.** `test_layer_boundaries`' one recorded violation, closed.
-`CeleryDispatcher` moved to `app/workers/dispatch.py`; `app/run_dispatch.py` is the protocol
-and nothing else. Safe for the bundle because `app/workers` has no `__init__.py`.
-`KNOWN_EXCEPTIONS` is empty.
-
-**The streams.** Four copies of one loop, none of them callable — each a closure inside a
-route over a Redis subscription or an in-process bus, which is why `test_stream_replay_rules`
-asserted the rule by *reading their source*. `app/services/event_stream.py` is the loop and
-`test_sse_frames` drives it: eleven behaviours that were previously encoded four times and
-checked by grep. What stays per host is what genuinely differs — where the backlog is read,
-and what the live feed is.
-
-While wiring it I put `from app import adapters` at module scope in `app/api/v1/runs.py`
-and caught it: that file imports `adapters` *inside* functions on purpose, because the
-desktop loads it at request time and `adapters` reaches `app.config` and `app.db.redis`.
-The tests passed either way. It is deferred, with the reason written down.
-
-#### Not done, and why
-
-| Remaining | Blocked by |
+| Phase | |
 |---|---|
-| **Phase 5** ports P9 `SecretStore`, P10 `CorpusLocator`, P11 `RoutingStore`, P12 `MemoryIndex` | scope. P12 is the one that moves the pgvector query out of the domain layer |
-| **Phase 6** moving the 14 run handlers into `app/handlers/` | scope. `app/handlers/` is still empty; the layer rule is declared and holds vacuously |
-| **Phase 7** the session journey | the largest behavioural surface in the plan, specified as four gated commits |
-| **Phase 8** projects, corpus, models | after 6–7 |
-| **Phase 9** version traceability | **cannot be verified here** — proving the SHA reaches the bundle needs a real PyInstaller + Tauri build |
-| **Phase 10** capabilities | touches three frontend build targets |
-| **Phase 11** CI and release | **cannot be verified here** — `release-artifact-revision` mounts a `.dmg` and unpacks an `.AppImage` on a macOS runner |
+| 0 | recorded contract, non-degeneracy guards, both drivers |
+| 1 | the response-shape hole closed; eight models relocated for #50 |
+| 2 | three live defects fixed (SSE ids, corpus contract, lifecycle payloads) |
+| — | desktop corpus-only mode removed; per-run `corpus_mode` now honoured |
+| 3 | the layer boundary declared and enforced; `KNOWN_EXCEPTIONS` empty |
+| 4 | one error taxonomy, one status table, both hosts |
+| 5 | the demo rule, P10 `CorpusLocator`, P12 `MemoryIndex` |
+| 6 | canonical-owner check, dispatch port split, four SSE loops → one |
+| 9 | `VERSION`, `sync_version.py`, `stamp_build.py`, `GET /api/v1/version` on both hosts |
 
-Phases 9 and 11 are the ones to be careful about: writing unverified release plumbing and
-marking the phase done would be the failure this plan exists to remove. `AGENTS.md` records
-a 5 MB `.app` that passed CI and died on first launch.
+#### Not done
+
+| Remaining | State |
+|---|---|
+| **Phase 5** P9 `SecretStore`, P11 `RoutingStore` | not started. Both small; neither is a recorded defect |
+| **Phase 6** moving the 14 run handlers into `app/handlers/` | not started. `app/handlers/` is empty and its layer rule holds vacuously |
+| **Phase 7** the session journey | not started — the largest behavioural surface in the plan, four gated commits |
+| **Phase 8** projects, corpus, models | not started |
+| **Phase 10** capabilities | not started. `CapabilityUnavailable` exists and carries the code; the frontend still branches on `isDesktop` for product behaviour in three places |
+| **Phase 11** release orchestration | **not written, deliberately** |
+
+**Phase 9's packaging half is written and unrun.** `research-sidecar.spec` names
+`research_engine._build` as a hidden import and `desktop.yml` stamps before `pyinstaller`.
+Neither has been executed — this environment has no Tauri toolchain and no macOS runner.
+**The assertion that the SHA reaches the shipped bundle is still owed**, and until someone
+runs it, `GET /api/v1/version` on a packaged app is unproven. `AGENTS.md` records a 5 MB
+`.app` that passed CI and died on first launch; the same caution applies.
+
+**Phase 11 was left unwritten on purpose.** Its acceptance is
+`release-artifact-revision` mounting a `.dmg` and unpacking an `.AppImage` on a macOS
+runner. The design is §10 and is unchanged. Writing the YAML without running it would
+produce release plumbing that looks finished, and the one change with real blast radius —
+removing `desktop.yml`'s `release` job so the orchestrator owns the GitHub Release — is
+exactly the kind that is discovered at the worst possible moment. Whoever takes it can
+verify it in one tag push; nobody can verify it from here.
+
+#### Two rules that went stale, recorded rather than left
+
+- `AGENTS.md` still says the README download badge carries a version and must be bumped
+  "both the badge label and the href". It points at
+  `docs/getting-started/23-desktop-app.md` now and carries no version, which is why
+  `sync_version.py` deliberately omits it.
+- `test_one_canonical_owner`'s reason for the run stream said the `EventStream` port was
+  what would let the generator be shared. The generator is shared; what remains per host is
+  the backlog source and the live feed. Corrected in `2929459`.
 
 ---
 
