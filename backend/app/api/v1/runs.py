@@ -51,7 +51,7 @@ from app.models.research import (
 from app.models.review import ResearchArtifact, Review
 from app.models.revision import Claim, ClaimEvidenceLink, Revision
 from app.models.user import User
-from app.run_dispatch import RunDispatcher, get_run_dispatcher
+from app.run_dispatch import RunDispatcher
 
 # Request bodies live in app/schemas/runs.py so the desktop sidecar can import the exact
 # same contract without this module's `app.config` chain (#50). Re-exported here: this
@@ -63,6 +63,7 @@ from app.schemas.runs import (  # noqa: F401  (re-export)
 )
 from app.services import model_routing
 from app.services.sse import SSE_HEADERS
+from app.workers.dispatch import get_run_dispatcher
 from research_engine.bundle import render_model_attribution_md, stamp_demo_md
 
 logger = structlog.get_logger()

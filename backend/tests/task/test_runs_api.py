@@ -67,7 +67,7 @@ async def api(tmp_path):
 
         from unittest.mock import AsyncMock
 
-        from app.run_dispatch import get_run_dispatcher
+        from app.workers.dispatch import get_run_dispatcher
 
         fake_dispatcher = AsyncMock()
         fake_dispatcher.start = AsyncMock()

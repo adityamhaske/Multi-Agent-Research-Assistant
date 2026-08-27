@@ -8,11 +8,18 @@ hands the run to a Celery worker over Redis; the desktop has neither broker nor 
 drives it in-process.
 
 This seam exists because the desktop previously had no way to swap that mechanism without
-restating the handlers, so it did not swap it at all: `create_run` imports
-`app.workers.tasks` whenever `dispatch` is set, and `research-sidecar.spec` **excludes**
+restating the handlers, so it did not swap it at all: `create_run` imported
+`app.workers.tasks` whenever `dispatch` was set, and `research-sidecar.spec` **excludes**
 `celery`, so the packaged app answered 500 on the one control the product is named after.
 Widening the bundle would have been the wrong fix — this host genuinely has no broker; it
 needs a different mechanism, not the same one shipped twice.
+
+**The protocol only.** The server's implementation lives in `app/workers/dispatch.py`,
+beside the tasks it hands work to; the desktop's is `sidecar::_SidecarDispatcher`. This
+module used to hold the protocol *and* the Celery adapter, which meant a file both hosts
+import reached `app.workers.tasks` — deferred to the call, and load-bearing that it was,
+but still a dependency the desktop layer had no business carrying.
+`tests/workflow/test_layer_boundaries.py` recorded it as the one violation it found.
 
 The protocol is deliberately three named operations rather than one `enqueue(task, *args)`:
 a dispatcher that cannot express "resume from the plan gate" is one that will silently do
@@ -38,38 +45,3 @@ class RunDispatcher(Protocol):
     async def rework(self, run_id: str, user_id: str, feedback: str | None) -> None:
         """Resume a run whose draft was rejected, back into synthesis."""
         ...
-
-
-class CeleryDispatcher:
-    """The server's mechanism: hand the run to a worker over the broker.
-
-    Every import is deferred to the call. `app.workers.tasks` pulls in Celery and the whole
-    pipeline module tree, and this module is imported by the run routes on *both* hosts — an
-    import at module scope here would reintroduce the packaged-app `ModuleNotFoundError`
-    this seam exists to remove.
-    """
-
-    async def start(self, run_id: str, user_id: str) -> None:
-        from app.workers.tasks import run_research_pipeline
-
-        run_research_pipeline.delay(run_id, user_id)
-
-    async def resume_plan(self, run_id: str, user_id: str, plan: dict) -> None:
-        from app.workers.tasks import resume_research_plan_gate
-
-        resume_research_plan_gate.delay(run_id, user_id, plan)
-
-    async def rework(self, run_id: str, user_id: str, feedback: str | None) -> None:
-        from app.workers.tasks import resume_research_pipeline
-
-        resume_research_pipeline.delay(run_id, user_id, False, feedback)
-
-
-def get_run_dispatcher() -> RunDispatcher:
-    """FastAPI dependency: the mechanism this deployment uses.
-
-    The server resolves it through `Depends`. The desktop sidecar calls the same handler
-    functions directly and passes its own dispatcher explicitly — the pattern it already
-    uses for `db` and `user`, so nothing about the handler changes shape per host.
-    """
-    return CeleryDispatcher()

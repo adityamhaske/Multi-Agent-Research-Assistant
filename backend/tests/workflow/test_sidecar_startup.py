@@ -183,7 +183,16 @@ def test_the_desktop_declares_the_same_response_shapes_it_now_imports():
 #: in-process run driver: `_drive_run` imports it per run for `persist_outcome` and
 #: `lifecycle_event`, and it reaches `app.runtime` → `app.config` → `app.db.base`, which is
 #: precisely the chain that decides whether a server-only driver gets pulled in.
-LAZY_REQUEST_IMPORTS = ("app.api.v1.runs", "app.run_execution", "app.run_dispatch")
+LAZY_REQUEST_IMPORTS = (
+    "app.api.v1.runs",
+    "app.run_execution",
+    "app.run_dispatch",
+    # The server's Celery adapter, which `app.api.v1.runs` imports at module scope so the
+    # server can bind `Depends(get_run_dispatcher)`. The desktop never calls it — it passes
+    # its own dispatcher — but it does import it, so it has to stay free of `celery` at
+    # module scope exactly as it was when it lived in `app.run_dispatch`.
+    "app.workers.dispatch",
+)
 
 
 def _spec_excludes() -> list[str]:

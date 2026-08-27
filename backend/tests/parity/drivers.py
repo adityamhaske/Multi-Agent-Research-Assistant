@@ -265,7 +265,7 @@ async def server_driver(data_dir: Path):
     )
     from app.main import app as server_app
     from app.models.user import User
-    from app.run_dispatch import get_run_dispatcher
+    from app.workers.dispatch import get_run_dispatcher
     from tests.sqlite_support import open_db
 
     data_dir.mkdir(parents=True, exist_ok=True)

@@ -117,16 +117,16 @@ APPLICATION = _files("app/handlers/*.py", "app/handlers/**/*.py")
 #: Violations that exist today, each with the phase that removes it. Same contract as
 #: `test_engine_boundary.KNOWN_EXCEPTIONS` and the parity suite's `XFAIL_DIVERGENCES`:
 #: adding an entry should take an argument, and one that stops being true fails the suite.
-KNOWN_EXCEPTIONS: dict[tuple[str, str], str] = {
-    ("app/run_dispatch.py", "app.workers.tasks"): (
-        "plan phase 6 — this module holds the `RunDispatcher` Protocol *and* the server's "
-        "`CeleryDispatcher`, whose methods import the tasks lazily. The implementation "
-        "belongs beside the other server adapters, but `app/api/v1/runs.py` is both the "
-        "shared handler module and the server's router, so it binds "
-        "`Depends(get_run_dispatcher)` at module scope and the desktop imports it. The "
-        "import can only move once those two split"
-    ),
-}
+#: Violations that exist today, each with the phase that removes it. Same contract as
+#: `test_engine_boundary.KNOWN_EXCEPTIONS` and the parity suite's `XFAIL_DIVERGENCES`:
+#: adding an entry should take an argument, and one that stops being true fails the suite.
+#:
+#: **Empty.** It held one entry — `app/run_dispatch.py` reaching `app.workers.tasks`,
+#: because that module was both the port and the server's Celery adapter. The adapter moved
+#: to `app/workers/dispatch.py`, beside the tasks it hands work to, and the port now holds
+#: only the protocol. Keep it empty: an entry here is a layer carrying a dependency it has
+#: no business having.
+KNOWN_EXCEPTIONS: dict[tuple[str, str], str] = {}
 
 
 def test_the_application_layer_imports_no_infrastructure():
