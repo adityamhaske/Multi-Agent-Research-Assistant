@@ -137,6 +137,7 @@ from app.services import (
 # route reaches `app.config` and this host has no server settings to build (#50).
 from app.services.document_headers import download_headers, media_type_for
 from app.services.error_responses import install_error_handlers
+from app.services.run_config import apply_demo_rule, is_scripted
 from app.services.session_events import lifecycle_event
 from app.services.sse import SSE_HEADERS
 from research_engine import bundle, catalog, citation_rate, outlines, prompts
@@ -1177,10 +1178,12 @@ def create_sidecar_app(
             # whole-process `--fake` flag, and a run under it used to persist `demo = false`
             # — so its bundle named models nothing had called and its `.md` export skipped
             # the demo stamp. The row follows what actually ran, not what was requested.
-            is_demo = bool(session.demo) or bool(app.state.fake)
-            if is_demo and not session.demo:
-                session.demo = True
-                await db.commit()
+            # The demo rule is `app/services/run_config.py`, shared with the server's two
+            # workers. `is_scripted` is needed before the config exists because
+            # `sidecar_run_config` takes a different branch for a scripted run; the row is
+            # corrected below, once the config it describes has been built.
+            row_demo = bool(session.demo)
+            is_demo = is_scripted(row_demo=row_demo, host_is_scripted=bool(app.state.fake))
             session_routing = session.model_routing
             # The research design gate (docs/07 §2, Phase 4). Read from the session row,
             # not from the request, because this runs again on every resume and the
@@ -1214,11 +1217,19 @@ def create_sidecar_app(
 
         try:
             config = sidecar_run_config(
-                fake=app.state.fake or is_demo,
+                fake=is_demo,
                 demo=is_demo,
                 data_dir=app.state.data_dir,
                 session_routing=session_routing,
             )
+            config, needs_stamp = apply_demo_rule(
+                config, row_demo=row_demo, host_is_scripted=bool(app.state.fake)
+            )
+            if needs_stamp:
+                async with session_factory() as db:
+                    row = await _authorized_session(db, session_id, sidecar["user_id"])
+                    row.demo = True
+                    await db.commit()
             # Applied after construction rather than inside `sidecar_run_config`, which
             # has two `RunConfig(...)` sites (fake and real) — adding a field to only one
             # of them is precisely how the fake path and the real path drift.
@@ -1345,9 +1356,8 @@ def create_sidecar_app(
                 # `run_execution.run_config_for_run`, `sidecar._drive_session`, and here.
                 # A run under the process-wide `--fake` flag must persist `demo = true`, or
                 # its bundle names models nothing called and its export skips the stamp.
-                is_demo = bool(run.demo) or bool(app.state.fake)
-                if is_demo and not run.demo:
-                    run.demo = True
+                row_demo = bool(run.demo)
+                is_demo = is_scripted(row_demo=row_demo, host_is_scripted=bool(app.state.fake))
                 overrides = {
                     "skip_plan_gate": bool(run.skip_plan_gate),
                     "topic_seeds": tuple(run.topic_seeds or ()),
@@ -1363,12 +1373,20 @@ def create_sidecar_app(
 
             try:
                 config = sidecar_run_config(
-                    fake=app.state.fake or is_demo,
+                    fake=is_demo,
                     demo=is_demo,
                     data_dir=app.state.data_dir,
                     session_routing=run_routing,
                 )
+                config, needs_stamp = apply_demo_rule(
+                    config, row_demo=row_demo, host_is_scripted=bool(app.state.fake)
+                )
                 config = replace(config, **overrides)
+                if needs_stamp:
+                    async with session_factory() as db:
+                        row = await db.get(ResearchRun, run_id)
+                        row.demo = True
+                        await db.commit()
             except RuntimeError as e:
                 async with session_factory() as db:
                     run = await db.get(ResearchRun, run_id)

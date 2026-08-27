@@ -35,6 +35,7 @@ from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.runtime import run_config_from_settings
 from app.services import crypto, model_routing
+from app.services.run_config import apply_demo_rule
 from app.services.session_events import lifecycle_event
 from research_engine import citation_rate, events, runner
 from research_engine.runconfig import RunConfig
@@ -122,30 +123,17 @@ async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
         "topic_seeds": tuple(session.topic_seeds or ()),
         "outline_template": session.outline_template,
     }
-    # Scripted models and fixture retrievers (docs/17 §6.2). Two ways in, one meaning:
-    # the requester asked for a demo run, or the deployment itself is in fake mode.
-    #
-    # The second used to reach here unlabelled, and that was a P0 honesty bug rather than a
-    # cosmetic one. `start.sh` exports `LLM_MODE=fake` for `--fake` *and* silently as a
-    # fallback when `.env` has no provider key, so the commonest first-run setup is a fake
-    # deployment. The row then said `demo = false` while nothing had been called, and the
-    # exported bundle recorded `google:gemini-2.5-pro` with a non-zero cost, the `.md`
-    # export skipped its demo stamp, and `verify_bundle` printed PASS with no warning. A
-    # run that reached no provider must never be able to present as one that did — see
-    # AGENTS.md, "never record a model id you did not actually call".
-    #
-    # So the row follows what actually ran, not what was requested. Deciding both ways in
-    # one branch also keeps the config stable across resumes: were the stamp applied
-    # without this, `demo` would flip False→True between a run and its resume, and `demo`
-    # selects the seeded content (docs/17 §6.1) while `llm_mode` keeps the run offline.
-    # Other homes: `sidecar._drive_session` and `run_execution.run_config_for_run`.
-    if session.demo or base.llm_mode == "fake":
-        if not session.demo:
-            session.demo = True
-            await db.commit()
-        return replace(base, llm_mode="fake", demo=True, models=routing, **overrides)
-
-    return replace(base, models=routing, **overrides)
+    # Scripted models and fixture retrievers (docs/17 §6.2). The rule — a run that reached
+    # no provider is *recorded* as a demo, whichever way it got there — is one function, in
+    # `app/services/run_config.py`, called by both hosts. It used to be this branch plus
+    # three more, kept in step by a note in AGENTS.md.
+    config, needs_stamp = apply_demo_rule(
+        base, row_demo=bool(session.demo), host_is_scripted=base.llm_mode == "fake"
+    )
+    if needs_stamp:
+        session.demo = True
+        await db.commit()
+    return replace(config, models=routing, **overrides)
 
 
 async def _execute(

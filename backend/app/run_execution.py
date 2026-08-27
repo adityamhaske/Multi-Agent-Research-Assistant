@@ -46,6 +46,7 @@ from app.models.research import ResearchRun
 from app.models.user import User
 from app.runtime import run_config_from_settings
 from app.services import model_routing
+from app.services.run_config import apply_demo_rule
 from research_engine import citation_rate, events
 from research_engine.checkpoint_read import CheckpointOutcome, read_checkpoint
 from research_engine.runconfig import RunConfig
@@ -120,21 +121,15 @@ async def run_config_for_run(db: AsyncSession, run: ResearchRun) -> RunConfig:
         "topic_seeds": tuple(run.topic_seeds or ()),
         "outline_template": run.outline_template,
     }
-    # Scripted models and fixture retrievers — the run reaches no provider and no search
-    # API. Two ways in, one meaning: the requester asked for a demo run, or the deployment
-    # is in fake mode. Second home of the rule in `pipeline_runner._run_config_for`; the
-    # desktop's is `sidecar._drive_session`. Change all three.
-    #
-    # A fake deployment reaching here unlabelled was a P0 honesty bug: the run recorded
-    # `demo = false` and the bundle named models nothing had called, at a real-looking
-    # cost, and the shipped verifier passed it without the demo banner. The row records
-    # what actually ran, not what was asked for.
-    if run.demo or base.llm_mode == "fake":
-        if not run.demo:
-            run.demo = True
-            await db.flush()
-        return replace(base, llm_mode="fake", demo=True, models=routing, **overrides)
-    return replace(base, models=routing, **overrides)
+    # The demo rule, shared with the session worker and both desktop drivers — see
+    # `app/services/run_config.py` for why it is one branch and why it has to be one home.
+    config, needs_stamp = apply_demo_rule(
+        base, row_demo=bool(run.demo), host_is_scripted=base.llm_mode == "fake"
+    )
+    if needs_stamp:
+        run.demo = True
+        await db.flush()
+    return replace(config, models=routing, **overrides)
 
 
 async def persist_outcome(
