@@ -51,9 +51,10 @@ SHARED_OWNERSHIP: dict[str, str] = {
 #: names the phase that removes it where the plan expects to.
 DIVERGENT_BY_DESIGN: dict[str, str] = {
     "GET /runs/{run_id}/stream": (
-        "plan phase 6 — the live tail is Redis pub/sub on the server and an in-process bus "
-        "on the desktop. Backlog, replay and the stop-lists are already identical; the "
-        "EventStream port (P7) is what lets the generator itself be shared"
+        "by design — the frame generator IS shared now (app/services/event_stream.py); what "
+        "remains per host is where the backlog is read and what the live feed is: Redis "
+        "pub/sub on the server, an in-process bus on the desktop. That is the infrastructure "
+        "difference itself, so these two route functions stay distinct"
     ),
     "DELETE /runs/{run_id}": (
         "plan phase 6 — the desktop additionally deletes its own LangGraph checkpoint "

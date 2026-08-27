@@ -358,38 +358,57 @@ these routes will meet it.
 
 ---
 
-### 0.10 Phase 5 (part) and Phase 6 (part) — what landed, and what did not
+### 0.10 Phases 5 and 6 — what landed
 
-**903 passed / 90 skipped; ruff clean; parity goldens unmoved.** Three commits on `main`:
-`75ad770`, `5095686`, `ca060db`.
+**912 passed / 90 skipped; ruff clean; parity goldens unmoved.** Six commits on `main`.
 
-**Phase 5 — the demo rule (`app/services/run_config.py`).** `AGENTS.md` names three homes
-for it; there were four, and "in one branch, in all N homes" is a discipline, not a
-property. `is_scripted` is the rule and `apply_demo_rule` is the rule plus the config edit.
-The predicate is separate because the desktop needs the answer *before* it can build a
-config at all — `sidecar_run_config` takes a different branch for a scripted run and raises
-when a real one has no key, so deciding it inline there would have been a fifth home. The
-structural test asserts every host resolves to the same function object *and*, over the
-AST, that no host still branches on the rule itself.
+| Commit | |
+|---|---|
+| `75ad770` | Phases 0–4 + the corpus-mode fix |
+| `5095686` | the demo rule, four homes → one |
+| `ca060db` | canonical ownership proved by identity |
+| `16d3e58` | the dispatch port stops shipping the server's adapter |
+| `a0f242f` | four SSE loops → one, testable for the first time |
 
-**Phase 6 — canonical ownership (`test_one_canonical_owner.py`).** Identity, which
-agreement cannot fake. `@delegates_to` takes a `"module:function"` string rather than the
-function: importing `app.api.v1.runs` at module scope reaches `app.config` and reintroduces
-#50, so a decorator holding the object would have resolved it at import time. Three guards
-keep the check honest — the walker is asserted to have found the run surface, every `/runs`
-operation must be declared shared or divergent-with-a-reason so the list cannot be kept
-short by omission, and a divergence that becomes shared must leave the list.
+**The demo rule.** `AGENTS.md` names three homes; there were four. `is_scripted` is the
+rule, `apply_demo_rule` is the rule plus the config edit. The predicate is separate because
+the desktop needs the answer *before* it can build a config — `sidecar_run_config` branches
+for a scripted run and raises when a real one has no key — so deciding it inline there would
+have been a fifth home. Tested structurally *and* over the AST: no host may still write the
+branch, even unused.
 
-It found one immediately: `GET /runs/{run_id}` delegated to `project_run` on the desktop
-and `get_run` on the server, because the desktop had restated the server route's own
-resolve-then-project pair. Fixed.
+**Canonical ownership.** Identity, which agreement cannot fake. `@delegates_to` takes a
+`"module:function"` string, not the function: holding the object would resolve
+`app.api.v1.runs` at import time and reintroduce #50. Three guards keep it honest — the
+walker is asserted to have found the run surface, every `/runs` operation must be declared
+shared or divergent-with-a-reason so the list cannot be kept short by omission, and a
+divergence that becomes shared must leave. It found one immediately: `GET /runs/{run_id}`
+delegated to `project_run` on the desktop and `get_run` on the server, because the desktop
+had restated the server route's own resolve-then-project pair.
+
+**The dispatch port.** `test_layer_boundaries`' one recorded violation, closed.
+`CeleryDispatcher` moved to `app/workers/dispatch.py`; `app/run_dispatch.py` is the protocol
+and nothing else. Safe for the bundle because `app/workers` has no `__init__.py`.
+`KNOWN_EXCEPTIONS` is empty.
+
+**The streams.** Four copies of one loop, none of them callable — each a closure inside a
+route over a Redis subscription or an in-process bus, which is why `test_stream_replay_rules`
+asserted the rule by *reading their source*. `app/services/event_stream.py` is the loop and
+`test_sse_frames` drives it: eleven behaviours that were previously encoded four times and
+checked by grep. What stays per host is what genuinely differs — where the backlog is read,
+and what the live feed is.
+
+While wiring it I put `from app import adapters` at module scope in `app/api/v1/runs.py`
+and caught it: that file imports `adapters` *inside* functions on purpose, because the
+desktop loads it at request time and `adapters` reaches `app.config` and `app.db.redis`.
+The tests passed either way. It is deferred, with the reason written down.
 
 #### Not done, and why
 
 | Remaining | Blocked by |
 |---|---|
-| **Phase 5** ports P7 `EventStream`, P9 `SecretStore`, P10 `CorpusLocator`, P11 `RoutingStore`, P12 `MemoryIndex` | nothing but scope; P12 is the one that moves the pgvector query out of the domain layer |
-| **Phase 6** moving the 14 run handlers into `app/handlers/`, consolidating the four SSE generators | needs P7 first; closes the one `KNOWN_EXCEPTIONS` entry |
+| **Phase 5** ports P9 `SecretStore`, P10 `CorpusLocator`, P11 `RoutingStore`, P12 `MemoryIndex` | scope. P12 is the one that moves the pgvector query out of the domain layer |
+| **Phase 6** moving the 14 run handlers into `app/handlers/` | scope. `app/handlers/` is still empty; the layer rule is declared and holds vacuously |
 | **Phase 7** the session journey | the largest behavioural surface in the plan, specified as four gated commits |
 | **Phase 8** projects, corpus, models | after 6–7 |
 | **Phase 9** version traceability | **cannot be verified here** — proving the SHA reaches the bundle needs a real PyInstaller + Tauri build |
@@ -399,8 +418,6 @@ resolve-then-project pair. Fixed.
 Phases 9 and 11 are the ones to be careful about: writing unverified release plumbing and
 marking the phase done would be the failure this plan exists to remove. `AGENTS.md` records
 a 5 MB `.app` that passed CI and died on first launch.
-
----
 
 ---
 
