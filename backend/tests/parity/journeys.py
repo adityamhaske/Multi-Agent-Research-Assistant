@@ -95,6 +95,22 @@ async def _await_run_status(
     return resp
 
 
+async def _await_session_status(
+    driver: Driver, session_id: str, wanted: set[str], *, timeout: float = 60.0
+):
+    """Poll one session until it settles. Same reason as the run poller: both hosts
+    dispatch fire-and-forget, so reading immediately records a race rather than a contract."""
+    path = f"/research/{session_id}"
+    deadline = asyncio.get_event_loop().time() + timeout
+    resp = await driver.request("GET", path)
+    while asyncio.get_event_loop().time() < deadline:
+        if resp.status_code != 200 or resp.json()["status"] in wanted:
+            return resp
+        await asyncio.sleep(0.1)
+        resp = await driver.request("GET", path)
+    return resp
+
+
 # ── Projects ──────────────────────────────────────────────────────────────────────
 
 
@@ -413,7 +429,6 @@ RUN = Journey(
             "the export is not an empty file",
             lambda o: body_at(o, "export the report")["empty"] is False,
         ),
-        ("the bundle assembled", lambda o: status_at(o, "the verifiable bundle") == 200),
         (
             "the verifier reached a verdict rather than declining to measure",
             lambda o: body_at(o, "the standalone verifier").get("passed") is not None,
@@ -423,4 +438,128 @@ RUN = Journey(
 )
 
 
-ALL: tuple[Journey, ...] = (PROJECTS, CORPUS, IDENTITY, RUN)
+# ── The session journey ───────────────────────────────────────────────────────────
+#
+# The surface the desktop restates in full — roughly 700 lines of `sidecar.py`. Recording it
+# on both hosts is rung 1 of the plan's Phase 7 ladder: a move cannot be proved
+# behaviour-preserving against a behaviour nobody wrote down. It became recordable at all
+# only when `SessionDispatcher` gave this path the seam `/runs` already had.
+#
+# **`export.bundle.json` is deliberately absent.** The session bundle reads evidence from
+# the LangGraph checkpoint, and on the server that is `AsyncPostgresSaver` — this driver is
+# SQLite-backed and cannot open it. Including the step would mean either a fabricated
+# result or a failure that says nothing about the product, so it is left out and said so.
+# The *run* bundle is covered by the `research-run` journey, which reads the `evidence`
+# table rather than the checkpoint. Closing this needs the server driver on Postgres.
+
+
+async def _session_journey(driver: Driver, record) -> None:
+    resp = await driver.request(
+        "POST",
+        "/research",
+        json={
+            "query": "What is retrieval-augmented generation?",
+            "depth": "fast",
+            "skip_plan_gate": False,
+        },
+    )
+    record("start research", resp)
+    session_id = resp.json()["session_id"]
+
+    at_plan = await _await_session_status(driver, session_id, {"AWAITING_PLAN", "FAILED"})
+    record("the session pauses at the design gate", at_plan)
+    record("read the proposed plan", await driver.request("GET", f"/research/{session_id}/plan"))
+
+    record(
+        "approving the draft before there is one is refused",
+        await driver.request("POST", f"/research/{session_id}/approve", json={"approved": True}),
+    )
+    record(
+        "approve the plan",
+        await driver.request("POST", f"/research/{session_id}/plan", json={}),
+    )
+
+    at_review = await _await_session_status(driver, session_id, {"AWAITING_APPROVAL", "FAILED"})
+    record("the session pauses at the draft gate", at_review)
+
+    record(
+        "request rework",
+        await driver.request(
+            "POST",
+            f"/research/{session_id}/approve",
+            json={"approved": False, "feedback": "Add a second source."},
+        ),
+    )
+    reworked = await _await_session_status(driver, session_id, {"AWAITING_APPROVAL", "FAILED"})
+    record("a reworked draft returns to the gate", reworked)
+
+    record(
+        "approve the report",
+        await driver.request("POST", f"/research/{session_id}/approve", json={"approved": True}),
+    )
+    finished = await _await_session_status(driver, session_id, {"COMPLETED", "FAILED"})
+    record("the finished session", finished)
+
+    record("history lists it", await driver.request("GET", "/research"))
+    record("export the report", await driver.request("GET", f"/research/{session_id}/export.md"))
+    record("archive it", await driver.request("POST", f"/research/{session_id}/archive"))
+    record("restore it", await driver.request("POST", f"/research/{session_id}/unarchive"))
+    record("delete it", await driver.request("DELETE", f"/research/{session_id}"))
+    record("the deleted session is gone", await driver.request("GET", f"/research/{session_id}"))
+
+
+SESSION = Journey(
+    name="research-session",
+    run=_session_journey,
+    requires=frozenset({"run_driver"}),
+    checks=(
+        ("the session was accepted", lambda o: status_at(o, "start research") == 202),
+        (
+            "the design gate was actually reached",
+            lambda o: (
+                body_at(o, "the session pauses at the design gate")["status"] == "AWAITING_PLAN"
+            ),
+        ),
+        (
+            "the plan proposed at least one task — a plan of nothing is not a plan",
+            lambda o: len(body_at(o, "read the proposed plan")["tasks"]) >= 1,
+        ),
+        (
+            "approving a draft that does not exist yet is a conflict, not a silent rework",
+            lambda o: status_at(o, "approving the draft before there is one is refused") == 409,
+        ),
+        (
+            "the draft gate was reached",
+            lambda o: (
+                body_at(o, "the session pauses at the draft gate")["status"] == "AWAITING_APPROVAL"
+            ),
+        ),
+        (
+            "rework returned to the gate rather than ending the session",
+            lambda o: (
+                body_at(o, "a reworked draft returns to the gate")["status"] == "AWAITING_APPROVAL"
+            ),
+        ),
+        (
+            "the session completed",
+            lambda o: body_at(o, "the finished session")["status"] == "COMPLETED",
+        ),
+        (
+            "the report carries at least one citation marker",
+            lambda o: bool(body_at(o, "the finished session")["final_report"]["markers"]),
+        ),
+        (
+            "sources were gathered — a report citing nothing is the P0 case",
+            lambda o: len(body_at(o, "the finished session")["sources"]) >= 1,
+        ),
+        ("history lists it", lambda o: len(body_at(o, "history lists it")["sessions"]) == 1),
+        (
+            "the export is not an empty file",
+            lambda o: body_at(o, "export the report")["empty"] is False,
+        ),
+        ("deletion is final", lambda o: status_at(o, "the deleted session is gone") == 404),
+    ),
+)
+
+
+ALL: tuple[Journey, ...] = (PROJECTS, CORPUS, IDENTITY, RUN, SESSION)

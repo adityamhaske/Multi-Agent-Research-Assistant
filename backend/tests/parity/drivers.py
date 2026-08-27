@@ -26,11 +26,11 @@ That swaps the one mechanism `app/run_dispatch.py` already declares as host-spec
 nothing else — the handlers, `run_config_for_run`, the engine and `persist_outcome` are
 the server's own. The Celery path stays covered by the `golden-e2e` job.
 
-**The session path has no such seam, and that is the point.** `POST /research` reaches
-`app.workers.tasks` directly, so the server cannot drive a session in-process at all.
-Session journeys therefore declare `requires="run_driver"` and are skipped — loudly —
-on the server until the plan's Phase 7 gives that path the same port. The operation with a
-port is testable on both hosts; the one without it is not.
+**The session path now has the same seam.** It did not: `POST /research` called
+`app.workers.tasks.*.delay` directly, so the server could not drive a session in-process at
+all and session journeys were skipped on that host. `SessionDispatcher` is the first rung of
+the plan's Phase 7 ladder — the baseline that lets everything after it be measured, because
+a move cannot be proved behaviour-preserving against a behaviour nobody recorded.
 """
 
 from __future__ import annotations
@@ -168,6 +168,82 @@ def _agent_log_sink(session_factory):
     return sink
 
 
+class _InProcessSessionDispatcher:
+    """`SessionDispatcher` for the harness — the server's own session worker, no broker.
+
+    Deliberately not the desktop's `_drive_session`: reusing that would make the "server"
+    host literally the desktop implementation, and the comparison would prove nothing.
+    This drives `research_engine.runner` with the config `pipeline_runner` resolves and
+    persists through `pipeline_runner._persist_outcome`, which is what the Celery task does.
+    """
+
+    def __init__(self, session_factory, saver) -> None:
+        self._sessions = session_factory
+        self._saver = saver
+        self._sink = _agent_log_sink(session_factory)
+        self._tasks: set = set()
+
+    def _spawn(self, coro) -> None:
+        import asyncio
+
+        task = asyncio.create_task(coro)
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+
+    async def _drive(self, session_id: str, user_id: str, *, resume=None, plan=None) -> None:
+        from app.models.session import Session, SessionStatus
+        from app.workers import pipeline_runner
+        from research_engine import runner
+
+        async with self._sessions() as db:
+            session = await db.get(Session, uuid.UUID(session_id))
+            if session is None:
+                return
+            session.status = SessionStatus.RUNNING
+            await db.commit()
+            config = await pipeline_runner._run_config_for(db, session, user_id)  # noqa: SLF001
+            query, depth = session.prompt, session.research_depth
+
+        ports = {"run_config": config, "event_sink": self._sink}
+        if plan is not None:
+            outcome = await runner.resume(
+                checkpointer=self._saver, session_id=session_id, plan=plan, **ports
+            )
+        elif resume is None:
+            outcome = await runner.run(
+                checkpointer=self._saver,
+                session_id=session_id,
+                user_id=user_id,
+                query=query,
+                depth=depth,
+                **ports,
+            )
+        else:
+            approved, feedback = resume
+            outcome = await runner.resume(
+                checkpointer=self._saver,
+                session_id=session_id,
+                approved=approved,
+                feedback=feedback,
+                **ports,
+            )
+
+        async with self._sessions() as db:
+            session = await db.get(Session, uuid.UUID(session_id))
+            await pipeline_runner._persist_outcome(  # noqa: SLF001
+                db, session, session_id, outcome, self._sink, {}
+            )
+
+    async def start(self, session_id: str, user_id: str) -> None:
+        self._spawn(self._drive(session_id, user_id))
+
+    async def resume_plan(self, session_id: str, user_id: str, plan: dict) -> None:
+        self._spawn(self._drive(session_id, user_id, plan=plan))
+
+    async def resume_review(self, session_id, user_id, approved, feedback) -> None:
+        self._spawn(self._drive(session_id, user_id, resume=(approved, feedback)))
+
+
 class _InProcessDispatcher:
     """`RunDispatcher` for the harness — the server's own adapter, no broker.
 
@@ -265,7 +341,7 @@ async def server_driver(data_dir: Path):
     )
     from app.main import app as server_app
     from app.models.user import User
-    from app.workers.dispatch import get_run_dispatcher
+    from app.workers.dispatch import get_run_dispatcher, get_session_dispatcher
     from tests.sqlite_support import open_db
 
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -343,6 +419,8 @@ async def server_driver(data_dir: Path):
         overrides[enforce_chat_rate_limit] = lambda: None
         dispatcher = _InProcessDispatcher(session_factory, saver)
         overrides[get_run_dispatcher] = lambda: dispatcher
+        session_dispatcher = _InProcessSessionDispatcher(session_factory, saver)
+        overrides[get_session_dispatcher] = lambda: session_dispatcher
 
         try:
             transport = httpx.ASGITransport(app=server_app)
@@ -354,8 +432,7 @@ async def server_driver(data_dir: Path):
                     client=client,
                     backing="sqlite",
                     capabilities=SERVER_CAPABILITIES,
-                    # `/runs` has a dispatcher port, so a run is drivable here. `/research`
-                    # does not, which is why session journeys declare `requires` and skip.
+                    # Both surfaces have a dispatcher port now, so both are drivable here.
                     run_driver=True,
                 )
         finally:

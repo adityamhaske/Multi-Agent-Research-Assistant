@@ -14,7 +14,7 @@ called by *both* hosts. An import at module scope here would reintroduce the pac
 
 from __future__ import annotations
 
-from app.run_dispatch import RunDispatcher
+from app.run_dispatch import RunDispatcher, SessionDispatcher
 
 
 class CeleryDispatcher:
@@ -50,3 +50,29 @@ def get_run_dispatcher() -> RunDispatcher:
     uses for `db` and `user`, so nothing about the handler changes shape per host.
     """
     return CeleryDispatcher()
+
+
+class CelerySessionDispatcher:
+    """The server's session mechanism. Imports deferred, exactly as `CeleryDispatcher`."""
+
+    async def start(self, session_id: str, user_id: str) -> None:
+        from app.workers.tasks import run_agent_pipeline
+
+        run_agent_pipeline.delay(session_id, user_id)
+
+    async def resume_plan(self, session_id: str, user_id: str, plan: dict) -> None:
+        from app.workers.tasks import resume_plan_gate
+
+        resume_plan_gate.delay(session_id, user_id, plan)
+
+    async def resume_review(
+        self, session_id: str, user_id: str, approved: bool, feedback: str | None
+    ) -> None:
+        from app.workers.tasks import resume_agent_pipeline
+
+        resume_agent_pipeline.delay(session_id, user_id, approved, feedback)
+
+
+def get_session_dispatcher() -> SessionDispatcher:
+    """FastAPI dependency: how this deployment drives sessions."""
+    return CelerySessionDispatcher()

@@ -30,6 +30,7 @@ from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
 from app.models.session import Session, SessionStatus
 from app.models.user import User
+from app.run_dispatch import SessionDispatcher
 from app.schemas.research import (
     ApprovalRequest,
     OutlineSectionSchema,
@@ -43,10 +44,10 @@ from app.schemas.research import (
     SessionListResponse,
     SessionSummary,
 )
-from app.services import checkpoints, export, model_routing, usage
+from app.services import checkpoints, export, memory, model_routing, usage
 from app.services.event_stream import sse_frames
 from app.services.sse import SSE_HEADERS
-from app.workers.tasks import resume_agent_pipeline, resume_plan_gate, run_agent_pipeline
+from app.workers.dispatch import get_session_dispatcher
 from research_engine import bundle
 
 #: Replay ends at a true terminal only; the live tail also ends at a gate, because a
@@ -65,6 +66,7 @@ async def start_research(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _rl: None = Depends(enforce_research_rate_limit),
+    dispatcher: SessionDispatcher = Depends(get_session_dispatcher),
 ):
     # Monthly token ceiling (0 = unlimited). Checked before enqueueing so a
     # capped user gets a clear 402 instead of a session that fails mid-run.
@@ -117,7 +119,7 @@ async def start_research(
     await db.commit()
     await db.refresh(session)
 
-    run_agent_pipeline.delay(str(session.id), str(current_user.id))
+    await dispatcher.start(str(session.id), str(current_user.id))
     # Bind the run's correlation identity so the trigger log joins with the Celery
     # task and engine logs under one correlation_id (= session_id).
     bind_run_context(str(session.id), user_id=str(current_user.id))
@@ -450,6 +452,7 @@ async def submit_plan(
     payload: PlanDecisionRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    dispatcher: SessionDispatcher = Depends(get_session_dispatcher),
 ):
     """Approve the research design, with edits, and let the run continue.
 
@@ -509,7 +512,7 @@ async def submit_plan(
     await db.commit()
     await db.refresh(session)
 
-    resume_plan_gate.delay(
+    await dispatcher.resume_plan(
         str(session.id), str(current_user.id), {"tasks": kept, "outline": outline}
     )
     bind_run_context(str(session.id), user_id=str(current_user.id))
@@ -523,6 +526,7 @@ async def approve_or_rework(
     payload: ApprovalRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    dispatcher: SessionDispatcher = Depends(get_session_dispatcher),
 ):
     session = await _authorized_session(db, session_id, current_user.id)
     if session.status != SessionStatus.AWAITING_APPROVAL:
@@ -549,7 +553,7 @@ async def approve_or_rework(
     session.status = SessionStatus.RUNNING
     await db.commit()
 
-    resume_agent_pipeline.delay(
+    await dispatcher.resume_review(
         str(session.id), str(current_user.id), payload.approved, payload.feedback
     )
     bind_run_context(str(session.id), user_id=str(current_user.id))
@@ -651,6 +655,9 @@ async def delete_session(
             detail="This session is still running. Wait for it to finish before deleting.",
         )
 
+    # Explicit and guarded — see `memory.purge_report`. The relationship no
+    # longer cascades, because a cascade promises a table one host does not have.
+    await memory.purge_report(db, session_id)
     await db.delete(session)
     await db.commit()
 

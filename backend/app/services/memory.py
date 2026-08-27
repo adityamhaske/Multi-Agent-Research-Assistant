@@ -67,6 +67,27 @@ def is_available(db: AsyncSession) -> bool:
     return db.bind is not None and db.bind.dialect.name == "postgresql"
 
 
+async def purge_report(db: AsyncSession, report_id: uuid.UUID) -> int:
+    """Remove every chunk indexed from one report. A no-op where memory does not exist.
+
+    Explicit rather than a relationship cascade, and guarded rather than attempted, because
+    `memory_chunks` is pgvector-backed and absent on the desktop. `Session.memory_chunks`
+    used to carry `cascade="all, delete-orphan"`, so `db.delete(session)` SELECTed a table
+    that host does not have and the delete route answered 500 — a control the desktop build
+    renders, listed in `DESKTOP_UI_CALLS`, failing on every use.
+
+    `run_lifecycle.delete_run` already did it this way. The two delete paths differed in
+    exactly the place that mattered.
+
+    The guarantee is unchanged: deleting research takes its indexed text with it, or
+    project chat keeps quoting a report nobody can open.
+    """
+    if not is_available(db):
+        return 0
+    result = await db.execute(delete(MemoryChunk).where(MemoryChunk.source_report_id == report_id))
+    return result.rowcount or 0
+
+
 @dataclass(frozen=True)
 class IngestResult:
     """What one ingestion attempt did. `skipped` is a success, not a failure."""

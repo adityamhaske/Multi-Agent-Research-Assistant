@@ -1,0 +1,414 @@
+[
+  {
+    "step": "start research",
+    "status": 202,
+    "body": {
+      "session_id": "<uuid>",
+      "status": "PENDING"
+    }
+  },
+  {
+    "step": "the session pauses at the design gate",
+    "status": 200,
+    "body": {
+      "session_id": "<uuid>",
+      "project_id": "<uuid>",
+      "status": "AWAITING_PLAN",
+      "prompt": "What is retrieval-augmented generation?",
+      "research_depth": "fast",
+      "total_cost_usd": 2.3e-05,
+      "total_tokens_input": 100,
+      "total_tokens_output": 50,
+      "elapsed_seconds": null,
+      "rework_count": 0,
+      "created_at": "<timestamp>",
+      "archived_at": null,
+      "demo": true,
+      "corpus_mode": false,
+      "citation_resolution_rate": null,
+      "model_routing": {
+        "planner": "google:gemini-2.5-flash",
+        "executor": "google:gemini-2.5-flash",
+        "critic": "google:gemini-2.5-flash",
+        "synthesizer": "google:gemini-2.5-flash",
+        "chat": "google:gemini-2.5-flash"
+      },
+      "draft_report": null,
+      "final_report": null,
+      "sources": [],
+      "error_message": null,
+      "updated_at": "<timestamp>"
+    }
+  },
+  {
+    "step": "read the proposed plan",
+    "status": 200,
+    "body": {
+      "session_id": "<uuid>",
+      "status": "AWAITING_PLAN",
+      "tasks": [
+        {
+          "id": "<int-id>",
+          "query": "what retrieval-augmented generation is",
+          "rationale": "define the mechanism before comparing it",
+          "subtopics": [],
+          "include": true,
+          "source_hint": null
+        },
+        {
+          "id": "<int-id>",
+          "query": "when retrieval beats fine-tuning",
+          "rationale": "the comparison the question actually asks for",
+          "subtopics": [],
+          "include": true,
+          "source_hint": null
+        }
+      ],
+      "outline": [],
+      "approved_at": null
+    }
+  },
+  {
+    "step": "approving the draft before there is one is refused",
+    "status": 409,
+    "body": {
+      "detail": "Session must be AWAITING_APPROVAL (currently AWAITING_PLAN)."
+    }
+  },
+  {
+    "step": "approve the plan",
+    "status": 200,
+    "body": {
+      "session_id": "<uuid>",
+      "status": "RUNNING",
+      "tasks": [
+        {
+          "id": "<int-id>",
+          "query": "what retrieval-augmented generation is",
+          "rationale": "define the mechanism before comparing it",
+          "subtopics": [],
+          "include": true,
+          "source_hint": null
+        },
+        {
+          "id": "<int-id>",
+          "query": "when retrieval beats fine-tuning",
+          "rationale": "the comparison the question actually asks for",
+          "subtopics": [],
+          "include": true,
+          "source_hint": null
+        }
+      ],
+      "outline": [],
+      "approved_at": "<timestamp>"
+    }
+  },
+  {
+    "step": "the session pauses at the draft gate",
+    "status": 200,
+    "body": {
+      "session_id": "<uuid>",
+      "project_id": "<uuid>",
+      "status": "AWAITING_APPROVAL",
+      "prompt": "What is retrieval-augmented generation?",
+      "research_depth": "fast",
+      "total_cost_usd": 0.000225,
+      "total_tokens_input": 1000,
+      "total_tokens_output": 500,
+      "elapsed_seconds": null,
+      "rework_count": 0,
+      "created_at": "<timestamp>",
+      "archived_at": null,
+      "demo": true,
+      "corpus_mode": false,
+      "citation_resolution_rate": null,
+      "model_routing": {
+        "planner": "google:gemini-2.5-flash",
+        "executor": "google:gemini-2.5-flash",
+        "critic": "google:gemini-2.5-flash",
+        "synthesizer": "google:gemini-2.5-flash",
+        "chat": "google:gemini-2.5-flash"
+      },
+      "draft_report": {
+        "empty": false,
+        "markers": [
+          1,
+          2
+        ]
+      },
+      "final_report": null,
+      "sources": [
+        {
+          "index": 1,
+          "url": "https://arxiv.org/abs/2005.11401",
+          "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+          "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
+          "snippets": [
+            "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems."
+          ]
+        },
+        {
+          "index": 2,
+          "url": "https://arxiv.org/abs/2312.10997",
+          "title": "Retrieval-Augmented Generation for Large Language Models: A Survey",
+          "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
+          "snippets": [
+            "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information."
+          ]
+        }
+      ],
+      "error_message": null,
+      "updated_at": "<timestamp>"
+    }
+  },
+  {
+    "step": "request rework",
+    "status": 200,
+    "body": {
+      "message": "Rework requested."
+    }
+  },
+  {
+    "step": "a reworked draft returns to the gate",
+    "status": 200,
+    "body": {
+      "session_id": "<uuid>",
+      "project_id": "<uuid>",
+      "status": "AWAITING_APPROVAL",
+      "prompt": "What is retrieval-augmented generation?",
+      "research_depth": "fast",
+      "total_cost_usd": 0.000315,
+      "total_tokens_input": 1400,
+      "total_tokens_output": 700,
+      "elapsed_seconds": null,
+      "rework_count": 1,
+      "created_at": "<timestamp>",
+      "archived_at": null,
+      "demo": true,
+      "corpus_mode": false,
+      "citation_resolution_rate": null,
+      "model_routing": {
+        "planner": "google:gemini-2.5-flash",
+        "executor": "google:gemini-2.5-flash",
+        "critic": "google:gemini-2.5-flash",
+        "synthesizer": "google:gemini-2.5-flash",
+        "chat": "google:gemini-2.5-flash"
+      },
+      "draft_report": {
+        "empty": false,
+        "markers": [
+          1,
+          2
+        ]
+      },
+      "final_report": null,
+      "sources": [
+        {
+          "index": 1,
+          "url": "https://arxiv.org/abs/2005.11401",
+          "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+          "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
+          "snippets": [
+            "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems."
+          ]
+        },
+        {
+          "index": 2,
+          "url": "https://arxiv.org/abs/2312.10997",
+          "title": "Retrieval-Augmented Generation for Large Language Models: A Survey",
+          "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
+          "snippets": [
+            "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information."
+          ]
+        }
+      ],
+      "error_message": null,
+      "updated_at": "<timestamp>"
+    }
+  },
+  {
+    "step": "approve the report",
+    "status": 200,
+    "body": {
+      "message": "Approved. Finalizing."
+    }
+  },
+  {
+    "step": "the finished session",
+    "status": 200,
+    "body": {
+      "session_id": "<uuid>",
+      "project_id": "<uuid>",
+      "status": "COMPLETED",
+      "prompt": "What is retrieval-augmented generation?",
+      "research_depth": "fast",
+      "total_cost_usd": 0.000315,
+      "total_tokens_input": 1400,
+      "total_tokens_output": 700,
+      "elapsed_seconds": "<measure>",
+      "rework_count": 1,
+      "created_at": "<timestamp>",
+      "archived_at": null,
+      "demo": true,
+      "corpus_mode": false,
+      "citation_resolution_rate": 1.0,
+      "model_routing": {
+        "planner": "google:gemini-2.5-flash",
+        "executor": "google:gemini-2.5-flash",
+        "critic": "google:gemini-2.5-flash",
+        "synthesizer": "google:gemini-2.5-flash",
+        "chat": "google:gemini-2.5-flash"
+      },
+      "draft_report": {
+        "empty": false,
+        "markers": [
+          1,
+          2
+        ]
+      },
+      "final_report": {
+        "empty": false,
+        "markers": [
+          1,
+          2
+        ]
+      },
+      "sources": [
+        {
+          "index": 1,
+          "url": "https://arxiv.org/abs/2005.11401",
+          "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+          "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
+          "snippets": [
+            "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems."
+          ]
+        },
+        {
+          "index": 2,
+          "url": "https://arxiv.org/abs/2312.10997",
+          "title": "Retrieval-Augmented Generation for Large Language Models: A Survey",
+          "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
+          "snippets": [
+            "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information."
+          ]
+        }
+      ],
+      "error_message": null,
+      "updated_at": "<timestamp>"
+    }
+  },
+  {
+    "step": "history lists it",
+    "status": 200,
+    "body": {
+      "sessions": [
+        {
+          "session_id": "<uuid>",
+          "project_id": "<uuid>",
+          "status": "COMPLETED",
+          "prompt": "What is retrieval-augmented generation?",
+          "research_depth": "fast",
+          "total_cost_usd": 0.000315,
+          "total_tokens_input": 1400,
+          "total_tokens_output": 700,
+          "elapsed_seconds": "<measure>",
+          "rework_count": 1,
+          "created_at": "<timestamp>",
+          "archived_at": null,
+          "demo": true,
+          "corpus_mode": false,
+          "citation_resolution_rate": 1.0,
+          "model_routing": {
+            "planner": "google:gemini-2.5-flash",
+            "executor": "google:gemini-2.5-flash",
+            "critic": "google:gemini-2.5-flash",
+            "synthesizer": "google:gemini-2.5-flash",
+            "chat": "google:gemini-2.5-flash"
+          }
+        }
+      ],
+      "total": 1,
+      "page": 1,
+      "limit": 20
+    }
+  },
+  {
+    "step": "export the report",
+    "status": 200,
+    "body": {
+      "media_type": "text/markdown",
+      "empty": false
+    }
+  },
+  {
+    "step": "archive it",
+    "status": 200,
+    "body": {
+      "session_id": "<uuid>",
+      "project_id": "<uuid>",
+      "status": "COMPLETED",
+      "prompt": "What is retrieval-augmented generation?",
+      "research_depth": "fast",
+      "total_cost_usd": 0.000315,
+      "total_tokens_input": 1400,
+      "total_tokens_output": 700,
+      "elapsed_seconds": "<measure>",
+      "rework_count": 1,
+      "created_at": "<timestamp>",
+      "archived_at": "<timestamp>",
+      "demo": true,
+      "corpus_mode": false,
+      "citation_resolution_rate": 1.0,
+      "model_routing": {
+        "planner": "google:gemini-2.5-flash",
+        "executor": "google:gemini-2.5-flash",
+        "critic": "google:gemini-2.5-flash",
+        "synthesizer": "google:gemini-2.5-flash",
+        "chat": "google:gemini-2.5-flash"
+      }
+    }
+  },
+  {
+    "step": "restore it",
+    "status": 200,
+    "body": {
+      "session_id": "<uuid>",
+      "project_id": "<uuid>",
+      "status": "COMPLETED",
+      "prompt": "What is retrieval-augmented generation?",
+      "research_depth": "fast",
+      "total_cost_usd": 0.000315,
+      "total_tokens_input": 1400,
+      "total_tokens_output": 700,
+      "elapsed_seconds": "<measure>",
+      "rework_count": 1,
+      "created_at": "<timestamp>",
+      "archived_at": null,
+      "demo": true,
+      "corpus_mode": false,
+      "citation_resolution_rate": 1.0,
+      "model_routing": {
+        "planner": "google:gemini-2.5-flash",
+        "executor": "google:gemini-2.5-flash",
+        "critic": "google:gemini-2.5-flash",
+        "synthesizer": "google:gemini-2.5-flash",
+        "chat": "google:gemini-2.5-flash"
+      }
+    }
+  },
+  {
+    "step": "delete it",
+    "status": 204,
+    "body": {
+      "media_type": "",
+      "empty": true
+    }
+  },
+  {
+    "step": "the deleted session is gone",
+    "status": 404,
+    "body": {
+      "detail": "Session not found."
+    }
+  }
+]

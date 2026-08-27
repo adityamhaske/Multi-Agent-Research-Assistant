@@ -45,3 +45,42 @@ class RunDispatcher(Protocol):
     async def rework(self, run_id: str, user_id: str, feedback: str | None) -> None:
         """Resume a run whose draft was rejected, back into synthesis."""
         ...
+
+
+class SessionDispatcher(Protocol):
+    """Starts and resumes sessions. The same seam as `RunDispatcher`, for the older surface.
+
+    Sessions are the pipeline this product recorded research with before runs, and they are
+    not going away: users' history lives there, and follow-up chat scoped to a single report
+    exists only there (`AGENTS.md`). What they did not have is this — `app/api/v1/research.py`
+    called `app.workers.tasks.*.delay` directly, so there was no way to drive a session
+    without a broker.
+
+    That is why the desktop *restates* the whole session journey rather than importing it,
+    and why the parity harness can drive a run on both hosts but not a session: the run
+    surface has a seam and the session surface did not. Adding it is the first rung of the
+    plan's Phase 7 ladder — the baseline that lets the rest be measured.
+
+    Three named operations rather than one `enqueue`, for the reason `RunDispatcher` gives:
+    a dispatcher that cannot express "resume from the plan gate" is one that will silently
+    do the wrong thing when a new gate is added.
+    """
+
+    async def start(self, session_id: str, user_id: str) -> None:
+        """Drive a freshly created session from the beginning."""
+        ...
+
+    async def resume_plan(self, session_id: str, user_id: str, plan: dict) -> None:
+        """Resume a session suspended at the design gate, with the approved plan."""
+        ...
+
+    async def resume_review(
+        self, session_id: str, user_id: str, approved: bool, feedback: str | None
+    ) -> None:
+        """Resume a session suspended at the draft gate.
+
+        `approved` is not implied: `True` finalizes, `False` sends the draft back to the
+        synthesizer. `RunDispatcher` names its equivalent `rework` because the run surface
+        finalizes through a review record instead, and collapsing the two would hide that.
+        """
+        ...

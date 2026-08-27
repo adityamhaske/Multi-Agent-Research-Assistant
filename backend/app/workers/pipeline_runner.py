@@ -291,6 +291,15 @@ async def _ingest_into_project_memory(db, session: Session, provider_keys: dict[
         from app import adapters
         from app.services import memory
 
+        # Ask first, the same way `run_lifecycle.delete_run` does. Without this the ingest
+        # is attempted on a host that has no `memory_chunks` table, fails, and the handler
+        # below rolls back — which expires every object in the identity map, including the
+        # caller's session. The swallow was meant to protect a completed run; rolling back
+        # underneath it does the opposite.
+        if not memory.is_available(db):
+            logger.info("memory_ingest_skipped", session_id=str(session.id), reason="unavailable")
+            return
+
         embedder = await adapters.embeddings_for(provider_keys)
         result = await memory.ingest_session(db, session, embedder)
         if result.skipped:

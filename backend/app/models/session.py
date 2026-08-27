@@ -162,10 +162,17 @@ class Session(Base):
     # reason `agent_logs.session_id` is, and so also has no foreign key and no database
     # cascade. Deleting a session must still take its indexed text with it, or project chat
     # keeps quoting a report nobody can open.
+    #
+    # **Read-only, and the deletion is explicit** (`memory.purge_report`, called by both
+    # hosts' delete routes). This carried `cascade="all, delete-orphan"`, which made
+    # `db.delete(session)` SELECT `memory_chunks` in order to cascade into it — and that
+    # table is pgvector-backed and absent from the desktop's schema, so session deletion
+    # answered 500 on every use of a control the desktop build renders. A cascade is a
+    # promise that the table is there; on one host it is not.
     memory_chunks: Mapped[list["MemoryChunk"]] = relationship(  # noqa: F821
         "MemoryChunk",
         primaryjoin="Session.id == foreign(MemoryChunk.source_report_id)",
-        cascade="all, delete-orphan",
+        viewonly=True,
         lazy="select",
         overlaps="project,memory_chunks",
     )

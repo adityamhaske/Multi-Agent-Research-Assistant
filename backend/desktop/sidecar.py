@@ -127,6 +127,7 @@ from app.services import (
     corpus_ingest,
     custom_endpoint,
     local_llm,
+    memory,
     provider_health,
     usage,
 )
@@ -1244,6 +1245,12 @@ def create_sidecar_app(
             # corrected below, once the config it describes has been built.
             row_demo = bool(session.demo)
             is_demo = is_scripted(row_demo=row_demo, host_is_scripted=bool(app.state.fake))
+            # RUNNING is the driver's to set, exactly as `pipeline_runner._execute` does.
+            # The route creates the row PENDING and hands it over; without this the desktop
+            # left a session showing "Pending" for the whole of its run while the server
+            # showed "Running" for the same request.
+            session.status = SessionStatus.RUNNING
+            await db.commit()
             session_routing = session.model_routing
             # The research design gate (docs/07 §2, Phase 4). Read from the session row,
             # not from the request, because this runs again on every resume and the
@@ -1571,8 +1578,11 @@ def create_sidecar_app(
         db.add(session)
         await db.commit()
         await db.refresh(session)
-        session.status = SessionStatus.RUNNING
-        await db.commit()
+        # PENDING, matching the server: the row is created, then handed to whatever drives
+        # it, and the driver moves it to RUNNING. This host used to stamp RUNNING here, so
+        # `POST /research` answered a different status on each host for the same request —
+        # found by the parity suite the moment the session journey became recordable on
+        # both. `_drive_session` sets RUNNING exactly as the Celery task does.
         asyncio.create_task(_drive_session(session.id, approved=None, feedback=None))
         logger.info("sidecar_research_started", session_id=str(session.id))
         return ResearchStartResponse(session_id=session.id, status=session.status)
@@ -2186,6 +2196,9 @@ def create_sidecar_app(
                 status.HTTP_409_CONFLICT,
                 detail="This session is still running. Wait for it to finish before deleting.",
             )
+        # Explicit and guarded — see `memory.purge_report`. The relationship no
+        # longer cascades, because a cascade promises a table one host does not have.
+        await memory.purge_report(db, session_id)
         await db.delete(session)
         await db.commit()
         try:
