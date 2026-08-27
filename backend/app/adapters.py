@@ -15,6 +15,7 @@ Kept separate from `app/runtime.py`, which maps settings → RunConfig and nothi
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 import uuid
 
@@ -93,6 +94,22 @@ def agent_log_sink(db, session_id: str) -> EventSink:
             await publish_event(session_id, event)
 
     return sink
+
+
+async def redis_event_stream(pubsub):
+    """The server's live feed as `(id, payload)` pairs — the shape `sse_frames` consumes.
+
+    Malformed frames are skipped rather than raised on: a publisher that wrote something
+    unparsable should not close every listener's connection.
+    """
+    async for message in pubsub.listen():
+        if message["type"] != "message":
+            continue
+        try:
+            payload = json.loads(message["data"])
+        except (json.JSONDecodeError, TypeError):
+            continue
+        yield payload.get("id"), payload
 
 
 # ── Embeddings (docs/14 §4) ────────────────────────────────────────────────────────

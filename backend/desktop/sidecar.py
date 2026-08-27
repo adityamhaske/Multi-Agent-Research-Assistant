@@ -138,6 +138,7 @@ from app.services import (
 from app.services.delegation import delegates_to
 from app.services.document_headers import download_headers, media_type_for
 from app.services.error_responses import install_error_handlers
+from app.services.event_stream import sse_frames
 from app.services.run_config import apply_demo_rule, is_scripted
 from app.services.session_events import lifecycle_event
 from app.services.sse import SSE_HEADERS
@@ -273,6 +274,17 @@ async def persist_and_publish(
     except Exception as e:  # noqa: BLE001 — live delivery must not die on persistence
         logger.warning("sidecar_event_persist_failed", session_id=str(session_id), error=str(e))
     bus.append(str(session_id), payload, row_id)
+
+
+async def bus_events(bus: SessionEventBus, session_id: str):
+    """This host's live feed as `(id, payload)` pairs — the shape `sse_frames` consumes.
+
+    The desktop's half of the infrastructure difference: an in-process queue where the
+    server has Redis pub/sub. Everything downstream of it is shared.
+    """
+    async with bus.subscribe(session_id) as queue:
+        while True:
+            yield await queue.get()
 
 
 class PersistingSink:
@@ -1607,31 +1619,18 @@ def create_sidecar_app(
         )
 
         async def gen() -> AsyncGenerator[str, None]:
-            yield f"data: {json.dumps({'type': 'connected'})}\n\n"
-            seen_max = after_id
-            for eid, payload in backlog:
-                seen_max = max(seen_max, eid or 0)
-                yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
-                if payload.get("type") in _REPLAY_STOP_EVENTS:
-                    return
-            if already_done:
-                return
-            async with bus.subscribe(str(session_id)) as queue:
-                while True:
-                    eid, payload = await queue.get()
-                    if eid is None:
-                        # The durable write failed, so this event has no replayable id.
-                        # Deliver it without one: SSE leaves `Last-Event-ID` where it was,
-                        # which is right, because a reconnect cannot resume from an event
-                        # that was never stored.
-                        yield f"data: {json.dumps(payload)}\n\n"
-                    else:
-                        if eid <= seen_max:
-                            continue  # already replayed from the backlog
-                        yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
-                        seen_max = eid
-                    if payload.get("type") in _TERMINAL_EVENTS:
-                        return
+            # The loop is `app/services/event_stream.py`, shared with the server's two
+            # streams and this host's run stream. Only the live feed differs.
+            async for frame in sse_frames(
+                connected={"type": "connected"},
+                backlog=backlog,
+                live=bus_events(bus, str(session_id)),
+                replay_stop=_REPLAY_STOP_EVENTS,
+                terminal_stop=_TERMINAL_EVENTS,
+                already_done=already_done,
+                seen_from=after_id,
+            ):
+                yield frame
 
         return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
 
@@ -2757,29 +2756,16 @@ def create_sidecar_app(
         )
 
         async def gen() -> AsyncGenerator[str, None]:
-            yield f"data: {json.dumps({'type': 'connected', 'run_id': str(run_id)})}\n\n"
-            seen_max = after_id
-            for eid, payload in backlog:
-                seen_max = max(seen_max, eid or 0)
-                yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
-                if payload.get("type") in V2_REPLAY_STOP:
-                    return
-            if already_done:
-                return
-            async with bus.subscribe(str(run_id)) as queue:
-                while True:
-                    eid, payload = await queue.get()
-                    if eid is None:
-                        # See the session stream: an event whose durable write failed is
-                        # delivered without advancing the client's cursor.
-                        yield f"data: {json.dumps(payload)}\n\n"
-                    else:
-                        if eid <= seen_max:
-                            continue
-                        yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
-                        seen_max = eid
-                    if payload.get("type") in V2_TERMINAL:
-                        return
+            async for frame in sse_frames(
+                connected={"type": "connected", "run_id": str(run_id)},
+                backlog=backlog,
+                live=bus_events(bus, str(run_id)),
+                replay_stop=V2_REPLAY_STOP,
+                terminal_stop=V2_TERMINAL,
+                already_done=already_done,
+                seen_from=after_id,
+            ):
+                yield frame
 
         return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
 

@@ -62,6 +62,7 @@ from app.schemas.runs import (  # noqa: F401  (re-export)
     ReportReviewRequest,
 )
 from app.services import model_routing
+from app.services.event_stream import sse_frames
 from app.services.sse import SSE_HEADERS
 from app.workers.dispatch import get_run_dispatcher
 from research_engine.bundle import render_model_attribution_md, stamp_demo_md
@@ -699,8 +700,6 @@ async def get_bundle(
             raise Conflict(f"No bundle can be assembled for this run ({reason}).")
         payload = manifest.model_dump()
 
-    import json
-
     filename = f"research-{str(run.id)[:8]}.bundle.json"
     return Response(
         content=json.dumps(payload, sort_keys=True, indent=2, ensure_ascii=False) + "\n",
@@ -771,15 +770,18 @@ async def stream_run(
     after_id = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
 
     async def gen() -> AsyncGenerator[str, None]:
+        # Deferred, like the two other uses of `adapters` in this module: it reaches
+        # `app.config` and `app.db.redis`, and the desktop imports this file at request
+        # time. Module scope here would put the server's data plane in the desktop's
+        # import tree for a route that host does not even mount.
+        from app import adapters
+
         channel = f"session:{run_id}:events"
         pubsub = redis.pubsub()
         # Subscribe BEFORE snapshotting the backlog, so an event published in the gap is
         # queued rather than lost from both — the trap the session stream already documents.
         await pubsub.subscribe(channel)
-        seen_max = after_id
         try:
-            yield f"data: {json.dumps({'type': 'connected', 'run_id': str(run_id)})}\n\n"
-
             async with AsyncSessionLocal() as sdb:
                 backlog = (
                     (
@@ -792,30 +794,20 @@ async def stream_run(
                     .scalars()
                     .all()
                 )
-                replay = [(row.id, row.payload) for row in backlog]
 
-            for eid, payload in replay:
-                seen_max = max(seen_max, eid or 0)
-                yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
-                if payload.get("type") in _REPLAY_STOP_EVENTS:
-                    return
-
-            if run.status in _SUSPENDED_STATUSES:
-                return
-
-            async for message in pubsub.listen():
-                if message["type"] != "message":
-                    continue
-                try:
-                    payload = json.loads(message["data"])
-                except (json.JSONDecodeError, TypeError):
-                    continue
-                eid = payload.get("id")
-                if eid is not None and eid <= seen_max:
-                    continue
-                yield (f"id: {eid}\n" if eid else "") + f"data: {json.dumps(payload)}\n\n"
-                if payload.get("type") in _TERMINAL_EVENTS:
-                    break
+            # The loop itself is `app/services/event_stream.py`, shared with the session
+            # stream and both desktop streams. What stays here is the half that genuinely
+            # differs: where the backlog is read and what the live feed is.
+            async for frame in sse_frames(
+                connected={"type": "connected", "run_id": str(run_id)},
+                backlog=[(row.id, row.payload) for row in backlog],
+                live=adapters.redis_event_stream(pubsub),
+                replay_stop=_REPLAY_STOP_EVENTS,
+                terminal_stop=_TERMINAL_EVENTS,
+                already_done=run.status in _SUSPENDED_STATUSES,
+                seen_from=after_id,
+            ):
+                yield frame
         finally:
             await pubsub.unsubscribe(channel)
             await pubsub.aclose()

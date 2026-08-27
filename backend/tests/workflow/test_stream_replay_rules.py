@@ -1,137 +1,115 @@
 """
-Replay stops at the true terminals; only the *live tail* stops at a gate.
+All four streams run one loop, and hand it the right two lists.
 
-**The defect.** A stream's stop-list answers "when may the connection close?". A graph
-suspended at `PLAN_READY`/`HITL_READY` publishes nothing more until a human acts, so the
-live tail closes there — correct, and why both gates are on `_TERMINAL_EVENTS`.
+**The defect this file was written for.** A stream's stop-list answers "when may the
+connection close?". A graph suspended at `PLAN_READY`/`HITL_READY` publishes nothing more
+until a human acts, so the live tail closes there — correct, and why both gates are on
+`_TERMINAL_EVENTS`. Applying that same list to the *backlog* says something different and
+wrong: "stop reading history at the first gate". A client that reconnects **without** a
+`Last-Event-ID` — which is what a fresh `EventSource` is, and a status change creates one —
+replays from id 0, hits the `PLAN_READY` row the design gate left behind, and returns.
+Everything the run did after the gate is never delivered, and the live tail is never
+reached either.
 
-Applying that same list to the *backlog* says something different and wrong: "stop reading
-history at the first gate". A client that reconnects **without** a `Last-Event-ID` — which
-is what a fresh `EventSource` is, and a status change creates one — replays from id 0, hits
-the `PLAN_READY` row the design gate left behind, and returns. Everything the run did after
-the gate is never delivered, and the live tail is never reached either. Symptom: after
-approving an edited plan, the activity log sometimes never shows the executor working the
-edited query.
+**Why this file changed shape.** There were four copies of that loop — the server's session
+and run streams, the desktop's two — and the rule was right in one and copied from the tail's
+list in the other three. None of them could be called: each was a closure inside a route,
+over a Redis subscription or an in-process bus. So this file used to assert the rule by
+*reading their source*, finding the backlog loop with a regex and checking which names were
+compared inside it. That is an honest response to untestable code, and it can only ever
+assert what the source looks like.
 
-The server's session stream always drew this distinction (`("COMPLETED", "FAILED")` in the
-replay loop, the wider list in the tail). The run streams and the desktop host's session stream
-copied the tail's list into both places. This pins all four.
+The loop is now `app/services/event_stream.py`, and `test_sse_frames.py` drives it: replay
+past a gate, tail stopping at one, dedup, and an unstored event delivered without a cursor
+are all *behaviour* now. What is left for this file is the part behaviour cannot show —
+that every route actually uses that loop, and hands it the two correct lists rather than one
+list twice.
 """
 
 from __future__ import annotations
 
 import ast
 import inspect
-import re
+
+from app.services.event_stream import sse_frames
 
 
-def _replay_stop_names(source: str) -> list[str]:
-    """The names compared against inside every `for ... in <backlog>` loop.
+def _calls_to(source: str, name: str) -> list[ast.Call]:
+    tree = ast.parse(inspect.cleandoc(source))
+    return [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == name
+    ]
 
-    AST rather than a substring scan: the constants are also *named* in comments and in
-    the tail loop, and a prose mention must not be able to satisfy this test.
-    """
-    tree = ast.parse(inspect.cleandoc(source) if source.startswith('"') else source)
-    found = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.For):
-            continue
-        # A replay loop iterates a materialised backlog list of (id, payload) pairs.
-        if not isinstance(node.target, ast.Tuple):
-            continue
-        for inner in ast.walk(node):
-            if isinstance(inner, ast.Compare) and any(isinstance(op, ast.In) for op in inner.ops):
-                for comparator in inner.comparators:
-                    if isinstance(comparator, ast.Name):
-                        found.append(comparator.id)
+
+def _stop_lists(route) -> tuple[str, str]:
+    """The `replay_stop` and `terminal_stop` arguments one route hands the generator."""
+    calls = _calls_to(inspect.getsource(route), "sse_frames")
+    assert len(calls) == 1, f"{route.__qualname__} does not call sse_frames exactly once"
+    kwargs = {kw.arg: ast.unparse(kw.value) for kw in calls[0].keywords}
+    assert "replay_stop" in kwargs and "terminal_stop" in kwargs, (
+        f"{route.__qualname__} does not pass both stop-lists"
+    )
+    return kwargs["replay_stop"], kwargs["terminal_stop"]
+
+
+def _routes() -> dict[str, object]:
+    import tempfile
+
+    from app.api.v1 import research, runs
+    from desktop.sidecar import create_sidecar_app
+
+    desktop = create_sidecar_app(data_dir=tempfile.mkdtemp(), token="streams", fake=True)
+    found = {
+        "server session": research.stream_events,
+        "server run": runs.stream_run,
+    }
+    for route in desktop.routes:
+        endpoint = getattr(route, "endpoint", None)
+        if endpoint is not None and endpoint.__name__ in ("stream_events", "v2_stream_run"):
+            found[f"desktop {endpoint.__name__}"] = endpoint
+    # The desktop's routes live on an included router; walk it if the flat scan missed them.
+    if len(found) < 4:
+        from tests.workflow.test_one_canonical_owner import _endpoints
+
+        endpoints = _endpoints(desktop)
+        found["desktop session"] = endpoints["GET /research/{session_id}/stream"]
+        found["desktop run"] = endpoints["GET /runs/{run_id}/stream"]
     return found
 
 
-def test_the_server_stream_replays_past_the_gates():
-    from app.api.v1 import runs as runs_api
-
-    assert runs_api._REPLAY_STOP_EVENTS == ("COMPLETED", "FAILED")
-    assert "PLAN_READY" in runs_api._TERMINAL_EVENTS, "the tail must still close at a gate"
-
-    src = inspect.getsource(runs_api.stream_run)
-    assert "_REPLAY_STOP_EVENTS" in _replay_stop_names(src), (
-        "the run replay loop must stop only at the true terminals"
-    )
-
-
-def test_desktop_streams_replay_past_the_gates():
-    import desktop.sidecar as sidecar
-
-    assert sidecar._REPLAY_STOP_EVENTS == ("COMPLETED", "FAILED")
-    assert "PLAN_READY" in sidecar._TERMINAL_EVENTS
-
-    src = inspect.getsource(sidecar)
-    # Both of this host's streams: the session one and the run one.
-    for marker, expected in (
-        ("async def stream_events", "_REPLAY_STOP_EVENTS"),
-        ("async def v2_stream_run", "V2_REPLAY_STOP"),
-    ):
-        idx = src.find(marker)
-        assert idx != -1, f"{marker} not found in the sidecar"
-        body = src[idx : idx + 4000]
-        assert re.search(rf"in {expected}:\s*\n\s*return", body), (
-            f"{marker}'s replay loop must stop only at the true terminals"
+def test_all_four_streams_use_the_one_generator():
+    """The anti-duplication check. A fifth copy of the loop would pass every behavioural
+    test in `test_sse_frames` and still be a fifth copy."""
+    routes = _routes()
+    assert len(routes) == 4, f"expected four streams, found {sorted(routes)}"
+    for name, route in routes.items():
+        assert _calls_to(inspect.getsource(route), "sse_frames"), (
+            f"{name} does not use the shared frame generator — it has its own loop"
         )
 
 
-def test_the_two_hosts_agree_on_the_replay_rule():
-    """One rule, two homes — the trap AGENTS.md keeps naming."""
-    import desktop.sidecar as sidecar
-    from app.api.v1 import runs as runs_api
-
-    assert sidecar._REPLAY_STOP_EVENTS == runs_api._REPLAY_STOP_EVENTS
-    assert sidecar._TERMINAL_EVENTS == runs_api._TERMINAL_EVENTS
-
-
-def test_v1_server_stream_was_already_correct_and_stays_that_way():
-    """The reference implementation. If this regresses, the others followed it wrongly."""
-    from app.api.v1 import research
-
-    src = inspect.getsource(research)
-    idx = src.find("async def stream_events")
-    body = src[idx : idx + 4000]
-    assert re.search(r'in \("COMPLETED", "FAILED"\):\s*\n\s*return', body), (
-        "the session replay loop must stop only at the true terminals"
-    )
+def test_no_stream_passes_the_same_list_twice():
+    """The original defect, stated where it can still be made: the two lists are different
+    lists, and a route that passes one for both has recreated the bug inside the new
+    structure."""
+    for name, route in _routes().items():
+        replay, terminal = _stop_lists(route)
+        assert replay != terminal, (
+            f"{name} hands the same stop-list to replay and to the live tail — replay would "
+            "stop at the design gate and hide everything the run did afterwards"
+        )
 
 
-def test_a_stream_on_a_suspended_run_still_closes_after_replay():
-    """The other half of the rule — and the half that is easy to break while fixing the first.
+def test_the_generator_is_the_only_place_the_rule_is_written():
+    """`sse_frames` takes both lists as arguments and never names an event type itself.
 
-    Removing the gates from the replay stop-list is only safe because the decision moved to
-    the run's *current* status. Without that, a client reconnecting to a run parked at a
-    gate would replay the backlog and then block on a channel nothing will ever write to —
-    exactly what the gates were on the stop-list to prevent. Both hosts must hold both
-    halves.
+    If it did, a route's lists would be advisory and the real rule would be hidden inside
+    the generator — which is how this got wrong in the first place, four times over.
     """
-    import desktop.sidecar as sidecar
-    from app.api.v1 import runs as runs_api
-
-    for gate in ("AWAITING_PLAN", "AWAITING_REVIEW"):
-        assert gate in runs_api._SUSPENDED_STATUSES, f"{gate} must end a run stream after replay"
-    for terminal in ("COMPLETED", "FAILED", "CANCELLED"):
-        assert terminal in runs_api._SUSPENDED_STATUSES
-
-    src = inspect.getsource(runs_api.stream_run)
-    assert re.search(r"if run\.status in _SUSPENDED_STATUSES:\s*\n\s*return", src), (
-        "the run stream must stop before tailing when the run is suspended"
-    )
-
-    # The desktop host expresses the same rule through `already_done`.
-    sidecar_src = inspect.getsource(sidecar)
-    for marker in ("async def stream_events", "async def v2_stream_run"):
-        idx = sidecar_src.find(marker)
-        body = sidecar_src[idx : idx + 4500]
-        assert re.search(r"if already_done:\s*\n\s*return", body), (
-            f"{marker} must end after replay when the run is suspended"
+    source = inspect.getsource(sse_frames)
+    for event in ("PLAN_READY", "HITL_READY", "COMPLETED", "FAILED"):
+        assert f'"{event}"' not in source, (
+            f"sse_frames hard-codes {event}; the stop-lists are the caller's to state"
         )
-    # And both gates must be in that predicate, not just the terminals.
-    v1_guard = sidecar_src[sidecar_src.find("already_done = session.status in (") :][:400]
-    assert "AWAITING_PLAN" in v1_guard and "AWAITING_APPROVAL" in v1_guard
-    v2_guard = sidecar_src[sidecar_src.find("already_done = run.status in (") :][:400]
-    assert "AWAITING_PLAN" in v2_guard and "AWAITING_REVIEW" in v2_guard

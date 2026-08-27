@@ -439,20 +439,29 @@ def test_terminal_stream_events_agree_between_hosts():
     """A pause event missing from one stop-list leaves a stream open on a suspended graph.
 
     AGENTS.md: "A new pause event → the stream's stop-list in `app/api/v1/research.py`
-    *and* `sidecar::_TERMINAL_EVENTS`; a stream left open on a suspended graph waits on
+    *and* `sidecar::_TERMINAL_EVENTS` — a stream left open on a suspended graph waits on
     no one."
+
+    Asserted as **equality of the lists themselves**, not by searching one host's function
+    source for the other's names. The old form could only see literals written inside a
+    particular function body, so it broke the moment the four stream loops were replaced by
+    one shared generator — and it would have said nothing at all about a host that computed
+    its stop-list some other way.
     """
-    import inspect
-
     from app.api.v1 import research as server_research
-    from desktop.sidecar import _TERMINAL_EVENTS
+    from app.api.v1 import runs as server_runs
+    from desktop.sidecar import _REPLAY_STOP_EVENTS, _TERMINAL_EVENTS
 
-    server_source = inspect.getsource(server_research.stream_events)
-    for event in _TERMINAL_EVENTS:
-        assert f'"{event}"' in server_source, (
-            f"{event} ends the desktop stream but not the server's — a client on the server "
-            "would hold a connection open on a graph that will publish nothing more"
-        )
+    assert server_research._TERMINAL_EVENTS == _TERMINAL_EVENTS
+    assert server_runs._TERMINAL_EVENTS == _TERMINAL_EVENTS
+    assert server_research._REPLAY_STOP_EVENTS == _REPLAY_STOP_EVENTS
+    assert server_runs._REPLAY_STOP_EVENTS == _REPLAY_STOP_EVENTS
+
+    # And that the two lists are genuinely different, which is the rule they encode: the
+    # gates end the live tail and must not end the replay.
+    assert set(_REPLAY_STOP_EVENTS) < set(_TERMINAL_EVENTS)
+    assert {"PLAN_READY", "HITL_READY"} <= set(_TERMINAL_EVENTS)
+    assert not {"PLAN_READY", "HITL_READY"} & set(_REPLAY_STOP_EVENTS)
 
 
 # ── Security boundaries, swept generically ────────────────────────────────────────

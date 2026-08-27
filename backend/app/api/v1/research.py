@@ -44,9 +44,16 @@ from app.schemas.research import (
     SessionSummary,
 )
 from app.services import checkpoints, export, model_routing, usage
+from app.services.event_stream import sse_frames
 from app.services.sse import SSE_HEADERS
 from app.workers.tasks import resume_agent_pipeline, resume_plan_gate, run_agent_pipeline
 from research_engine import bundle
+
+#: Replay ends at a true terminal only; the live tail also ends at a gate, because a
+#: suspended graph publishes nothing more until a human acts. Both hosts and both surfaces
+#: use these two lists — see `app/services/event_stream.py` for why they must differ.
+_REPLAY_STOP_EVENTS = ("COMPLETED", "FAILED")
+_TERMINAL_EVENTS = ("COMPLETED", "FAILED", "HITL_READY", "PLAN_READY")
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/research", tags=["Research"])
@@ -200,6 +207,8 @@ async def stream_events(
     after_id = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
 
     async def gen() -> AsyncGenerator[str, None]:
+        from app import adapters
+
         channel = f"session:{session_id}:events"
         pubsub = redis.pubsub()
         # Subscribe BEFORE snapshotting the backlog. Any event published in the gap
@@ -207,10 +216,7 @@ async def stream_events(
         # which stranded fast resume→COMPLETED runs on the monitor. Now such an event
         # is queued on the pubsub and deduped against the backlog by its durable id.
         await pubsub.subscribe(channel)
-        seen_max = after_id
         try:
-            yield f"data: {json.dumps({'type': 'connected'})}\n\n"
-
             # Snapshot the backlog AFTER subscribing. Uses a fresh session because the
             # request-scoped one is closed once the endpoint returns and streaming begins.
             async with AsyncSessionLocal() as sdb:
@@ -225,33 +231,20 @@ async def stream_events(
                     .scalars()
                     .all()
                 )
-                replay = [(row.id, row.payload) for row in backlog]
 
-            for eid, payload in replay:
-                seen_max = max(seen_max, eid or 0)
-                yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
-                if payload.get("type") in ("COMPLETED", "FAILED"):
-                    return
-            async for message in pubsub.listen():
-                if message["type"] != "message":
-                    continue
-                try:
-                    payload = json.loads(message["data"])
-                except (json.JSONDecodeError, TypeError):
-                    continue
-                eid = payload.get("id")
-                if eid is not None and eid <= seen_max:
-                    continue  # already replayed
-                if eid:
-                    yield f"id: {eid}\ndata: {json.dumps(payload)}\n\n"
-                else:
-                    yield f"data: {json.dumps(payload)}\n\n"
-                # PLAN_READY joins this list for the same reason HITL_READY is on it:
-                # the graph is suspended at an interrupt and will publish nothing more
-                # until a human acts, so holding the connection open waits on no one.
-                # Desktop counterpart: `sidecar._TERMINAL_EVENTS`.
-                if payload.get("type") in ("COMPLETED", "FAILED", "HITL_READY", "PLAN_READY"):
-                    break
+            # The loop is `app/services/event_stream.py`, shared with the run stream and
+            # both desktop streams. This route keeps only what genuinely differs: the
+            # backlog query and the Redis subscription.
+            async for frame in sse_frames(
+                connected={"type": "connected"},
+                backlog=[(row.id, row.payload) for row in backlog],
+                live=adapters.redis_event_stream(pubsub),
+                replay_stop=_REPLAY_STOP_EVENTS,
+                terminal_stop=_TERMINAL_EVENTS,
+                already_done=False,
+                seen_from=after_id,
+            ):
+                yield frame
         finally:
             await pubsub.unsubscribe(channel)
             await pubsub.aclose()
