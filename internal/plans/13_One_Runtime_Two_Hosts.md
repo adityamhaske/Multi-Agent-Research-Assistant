@@ -360,65 +360,64 @@ these routes will meet it.
 
 ### 0.10 Where this stands
 
-**Backend 952 passed / 90 skipped. Frontend typecheck, lint, 315 tests, and all three
-build targets. Ruff clean. Parity goldens unmoved since Phase 2b.** Twelve commits.
+**Backend 958 passed / 90 skipped. Frontend typecheck, lint, 315 tests, all three build
+targets. Ruff clean.** Fourteen commits.
 
 #### Done
 
-| Phase | |
-|---|---|
-| 0 | recorded contract, non-degeneracy guards, both drivers |
-| 1 | the response-shape hole closed; eight models relocated for #50 |
-| 2 | three live defects fixed — SSE ids, corpus contract, lifecycle payloads |
-| — | desktop corpus-only mode removed; per-run `corpus_mode` now honoured |
-| 3 | the layer boundary declared and enforced; `KNOWN_EXCEPTIONS` empty |
-| 4 | one error taxonomy, one status table, both hosts |
-| 5 | the demo rule; P10 `CorpusLocator`; P12 `MemoryIndex` |
-| 6 | canonical-owner check; dispatch port split; four SSE loops → one |
-| 9 | `VERSION`, `sync_version.py`, `stamp_build.py`, `GET /api/v1/version` |
-| 10 | `GET /api/v1/capabilities`; five frontend branches off the build flag |
+Phases **0, 1, 2, 3, 4, 9, 10**; most of **5** (the demo rule, `CorpusLocator`,
+`MemoryIndex`); most of **6** (canonical-owner check, dispatch port split, four SSE loops
+→ one); and **Phase 7's first rung** — `SessionDispatcher`, which made the session journey
+recordable on both hosts for the first time.
+
+The parity suite now drives **five journeys** against both hosts: projects, corpus,
+identity-and-models, a full research run, and a full research session.
 
 #### Not done
 
 | Remaining | State |
 |---|---|
-| **Phase 5** P9 `SecretStore`, P11 `RoutingStore` | not started. Both small; neither is a recorded defect |
-| **Phase 6** moving the 14 run handlers into `app/handlers/` | not started. `app/handlers/` is empty and its layer rule holds vacuously |
-| **Phase 7** the session journey | not started — the largest behavioural surface, four gated commits |
+| **Phase 5** P9 `SecretStore` | worth doing — four `crypto.decrypt` sites on the server |
+| **Phase 5** P11 `RoutingStore` | **not worth building.** One home per host already; a port would be abstraction with no duplication to remove, which the plan's own §5 forbids |
+| **Phase 6** moving the run handlers into `app/handlers/` | ownership is already proven by identity, so this buys layering purity rather than parity |
+| **Phase 7** moving the session journey | the baseline exists now. This is where the real duplication lives — ~700 lines of `sidecar.py` |
 | **Phase 8** projects, corpus, models | not started |
 | **Phase 11** release orchestration | **not written, deliberately** |
 
-**Phase 9's packaging half is written and unrun.** `research-sidecar.spec` names
-`research_engine._build`; `desktop.yml` stamps before `pyinstaller`. Neither has executed —
-no Tauri toolchain, no macOS runner. **The assertion that the SHA reaches the shipped
-bundle is still owed**, so `GET /api/v1/version` on a *packaged* app is unproven.
-`AGENTS.md` records a 5 MB `.app` that passed CI and died on first launch.
+**Phase 9's packaging half is written and unrun.** The spec names `research_engine._build`
+and `desktop.yml` stamps before `pyinstaller`; neither has executed. **The assertion that
+the SHA reaches the shipped bundle is still owed.**
 
-**Phase 11 was left unwritten on purpose.** Its acceptance is `release-artifact-revision`
-mounting a `.dmg` on a macOS runner. The design in §10 is unchanged and complete. Its one
-change with real blast radius — removing `desktop.yml`'s `release` job so the orchestrator
-owns the GitHub Release — only shows up during a release, and YAML that looks finished is
-worse than an absence anyone can see. One tag push verifies it; nothing here can.
+**Phase 11 stays unwritten.** Its acceptance is `release-artifact-revision` mounting a
+`.dmg` on a macOS runner. Its one change with real blast radius — removing `desktop.yml`'s
+`release` job — only fails during a release. One tag push verifies it; nothing here can.
 
-#### What remained of `isDesktop`, and why it is correct
+**A recorded limit in the harness:** the session journey omits `export.bundle.json`,
+because that route reads evidence from the LangGraph checkpoint and on the server that is
+`AsyncPostgresSaver`. Closing it needs the server driver on Postgres. The *run* bundle is
+covered — it reads the `evidence` table.
 
-Transport, all of it: cookies vs bearer token, `withCredentials` on an `EventSource`, a
-dynamic route vs a static export, the refresh-token flow. Those are properties of the
-build. The five that were about *what a person can do* now ask the host.
+#### What the checks found, in order
 
-One genuine contract difference survives and is not arbitrary: provider health takes a
-provider on the desktop and not on the server, because the server stores one active
-connection while a keychain holds one entry per provider. It keys off `byok_storage` — the
-fact it follows from — rather than off the build.
+Every one was surfaced by a check written in the phase before it.
 
-#### Rules that went stale, recorded rather than left
-
-- `AGENTS.md` still says the README download badge carries a version. It points at
-  `docs/getting-started/23-desktop-app.md` and carries none, which is why
-  `sync_version.py` omits it.
-- The run stream's `DIVERGENT_BY_DESIGN` reason said the `EventStream` port would let the
-  generator be shared. It is shared; what remains per host is the backlog source and the
-  live feed. Corrected in `2929459`.
+| | Finding |
+|---|---|
+| 1 | Desktop SSE cursor used two id spaces; reconnect replayed duplicates then went silent |
+| 2 | Every persisted event payload's `id` was null |
+| 3 | Corpus downloads served with **no `Content-Type`**, on a response sending `nosniff` |
+| 4 | Server sent `204` with `application/json` and no body |
+| 5 | Corpus upload disagreed on status codes, error codes and body fields |
+| 6 | Desktop lifecycle events carried `data: null` for all four outcomes |
+| 7 | **A desktop run requested as airgapped was recorded as airgapped and executed over the open web** |
+| 8 | `GET /runs/{run_id}` ran different code on each host |
+| 9 | `app/run_dispatch.py` — the port — shipped the server's Celery adapter |
+| 10 | The pgvector operator sat in the domain layer |
+| 11 | Corpus filename convention spelled out in nine places |
+| 12 | **Deleting a session on the desktop raised 500** — a rendered control, failing on every use |
+| 13 | `POST /research` answered a different status on each host |
+| 14 | `_drive_session` never set `RUNNING`, so a desktop session showed "Pending" for its whole run |
+| 15 | Project-memory ingest attempted a write on a host without the table, then rolled back under its caller |
 
 ---
 
