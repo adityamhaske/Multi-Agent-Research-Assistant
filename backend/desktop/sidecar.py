@@ -132,13 +132,7 @@ from app.services import (
     usage,
 )
 
-# `download_headers` is the shared response-header policy for uploaded documents (the
-# no-render rule plus the narrow PDF exception). Imported, never restated: a second copy
-# of a security header policy is the worst kind of duplication this repo has. It lives in
-# a stdlib-only module rather than in the server's corpus route, because importing that
-# route reaches `app.config` and this host has no server settings to build (#50).
 from app.services.delegation import delegates_to
-from app.services.document_headers import download_headers, media_type_for
 from app.services.error_responses import install_error_handlers
 from app.services.event_stream import sse_frames
 from app.services.run_config import apply_demo_rule, is_scripted
@@ -734,18 +728,19 @@ def create_sidecar_app(
         """`CorpusLocator` for the desktop: one flat store for the whole app.
 
         `for_project`/`ensure` ignore `project_id` on purpose — there is only ever the one
-        store, `state["corpus"]`, seeded in `lifespan`. `paths_to_delete`/`delete` are
-        no-ops for the same reason `delete_project`'s docstring already gave before this
-        class existed: nothing here is project-scoped on disk to orphan. Keeping that as
-        the locator's own behaviour, rather than a branch in the route, is what lets
-        `delete_project` run unmodified on both hosts.
+        store, and `_corpus()` is where its not-ready-yet 503 already lived before this
+        class existed, so this calls it rather than reading `state["corpus"]` a second
+        way. `paths_to_delete`/`delete` are no-ops for the reason `delete_project`'s
+        docstring already gave: nothing here is project-scoped on disk to orphan. Keeping
+        that as the locator's own behaviour, rather than a branch in the route, is what
+        lets `delete_project` and now the corpus routes run unmodified on both hosts.
         """
 
         async def for_project(self, project_id, *, keys=None):  # noqa: ARG002
-            return state["corpus"]
+            return _corpus()
 
         async def ensure(self, project_id, *, keys=None):  # noqa: ARG002
-            return state["corpus"]
+            return _corpus()
 
         def paths_to_delete(self, project_id):  # noqa: ARG002
             return []
@@ -1011,31 +1006,13 @@ def create_sidecar_app(
 
         return await create_project(payload, db, user)
 
-    async def _resolve_project(
-        db: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID | None
-    ) -> Project:
-        if project_id is None:
-            project = (
-                await db.execute(
-                    select(Project)
-                    .where(Project.user_id == user_id, Project.name == DEFAULT_PROJECT_NAME)
-                    .limit(1)
-                )
-            ).scalar_one_or_none()
-            if project is None:  # pragma: no cover — seeded at startup
-                project = Project(user_id=user_id, name=DEFAULT_PROJECT_NAME)
-                db.add(project)
-                await db.commit()
-                await db.refresh(project)
-            return project
-        project = (
-            await db.execute(
-                select(Project).where(Project.id == project_id, Project.user_id == user_id)
-            )
-        ).scalar_one_or_none()
-        if project is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Project not found.")
-        return project
+    # `_resolve_project` used to live here: the desktop's own default-project lookup
+    # (exact name match) and per-project ownership check, called by every route below
+    # this point. Every one of those routes now delegates to the server's, which resolves
+    # projects through `app.api.v1.projects.resolve_project` — case-insensitive on the
+    # default project, matching the case-insensitive unique index the same module's
+    # `IntegrityError` handler already assumes. A second, narrower lookup here would be
+    # exactly the kind of quietly-diverging duplicate this phase exists to remove.
 
     @api.patch("/projects/{project_id}", response_model=ProjectResponse)
     @delegates_to("app.api.v1.projects:update_project")
@@ -2366,31 +2343,41 @@ def create_sidecar_app(
     # to the frontend instead would have taught it about a storage decision it has no
     # business knowing.
     #
-    # `_resolve_project` still runs and still 404s on an unknown project, matching the
-    # server's authorization boundary — the project id is not *used* to pick a store, but
+    # `resolve_project` (the server's, case-insensitive on the default project — see
+    # projects.py) still runs and still 404s on an unknown project, matching the server's
+    # authorization boundary — the project id is not *used* to pick a store, but
     # answering for a project that does not exist would be a different contract.
+    #
+    # All five routes below delegate. `_corpus()`'s not-ready-yet 503 and the flat routes'
+    # own store access above are unaffected — `_DesktopCorpusLocator` calls `_corpus()`
+    # itself rather than reading `state["corpus"]` a second way.
 
     @api.get("/projects/{project_id}/corpus/documents", response_model=list[DocumentResponse])
+    @delegates_to("app.api.v1.corpus:list_documents")
     async def list_project_corpus_documents(
         project_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        await _resolve_project(db, user.id, project_id)
-        return [corpus_ingest.document_response(d) for d in await _corpus().documents()]
+        from app.api.v1.corpus import list_documents
+
+        return await list_documents(project_id, db, user, get_corpus_locator())
 
     @api.get("/projects/{project_id}/corpus/status", response_model=CorpusStatusResponse)
+    @delegates_to("app.api.v1.corpus:get_status")
     async def project_corpus_status(
         project_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        await _resolve_project(db, user.id, project_id)
-        return corpus_ingest.status_response(await _corpus().status())
+        from app.api.v1.corpus import get_status
+
+        return await get_status(project_id, db, user, get_corpus_locator())
 
     @api.post(
         "/projects/{project_id}/corpus/documents", status_code=201, response_model=DocumentResponse
     )
+    @delegates_to("app.api.v1.corpus:upload_document")
     async def upload_project_corpus_document(
         project_id: uuid.UUID,
         file: UploadFile,
@@ -2406,22 +2393,24 @@ def create_sidecar_app(
         `python-multipart` is already a hard backend dependency; the PyInstaller spec now
         names it explicitly because nothing else in the sidecar's import graph pulls it in.
         """
-        await _resolve_project(db, user.id, project_id)
-        return await corpus_ingest.ingest_document(_corpus(), file.filename, await file.read())
+        from app.api.v1.corpus import upload_document
+
+        return await upload_document(project_id, file, db, user, get_corpus_locator())
 
     @api.delete("/projects/{project_id}/corpus/documents/{doc_id}", status_code=204)
+    @delegates_to("app.api.v1.corpus:delete_document")
     async def delete_project_corpus_document(
         project_id: uuid.UUID,
         doc_id: str,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        await _resolve_project(db, user.id, project_id)
-        if not await _corpus().delete(doc_id):
-            raise HTTPException(status.HTTP_404_NOT_FOUND, detail=corpus_ingest.DOCUMENT_NOT_FOUND)
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        from app.api.v1.corpus import delete_document
+
+        return await delete_document(project_id, doc_id, db, user, get_corpus_locator())
 
     @api.get("/projects/{project_id}/corpus/documents/{doc_id}/download")
+    @delegates_to("app.api.v1.corpus:download_document")
     async def download_project_corpus_document(
         project_id: uuid.UUID,
         doc_id: str,
@@ -2433,22 +2422,12 @@ def create_sidecar_app(
         `download_headers` is imported from the server module rather than restated: it is
         where the rule that an uploaded document must not render in this origin lives,
         along with the single narrow exception (PDF) that in-place preview needs. A second
-        copy of a security header policy is the worst kind of duplication to have.
+        copy of a security header policy is the worst kind of duplication to have — and
+        now there is exactly one copy of the route that applies it, too.
         """
-        await _resolve_project(db, user.id, project_id)
-        found = await _corpus().blob(doc_id)
-        if found is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Document not found.")
-        data, filename, kind = found
-        # `media_type` is not optional here: `download_headers` sets
-        # `X-Content-Type-Options: nosniff`, so a response with no declared type forbids
-        # the browser from guessing one. The desktop omitted it and served every document
-        # untyped.
-        return Response(
-            content=data,
-            media_type=media_type_for(kind),
-            headers=download_headers(kind, filename),
-        )
+        from app.api.v1.corpus import download_document
+
+        return await download_document(project_id, doc_id, db, user, get_corpus_locator())
 
     # ── The research run surface ──────────────────────────────────────────────────
     #

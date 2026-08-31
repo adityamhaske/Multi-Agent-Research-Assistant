@@ -63,6 +63,15 @@ SHARED_OWNERSHIP: dict[str, str] = {
     "POST /projects": "app.api.v1.projects",
     "PATCH /projects/{project_id}": "app.api.v1.projects",
     "DELETE /projects/{project_id}": "app.api.v1.projects",
+    # The per-project corpus surface, delegated the same phase. `_get_corpus_store` took
+    # a `CorpusLocator` instead of hardcoding `ServerCorpusLocator()` first — the same
+    # seam `delete_project` needed — so all five routes could move as one unit, with none
+    # of the run/session surfaces' leftover per-route infrastructure divergence.
+    "POST /projects/{project_id}/corpus/documents": "app.api.v1.corpus",
+    "GET /projects/{project_id}/corpus/documents": "app.api.v1.corpus",
+    "GET /projects/{project_id}/corpus/documents/{doc_id}/download": "app.api.v1.corpus",
+    "DELETE /projects/{project_id}/corpus/documents/{doc_id}": "app.api.v1.corpus",
+    "GET /projects/{project_id}/corpus/status": "app.api.v1.corpus",
 }
 
 #: Shared operations whose two hosts legitimately run different code, with the reason.
@@ -238,19 +247,14 @@ def test_every_declared_session_divergence_is_still_divergent(hosts):
 
 def test_no_projects_operation_is_unaccounted_for(hosts):
     """Same rule a third time: declared shared and proved by identity, or declared
-    divergent with a reason. All four project *CRUD* operations are shared today, so this
-    is presently equivalent to `set(SHARED_OWNERSHIP)` — it stops being that the moment
-    one genuinely needs to diverge, which is the point of keeping the check generic.
-
-    Scoped to bare `/projects` and `/projects/{project_id}` — the nested
-    `/projects/{project_id}/corpus/*` routes are the corpus surface, not this one, and
-    plan phase 8 has not reached them yet.
+    divergent with a reason. Every project and per-project-corpus operation is shared
+    today, so this is presently equivalent to `set(SHARED_OWNERSHIP)` — it stops being
+    that the moment one genuinely needs to diverge, which is the point of keeping the
+    check generic rather than hardcoding today's answer.
     """
     server, desktop = hosts
     shared = {
-        op
-        for op in set(server) & set(desktop)
-        if op.split(" ", 1)[1].startswith("/projects") and "/corpus" not in op
+        op for op in set(server) & set(desktop) if op.split(" ", 1)[1].startswith("/projects")
     }
     unaccounted = shared - set(SHARED_OWNERSHIP)
     assert not unaccounted, (

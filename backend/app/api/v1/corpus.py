@@ -13,11 +13,11 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters import ServerCorpusLocator
 from app.api.v1.projects import resolve_project
 from app.db.base import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
+from app.ports import CorpusLocator
 
 # Re-exported, not restated — see `app/schemas/corpus.py` for why the shapes moved, and
 # `app/services/corpus_ingest.py` for the validation and shaping both hosts share.
@@ -32,20 +32,23 @@ from app.services.document_headers import (  # noqa: F401  (re-export)
     download_headers,
     media_type_for,
 )
+from app.services.host_ports import get_corpus_locator
 from research_engine.corpus import CorpusStore
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/projects/{project_id}/corpus", tags=["Corpus"])
 
 
-async def _get_corpus_store(project_id: uuid.UUID) -> CorpusStore:
+async def _get_corpus_store(project_id: uuid.UUID, corpus: CorpusLocator) -> CorpusStore:
     """This project's corpus, created if it does not exist yet.
 
-    Where it lives is `ServerCorpusLocator`'s to know — seven modules used to spell out
-    the same filename, and the last time that convention drifted, upload and run stopped
-    seeing the same corpus (AGENTS.md).
+    Where it lives is the locator's to know — seven modules used to spell out the same
+    filename, and the last time that convention drifted, upload and run stopped seeing
+    the same corpus (AGENTS.md). `corpus` arrives via `Depends(get_corpus_locator)`
+    rather than a hardcoded `ServerCorpusLocator()` so the desktop can delegate to these
+    routes and pass its own locator over its one flat store explicitly.
     """
-    return await ServerCorpusLocator().ensure(project_id)
+    return await corpus.ensure(project_id)
 
 
 @router.post("/documents", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
@@ -54,6 +57,7 @@ async def upload_document(
     file: UploadFile,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    corpus: CorpusLocator = Depends(get_corpus_locator),
 ):
     """Ingest a new document into the project's corpus.
 
@@ -64,7 +68,7 @@ async def upload_document(
     # Enforce isolation: verify the user owns the project
     await resolve_project(db, current_user.id, project_id)
 
-    store = await _get_corpus_store(project_id)
+    store = await _get_corpus_store(project_id, corpus)
     return await corpus_ingest.ingest_document(store, file.filename, await file.read())
 
 
@@ -73,11 +77,12 @@ async def list_documents(
     project_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    corpus: CorpusLocator = Depends(get_corpus_locator),
 ):
     """List all documents in the project's corpus."""
     await resolve_project(db, current_user.id, project_id)
 
-    store = await _get_corpus_store(project_id)
+    store = await _get_corpus_store(project_id, corpus)
     return [corpus_ingest.document_response(d) for d in await store.documents()]
 
 
@@ -87,6 +92,7 @@ async def download_document(
     doc_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    corpus: CorpusLocator = Depends(get_corpus_locator),
 ):
     """Serve the original uploaded file so it can be opened in its native application.
 
@@ -100,7 +106,7 @@ async def download_document(
     """
     await resolve_project(db, current_user.id, project_id)
 
-    store = await _get_corpus_store(project_id)
+    store = await _get_corpus_store(project_id, corpus)
     found = await store.blob(doc_id)
     if found is None:
         raise HTTPException(
@@ -122,11 +128,12 @@ async def delete_document(
     doc_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    corpus: CorpusLocator = Depends(get_corpus_locator),
 ):
     """Delete a document from the project's corpus."""
     await resolve_project(db, current_user.id, project_id)
 
-    store = await _get_corpus_store(project_id)
+    store = await _get_corpus_store(project_id, corpus)
     if not await store.delete(doc_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=corpus_ingest.DOCUMENT_NOT_FOUND
@@ -141,9 +148,10 @@ async def get_status(
     project_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    corpus: CorpusLocator = Depends(get_corpus_locator),
 ):
     """Get the status of the project's corpus."""
     await resolve_project(db, current_user.id, project_id)
 
-    store = await _get_corpus_store(project_id)
+    store = await _get_corpus_store(project_id, corpus)
     return corpus_ingest.status_response(await store.status())

@@ -202,6 +202,8 @@ LAZY_REQUEST_IMPORTS = (
     # `import redis.asyncio` to inside its functions. Named here so this delegation is
     # actually walked rather than merely assumed to be as safe as the run routes.
     "app.api.v1.projects",
+    # Same phase, same reasoning: the per-project corpus routes delegate too.
+    "app.api.v1.corpus",
 )
 
 
