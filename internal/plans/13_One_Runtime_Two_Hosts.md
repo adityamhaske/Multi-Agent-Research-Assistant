@@ -362,8 +362,10 @@ these routes will meet it.
 
 **Backend 1025 passed / 90 skipped (one pre-existing, unrelated failure — see below).
 Frontend typecheck, lint, 315 tests, all three build targets green this session.**
-Twenty-seven commits. **The packaged desktop app was built and launched for real on this
-machine —
+Twenty-nine commits (counted from `ca15532`, this plan's first — not carried forward by
+arithmetic, which drifted by one in the commit before this one: a count stated in the same
+commit that changes it is always one behind by the time it lands). **The packaged desktop
+app was built and launched for real on this machine —
 PyInstaller sidecar, Tauri shell, `.app` and `.dmg` — and its `GET /version` matches `HEAD`
 exactly**, closing the one verification this plan had called "owed" since revision 1.
 
