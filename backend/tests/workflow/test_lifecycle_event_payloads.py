@@ -119,3 +119,55 @@ def test_both_hosts_use_this_mapping_rather_than_their_own():
 
     assert pipeline_runner.lifecycle_event is lifecycle_event
     assert sidecar.lifecycle_event is lifecycle_event
+
+
+# ── The cancel path's own event: same convention, and durably written ──────────────
+
+
+def test_the_cancel_event_uses_the_same_reason_convention():
+    """`cancel_session` builds its FAILED event by hand — there is no `RunOutcome` for a
+    user-initiated stop, so it cannot call `lifecycle_event` itself — but it must still
+    agree with what that function already established: the reason lives in `data`, not
+    in `message`. Pinned directly against `research_engine.events.make_event` rather
+    than against a fake `RunOutcome`, since that is the actual builder both hosts share.
+    """
+    from research_engine.events import make_event
+
+    event = make_event("FAILED", data={"reason": "Research stopped by user."})
+    assert event["data"]["reason"] == "Research stopped by user."
+    assert "message" not in event or event["message"] is None
+
+
+async def test_the_servers_cancel_route_writes_its_event_durably_not_only_live(monkeypatch):
+    """What broke when `cancel_session` called `app.db.redis.publish_event` directly:
+    nothing durable was ever written for this one event, so a client that reconnected to
+    the stream after the cancel (rather than watching it happen) found no matching entry
+    in the replay. `agent_log_sink` is the durable-write-then-publish path every other
+    event goes through; this proves `get_terminal_event_emitter`'s server implementation
+    actually reaches it rather than reintroducing the raw-publish shortcut.
+
+    Monkeypatches the factory rather than a real `AsyncSession`, because what is under
+    test here is the *wiring* — does this seam reach `agent_log_sink` at all — not
+    `agent_log_sink`'s own write behaviour, which the pipeline's event flow already
+    exercises against a real database elsewhere.
+    """
+    import app.adapters as adapters_module
+    from app.services.host_ports import get_terminal_event_emitter
+
+    calls: list[tuple[str, dict]] = []
+
+    def fake_agent_log_sink(db, session_id):  # noqa: ARG001
+        async def sink(sid: str, event: dict) -> None:
+            calls.append((sid, event))
+
+        return sink
+
+    monkeypatch.setattr(adapters_module, "agent_log_sink", fake_agent_log_sink)
+
+    emit = get_terminal_event_emitter()
+    event = {"type": "FAILED", "data": {"reason": "Research stopped by user."}}
+    await emit(object(), "session-123", event)
+
+    assert calls == [("session-123", event)], (
+        f"the emitter did not reach agent_log_sink — the durable write is skipped again: {calls}"
+    )

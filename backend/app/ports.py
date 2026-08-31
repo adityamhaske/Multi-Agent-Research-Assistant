@@ -127,3 +127,26 @@ class CheckpointDeleter(Protocol):
     """
 
     async def __call__(self, thread_id: str) -> None: ...
+
+
+@runtime_checkable
+class TerminalEventEmitter(Protocol):
+    """Write one durable event, then publish it live — for a route that ends a session
+    outside the pipeline's own event flow.
+
+    `research_engine.ports.EventSink` covers events *during* a run, installed once per
+    run via `events.set_emitter`; this is the narrower thing a route reaches for after
+    the run has already been taken out of the graph's hands. `cancel_session` is the one
+    caller: it commits a status change and then has exactly one event left to tell a live
+    listener about, and unlike the pipeline's own sink, there is no already-open,
+    run-scoped session to bind a lock to — one call, one write, one publish.
+
+    A genuine host difference in more than the transport: the server's implementation
+    reuses the caller's `db` session directly (the same reason `agent_log_sink` does);
+    the desktop's `persist_and_publish` opens its own scope from a session factory,
+    because it is shared with the pipeline's own event flow rather than written only
+    for this seam. `db` is still threaded through so both shapes have somewhere to put
+    it — the desktop's implementation is free to ignore it.
+    """
+
+    async def __call__(self, db, session_id: str, event: dict) -> None: ...

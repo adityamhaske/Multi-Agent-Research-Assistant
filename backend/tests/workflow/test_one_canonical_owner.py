@@ -56,6 +56,10 @@ SHARED_OWNERSHIP: dict[str, str] = {
     "POST /research/{session_id}/unarchive": "app.api.v1.research",
     "DELETE /research/{session_id}": "app.api.v1.research",
     "GET /research/{session_id}/export.md": "app.api.v1.research",
+    # Closed the phase-7 gap: TerminalEventEmitter (app/ports.py) is the seam that made
+    # this delegable — delegating it before the port existed raised "Redis pool not
+    # initialized", which is why it was SESSION_DIVERGENT until now.
+    "POST /research/{session_id}/cancel": "app.api.v1.research",
     # The projects surface, delegated in plan phase 8. `delete_project` needed two new
     # seams first (`CorpusLocator`, `CheckpointDeleter`) — everything else about it, plus
     # list/create/update, was a straight delegation.
@@ -222,12 +226,6 @@ def test_every_declared_divergence_states_a_reason(hosts):
 
 
 SESSION_DIVERGENT: dict[str, str] = {
-    "POST /research/{session_id}/cancel": (
-        "plan phase 7 — cancelling publishes a terminal event, and publishing is the host's: "
-        "the server writes to Redis and the desktop to its in-process bus. Everything else "
-        "about the route is already identical; sharing it needs the EventSink behind a port. "
-        "Delegating it without that made the desktop raise 'Redis pool not initialized'"
-    ),
     "GET /research/{session_id}/stream": (
         "by design — same as the run stream: the frame generator is shared "
         "(app/services/event_stream.py) and what differs is where the backlog is read and "

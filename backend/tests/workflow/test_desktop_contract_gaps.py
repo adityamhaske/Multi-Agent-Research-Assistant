@@ -19,6 +19,7 @@ frontend had to know about. No `isDesktop` branch was added to close any of thes
 from __future__ import annotations
 
 import asyncio
+import json
 
 import httpx
 import pytest
@@ -153,6 +154,36 @@ async def test_cancel_writes_a_terminal_event_to_the_log(sidecar, held_run):
     )
     assert stream.status_code == 200
     assert "FAILED" in stream.text
+
+
+async def test_cancel_event_puts_the_reason_where_the_server_convention_looks(sidecar, held_run):
+    """`session_events.lifecycle_event` moved every other terminal event's failure
+    reason from `message` to `data.reason` (parity Phase 2c) — `cancel_session` built
+    its own event by hand on both hosts and never picked that convention up. The
+    desktop's copy put it in `message`, so a client reading `data.reason` for a
+    user-stopped session saw nothing, while the exact same client reading it for a
+    provider-error failure saw the reason correctly. Delegating this route (plan
+    phase 7's last session route) fixed it by construction: there is now one place
+    that builds this event, not two that happened to agree until this test existed.
+    """
+    start = await sidecar.post(
+        "/api/v1/research",
+        headers=_auth(),
+        json={"query": "What is retrieval-augmented generation?", "depth": "fast"},
+    )
+    session_id = start.json()["session_id"]
+    cancelled = await sidecar.post(f"/api/v1/research/{session_id}/cancel", headers=_auth())
+    assert cancelled.status_code == 200, cancelled.text
+
+    stream = await sidecar.get(
+        f"/api/v1/research/{session_id}/stream?access_token={TOKEN}",
+        headers={"Accept": "text/event-stream"},
+    )
+    failed_line = next(line for line in stream.text.splitlines() if '"type": "FAILED"' in line)
+    payload = json.loads(failed_line.split("data: ", 1)[1])
+    assert payload["data"]["reason"] == "Research stopped by user.", (
+        f"the reason travelled somewhere else: {payload}"
+    )
 
 
 async def test_cancel_404s_for_an_unknown_session(sidecar):

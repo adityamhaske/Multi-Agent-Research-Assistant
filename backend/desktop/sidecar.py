@@ -42,7 +42,6 @@ import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import replace
-from datetime import UTC, datetime
 from pathlib import Path
 
 # Launched as a plain script (Tauri shell, PyInstaller entry point), so make the
@@ -79,7 +78,7 @@ from app.models.chat_message import ChatMessage
 from app.models.project import Project
 from app.models.session import Session, SessionStatus
 from app.models.user import User
-from app.ports import CheckpointDeleter, CorpusLocator
+from app.ports import CheckpointDeleter, CorpusLocator, TerminalEventEmitter
 from app.schemas.auth import ConnectionVerdict, UsageResponse, UserResponse
 from app.schemas.capabilities import DESKTOP, Capabilities
 from app.schemas.corpus import CorpusStatusResponse, DocumentResponse
@@ -762,6 +761,20 @@ def create_sidecar_app(
             await state["saver"].adelete_thread(thread_id)
 
         return _delete
+
+    def get_terminal_event_emitter() -> TerminalEventEmitter:
+        """`persist_and_publish`, adapted to the port's `(db, session_id, event)` shape.
+
+        `db` is accepted and ignored: `persist_and_publish` already opens its own scope
+        from `session_factory` rather than reusing the caller's, because it is shared
+        with the pipeline's own event flow (`_drive_session`'s per-event calls) and not
+        written only for this one-shot seam.
+        """
+
+        async def _emit(db, session_id: str, event: dict) -> None:  # noqa: ARG001
+            await persist_and_publish(session_factory, state["bus"], session_id, event)
+
+        return _emit
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -1901,15 +1914,24 @@ def create_sidecar_app(
         )
 
     @api.post("/research/{session_id}/cancel", response_model=SessionSummary)
+    @delegates_to("app.api.v1.research:cancel_session")
     async def cancel_session(
         session_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        """Stop an in-progress research run. Second home of the server's `cancel_session`.
+        """Stop an in-progress research run — the server's route, given this host's own
+        terminal-event emitter explicitly, the same pattern `delete_project` already
+        uses for its corpus locator and checkpoint deleter.
 
-        The Stop button in `SessionView` renders for PENDING/RUNNING on both builds and had
-        no route here, so on desktop it 404'd (M1).
+        Delegating this used to raise "Redis pool not initialized": the server's route
+        called `app.db.redis.publish_event` directly, with no seam for a host that has
+        no Redis. `TerminalEventEmitter` is that seam — this host's implementation wraps
+        `persist_and_publish`, the same durable-write-then-publish function every other
+        event this host emits already goes through, so the desktop cancel path no longer
+        has its own bespoke event construction to drift from the server's (it used to
+        build `make_event("FAILED", message=...)`, putting the reason where the server's
+        `data.reason` convention does not look for it).
 
         **Cancellation is cooperative-by-omission, and that is the honest word for it.**
         Nothing interrupts the running work: the sidecar's `asyncio.Task` and the server's
@@ -1926,32 +1948,9 @@ def create_sidecar_app(
         shape that would work identically on both hosts; until it exists both hosts behave
         the same way, and `docs/25` says so plainly.
         """
-        session = await _authorized_session(db, session_id, user.id)
-        if session.status not in (SessionStatus.RUNNING, SessionStatus.PENDING):
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                detail=f"Cannot stop a session with status {session.status}.",
-            )
+        from app.api.v1.research import cancel_session
 
-        session.status = SessionStatus.FAILED
-        session.error_message = "Research stopped by user."
-        # Second home of the server's line — the durable mark `_apply_outcome` reads so a
-        # late outcome cannot move this session back out of its terminal state (issue #54).
-        session.cancelled_at = datetime.now(UTC)
-        await db.commit()
-        await db.refresh(session)
-
-        # Same ordering as `_apply_outcome`: the row is committed before the terminal
-        # event leaves, so a client acting on FAILED never re-reads a stale status.
-        await persist_and_publish(
-            session_factory,
-            app.state.sidecar["bus"],
-            session_id,
-            make_event("FAILED", message="Research stopped by user."),
-        )
-
-        logger.info("sidecar_research_stopped_by_user", session_id=str(session_id))
-        return SessionSummary.model_validate(session)
+        return await cancel_session(session_id, db, user, get_terminal_event_emitter())
 
     @api.post("/research/{session_id}/archive", response_model=SessionSummary)
     @delegates_to("app.api.v1.research:archive_session")

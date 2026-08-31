@@ -30,6 +30,7 @@ from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
 from app.models.session import Session, SessionStatus
 from app.models.user import User
+from app.ports import TerminalEventEmitter
 from app.run_dispatch import SessionDispatcher
 from app.schemas.research import (
     ApprovalRequest,
@@ -46,9 +47,11 @@ from app.schemas.research import (
 )
 from app.services import checkpoints, export, memory, model_routing, usage
 from app.services.event_stream import sse_frames
+from app.services.host_ports import get_terminal_event_emitter
 from app.services.sse import SSE_HEADERS
 from app.workers.dispatch import get_session_dispatcher
 from research_engine import bundle
+from research_engine.events import make_event
 
 #: Replay ends at a true terminal only; the live tail also ends at a gate, because a
 #: suspended graph publishes nothing more until a human acts. Both hosts and both surfaces
@@ -570,12 +573,17 @@ async def cancel_session(
     session_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    emit_terminal_event: TerminalEventEmitter = Depends(get_terminal_event_emitter),
 ):
     """Stop an in-progress research run.
 
-    No Redis dependency: the only thing this route used it for was the write-only cancelled
-    key, and a route that needs Redis is a route the desktop sidecar cannot serve from a
-    bundle that excludes the driver (`test_sidecar_startup.py`).
+    `emit_terminal_event` writes the FAILED event durably before publishing it — this
+    used to call `publish_event` directly, which only ever reached a *live* listener. A
+    client that reconnected to the stream after the cancel (rather than watching it
+    happen) got the row's terminal `status` on its next fetch but no matching entry in
+    the stream's own replay, because nothing durable was ever written for this one event.
+    `data.reason` — not `message` — matches the convention `session_events.lifecycle_event`
+    already established for every other terminal event; `make_event` is the same builder.
     """
     session = await _authorized_session(db, session_id, current_user.id)
     if session.status not in (SessionStatus.RUNNING, SessionStatus.PENDING):
@@ -594,11 +602,8 @@ async def cancel_session(
     await db.commit()
     await db.refresh(session)
 
-    from app.db.redis import publish_event
-
-    await publish_event(
-        str(session_id),
-        {"type": "FAILED", "data": {"reason": "Research stopped by user."}},
+    await emit_terminal_event(
+        db, str(session_id), make_event("FAILED", data={"reason": "Research stopped by user."})
     )
 
     logger.info("research_stopped_by_user", session_id=str(session_id))
