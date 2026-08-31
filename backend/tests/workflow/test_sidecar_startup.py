@@ -194,6 +194,14 @@ LAZY_REQUEST_IMPORTS = (
     "app.workers.dispatch",
     # Phase 7: the desktop delegates its session routes the way it delegates `/runs`.
     "app.api.v1.research",
+    # Phase 8: the desktop delegates its project routes the same way. Reaches
+    # `app.dependencies` -> `app.config` and `app.db.redis` exactly as `app.api.v1.runs`
+    # already does above — the `os.environ.setdefault` calls in `create_sidecar_app`
+    # exist for this: `Settings()` builds on the synthetic values instead of raising, and
+    # `redis` itself stays out of `sys.modules` because `app.db.redis` defers its own
+    # `import redis.asyncio` to inside its functions. Named here so this delegation is
+    # actually walked rather than merely assumed to be as safe as the run routes.
+    "app.api.v1.projects",
 )
 
 
