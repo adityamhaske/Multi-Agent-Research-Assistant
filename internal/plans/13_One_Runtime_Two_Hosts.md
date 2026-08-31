@@ -360,18 +360,16 @@ these routes will meet it.
 
 ### 0.10 Where this stands
 
-**Backend 985 passed / 90 skipped (one pre-existing, unrelated failure — see below).
-Frontend typecheck, lint, 315 tests, all three build targets. Ruff clean.** Eighteen
-commits.
+**Backend 1023 passed / 90 skipped (one pre-existing, unrelated failure — see below).
+Frontend typecheck and lint clean (unchanged since §0.9's full three-target run — no
+frontend file has changed since).** Twenty-five commits.
 
 #### Done
 
-Phases **0, 1, 2, 3, 4, 9, 10**; **5 in full** (the demo rule, `CorpusLocator`,
-`MemoryIndex`, and the P9/P11 port questions both closed — one by building, one by
-declining); most of **6** (canonical-owner check, dispatch port split, four SSE loops
-→ one); and **Phase 7's first rung and second rung** — `SessionDispatcher`, which made
-the session journey recordable on both hosts, and the delegation of ten of its fourteen
-routes.
+Phases **0, 1, 2, 3, 4, 9, 10**; **5 in full**; **7 in full but one route**; **8 in full**;
+**6 declined on purpose** (below). The parity suite drives **five journeys** against both
+hosts: projects, corpus, identity-and-models, a full research run, and a full research
+session.
 
 **A pre-existing, environment-caused failure, unrelated to this work:**
 `test_golden_journeys.py::test_the_server_matches_the_recorded_contract[identity-and-models]`
@@ -382,41 +380,40 @@ identical failure at `8925d5f`, before any change in this session. Not fixed her
 a test-isolation gap in a journey that depends on outbound network reachability, out of
 scope for this phase, and pre-dates it.
 
-The parity suite now drives **five journeys** against both hosts: projects, corpus,
-identity-and-models, a full research run, and a full research session.
-
-#### Not done
-
-| Remaining | State |
-|---|---|
-| **Phase 5** P9 `SecretStore` | **done, and not as a port** — see §5.2. Reconsidered on evidence: the four sites were one host's triplication, not two hosts converging; collapsed to `crypto.user_provider_keys` |
-| **Phase 5** P11 `RoutingStore` | **not worth building.** One home per host already; a port would be abstraction with no duplication to remove, which §5 forbids |
-| **Phase 6** moving the run handlers into `app/handlers/` | ownership is already proven by identity, so this buys layering purity rather than parity |
-| **Phase 7** the last four session routes | each recorded with why, below |
-| **Phase 8** projects, corpus, models | not started — the same delegation the session surface just had |
-| **Phase 11** release orchestration | **not written, deliberately** |
-
-**Phase 7 is substantially done.** Ten session routes delegate to
-`app/api/v1/research.py`; `test_one_canonical_owner` proves it by object identity.
-`sidecar.py` is 2,851 lines, from 3,015. The audit trail in particular now has one
-implementation — that is what `verify_bundle`'s `approval_chain` check reads, and it is
-the last thing in this product that should have a second home.
-
-Four session routes did not delegate, and the reasons are in `SESSION_DIVERGENT`:
+**Phase 7 is closed except for three routes with irreducible infra reasons.** All fourteen
+session routes were either delegated or given a stated reason; `cancel` — the one route a
+prior pass tried to delegate and had to back out of ("Redis pool not initialized") — is
+delegated now too, once `TerminalEventEmitter` existed to carry the difference (§5.2, P13).
+`sidecar.py` is smaller by over 700 lines across the session, project, and corpus surfaces
+combined. What is left in `SESSION_DIVERGENT`:
 
 | Route | Why |
 |---|---|
-| `cancel` | publishing the terminal event is the host's — Redis vs an in-process bus. Needs the `EventSink` behind a port |
 | `export.bundle.json` | reads evidence from the LangGraph checkpoint, and the saver is the host's |
 | `chat` (2 routes) | resolves provider keys per host — decrypted column vs OS keychain |
 | `stream` | the frame generator is already shared; the backlog source and live feed are the infrastructure difference itself |
 
-I delegated `cancel` first and the tests caught it — "Redis pool not initialized". That is
-the ladder working: a move is gated on the behaviour, not on looking right.
+**Phase 8 is closed.** Projects: all four CRUD routes delegate. Corpus: all five
+per-project routes delegate — the one surface with nothing left divergent at all. Models:
+four routes with no BYOK/keychain dependency delegate (`providers/test`, `local/status`,
+`custom/status`, `local/pull`); five stay divergent by design (`GET /models`, `GET
+/models/readiness`, the `/routing` trio), each reason naming the phase-5 port decision it
+mirrors, in `MODELS_DIVERGENT`. `GET /models/providers/health` keeps a different *shape*
+per host on purpose (query semantics vs. a `{provider}` path segment) and was never a
+same-path candidate.
+
+**Phase 6, reconsidered rather than attempted.** The plan called it "optional… layering
+purity, not a parity fix," and finishing Phases 7 and 8 by identity did not change that
+argument — it confirmed it. Physically moving ~14 already-shared functions into
+`app/handlers/` would touch working, tested code for zero behavioural gain: ownership is
+already unfakeable (`test_one_canonical_owner` — two copies cannot be one object), so the
+move would rename files, not close a gap. Declined on the same evidence-over-assumption
+basis P9 and P11 were: a plan item that turns out, on inspection, to buy nothing is a
+finding, not a debt.
 
 **Phase 9's packaging half is written and unrun**, and **Phase 11 stays unwritten**. Both
 need a macOS runner and a real build. The assertion that the SHA reaches the shipped bundle
-is still owed.
+is still owed — this remains the honest boundary of what this environment can verify.
 
 **A recorded harness limit:** the session journey omits `export.bundle.json`, because that
 route reads the checkpoint and on the server that is `AsyncPostgresSaver` while this driver
@@ -443,11 +440,21 @@ Every one was surfaced by a check written in the phase before it.
 | 13 | `POST /research` answered a different status on each host |
 | 14 | `_drive_session` never set `RUNNING`, so a desktop session showed "Pending" for its whole run |
 | 15 | Project-memory ingest attempted a write on a host without the table, then rolled back under its caller |
-| 16 | `cancel` cannot be shared without an `EventSink` port — found by delegating it and watching it fail |
+| 16 | `cancel` could not be shared without a port — found by delegating it and watching it fail |
 | 17 | The planned `SecretStore` port (P9) described no real cross-host contract — the actual duplication was one host restating its own helper three times |
+| 18 | Desktop's project list counted v1 sessions only — a project with a v2 run and no session showed `session_count: 0` |
+| 19 | Desktop's default-project lookup was exact-match where the server's is case-insensitive, matching the unique index |
+| 20 | **`GET /models/readiness` did not exist on the desktop at all** — `useReadiness()` fetches it unconditionally on every host; `INTENTIONAL_SERVER_ONLY` had it filed as intentional, and `DESKTOP_UI_CALLS` never named it, so the one check built to catch this never got the chance to |
+| 21 | Desktop's model catalog never called `_ollama_presets_from_installed` — "Local" could offer a model family the machine never pulled |
+| 22 | `deployment_routing` collapsed into `effective_routing` on desktop the moment a user saved a routing preference |
+| 23 | The server's `cancel_session` published live only — no durable `agent_logs` row, unlike every other terminal event |
+| 24 | Desktop's cancel event put the failure reason in `message`; the server's convention (and `session_events.lifecycle_event`'s own fix for the same class of bug) puts it in `data.reason` |
 
-Thirteen of the seventeen were not in the original audit. Every one was surfaced by a check
-written in the phase before it.
+Eighteen of the twenty-four were not in the original audit. Every one was surfaced by a
+check written in the phase before it — findings 18–19 by driving a route the delegation
+ladder was about to touch anyway, 20–22 by reading a surface end to end before deciding it
+had to stay divergent, and 23–24 by building the one port that was actually missing rather
+than accepting the first plausible reason a route hadn't moved.
 
 ---
 
@@ -820,12 +827,14 @@ carries a `capability` field, which is what makes §5.3 observable.
 | P4 | `Corpus` | `search` / `read` | per-project store | flat store | exists |
 | P5 | Checkpointer | LangGraph saver | `AsyncPostgresSaver` | `AsyncSqliteSaver` | exists |
 | P6 | `RunDispatcher` | `start` / `resume_plan` / `rework` | `CeleryDispatcher` | `_SidecarDispatcher` | exists |
-| P7 | `EventStream` | `subscribe(id) → AsyncIterator[(int, dict)]` | Redis pub/sub | `SessionEventBus` | new |
+| P7 | `EventStream` | `subscribe(id) → AsyncIterator[(int, dict)]` | Redis pub/sub | `SessionEventBus` | exists |
 | P8 | `RunConfigBuilder` | `build(db, row) → RunConfig` | settings + BYOK + routing | env + keychain + file | new |
 | ~~P9~~ | ~~`SecretStore`~~ | — | `crypto.decrypt` | `keyring` | **rejected — see below** |
 | P10 | `CorpusLocator` | `for_project(id) → Corpus \| None` | one file per project | one flat store | exists |
 | ~~P11~~ | ~~`RoutingStore`~~ | — | `users.model_routing` | `routing.json` | **rejected — see below** |
 | **P12** | **`MemoryIndex`** | `available` · `index(report)` · `search(vector, k)` · `purge(owner)` | pgvector over `memory_chunks` | raises `CapabilityUnavailable` | exists |
+| **P13** | **`CheckpointDeleter`** | `(thread_id) → None` | fresh `AsyncPostgresSaver` per call | the open `AsyncSqliteSaver` in `app.state` | **new — Phase 8** |
+| **P14** | **`TerminalEventEmitter`** | `(db, session_id, event) → None` | `agent_log_sink(db, sid)` called once | `persist_and_publish` | **new — Phase 7** |
 
 **Deleted from revision 1:** `RateLimiter` (R-b). **P9 and P11 were planned here and built
 elsewhere, or not at all** — both turned out, once actually implemented, to describe a
@@ -858,6 +867,17 @@ re-derived by a caller (`memory.is_available(db)`'s dialect test moves *into* th
 implementation); `index` never raises into a completed run (today's behaviour preserved);
 `search` on the desktop raises `CapabilityUnavailable("project_memory")`, which the adapter
 renders as a 501 naming the capability.
+
+P13 and P14 are both best-effort by convention rather than by the port itself: both
+implementations log and continue on failure, because the row or thread they are cleaning
+up after is already gone by the time either runs — `ServerCorpusLocator.delete`'s own
+reasoning, extended to the two callers that needed it next. Neither is a `Protocol`
+importable by both hosts at module scope; each lives behind a `Depends(get_x)` provider in
+`app/services/host_ports.py` (server) or a closure in `create_sidecar_app` (desktop),
+because their server implementations reach `app.db.redis`/`app.services.checkpoints`,
+which import `app.config` — the same reason `get_run_dispatcher` lives in
+`app.workers.dispatch` rather than in the port module itself. `test_sidecar_startup.py`'s
+`LAZY_REQUEST_IMPORTS` is what proves this actually holds, not just reads correctly.
 
 ### 5.3 Capability differences (constraints 6, 7)
 
@@ -939,7 +959,7 @@ each decrement gated by its operation's frozen-host test.
 |---|---|---|
 | `backend/app/errors.py` | CREATE | 4 |
 | `backend/app/ports.py` | CREATE | 5 |
-| `backend/app/handlers/` — registry, `_access`, sessions, session_outcome, runs, projects, corpus, chat, models, exports, streams, version | CREATE | 3, 6–10 |
+| `backend/app/handlers/` — registry, `_access`, sessions, session_outcome, runs, projects, corpus, chat, models, exports, streams, version | **DECLINED — see §0.10.** Empty directories exist (phase 3); the move itself was reconsidered once identity-based ownership (`test_one_canonical_owner`) made it a rename with no behavioural effect, not a gap | 3, 6–10 |
 | `backend/app/api/v1/{runs,research,chat,projects,corpus,models}.py` | REWRITE as thin routers (~60 LOC each); rate limiting stays here | 4, 6–8 |
 | `backend/app/api/v1/{auth,threads,router}.py` | UNCHANGED — server-only by design | — |
 | `backend/app/services/memory.py` | SPLIT — the pgvector query moves to the P12 server adapter; the chunking/ingestion rules stay canonical | 5 |
