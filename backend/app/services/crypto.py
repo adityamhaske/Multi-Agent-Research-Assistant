@@ -54,6 +54,27 @@ def decrypt(ciphertext: str) -> str | None:
         return None
 
 
+def user_provider_keys(user) -> dict[str, str]:
+    """`{provider: key}` for this user's stored BYOK key, `{}` if there is none to use.
+
+    The one home for a dict three call sites (`chat.py`, `threads.py`,
+    `pipeline_runner.py`) used to build by hand from the same three columns. A provider
+    is required — a ciphertext with no declared provider is not addressable by anything
+    that reads this dict, so it degrades the same as no key stored at all. Adds
+    `{provider}_base_url` when the user pointed the key at a custom endpoint, the same
+    convention `llm_factory.api_key_for` expects.
+    """
+    if not (user.api_key_encrypted and user.api_key_provider):
+        return {}
+    plaintext = decrypt(user.api_key_encrypted)
+    if not plaintext:
+        return {}
+    keys = {user.api_key_provider: plaintext}
+    if user.api_key_base_url:
+        keys[f"{user.api_key_provider}_base_url"] = user.api_key_base_url
+    return keys
+
+
 def hint(plaintext: str) -> str:
     """A safe, non-reversible display hint for a secret — the last 4 chars only."""
     tail = plaintext.strip()[-4:]

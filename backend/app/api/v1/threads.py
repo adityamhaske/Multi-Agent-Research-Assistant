@@ -62,19 +62,6 @@ router = APIRouter(tags=["Project chat"])
 _HISTORY_LIMIT = 20
 
 
-def _user_keys(user: User) -> dict[str, str]:
-    """This user's BYOK key, if any — so their chat runs on the key their research did."""
-    if not (user.api_key_encrypted and user.api_key_provider):
-        return {}
-    plaintext = crypto.decrypt(user.api_key_encrypted)
-    if not plaintext:
-        return {}
-    keys = {user.api_key_provider: plaintext}
-    if user.api_key_base_url:
-        keys[f"{user.api_key_provider}_base_url"] = user.api_key_base_url
-    return keys
-
-
 async def _owned_thread(db: AsyncSession, thread_id: uuid.UUID, user_id: uuid.UUID) -> ChatThread:
     """A thread this user owns, or 404.
 
@@ -242,7 +229,7 @@ async def send_thread_message(
     """Answer a question from this project's approved research, with citations."""
     thread = await _owned_thread(db, thread_id, current_user.id)
 
-    keys = _user_keys(current_user)
+    keys = crypto.user_provider_keys(current_user)
     scope = payload.scope
     # Which scopes actually need a vector. A web-only follow-up needs none, which is why
     # this is checked rather than assumed: embedding unconditionally made a project with
@@ -417,7 +404,7 @@ async def memory_status(
 ):
     """What this project remembers, and what it is missing (docs/14 §8)."""
     project = await resolve_project(db, current_user.id, project_id)
-    embedder = await adapters.embeddings_for(_user_keys(current_user))
+    embedder = await adapters.embeddings_for(crypto.user_provider_keys(current_user))
     result = await memory.status(db, project_id=project.id, current_model=embedder.model_id)
     return MemoryStatusResponse(
         available=embedder.model_id != "none",

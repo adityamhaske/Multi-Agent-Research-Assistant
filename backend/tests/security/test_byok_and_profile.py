@@ -87,6 +87,67 @@ def test_build_raises_actionable_error_without_any_key():
         llm_factory.reset_user_keys(token)
 
 
+def test_user_provider_keys_builds_the_dict_from_an_encrypted_column():
+    """The shape three call sites used to build by hand: `{provider: key}`, plus a
+    `{provider}_base_url` entry when the user pointed the key at a custom endpoint."""
+    from app.models.user import User
+
+    user = User(api_key_encrypted=crypto.encrypt(KEY), api_key_provider="google")
+    assert crypto.user_provider_keys(user) == {"google": KEY}
+
+
+def test_user_provider_keys_includes_the_base_url_when_set():
+    from app.models.user import User
+
+    user = User(
+        api_key_encrypted=crypto.encrypt(CUSTOM_KEY),
+        api_key_provider="custom",
+        api_key_base_url="https://example.invalid/v1",
+    )
+    assert crypto.user_provider_keys(user) == {
+        "custom": CUSTOM_KEY,
+        "custom_base_url": "https://example.invalid/v1",
+    }
+
+
+def test_user_provider_keys_is_empty_with_no_key_stored():
+    from app.models.user import User
+
+    assert crypto.user_provider_keys(User()) == {}
+
+
+def test_user_provider_keys_is_empty_when_provider_is_unset():
+    """A ciphertext with no declared provider is not a usable key — nothing would
+    consume `{None: key}`, so this must degrade the same as no key at all."""
+    from app.models.user import User
+
+    user = User(api_key_encrypted=crypto.encrypt(KEY), api_key_provider=None)
+    assert crypto.user_provider_keys(user) == {}
+
+
+def test_user_provider_keys_degrades_on_a_key_that_will_not_decrypt():
+    """Same degrade-don't-crash rule `decrypt()` documents, carried through the dict
+    builder: a rotated signing secret must not turn a chat request into a 500."""
+    from app.models.user import User
+
+    user = User(api_key_encrypted="not-a-valid-fernet-token", api_key_provider="google")
+    assert crypto.user_provider_keys(user) == {}
+
+
+def test_chat_and_threads_no_longer_restate_the_key_builder():
+    """Three modules built this exact dict by hand — `crypto.py`, `chat.py`,
+    `threads.py` — and `pipeline_runner.py` a fourth time inline. `user_provider_keys`
+    is the one home; a route module keeping its own copy is the bug this guards."""
+    from app.api.v1 import chat, threads
+
+    assert not hasattr(chat, "_user_provider_keys"), (
+        "chat.py has its own key-dict builder again instead of calling crypto.user_provider_keys"
+    )
+    assert not hasattr(threads, "_user_keys"), (
+        "threads.py has its own key-dict builder again instead of calling crypto.user_provider_keys"
+    )
+
+
 # ── Profile validation ───────────────────────────────────────────────────────
 
 

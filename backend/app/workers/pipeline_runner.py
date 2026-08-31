@@ -50,24 +50,21 @@ def _checkpointer_dsn() -> str:
 
 
 async def _user_provider_keys(db, user_id: str) -> dict[str, str]:
-    """Decrypt this user's BYOK provider key, if they've set one.
+    """This user's BYOK provider key, if they've set one and it still decrypts.
 
-    Returns {provider: key} or {} to fall back to the server's key. A key that
-    can't be decrypted (signing secret rotated) is treated as absent and logged
-    once — the run continues on the server key rather than failing outright.
+    Returns {provider: key} or {} to fall back to the server's key. `crypto.
+    user_provider_keys` treats "no key stored" and "stored but undecryptable" alike —
+    both degrade to `{}` — but only the latter is worth a log line: a rotated signing
+    secret is an operator's problem, and a user who never set a key is not.
     """
     user = (
         await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
     ).scalar_one_or_none()
-    if user is None or not user.api_key_encrypted or not user.api_key_provider:
+    if user is None:
         return {}
-    plaintext = crypto.decrypt(user.api_key_encrypted)
-    if not plaintext:
+    keys = crypto.user_provider_keys(user)
+    if not keys and user.api_key_encrypted and user.api_key_provider:
         logger.warning("byok_key_undecryptable", user_id=user_id, provider=user.api_key_provider)
-        return {}
-    keys = {user.api_key_provider: plaintext}
-    if user.api_key_base_url:
-        keys[f"{user.api_key_provider}_base_url"] = user.api_key_base_url
     return keys
 
 

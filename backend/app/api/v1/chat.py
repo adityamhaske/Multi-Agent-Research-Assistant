@@ -33,19 +33,6 @@ from research_engine.llm_factory import get_llm, reset_user_keys, set_user_keys,
 router = APIRouter(prefix="/research/{session_id}/chat", tags=["Chat"])
 
 
-def _user_provider_keys(user: User) -> dict[str, str]:
-    """This user's BYOK key, so follow-up chat runs on the same key their research did."""
-    if not (user.api_key_encrypted and user.api_key_provider):
-        return {}
-    plaintext = crypto.decrypt(user.api_key_encrypted)
-    if not plaintext:
-        return {}
-    keys = {user.api_key_provider: plaintext}
-    if user.api_key_base_url:
-        keys[f"{user.api_key_provider}_base_url"] = user.api_key_base_url
-    return keys
-
-
 async def _authorized_completed_session(db, session_id, user_id) -> Session:
     session = (
         await db.execute(
@@ -110,7 +97,7 @@ async def send_message(
 
     # BYOK first: the corpus store embeds on this user's key exactly as their research
     # did, so it has to be resolved before the grounding is gathered.
-    user_keys = _user_provider_keys(current_user)
+    user_keys = crypto.user_provider_keys(current_user)
 
     # Resolved only for the scopes that need it: `report` scope must not touch the
     # filesystem to answer a question about a report, and must not embed anything either.
