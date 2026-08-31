@@ -204,6 +204,10 @@ LAZY_REQUEST_IMPORTS = (
     "app.api.v1.projects",
     # Same phase, same reasoning: the per-project corpus routes delegate too.
     "app.api.v1.corpus",
+    # Same phase: four models routes with no BYOK/keychain dependency delegate, and
+    # get_catalog reuses `_ollama_presets_from_installed` without delegating the whole
+    # route (that one genuinely needs this host's own key resolution).
+    "app.api.v1.models",
 )
 
 

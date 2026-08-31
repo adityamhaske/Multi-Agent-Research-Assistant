@@ -87,6 +87,8 @@ from app.schemas.models import (
     CatalogResponse,
     CustomEndpointStatusResponse,
     LocalLLMStatusResponse,
+    ProviderTestRequest,
+    ReadinessResponse,
     RoutingResponse,
 )
 from app.schemas.project import (
@@ -125,7 +127,6 @@ from app.schemas.runs import ReportReviewRequest as V2ReportReviewRequest
 from app.services import (
     chat_scope,
     corpus_ingest,
-    custom_endpoint,
     local_llm,
     memory,
     provider_health,
@@ -1982,17 +1983,71 @@ def create_sidecar_app(
         from app.api.v1.research import delete_session
 
         return await delete_session(session_id, db, user)
+    @api.get("/models/readiness", response_model=ReadinessResponse)
+    async def get_readiness(user: User = Depends(get_local_user)):  # noqa: ARG001
+        """Can this user run research right now? Second home of the server's
+        `GET /models/readiness` — desktop had no route for it at all, so
+        `useReadiness()` (fetched unconditionally by `SettingsLayout` on every host)
+        404'd on every desktop settings-page render (found by driving the sidecar, not
+        by reading the route table — `INTENTIONAL_DESKTOP_ONLY` would have called this a
+        justified difference, when it was actually a control that shipped broken).
+
+        `has_cloud_key` is judged from this host's own key sources — keychain merged
+        with the environment, via the same `sidecar_run_config` the catalog route
+        already uses — rather than the server's BYOK column, for the same reason the
+        catalog route cannot delegate to the server's `get_catalog` either.
+        """
+        try:
+            config = sidecar_run_config(fake=app.state.fake, data_dir=app.state.data_dir)
+            has_cloud_key = bool(config.provider_keys)
+        except RuntimeError:
+            has_cloud_key = False
+
+        local_reachable = False
+        chat_models = 0
+        try:
+            status_ = await local_llm.probe()
+            local_reachable = status_.reachable
+            chat_models = sum(1 for m in status_.models if not m.is_embedding)
+        except Exception:  # noqa: BLE001 — a dead probe means "no local models", not an error
+            pass
+
+        return {
+            "ready": has_cloud_key or chat_models > 0,
+            "has_cloud_key": has_cloud_key,
+            "local_reachable": local_reachable,
+            "local_chat_models": chat_models,
+        }
+
     @api.get("/models", response_model=CatalogResponse)
     async def get_catalog(user: User = Depends(get_local_user)):  # noqa: ARG001
         """The picker's catalog. Availability is judged by keys, desktop-style:
-        keychain keys merged with the environment (nothing else exists here)."""
+        keychain keys merged with the environment (nothing else exists here).
+
+        Cannot delegate to the server's `get_catalog` — that is the whole reason this
+        route exists rather than a thin call-through, same as `get_readiness` above —
+        but two pieces of it are host-independent and are reused rather than restated:
+        `_ollama_presets_from_installed` (no host-specific dependency; a fresh probe of
+        whatever Ollama is actually reachable) and `deployment_default`'s shape, matched
+        by computing the baseline with no routing overlay.
+        """
+        from app.api.v1.models import _ollama_presets_from_installed
+
         user_routing = stored_routing(app.state.data_dir)
         effective = _effective_with(user_routing)
+        deployment = _effective_with(None)
         try:
             config = sidecar_run_config(fake=app.state.fake, data_dir=app.state.data_dir)
             usable = set(config.provider_keys)
         except RuntimeError:
             usable = set()
+
+        # Falls back to the static defaults when nothing is installed or the probe is
+        # down, same as the server's own fallback — never an empty preset.
+        presets = dict(catalog.PRESETS)
+        installed = await _ollama_presets_from_installed()
+        if installed:
+            presets["ollama"] = installed
 
         return {
             "roles": list(ROLES),
@@ -2016,12 +2071,12 @@ def create_sidecar_app(
                     key=lambda s: (s.provider, s.output_per_mtok if s.priced else float("inf")),
                 )
             ],
-            "presets": catalog.PRESETS,
+            "presets": presets,
             "preset_names": list(catalog.PRESET_NAMES),
             "available_providers": sorted(usable),
             "effective_routing": effective,
             "user_routing": user_routing,
-            "deployment_routing": effective,
+            "deployment_routing": deployment,
         }
 
     def _effective_with(routing: dict[str, str] | None) -> dict[str, str]:
@@ -2041,17 +2096,19 @@ def create_sidecar_app(
         }
 
     @api.post("/models/providers/test", response_model=ConnectionVerdict)
-    async def test_provider(request: Request):
-        """Probe a submitted key BEFORE it is stored in the keychain (docs/07 §2, Phase
-        2a) — contract copy #2 of the server's `POST /models/providers/test`."""
-        body = await request.json()
-        provider = body.get("provider", "")
-        if provider not in ("google", "anthropic", "openai", "openrouter", "custom"):
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown provider.")
-        key = (body.get("api_key") or "").strip()
-        base_url = body.get("api_base_url")
-        verdict = await provider_health.probe(provider, key, base_url)
-        return _verdict_dict(verdict)
+    @delegates_to("app.api.v1.models:test_provider")
+    async def test_provider(
+        payload: ProviderTestRequest, user: User = Depends(get_local_user)
+    ):
+        """Probe a submitted key before it is stored — nothing about this route reads a
+        stored key at all (the desktop's or the server's), so unlike the routes around
+        it there was never a host-specific dependency to work around. The hand-rolled
+        `provider not in (...)` check and manual `body.get(...)` this replaced were a
+        weaker copy of `ProviderTestRequest`'s own `Literal` and length validation.
+        """
+        from app.api.v1.models import test_provider
+
+        return await test_provider(payload, user)
 
     @api.get("/models/providers/health/{provider}")
     async def provider_health_check(provider: str):
@@ -2072,49 +2129,26 @@ def create_sidecar_app(
         return _verdict_dict(verdict)
 
     @api.get("/models/local/status", response_model=LocalLLMStatusResponse)
-    async def local_status():
-        """Probe the configured local model server — same shape as the server's
-        `GET /models/local/status`, which this build had no counterpart for at all."""
-        status_ = await local_llm.probe()
-        return {
-            "configured_base_url": status_.configured_base_url,
-            "reachable": status_.reachable,
-            "usable": status_.usable,
-            "models": [
-                {
-                    "name": m.name,
-                    "size_bytes": m.size_bytes,
-                    "route": m.route,
-                    "in_catalog": m.in_catalog,
-                    "likely_underpowered": m.likely_underpowered,
-                    "is_embedding": m.is_embedding,
-                    "params_b": m.params_b,
-                }
-                for m in status_.models
-            ],
-            "error": status_.error,
-            "hint": status_.hint,
-            "install_state": status_.install_state,
-        }
+    @delegates_to("app.api.v1.models:local_llm_status")
+    async def local_status(user: User = Depends(get_local_user)):
+        from app.api.v1.models import local_llm_status
+
+        return await local_llm_status(user)
 
     @api.get("/models/custom/status", response_model=CustomEndpointStatusResponse)
-    async def custom_status():
-        """Contract copy of the server's `GET /models/custom/status`.
+    @delegates_to("app.api.v1.models:custom_endpoint_status")
+    async def custom_status(user: User = Depends(get_local_user)):
+        """Second home of the server's `GET /models/custom/status`.
 
-        Restated rather than imported because every route in this host is — the server
-        handler carries `Depends(get_current_user)`, which needs the JWT stack this host
-        does not have. The *probe* underneath is shared, so the two hosts cannot disagree
-        about what the endpoint serves; only the auth wrapper differs, which is the one
-        difference this host is allowed to have.
+        A prior version of this docstring said it had to be restated because the server
+        handler `Depends(get_current_user)`, which "needs the JWT stack this host does
+        not have" — the reasoning every other delegated route in this file already
+        disproves: the desktop never triggers `Depends`, it calls the handler directly
+        and passes its own `user`, exactly like `list_projects` does above.
         """
-        status_ = await custom_endpoint.probe()
-        return {
-            "configured_base_url": status_.configured_base_url,
-            "reachable": status_.reachable,
-            "models": status_.models,
-            "error": status_.error,
-            "hint": status_.hint,
-        }
+        from app.api.v1.models import custom_endpoint_status
+
+        return await custom_endpoint_status(user)
 
     @api.post("/models/local/start")
     async def start_local_server():
@@ -2172,31 +2206,11 @@ def create_sidecar_app(
         return {"stopped": True}
 
     @api.post("/models/local/pull")
-    async def pull_model(request: Request):
-        """Stream download progress for a recommended model (docs/07 §2, Phase 2b) —
-        newline-delimited JSON, one `PullProgress` per line, same shape the frontend
-        already knows how to read incrementally from the research SSE stream's raw
-        body (this is plain chunked HTTP, not SSE — Ollama's own wire format)."""
-        body = await request.json()
-        model = (body.get("model") or "").strip()
-        if not model:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No model given.")
+    @delegates_to("app.api.v1.models:pull_local_model")
+    async def pull_model(request: Request, user: User = Depends(get_local_user)):
+        from app.api.v1.models import pull_local_model
 
-        async def gen():
-            async for progress in local_llm.pull(model):
-                yield (
-                    json.dumps(
-                        {
-                            "status": progress.status,
-                            "completed": progress.completed,
-                            "total": progress.total,
-                            "error": progress.error,
-                        }
-                    )
-                    + "\n"
-                )
-
-        return StreamingResponse(gen(), media_type="application/x-ndjson")
+        return await pull_local_model(request, user)
 
     @api.get("/models/routing", response_model=RoutingResponse)
     async def get_routing(user: User = Depends(get_local_user)):  # noqa: ARG001

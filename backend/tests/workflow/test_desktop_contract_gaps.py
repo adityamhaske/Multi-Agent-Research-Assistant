@@ -429,3 +429,28 @@ async def test_a_duplicate_project_name_is_a_conflict_on_the_desktop_too(sidecar
     again = await sidecar.post("/api/v1/projects", json={"name": "Duplicate Name"}, headers=_auth())
     assert again.status_code == 409, f"expected a conflict, got {again.status_code}"
     assert "Duplicate Name" in again.json()["detail"]
+
+
+async def test_readiness_is_not_a_shipped_control_that_404s(sidecar):
+    """`useReadiness()` (frontend/hooks/queries.ts) fetches `/models/readiness`
+    unconditionally on every host — `SettingsLayout` only gates how the *result* is used
+    behind `!isDesktop`, not the fetch itself. The sidecar had no route for it at all, so
+    every desktop settings-page render fired a real request and got a 404 back: a
+    shipped control that never worked, the exact class `AGENTS.md` names repeatedly.
+    Found by driving the real sidecar the way the browser does, not by reading the route
+    table — `test_host_parity` would have called this `INTENTIONAL_DESKTOP_ONLY` (a
+    justified difference), when it is actually `KNOWN_DESKTOP_GAPS` territory (a control
+    that ships broken) — the two answer different questions.
+    """
+    resp = await sidecar.get("/api/v1/models/readiness", headers=_auth())
+    assert resp.status_code == 200
+    body = resp.json()
+    assert set(body) == {"ready", "has_cloud_key", "local_reachable", "local_chat_models"}
+    # `fake=True` carries no provider key at all (research_engine.runconfig.RunConfig's
+    # default `provider_keys` is `{}` on the fake branch), and nothing in this sandbox
+    # reaches a real Ollama — so an honest desktop with no key configured reads as not
+    # ready, the same as the server would report for a keyless deployment. Readiness
+    # measures real providers, not whether the scripted/fake path would run; conflating
+    # them is the "demo rule" AGENTS.md is explicit about.
+    assert body["has_cloud_key"] is False
+    assert body["ready"] is False

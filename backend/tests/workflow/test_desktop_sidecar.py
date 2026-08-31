@@ -753,3 +753,71 @@ def test_shell_watchdog_predicate():
         child.kill()
     child.wait()
     assert not shell_alive(child.pid)
+
+
+async def test_catalog_presets_reflect_what_is_actually_installed(sidecar, monkeypatch):
+    """The server's `GET /models` swaps the static `ollama` preset for one built from
+    the models this machine actually has (`_ollama_presets_from_installed`) — a picker
+    that offers a family the operator never pulled 404s on the first planner call. The
+    desktop's own catalog route never called that helper at all, so choosing "Local" on
+    a desktop with, say, only `qwen2.5:7b` installed would still route to whatever
+    static tag `catalog.PRESETS["ollama"]` names, which is exactly the failure the
+    helper exists to prevent — just never wired in on this host.
+    """
+    import desktop.sidecar as sc
+    from app.services import local_llm
+
+    async def fake_probe(base_url=None):  # noqa: ARG001
+        return local_llm.LocalLLMStatus(
+            configured_base_url="http://localhost:11434/v1",
+            reachable=True,
+            models=[
+                local_llm.LocalModel(
+                    name="qwen2.5:7b",
+                    route="ollama:qwen2.5:7b",
+                    in_catalog=False,
+                    params_b=7.0,
+                    supports_tools=True,
+                )
+            ],
+        )
+
+    monkeypatch.setattr(sc.local_llm, "probe", fake_probe)
+
+    resp = await sidecar.get("/api/v1/models", headers=_auth())
+    assert resp.status_code == 200
+    ollama_preset = resp.json()["presets"]["ollama"]
+    assert ollama_preset["fast"]["planner"] == "ollama:qwen2.5:7b", (
+        "the desktop catalog ignored the installed model and kept the static preset: "
+        f"{ollama_preset}"
+    )
+
+
+async def test_deployment_routing_stays_the_baseline_after_a_saved_preference(sidecar):
+    """`deployment_routing` and `effective_routing` answer different questions —
+    "what does this deployment default to" versus "what will the next run actually
+    dial" — and a settings page that wants to show "your choice vs. the baseline" needs
+    them to stay different after a preference is saved. The desktop's catalog route
+    built both from the same `_effective_with(routing)` call, so the moment a user
+    saved a routing preference, `deployment_routing` silently became a mirror of their
+    own choice instead of the env/static baseline `model_routing.deployment_default()`
+    reports on the server.
+
+    Deliberately not `google:gemini-2.5-flash` for every role: `conftest.py` pins
+    `MODEL_*` to exactly that for the whole suite, which would make this pass by
+    accident even against the old, collapsing implementation.
+    """
+    routing = {
+        r: "anthropic:claude-haiku-4-5"
+        for r in ("planner", "executor", "critic", "synthesizer", "chat")
+    }
+    put = await sidecar.put("/api/v1/models/routing", headers=_auth(), json={"routing": routing})
+    assert put.status_code == 200
+
+    models = await sidecar.get("/api/v1/models", headers=_auth())
+    body = models.json()
+    assert body["effective_routing"] == routing
+    assert body["deployment_routing"] != routing, (
+        "deployment_routing should stay the baseline, not mirror the saved preference: "
+        f"{body['deployment_routing']}"
+    )

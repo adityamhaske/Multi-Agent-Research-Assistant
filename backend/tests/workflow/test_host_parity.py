@@ -113,7 +113,12 @@ INTENTIONAL_SERVER_ONLY: dict[str, str] = {
     # stdout handshake (docs/13 §7), not by polling a health endpoint.
     "GET /health": "the Tauri shell uses the stdout handshake, not HTTP health",
     "GET /health/ready": "no compose healthcheck on desktop",
-    "GET /models/readiness": "server-side first-run readiness probe; desktop uses /desktop/keys",
+    # Was "desktop uses /desktop/keys" — wrong: `useReadiness()` (hooks/queries.ts) has no
+    # `enabled` gate and `SettingsLayout` calls it on every host, only branching on what it
+    # *does* with the result. Every desktop settings-page render 404'd until plan phase 8
+    # added `GET /models/readiness` here too — a `KNOWN_DESKTOP_GAPS`-shaped bug this
+    # registry had misfiled as an intentional difference (see `test_no_models_operation_
+    # is_unaccounted_for` in test_one_canonical_owner.py for what it does now).
     "GET /models/providers/health": (
         "desktop takes the provider as a path segment: /models/providers/health/{provider}; "
         "the frontend already branches on isDesktop for this one"
@@ -235,6 +240,13 @@ DESKTOP_UI_CALLS: dict[str, str] = {
     "DELETE /research/{session_id}": "SessionCard — delete",
     "GET /research/outline-templates": "OutlineTemplatePicker",
     "GET /models": "StartModelPicker, ModelPicker",
+    # Missing here — not merely unserved — for a whole release: `DESKTOP_UI_CALLS` is
+    # audited from the frontend, and this path was never added even though
+    # `useReadiness()` has always fetched it unconditionally. `test_desktop_ui_calls_are_
+    # served_by_the_sidecar` only checks what this table names, so an omission here is
+    # invisible to it in a way a wrong INTENTIONAL_SERVER_ONLY entry (the other half of
+    # this bug) is not — that one at least gets checked against the *served* set.
+    "GET /models/readiness": "SettingsLayout — the setup-first banner",
     "GET /models/routing": "settings",
     "PUT /models/routing": "settings",
     "DELETE /models/routing": "settings",

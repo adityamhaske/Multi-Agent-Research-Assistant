@@ -72,6 +72,42 @@ SHARED_OWNERSHIP: dict[str, str] = {
     "GET /projects/{project_id}/corpus/documents/{doc_id}/download": "app.api.v1.corpus",
     "DELETE /projects/{project_id}/corpus/documents/{doc_id}": "app.api.v1.corpus",
     "GET /projects/{project_id}/corpus/status": "app.api.v1.corpus",
+    # The four models routes with no BYOK/keychain dependency — each only needed
+    # `current_user`/`user` for the auth gate, never to resolve a stored key, so there
+    # was no host-specific mechanism to work around in the first place.
+    "POST /models/providers/test": "app.api.v1.models",
+    "GET /models/local/status": "app.api.v1.models",
+    "GET /models/custom/status": "app.api.v1.models",
+    "POST /models/local/pull": "app.api.v1.models",
+}
+
+#: The models routes that stay divergent, and why. Longer than the other surfaces'
+#: because BYOK-vs-keychain is this surface's whole subject: `GET /models` and
+#: `GET /models/readiness` judge availability from a stored key, and `/routing`'s
+#: storage is the desktop's `routing.json` against the server's `users.model_routing`
+#: column (`RoutingStore` — plan phase 5 P11 — was reconsidered and rejected as a port
+#: for exactly this reason: one home per host already, nothing to unify).
+MODELS_DIVERGENT: dict[str, str] = {
+    "GET /models": (
+        "key resolution differs by host — BYOK column + deployment env on the server, "
+        "keychain + env via sidecar_run_config on the desktop — the same reason P9 "
+        "SecretStore was rejected rather than built. The two pieces that do not depend "
+        "on where a key lives (_ollama_presets_from_installed, deployment_default's "
+        "shape) are reused via import, not restated"
+    ),
+    "GET /models/readiness": (
+        "same key-resolution split as GET /models. Added to the desktop in plan phase 8 "
+        "— it did not exist there at all before, despite the frontend fetching it "
+        "unconditionally on every host (test_host_parity.py's DESKTOP_UI_CALLS)"
+    ),
+    "GET /models/routing": (
+        "storage differs by design (RoutingStore, rejected as a port) — the validation "
+        "underneath is already one function either way: research_engine.routing_rules."
+        "validate, re-exported as both model_routing.validate and the desktop's own "
+        "validate_routing name"
+    ),
+    "PUT /models/routing": "same storage split as GET /models/routing",
+    "DELETE /models/routing": "same storage split as GET /models/routing",
 }
 
 #: Shared operations whose two hosts legitimately run different code, with the reason.
@@ -243,6 +279,31 @@ def test_every_declared_session_divergence_is_still_divergent(hosts):
         and canonical_owner(server[op]) is canonical_owner(desktop[op])
     }
     assert not resolved, f"Now shared — remove from SESSION_DIVERGENT: {sorted(resolved)}"
+
+
+def test_no_models_operation_is_unaccounted_for(hosts):
+    """Same rule again, scoped to `/models`. `/desktop/keys/*` is a different namespace
+    (desktop-only by construction, no server path even shaped like it) and is out of
+    this filter's reach already — nothing needs to exclude it by hand."""
+    server, desktop = hosts
+    shared = {op for op in set(server) & set(desktop) if op.split(" ", 1)[1].startswith("/models")}
+    unaccounted = shared - set(SHARED_OWNERSHIP) - set(MODELS_DIVERGENT)
+    assert not unaccounted, (
+        "These models operations exist on both hosts and nobody has said whether they "
+        f"share an implementation: {sorted(unaccounted)}"
+    )
+
+
+def test_every_declared_models_divergence_is_still_divergent(hosts):
+    server, desktop = hosts
+    resolved = {
+        op
+        for op in MODELS_DIVERGENT
+        if op in server
+        and op in desktop
+        and canonical_owner(server[op]) is canonical_owner(desktop[op])
+    }
+    assert not resolved, f"Now shared — remove from MODELS_DIVERGENT: {sorted(resolved)}"
 
 
 def test_no_projects_operation_is_unaccounted_for(hosts):
