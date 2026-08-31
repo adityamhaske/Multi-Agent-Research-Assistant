@@ -360,16 +360,20 @@ these routes will meet it.
 
 ### 0.10 Where this stands
 
-**Backend 1023 passed / 90 skipped (one pre-existing, unrelated failure — see below).
-Frontend typecheck and lint clean (unchanged since §0.9's full three-target run — no
-frontend file has changed since).** Twenty-five commits.
+**Backend 1025 passed / 90 skipped (one pre-existing, unrelated failure — see below).
+Frontend typecheck, lint, 315 tests, all three build targets green this session.**
+Twenty-seven commits. **The packaged desktop app was built and launched for real on this
+machine —
+PyInstaller sidecar, Tauri shell, `.app` and `.dmg` — and its `GET /version` matches `HEAD`
+exactly**, closing the one verification this plan had called "owed" since revision 1.
 
 #### Done
 
-Phases **0, 1, 2, 3, 4, 9, 10**; **5 in full**; **7 in full but one route**; **8 in full**;
-**6 declined on purpose** (below). The parity suite drives **five journeys** against both
-hosts: projects, corpus, identity-and-models, a full research run, and a full research
-session.
+Phases **0, 1, 2, 3, 4, 10**; **5 in full**; **7 in full but one route**; **8 in full**;
+**9 verified end to end, on real hardware, not just written**; **11 done in the migration-
+ladder sense** (`test_sidecar_is_transport_only.py`); **6 declined on purpose** (below).
+The parity suite drives **five journeys** against both hosts: projects, corpus,
+identity-and-models, a full research run, and a full research session.
 
 **A pre-existing, environment-caused failure, unrelated to this work:**
 `test_golden_journeys.py::test_the_server_matches_the_recorded_contract[identity-and-models]`
@@ -411,9 +415,69 @@ move would rename files, not close a gap. Declined on the same evidence-over-ass
 basis P9 and P11 were: a plan item that turns out, on inspection, to buy nothing is a
 finding, not a debt.
 
-**Phase 9's packaging half is written and unrun**, and **Phase 11 stays unwritten**. Both
-need a macOS runner and a real build. The assertion that the SHA reaches the shipped bundle
-is still owed — this remains the honest boundary of what this environment can verify.
+**Phase 9 — verified, not just written.** The prior boundary here was "needs a macOS
+runner," stated on the assumption this environment didn't have one. It does: `pyinstaller`,
+`cargo`/`rustc`, and `@tauri-apps/cli` (`desktop/node_modules`) are all present on the host
+machine (arm64 Darwin). So the real sequence ran, not a source-checkout approximation:
+
+```
+python scripts/stamp_build.py                              # writes research_engine/_build.py
+cd backend && pyinstaller desktop/research-sidecar.spec --noconfirm
+cd desktop && npm run tauri build -- --bundles app,dmg
+```
+
+Both completed. Both artifacts were launched — the raw PyInstaller one-dir output directly,
+and the sidecar copy actually sitting inside `Research Assistant.app/Contents/Resources/
+sidecar/` — each with **zero server environment variables set** (`env -i`, only `HOME`/
+`PATH`/`TMPDIR`), which is the literal claim `test_sidecar_imports_without_database_url_
+or_jwt_secret` makes about a source checkout, now true of the frozen binary instead. Both
+produced the handshake line, and both answered `GET /version` with:
+
+```json
+{"version": "2.0.1", "git_sha": "6adfa16cc73e82a32ffe6d66d38ac08bc6012ed1", "dirty": false, ...}
+```
+
+`git_sha` is `HEAD` at the time of the build, byte for byte — **the specific assertion
+this section has called "owed" since revision 1**: the commit that produced the source
+tree is the commit the shipped, launchable artifact says it is. Exercised a few of this
+session's own routes against the running frozen binary too (`GET /projects`, `GET /models`,
+`GET /models/readiness`) and all answered correctly — the delegations and bug fixes from
+Phases 7–8 work in the actual packaged app, not only under pytest.
+
+Also launched the *shell* — `open "Research Assistant.app"` — and confirmed Tauri spawns
+the bundled sidecar as a child process with `--shell-pid <pid>`, the watchdog argument
+`desktop/src/lib.rs` passes. A second, older `.app`/`.dmg` pair already existed on this
+machine from August 25 (`Research Assistant_2.0.0_aarch64.dmg`, **185 MB** — matching
+AGENTS.md's "check the artifact is ~180 MB, not ~5 MB" sanity bound almost exactly), which
+independently confirms the bundling mechanism itself has been sound since before this
+session touched it.
+
+**One honest caveat, not a defect this plan introduced:** this build's own bundle sizes
+(1.7 GB PyInstaller output, 2.3 GB `.app`) are not representative — `sys.prefix` here is a
+shared pyenv interpreter (`~/.pyenv/versions/3.11.8`) carrying unrelated packages from
+other work on this machine (`torch`, `yt_dlp`, `curl_cffi`, none in `requirements.txt`),
+and PyInstaller's static scan swept them in. The August 25 artifact, presumably built from
+a cleaner environment, is the number to trust for size; what this session's build proves is
+*behaviour and identity* (boots without server config, answers the right SHA), which
+environment pollution does not affect. A real CI runner installs from a clean
+`pip install -r requirements.txt pyinstaller` and would not carry this.
+
+**Phase 11 (migration-ladder sense — `test_sidecar_is_transport_only.py`) is done.** The
+"~450 lines" target in §7's file-level plan assumed the Phase 6 handler move; since that
+move was declined, `sidecar.py` legitimately keeps its desktop-only routes and every port
+implementation this plan built, so 450 was never a number this file could honestly reach.
+The ratchet test instead pins the *trend* — a ceiling just above the current 2,803 lines,
+required to move down whenever a future phase delegates further, checked by its own
+anti-rot test so the ceiling itself cannot go stale after a file shrinks.
+
+**What is still not done, honestly:** the *automated* release orchestration — a GitHub
+Actions workflow that runs this same sequence across all three OSes and fails the build if
+the sidecar and shell artifacts ever disagree on SHA — is not written. The sequence is now
+proven correct by hand on macOS, which lowers the risk of writing it considerably, but the
+YAML itself (job dependencies, cross-job artifact passing, the Linux/Windows legs) is still
+unverified in the way everything else in this plan has insisted on being verified before
+being called done. Writing it untested would be the one exception to that discipline this
+plan has held throughout, and this doc records that boundary rather than quietly crossing it.
 
 **A recorded harness limit:** the session journey omits `export.bundle.json`, because that
 route reads the checkpoint and on the server that is `AsyncPostgresSaver` while this driver
@@ -941,7 +1005,7 @@ PR that reaches rung 7.
 | **8** | Projects, corpus, models | as above; `/models/providers/health/{provider}` served on both, query form deprecated for one release | M |
 | **9** | Version traceability | `VERSION`, `sync_version.py`, `stamp_build.py`, `/version` — **one `git_sha` + `dirty`, no engine SHA** (R-c) | L |
 | **10** | Capabilities | `GET /capabilities`; frontend branches on reported capability, not the build flag; `CAPABILITY_DIFFERENCES` table and its two assertions | M |
-| **11** | Sidecar containment | `test_sidecar_is_transport_only.py` with the ratcheting LOC ceiling; delete the remaining shims; CI and release work (§9, §10) | L |
+| **11** | Sidecar containment | `test_sidecar_is_transport_only.py` with the ratcheting LOC ceiling **(done — see §0.10, ceiling pinned at current size, not the ~450 this row assumed)**; delete the remaining shims (n/a — Phase 6 declined, nothing to delete); CI and release work (§9, §10) **— the manual sequence is verified (§0.10), the automated workflow is not written** | L |
 
 **Constraint 8 restated:** no phase merges the session and run pipelines. `handlers/sessions.py`
 and `handlers/runs.py` are separate owners, and `test_layer_boundaries` asserts neither
@@ -1135,6 +1199,17 @@ old one.
 ---
 
 ## 13. Definition of Done
+
+**Read against §0.10 for what is actually true today, not what this table originally
+planned.** Two rows changed meaning when Phase 6 was declined: row 1's `app/handlers/` is
+empty by decision, ownership proven by identity instead (`test_one_canonical_owner`); row
+2's "≤500 LOC" was never reachable once the handler move was off the table, so
+`test_sidecar_is_transport_only` ratchets the *trend* from 2,803 lines instead. Rows 7, 8,
+9, 17, 18 and 19 are about the same fact — the shipped artifact's SHA — from different
+angles; §0.10 records that this session verified it **by hand** (a real PyInstaller +
+Tauri build, launched, `/version` matched `HEAD`), which is everything these rows ask for
+*except* the automated, cross-runner CI assertion rows 9, 17 and 19 specifically name
+(`release-artifact-revision`, "on both runners") — that orchestration is still unwritten.
 
 | # | Requirement | Satisfied by | Phase |
 |---|---|---|---|
