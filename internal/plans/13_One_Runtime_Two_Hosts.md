@@ -360,15 +360,27 @@ these routes will meet it.
 
 ### 0.10 Where this stands
 
-**Backend 958 passed / 90 skipped. Frontend typecheck, lint, 315 tests, all three build
-targets. Ruff clean.** Fourteen commits.
+**Backend 985 passed / 90 skipped (one pre-existing, unrelated failure — see below).
+Frontend typecheck, lint, 315 tests, all three build targets. Ruff clean.** Eighteen
+commits.
 
 #### Done
 
-Phases **0, 1, 2, 3, 4, 9, 10**; most of **5** (the demo rule, `CorpusLocator`,
-`MemoryIndex`); most of **6** (canonical-owner check, dispatch port split, four SSE loops
-→ one); and **Phase 7's first rung** — `SessionDispatcher`, which made the session journey
-recordable on both hosts for the first time.
+Phases **0, 1, 2, 3, 4, 9, 10**; **5 in full** (the demo rule, `CorpusLocator`,
+`MemoryIndex`, and the P9/P11 port questions both closed — one by building, one by
+declining); most of **6** (canonical-owner check, dispatch port split, four SSE loops
+→ one); and **Phase 7's first rung and second rung** — `SessionDispatcher`, which made
+the session journey recordable on both hosts, and the delegation of ten of its fourteen
+routes.
+
+**A pre-existing, environment-caused failure, unrelated to this work:**
+`test_golden_journeys.py::test_the_server_matches_the_recorded_contract[identity-and-models]`
+fails in this sandbox because no Ollama server is reachable at `localhost:11434` — the
+model catalog's `presets.ollama` entry comes back shaped differently than the golden,
+which was recorded on a machine where Ollama was running. Confirmed by reproducing the
+identical failure at `8925d5f`, before any change in this session. Not fixed here — it is
+a test-isolation gap in a journey that depends on outbound network reachability, out of
+scope for this phase, and pre-dates it.
 
 The parity suite now drives **five journeys** against both hosts: projects, corpus,
 identity-and-models, a full research run, and a full research session.
@@ -377,7 +389,7 @@ identity-and-models, a full research run, and a full research session.
 
 | Remaining | State |
 |---|---|
-| **Phase 5** P9 `SecretStore` | worth doing — four `crypto.decrypt` sites on the server |
+| **Phase 5** P9 `SecretStore` | **done, and not as a port** — see §5.2. Reconsidered on evidence: the four sites were one host's triplication, not two hosts converging; collapsed to `crypto.user_provider_keys` |
 | **Phase 5** P11 `RoutingStore` | **not worth building.** One home per host already; a port would be abstraction with no duplication to remove, which §5 forbids |
 | **Phase 6** moving the run handlers into `app/handlers/` | ownership is already proven by identity, so this buys layering purity rather than parity |
 | **Phase 7** the last four session routes | each recorded with why, below |
@@ -432,8 +444,9 @@ Every one was surfaced by a check written in the phase before it.
 | 14 | `_drive_session` never set `RUNNING`, so a desktop session showed "Pending" for its whole run |
 | 15 | Project-memory ingest attempted a write on a host without the table, then rolled back under its caller |
 | 16 | `cancel` cannot be shared without an `EventSink` port — found by delegating it and watching it fail |
+| 17 | The planned `SecretStore` port (P9) described no real cross-host contract — the actual duplication was one host restating its own helper three times |
 
-Twelve of the sixteen were not in the original audit. Every one was surfaced by a check
+Thirteen of the seventeen were not in the original audit. Every one was surfaced by a check
 written in the phase before it.
 
 ---
@@ -809,16 +822,35 @@ carries a `capability` field, which is what makes §5.3 observable.
 | P6 | `RunDispatcher` | `start` / `resume_plan` / `rework` | `CeleryDispatcher` | `_SidecarDispatcher` | exists |
 | P7 | `EventStream` | `subscribe(id) → AsyncIterator[(int, dict)]` | Redis pub/sub | `SessionEventBus` | new |
 | P8 | `RunConfigBuilder` | `build(db, row) → RunConfig` | settings + BYOK + routing | env + keychain + file | new |
-| P9 | `SecretStore` | `keys_for(owner) → dict` | `crypto.decrypt` | `keyring` | new |
-| P10 | `CorpusLocator` | `for_project(id) → Corpus \| None` | one file per project | one flat store | new |
-| P11 | `RoutingStore` | `get` / `set` / `clear` | `users.model_routing` | `routing.json` | new |
-| **P12** | **`MemoryIndex`** | `available` · `index(report)` · `search(vector, k)` · `purge(owner)` | pgvector over `memory_chunks` | raises `CapabilityUnavailable` | **new — R-a** |
+| ~~P9~~ | ~~`SecretStore`~~ | — | `crypto.decrypt` | `keyring` | **rejected — see below** |
+| P10 | `CorpusLocator` | `for_project(id) → Corpus \| None` | one file per project | one flat store | exists |
+| ~~P11~~ | ~~`RoutingStore`~~ | — | `users.model_routing` | `routing.json` | **rejected — see below** |
+| **P12** | **`MemoryIndex`** | `available` · `index(report)` · `search(vector, k)` · `purge(owner)` | pgvector over `memory_chunks` | raises `CapabilityUnavailable` | exists |
 
-**Deleted from revision 1:** `RateLimiter` (R-b). **Still not ports,** and why: persistence
-and transactions (one ORM, both hosts; the dialect difference is `POSTGRES_ONLY_TABLES`
-plus P12); filesystem and HTTP (engine-owned, already egress-guarded); run locking (host
-scheduling — Redis token lock vs. an in-process set are legitimately different shapes);
-cancellation (durable state, already enforced by three writers that collapse to one).
+**Deleted from revision 1:** `RateLimiter` (R-b). **P9 and P11 were planned here and built
+elsewhere, or not at all** — both turned out, once actually implemented, to describe a
+shape neither host's callers use:
+
+- **`SecretStore` (P9).** The four `crypto.decrypt` sites were not two hosts converging on
+  one contract — three were the *same host* restating the same seven-line dict builder
+  (`chat.py`, `threads.py`, `pipeline_runner.py`), and the desktop's equivalent
+  (`sidecar.stored_keys()`) already had its one home, called from three places inside
+  `sidecar.py` and nowhere on the server. There was no second implementation to unify
+  against, so a `Protocol` here would have been indirection wrapping data — precisely what
+  `research_engine/ports.py` already argues against for its own dropped `KeyProvider`
+  candidate ("provider keys are resolved by the host before a run… wrapping that in a
+  callable would add a lookup indirection the engine never exercises"). The actual fix
+  landed as `app/services/crypto.py::user_provider_keys(user) → dict[str, str]` — one
+  function, three fewer restatements, zero new interfaces.
+- **`RoutingStore` (P11).** Recorded not-worth-building since the phase that first reached
+  it: one home per host already (`users.model_routing` / `routing.json`), so a port would
+  add a name without removing a duplicate.
+
+**Still not ports, and why:** persistence and transactions (one ORM, both hosts; the
+dialect difference is `POSTGRES_ONLY_TABLES` plus P12); filesystem and HTTP
+(engine-owned, already egress-guarded); run locking (host scheduling — Redis token lock
+vs. an in-process set are legitimately different shapes); cancellation (durable state,
+already enforced by three writers that collapse to one).
 
 Per-port contract — lifecycle, errors, transactions, concurrency and test strategy — is
 unchanged from revision 1 for P7–P11. P12 adds: `available` is read from the port, never
