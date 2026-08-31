@@ -26,13 +26,14 @@ from app.models.research import ResearchRun
 from app.models.review import ResearchArtifact, Review
 from app.models.session import Session, SessionStatus
 from app.models.user import User
+from app.ports import CheckpointDeleter, CorpusLocator
 from app.schemas.project import (
     ProjectCreateRequest,
     ProjectListResponse,
     ProjectResponse,
     ProjectUpdateRequest,
 )
-from app.services import checkpoints
+from app.services.host_ports import get_checkpoint_deleter, get_corpus_locator
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/projects", tags=["Projects"])
@@ -204,6 +205,8 @@ async def delete_project(
     project_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    corpus: CorpusLocator = Depends(get_corpus_locator),
+    delete_checkpoint: CheckpointDeleter = Depends(get_checkpoint_deleter),
 ):
     """Delete a project and every session in it.
 
@@ -262,21 +265,21 @@ async def delete_project(
 
     for sid in session_ids:
         try:
-            await checkpoints.delete_thread(str(sid))
+            await delete_checkpoint(str(sid))
         except Exception as e:  # noqa: BLE001 — user rows are gone; log and continue
             logger.warning("checkpoint_cleanup_failed", session_id=str(sid), error=str(e))
 
-    # The project's corpus (docs/12 M10) is a standalone SQLite file keyed by project_id,
-    # not reachable by the cascade above — no foreign key points at a path on disk. Left
-    # alone, it becomes an orphan that never surfaces again (no route can address a
-    # deleted project's corpus) while still holding every document and embedding that
-    # was in it, contradicting the "no orphan vectors after a delete" standard the
-    # project model itself documents (app/models/project.py).
-    # Including the SQLite sidecars: removing only `.sqlite` leaves a write-ahead log
-    # holding rows that were never checkpointed. The locator knows which files those are.
-    from app.adapters import ServerCorpusLocator
-
-    ServerCorpusLocator().delete(project_id)
+    # The project's corpus (docs/12 M10) is a standalone SQLite file keyed by project_id on
+    # the server, and one flat store for the whole app on the desktop — `corpus`'s own
+    # `.delete()` is what tells them apart; this route no longer does. On the server, left
+    # alone it becomes an orphan that never surfaces again (no route can address a deleted
+    # project's corpus) while still holding every document and embedding that was in it,
+    # contradicting the "no orphan vectors after a delete" standard the project model
+    # itself documents (app/models/project.py) — including the SQLite sidecars, since
+    # removing only `.sqlite` leaves a write-ahead log holding rows that were never
+    # checkpointed. On the desktop there is nothing project-scoped to orphan, so its
+    # locator's `.delete()` is a no-op.
+    corpus.delete(project_id)
 
     logger.info("project_deleted", project_id=str(project_id), sessions=len(session_ids))
     return Response(status_code=status.HTTP_204_NO_CONTENT)

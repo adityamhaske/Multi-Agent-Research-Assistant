@@ -68,9 +68,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-from sqlalchemy import event, func, select
+from sqlalchemy import event, select
 from sqlalchemy import inspect as sa_inspect
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.models import POSTGRES_ONLY_TABLES, Base
@@ -80,6 +79,7 @@ from app.models.chat_message import ChatMessage
 from app.models.project import Project
 from app.models.session import Session, SessionStatus
 from app.models.user import User
+from app.ports import CheckpointDeleter, CorpusLocator
 from app.schemas.auth import ConnectionVerdict, UsageResponse, UserResponse
 from app.schemas.capabilities import DESKTOP, Capabilities
 from app.schemas.corpus import CorpusStatusResponse, DocumentResponse
@@ -730,6 +730,43 @@ def create_sidecar_app(
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Local user missing")
         return user
 
+    class _DesktopCorpusLocator:
+        """`CorpusLocator` for the desktop: one flat store for the whole app.
+
+        `for_project`/`ensure` ignore `project_id` on purpose — there is only ever the one
+        store, `state["corpus"]`, seeded in `lifespan`. `paths_to_delete`/`delete` are
+        no-ops for the same reason `delete_project`'s docstring already gave before this
+        class existed: nothing here is project-scoped on disk to orphan. Keeping that as
+        the locator's own behaviour, rather than a branch in the route, is what lets
+        `delete_project` run unmodified on both hosts.
+        """
+
+        async def for_project(self, project_id, *, keys=None):  # noqa: ARG002
+            return state["corpus"]
+
+        async def ensure(self, project_id, *, keys=None):  # noqa: ARG002
+            return state["corpus"]
+
+        def paths_to_delete(self, project_id):  # noqa: ARG002
+            return []
+
+        def delete(self, project_id) -> None:  # noqa: ARG002
+            pass
+
+    def get_corpus_locator() -> CorpusLocator:
+        return _DesktopCorpusLocator()
+
+    def get_checkpoint_deleter() -> CheckpointDeleter:
+        """The already-open `AsyncSqliteSaver`, wrapped to the port's plain-callable
+        shape. Best-effort by the same convention `delete_project` already applied
+        inline before this seam existed — logged and swallowed, not raised, because the
+        row it is cleaning up after is already gone by the time this runs."""
+
+        async def _delete(thread_id: str) -> None:
+            await state["saver"].adelete_thread(thread_id)
+
+        return _delete
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         # pgvector-backed tables cannot exist on SQLite; the corpus keeps its own store
@@ -947,71 +984,32 @@ def create_sidecar_app(
 
     # -- projects -------------------------------------------------------------
 
-    def _project_response(p: Project, count: int = 0) -> ProjectResponse:
-        return ProjectResponse(
-            id=p.id,
-            name=p.name,
-            description=p.description,
-            archived_at=p.archived_at,
-            created_at=p.created_at,
-            session_count=count,
-        )
-
     @api.get("/projects", response_model=ProjectListResponse)
+    @delegates_to("app.api.v1.projects:list_projects")
     async def list_projects(
         archived: bool = False,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        rows = (
-            (
-                await db.execute(
-                    select(Project).where(
-                        Project.user_id == user.id,
-                        Project.archived_at.is_not(None)
-                        if archived
-                        else Project.archived_at.is_(None),
-                    )
-                )
-            )
-            .scalars()
-            .all()
-        )
-        ids = [p.id for p in rows]
-        counts: dict = {}
-        if ids:
-            count_rows = await db.execute(
-                select(Session.project_id, func.count())
-                .where(Session.project_id.in_(ids))
-                .group_by(Session.project_id)
-            )
-            counts = {pid: n for pid, n in count_rows.all()}
-        return ProjectListResponse(
-            projects=[_project_response(p, counts.get(p.id, 0)) for p in rows], total=len(rows)
-        )
+        """The server's route, byte for byte — including the count across both the v1
+        session table and v2 research runs. The desktop's own copy counted sessions
+        only, so a project with a run and no session showed `session_count: 0` (found by
+        actually creating one and listing, not by reading the two versions side by side).
+        """
+        from app.api.v1.projects import list_projects
+
+        return await list_projects(archived, db, user)
 
     @api.post("/projects", response_model=ProjectResponse, status_code=201)
+    @delegates_to("app.api.v1.projects:create_project")
     async def create_project(
         payload: ProjectCreateRequest,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        project = Project(user_id=user.id, name=payload.name, description=payload.description)
-        db.add(project)
-        try:
-            await db.commit()
-        except IntegrityError:
-            # Same answer the server gives, for the same reason: the unique index is
-            # case-insensitive, so a duplicate is only reliably detectable here. Without
-            # this the desktop ProjectSwitcher answered an ordinary retyped name with a
-            # 500 from an unhandled IntegrityError while the server explained itself.
-            await db.rollback()
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                detail=f"You already have a project named '{payload.name}'.",
-            ) from None
-        await db.refresh(project)
-        return _project_response(project)
+        from app.api.v1.projects import create_project
+
+        return await create_project(payload, db, user)
 
     async def _resolve_project(
         db: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID | None
@@ -1040,14 +1038,14 @@ def create_sidecar_app(
         return project
 
     @api.patch("/projects/{project_id}", response_model=ProjectResponse)
+    @delegates_to("app.api.v1.projects:update_project")
     async def update_project(
         project_id: uuid.UUID,
         payload: ProjectUpdateRequest,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        """Rename, re-describe, or archive/unarchive a project — the server's route
-        (app/api/v1/projects.py), same validation and same 409 on a duplicate name.
+        """Rename, re-describe, or archive/unarchive a project — the server's route.
 
         This route did not exist for a whole release; `INTENTIONAL_SERVER_ONLY` in
         test_host_parity.py justified the gap as "the UI never calls it" — true only
@@ -1055,69 +1053,31 @@ def create_sidecar_app(
         hosts, which is what makes the justification stop being true and this route
         required rather than optional.
         """
-        project = await _resolve_project(db, user.id, project_id)
-        if payload.name is not None:
-            project.name = payload.name
-        if payload.description is not None:
-            project.description = payload.description
-        if payload.archived is not None:
-            project.archived_at = datetime.now(UTC) if payload.archived else None
-        try:
-            await db.commit()
-        except IntegrityError:
-            await db.rollback()
-            raise HTTPException(
-                status.HTTP_409_CONFLICT, detail="You already have a project with that name."
-            ) from None
-        await db.refresh(project)
-        count = (
-            await db.execute(
-                select(func.count()).select_from(Session).where(Session.project_id == project.id)
-            )
-        ).scalar_one()
-        return _project_response(project, count)
+        from app.api.v1.projects import update_project
+
+        return await update_project(project_id, payload, db, user)
 
     @api.delete("/projects/{project_id}", status_code=204)
+    @delegates_to("app.api.v1.projects:delete_project")
     async def delete_project(
         project_id: uuid.UUID,
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        """Delete a project and every session in it — same refusal-while-running rule
-        and same checkpoint cleanup as the server route.
-
-        Deliberately does NOT touch a corpus file: desktop's corpus is one flat
-        `corpus.sqlite` for the whole app (`make_corpus_store`), not one file per
+        """Delete a project and every session in it — the server's route, given this
+        host's own corpus locator and checkpoint deleter explicitly (the pattern
+        `_dispatcher` already uses) rather than through `Depends`, which the sidecar
+        never triggers for a delegated call. `_DesktopCorpusLocator.delete` is a no-op:
+        desktop's corpus is one flat `corpus.sqlite` for the whole app, not one file per
         project like the server's `corpus_<project_id>.sqlite` — a real, documented
-        infra difference (AGENTS.md), not a gap. There is nothing project-scoped on
-        disk here to orphan.
+        infra difference (AGENTS.md), not a gap. There is nothing project-scoped on disk
+        here to orphan.
         """
-        project = await _resolve_project(db, user.id, project_id)
-        running = (
-            await db.execute(
-                select(func.count())
-                .select_from(Session)
-                .where(Session.project_id == project.id, Session.status == SessionStatus.RUNNING)
-            )
-        ).scalar_one()
-        if running:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                detail=f"{running} session(s) in this project are still running.",
-            )
-        session_ids = (
-            (await db.execute(select(Session.id).where(Session.project_id == project.id)))
-            .scalars()
-            .all()
+        from app.api.v1.projects import delete_project
+
+        return await delete_project(
+            project_id, db, user, get_corpus_locator(), get_checkpoint_deleter()
         )
-        await db.delete(project)  # sessions (and their logs/chat/audit) cascade
-        await db.commit()
-        for sid in session_ids:
-            try:
-                await app.state.sidecar["saver"].adelete_thread(str(sid))
-            except Exception as e:  # noqa: BLE001 — the rows are gone; log and move on
-                logger.warning("checkpoint_cleanup_failed", session_id=str(sid), error=str(e))
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     # -- research sessions ------------------------------------------------------
 

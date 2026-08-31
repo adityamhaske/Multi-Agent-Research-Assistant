@@ -106,3 +106,24 @@ class MemoryIndex(Protocol):
         obvious error.
         """
         ...
+
+
+@runtime_checkable
+class CheckpointDeleter(Protocol):
+    """Drops all checkpoint state for one thread (a session or run id).
+
+    A genuine host difference, and a narrow one: the server opens a fresh
+    `AsyncPostgresSaver` connection per call (`app.services.checkpoints.delete_thread`,
+    which already matches this exact signature — no wrapper needed); the desktop's saver
+    is a single long-lived `AsyncSqliteSaver` already held in `app.state`. Wrapping both
+    as one async callable is what let `delete_project` stop hardcoding the server's saver
+    directly, the same way `CorpusLocator` let it stop hardcoding the server's corpus
+    convention.
+
+    Best-effort by convention, not by the port: both implementations log and continue on
+    failure rather than raising, because the row they were cleaning up after is already
+    gone by the time this runs — the same reasoning `ServerCorpusLocator.delete` states
+    for corpus files.
+    """
+
+    async def __call__(self, thread_id: str) -> None: ...

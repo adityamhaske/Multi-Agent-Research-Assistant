@@ -56,6 +56,13 @@ SHARED_OWNERSHIP: dict[str, str] = {
     "POST /research/{session_id}/unarchive": "app.api.v1.research",
     "DELETE /research/{session_id}": "app.api.v1.research",
     "GET /research/{session_id}/export.md": "app.api.v1.research",
+    # The projects surface, delegated in plan phase 8. `delete_project` needed two new
+    # seams first (`CorpusLocator`, `CheckpointDeleter`) — everything else about it, plus
+    # list/create/update, was a straight delegation.
+    "GET /projects": "app.api.v1.projects",
+    "POST /projects": "app.api.v1.projects",
+    "PATCH /projects/{project_id}": "app.api.v1.projects",
+    "DELETE /projects/{project_id}": "app.api.v1.projects",
 }
 
 #: Shared operations whose two hosts legitimately run different code, with the reason.
@@ -227,6 +234,29 @@ def test_every_declared_session_divergence_is_still_divergent(hosts):
         and canonical_owner(server[op]) is canonical_owner(desktop[op])
     }
     assert not resolved, f"Now shared — remove from SESSION_DIVERGENT: {sorted(resolved)}"
+
+
+def test_no_projects_operation_is_unaccounted_for(hosts):
+    """Same rule a third time: declared shared and proved by identity, or declared
+    divergent with a reason. All four project *CRUD* operations are shared today, so this
+    is presently equivalent to `set(SHARED_OWNERSHIP)` — it stops being that the moment
+    one genuinely needs to diverge, which is the point of keeping the check generic.
+
+    Scoped to bare `/projects` and `/projects/{project_id}` — the nested
+    `/projects/{project_id}/corpus/*` routes are the corpus surface, not this one, and
+    plan phase 8 has not reached them yet.
+    """
+    server, desktop = hosts
+    shared = {
+        op
+        for op in set(server) & set(desktop)
+        if op.split(" ", 1)[1].startswith("/projects") and "/corpus" not in op
+    }
+    unaccounted = shared - set(SHARED_OWNERSHIP)
+    assert not unaccounted, (
+        "These project operations exist on both hosts and nobody has said whether they "
+        f"share an implementation: {sorted(unaccounted)}"
+    )
 
 
 def test_no_run_operation_is_unaccounted_for(hosts):
