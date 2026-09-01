@@ -11,6 +11,25 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      # ESLint 10 removed the deprecated `context.getFilename()`. `eslint-plugin-react`
+      # 7.37.5 — which we do not depend on directly; `eslint-config-next` 16.3.2 pins it —
+      # still calls it (`lib/util/version.js:31`), so every lint run dies before reporting
+      # a single finding:
+      #
+      #     TypeError: Error while loading rule 'react/display-name':
+      #     contextOrFilename.getFilename is not a function
+      #
+      # The plugin's own `peerDependencies` say `eslint@^3 || … || ^9.7`, so this is not a
+      # configuration we can adjust — v10 is unsupported upstream and #98 was unmergeable
+      # rather than merely red. Ignoring the major keeps it from being reproposed weekly,
+      # each time costing a full CI matrix to rediscover the same upstream fact.
+      #
+      # **Remove this the moment `eslint-config-next` ships an `eslint-plugin-react` that
+      # declares v10 support** — check its peer range, not its version number. Minor and
+      # patch bumps of eslint 9 are deliberately still allowed through.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
     groups:
       # react and react-dom are exact-pinned and reach into each other's internals, so
       # they are one unit even though npm calls them two packages. Ungrouped, Dependabot
