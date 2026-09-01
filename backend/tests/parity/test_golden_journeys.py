@@ -53,14 +53,22 @@ XFAIL_DIVERGENCES: dict[str, str] = {
         "plan phase 10 — the desktop is a single local user, so email and display_name are "
         "fixed sentinels. Reclassify as a capability difference rather than a divergence"
     ),
-    # ── Two unrelated things in one response, kept together only because they arrive in
-    # one step. The first is environment; the second is a real product divergence.
+    # ── Was two unrelated things in one response. One of them is now closed.
+    #
+    # The preset half — "the server enriches presets.ollama from installed models and the
+    # desktop returns the static table", the real divergence this suite found — was fixed
+    # in plan phase 8: the desktop calls `_ollama_presets_from_installed()` too, so it can
+    # no longer offer a local model the machine never pulled. `presets` is now byte-identical
+    # on both hosts, which is checkable here rather than asserted, because
+    # `drivers.pin_local_llm_probe` gives both the same installed-model list.
     "identity-and-models/the model catalog": (
-        "plan phase 8 — (a) available_providers and per-model `available` differ because "
-        "the server reads keys from settings and the desktop from the keychain, which the "
-        "harness does not yet pin; (b) the server enriches presets.ollama from installed "
-        "models via _ollama_presets_from_installed() and the desktop returns the static "
-        "table. (b) is a real divergence, found by this suite"
+        "by design — `available_providers` and the per-model `available` flag differ "
+        "because each host answers from where its own keys live: the server from settings "
+        "(the harness pins them, see drivers._PINNED_KEYS) and the desktop from the "
+        "keychain, which in `fake=True` holds nothing, so it reports []. Not a gap and not "
+        "harness drift — the same BYOK-vs-keychain split that made `GET /models` one of "
+        "the five routes MODELS_DIVERGENT keeps per host; reclassified in plan phase 8, "
+        "which closed the preset half of this entry"
     ),
     # §2.5 #2 is gone: Phase 1 filled the body fields by declaring the model, and Phase 2b
     # made the status codes, the failure mapping, the download's Content-Type and the

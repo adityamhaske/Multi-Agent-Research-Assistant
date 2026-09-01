@@ -90,6 +90,61 @@ def pinned_routing() -> dict[str, str]:
     return {role: os.environ[f"MODEL_{role.upper()}"] for role in ROLES}
 
 
+def pin_local_llm_probe():
+    """Make `GET /models` see one fixed local model server. Returns the previous probe.
+
+    `_ollama_presets_from_installed()` builds `presets["ollama"]` from whatever Ollama is
+    *actually reachable at request time* — a live localhost call, and the last unpinned
+    input to a recorded contract. The golden's ollama preset names `llama3.2:latest` and
+    `qwen2.5-coder:14b` because the machine that recorded it had exactly those pulled;
+    anywhere else — CI, or any laptop without Ollama running — the helper returns `None`,
+    `presets` comes back with no `ollama` key at all (`catalog.PRESETS` is static
+    anthropic + google), and the step diverges for a reason that has nothing to do with
+    the code under test.
+
+    The two models below reproduce the recorded preset exactly, and are chosen to exercise
+    the selection rather than hand it one answer: `fast` must pick the smallest chat model
+    and `balanced`/`best` the largest *research-ready* one, so a 3B tagged underpowered and
+    a 14B that is not are the smallest case where "smallest" and "strongest" differ and the
+    `likely_underpowered` filter is load-bearing.
+
+    Pinned for **both** hosts, like `_embedder`: the desktop calls this same helper now
+    (plan phase 8 — its catalog used to return the static table and could offer a model
+    the machine never pulled), so leaving the probe live would leave the same
+    nondeterminism on that side, latent behind an `XFAIL_DIVERGENCES` entry.
+    """
+    from app.services import local_llm
+
+    installed = [
+        local_llm.LocalModel(
+            name="llama3.2:latest",
+            route="ollama:llama3.2",
+            in_catalog=True,
+            likely_underpowered=True,
+            params_b=3.0,
+        ),
+        local_llm.LocalModel(
+            name="qwen2.5-coder:14b",
+            route="ollama:qwen2.5-coder",
+            in_catalog=True,
+            likely_underpowered=False,
+            params_b=14.0,
+        ),
+    ]
+
+    async def _probe(base_url=None):  # noqa: ARG001 - matches the real signature
+        return local_llm.LocalLLMStatus(
+            configured_base_url="http://localhost:11434/v1",
+            reachable=True,
+            models=installed,
+            install_state="running",
+        )
+
+    previous = local_llm.probe
+    local_llm.probe = _probe
+    return previous
+
+
 # ── Desktop ───────────────────────────────────────────────────────────────────────
 
 
@@ -109,6 +164,7 @@ async def desktop_driver(data_dir: Path):
     shared = _embedder()
     previous_local_embeddings = sidecar_module.LocalEmbeddings
     sidecar_module.LocalEmbeddings = lambda **_kw: shared
+    previous_probe = pin_local_llm_probe()
 
     app = create_sidecar_app(data_dir=data_dir, token=TOKEN, fake=True)
     async with app.router.lifespan_context(app):
@@ -128,6 +184,9 @@ async def desktop_driver(data_dir: Path):
                 )
             finally:
                 sidecar_module.LocalEmbeddings = previous_local_embeddings
+                from app.services import local_llm
+
+                local_llm.probe = previous_probe
 
 
 # ── Server ────────────────────────────────────────────────────────────────────────
@@ -386,6 +445,37 @@ async def server_driver(data_dir: Path):
         previous_llm_mode = settings.llm_mode
         settings.llm_mode = "fake"
 
+        # Which providers are *reachable*, stated here for the same reason `llm_mode` is.
+        # `model_routing.available_providers` reads these settings, and `GET /models`
+        # reports them as `available_providers` plus a per-model `available` flag — so the
+        # catalog's recorded contract silently depended on whether whoever ran the harness
+        # happened to have `GOOGLE_API_KEY` and `CUSTOM_BASE_URL` in their `.env`. The
+        # golden was recorded on a machine that did; CI has neither, so it read
+        # `['ollama']` against a golden saying `['custom', 'google', 'ollama']` and the
+        # server journey failed there and only there. `XFAIL_DIVERGENCES` had already
+        # named this — "which the harness does not yet pin" — and assigned it to plan
+        # phase 8; this is that pin.
+        #
+        # Google and custom are pinned *present* rather than all five pinned absent: the
+        # routing `conftest` pins is `google:gemini-2.5-flash`, so a catalog where google
+        # is unavailable would contradict the run journeys beside it, and a golden where
+        # every model is `available: False` exercises only one side of the flag. Anthropic,
+        # OpenAI and OpenRouter stay absent so both sides are covered. The values are
+        # inert: `llm_mode` is `fake`, so nothing dials a provider with them.
+        _PINNED_KEYS = {
+            "google_api_key": "parity-google-key",
+            "custom_base_url": "http://custom.invalid/v1",
+            "anthropic_api_key": "",
+            "openai_api_key": "",
+            "openrouter_api_key": "",
+        }
+        previous_keys = {name: getattr(settings, name) for name in _PINNED_KEYS}
+        for name, value in _PINNED_KEYS.items():
+            setattr(settings, name, value)
+
+        # The other half of the catalog's ambient input — see `pin_local_llm_probe`.
+        previous_probe = pin_local_llm_probe()
+
         # The corpus is a real store on a real path; only the directory is redirected, so
         # the per-project file layout the server actually uses is still exercised.
         previous_corpus_dir = settings.corpus_dir
@@ -441,4 +531,9 @@ async def server_driver(data_dir: Path):
             adapters.embeddings_for = previous_embeddings_for
             settings.corpus_dir = previous_corpus_dir
             settings.llm_mode = previous_llm_mode
+            for name, value in previous_keys.items():
+                setattr(settings, name, value)
+            from app.services import local_llm
+
+            local_llm.probe = previous_probe
             await saver_cm.__aexit__(None, None, None)
