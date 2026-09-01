@@ -37,7 +37,7 @@ langchain-anthropic>=1.6.1
 # Required, not optional: OpenAI, OpenRouter, and Ollama all speak the OpenAI wire
 # protocol, so this one client covers three providers — including Ollama, which is the
 # offline/local-model story (docs/12 M8, docs/13 §6/§8).
-langchain-openai>=1.4.2
+langchain-openai>=1.6.0
 
 # Web research (retriever chain: Tavily → Brave (httpx) → DuckDuckGo fallback)
 tavily-python>=0.5
