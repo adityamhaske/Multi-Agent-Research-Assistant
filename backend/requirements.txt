@@ -30,7 +30,7 @@ langgraph-checkpoint-sqlite>=3.0
 # checkpointer works in the slim container without a system libpq — without this every
 # worker run fails with "no pq wrapper available" (found via docker-compose smoke test).
 psycopg[binary]>=3.3.4
-langchain-core>=1.5.5
+langchain-core>=1.6.1
 langchain-google-genai>=2.0
 # BYOK providers — enabled for Anthropic routing (MODEL_*=anthropic:...).
 langchain-anthropic>=1.6.1
