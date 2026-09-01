@@ -197,6 +197,53 @@ export function useCapabilities(): Capabilities {
   return data ?? UNKNOWN_CAPABILITIES;
 }
 
+/**
+ * What this build is, and whether anything newer exists.
+ *
+ * Two hooks rather than one, because they answer questions of different kinds. `useVersion`
+ * reads a fact the build carries and can always state; `useUpdateCheck` is a *measurement
+ * over the network*, so it is a mutation — it runs when someone presses the button, never
+ * on mount. An app that sells itself as local-first should not phone home unasked, and the
+ * backend's four-state answer (`app/services/updates.py`) is what keeps "we could not
+ * check" from rendering as "you are up to date".
+ */
+export interface BuildVersion {
+  version: string;
+  git_sha: string;
+  dirty: boolean;
+  contract_version: string;
+  built_at: string;
+}
+
+export type UpdateState =
+  | "up_to_date"
+  | "update_available"
+  | "check_failed"
+  | "unknown_local_version";
+
+export interface UpdateCheck {
+  state: UpdateState;
+  running_version: string;
+  latest_version: string | null;
+  release_url: string | null;
+  detail: string;
+}
+
+export function useVersion() {
+  return useQuery({
+    queryKey: ["version"],
+    queryFn: () => apiFetch<BuildVersion>("/version"),
+    staleTime: Infinity,
+    retry: false,
+  });
+}
+
+export function useUpdateCheck() {
+  return useMutation({
+    mutationFn: () => apiFetch<UpdateCheck>("/updates/check"),
+  });
+}
+
 export function useUsage() {
   return useQuery({
     queryKey: queryKeys.usage,

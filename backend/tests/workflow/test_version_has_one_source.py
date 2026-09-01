@@ -118,8 +118,23 @@ def test_an_unstamped_build_reports_unknown_rather_than_guessing(monkeypatch):
     already cached and never re-imported. The first version of this test passed against a
     stamped tree while asserting the unstamped behaviour, which is the shape of test this
     whole effort keeps finding.
+
+    **Both patches are needed, and the second was missing.** `build_info()` runs
+    `from research_engine import _build`, which resolves by `getattr` on the *package*
+    first and only falls back to `sys.modules`. So once anything has imported `_build` —
+    any earlier test that calls `build_info()`, and there are several now — the attribute
+    is bound on `research_engine` and the `sys.modules` patch never gets consulted. This
+    test then read a real stamp while asserting the unstamped path: exactly the failure
+    its own docstring describes, one level further down.
+
+    It passed anyway for a reason worth stating: `_build.py` is git-ignored, so CI has no
+    stamp and the import fails on its own there. The isolation was doing nothing and
+    nothing could tell, until a local run with a stamped tree ordered the tests this way.
     """
+    import research_engine
+
     monkeypatch.setitem(sys.modules, "research_engine._build", None)
+    monkeypatch.delattr(research_engine, "_build", raising=False)
 
     info = build_info()
     assert info.git_sha == UNKNOWN

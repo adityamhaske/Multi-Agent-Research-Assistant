@@ -68,6 +68,13 @@ class Capabilities(BaseModel):
     #: cannot reach the host's process table, and should not.
     local_llm_control: bool
 
+    #: Whether this host can tell you a newer version exists. The desktop is an installed
+    #: artifact a person downloaded once and will otherwise run forever, so it asks; a
+    #: server deployment is updated by pulling an image, where the operator already
+    #: decides when and from what. Not "can it update itself" — neither host does that —
+    #: but "can it answer the question".
+    update_check: bool
+
     #: Where a provider key is kept. Not a boolean, because both hosts store keys — the
     #: difference is where, and the settings screen has to say which.
     byok_storage: Literal["encrypted_column", "os_keychain"]
@@ -87,6 +94,7 @@ SERVER = Capabilities(
     server_pdf=True,
     rate_limits=True,
     local_llm_control=False,
+    update_check=False,
     byok_storage="encrypted_column",
     host="server",
 )
@@ -98,6 +106,7 @@ DESKTOP = Capabilities(
     server_pdf=False,
     rate_limits=False,
     local_llm_control=True,
+    update_check=True,
     byok_storage="os_keychain",
     host="desktop",
 )

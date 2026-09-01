@@ -41,7 +41,7 @@ import sys
 import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 
 # Launched as a plain script (Tauri shell, PyInstaller entry point), so make the
@@ -934,6 +934,30 @@ def create_sidecar_app(
         """
         return build_info().as_dict()
 
+    @api.get("/updates/check")
+    async def check_for_updates():
+        """Is there a newer release than this build? (`app/services/updates.py`)
+
+        Desktop-only, and declared as such in `INTENTIONAL_DESKTOP_ONLY`: an installed
+        app is downloaded once and will otherwise run forever, while a server deployment
+        is updated by pulling an image on an operator's schedule.
+
+        **The outbound call happens here rather than in the WebView because it has to.**
+        `tauri.conf.json`'s CSP allows `connect-src` to `ipc:` and `127.0.0.1:*` only, so
+        a `fetch` to github.com from the frontend is blocked. Loosening that to permit one
+        convenience would spend a real security boundary; the sidecar already owns this
+        host's egress, so the call belongs here.
+
+        Never on a timer and never at launch — only when someone presses the button. An
+        app that sells itself as local-first and airgap-capable should not phone home
+        unasked, and `updates.check` returning `check_failed` rather than a cheerful
+        "up to date" is what keeps the answer honest when the machine is offline on
+        purpose.
+        """
+        from app.services import updates
+
+        return asdict(await updates.check(build_info().version))
+
     @api.get("/auth/me", response_model=UserResponse)
     async def me(user: User = Depends(get_local_user)):
         """The frontend boots on this call. Desktop has exactly one user and no password.
@@ -1522,6 +1546,7 @@ def create_sidecar_app(
         from app.api.v1.research import start_research
 
         return await start_research(payload, db, user, None, _session_dispatcher)
+
     @api.get("/research", response_model=SessionListResponse)
     @delegates_to("app.api.v1.research:list_sessions")
     async def list_sessions(
@@ -1535,6 +1560,7 @@ def create_sidecar_app(
         from app.api.v1.research import list_sessions
 
         return await list_sessions(page, limit, archived, project_id, db, user)
+
     @api.get("/research/{session_id}", response_model=SessionDetail)
     @delegates_to("app.api.v1.research:get_session")
     async def get_session(
@@ -1545,6 +1571,7 @@ def create_sidecar_app(
         from app.api.v1.research import get_session
 
         return await get_session(session_id, db, user)
+
     @api.get("/research/{session_id}/stream")
     async def stream_events(
         session_id: uuid.UUID,
@@ -1642,6 +1669,7 @@ def create_sidecar_app(
         from app.api.v1.research import get_plan
 
         return await get_plan(session_id, db, user)
+
     @api.post("/research/{session_id}/plan", response_model=PlanResponse)
     @delegates_to("app.api.v1.research:submit_plan")
     async def submit_plan(
@@ -1657,6 +1685,7 @@ def create_sidecar_app(
         from app.api.v1.research import submit_plan
 
         return await submit_plan(session_id, payload, db, user, _session_dispatcher)
+
     @api.post("/research/{session_id}/approve")
     @delegates_to("app.api.v1.research:approve_or_rework")
     async def approve_or_rework(
@@ -1668,6 +1697,7 @@ def create_sidecar_app(
         from app.api.v1.research import approve_or_rework
 
         return await approve_or_rework(session_id, payload, db, user, _session_dispatcher)
+
     @api.get("/research/{session_id}/chat", response_model=list[ChatMessageSchema])
     async def chat_history(
         session_id: uuid.UUID,
@@ -1797,6 +1827,7 @@ def create_sidecar_app(
         from app.api.v1.research import export_markdown
 
         return await export_markdown(session_id, db, user)
+
     @api.get("/research/{session_id}/export.bundle.json")
     async def export_bundle_json(
         session_id: uuid.UUID,
@@ -1962,6 +1993,7 @@ def create_sidecar_app(
         from app.api.v1.research import archive_session
 
         return await archive_session(session_id, db, user)
+
     @api.post("/research/{session_id}/unarchive", response_model=SessionSummary)
     @delegates_to("app.api.v1.research:unarchive_session")
     async def unarchive_session(
@@ -1972,6 +2004,7 @@ def create_sidecar_app(
         from app.api.v1.research import unarchive_session
 
         return await unarchive_session(session_id, db, user)
+
     @api.delete("/research/{session_id}", status_code=204)
     @delegates_to("app.api.v1.research:delete_session")
     async def delete_session(
@@ -1982,6 +2015,7 @@ def create_sidecar_app(
         from app.api.v1.research import delete_session
 
         return await delete_session(session_id, db, user)
+
     @api.get("/models/readiness", response_model=ReadinessResponse)
     async def get_readiness(user: User = Depends(get_local_user)):  # noqa: ARG001
         """Can this user run research right now? Second home of the server's
@@ -2096,9 +2130,7 @@ def create_sidecar_app(
 
     @api.post("/models/providers/test", response_model=ConnectionVerdict)
     @delegates_to("app.api.v1.models:test_provider")
-    async def test_provider(
-        payload: ProviderTestRequest, user: User = Depends(get_local_user)
-    ):
+    async def test_provider(payload: ProviderTestRequest, user: User = Depends(get_local_user)):
         """Probe a submitted key before it is stored — nothing about this route reads a
         stored key at all (the desktop's or the server's), so unlike the routes around
         it there was never a host-specific dependency to work around. The hand-rolled

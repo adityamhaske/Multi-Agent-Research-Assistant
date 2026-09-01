@@ -11,6 +11,7 @@ import { LocalLLMCard } from "@/components/account/LocalLLMCard";
 import { CustomEndpointCard } from "@/components/account/CustomEndpointCard";
 import { ModelPicker } from "@/components/account/ModelPicker";
 import { Field, Section } from "@/components/account/Section";
+import { AboutSection } from "@/components/settings/AboutSection";
 import { ProjectsSection } from "@/components/settings/ProjectsSection";
 import { ResetToDefault } from "@/components/settings/ResetToDefault";
 import { useMe, useUpdateProfile, useUsage,
@@ -599,6 +600,7 @@ const SECTIONS: Record<string, () => JSX.Element> = {
   projects: ProjectsSection,
   appearance: AppearanceSection,
   advanced: AdvancedSection,
+  about: AboutSection,
 };
 
 export function SectionContent({ section }: { section: string }) {

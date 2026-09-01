@@ -14,6 +14,7 @@ export function generateStaticParams() {
     "projects",
     "appearance",
     "advanced",
+    "about",
   ].map((section) => ({ section }));
 }
 

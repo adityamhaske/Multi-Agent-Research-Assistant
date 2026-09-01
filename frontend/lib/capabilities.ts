@@ -25,6 +25,9 @@ export interface Capabilities {
   rate_limits: boolean;
   /** Starting and stopping a local Ollama process. */
   local_llm_control: boolean;
+  /** Whether this host can tell you a newer release exists. Desktop asks; a server is
+   *  updated by pulling an image on its operator's schedule. */
+  update_check: boolean;
   /** Where a provider key is kept. Both hosts store keys; the difference is where. */
   byok_storage: "encrypted_column" | "os_keychain";
   /** Which host answered. For support conversations — never branch on it. */
@@ -46,6 +49,7 @@ export const UNKNOWN_CAPABILITIES: Capabilities = {
   server_pdf: false,
   rate_limits: false,
   local_llm_control: false,
+  update_check: false,
   byok_storage: "encrypted_column",
   host: "server",
 };

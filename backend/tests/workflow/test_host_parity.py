@@ -138,6 +138,12 @@ INTENTIONAL_DESKTOP_ONLY: dict[str, str] = {
     "GET /corpus/status": "flat per-app corpus, one corpus.sqlite for the whole app",
     "POST /models/local/start": "the desktop app can spawn a local Ollama; a container cannot",
     "POST /models/local/stop": "the desktop app can stop the Ollama process it spawned",
+    "GET /updates/check": (
+        "an installed app is downloaded once and otherwise runs forever, so it asks "
+        "whether a newer release exists; a server deployment is updated by pulling an "
+        "image, on an operator's schedule and from a registry they choose. Declared as "
+        "the `update_check` capability, so the client reads it rather than the build flag"
+    ),
     "GET /models/providers/health/{provider}": (
         "path-segment form of the server's query-parameter variant; the frontend already "
         "branches on isDesktop for this one, which is why it is not a UI gap"
@@ -247,6 +253,7 @@ DESKTOP_UI_CALLS: dict[str, str] = {
     # invisible to it in a way a wrong INTENTIONAL_SERVER_ONLY entry (the other half of
     # this bug) is not — that one at least gets checked against the *served* set.
     "GET /models/readiness": "SettingsLayout — the setup-first banner",
+    "GET /updates/check": "Settings → About — the Check for updates button",
     "GET /models/routing": "settings",
     "PUT /models/routing": "settings",
     "DELETE /models/routing": "settings",
