@@ -451,13 +451,23 @@ re-run away — the first is an outage, the second is a number to fix.
 
 The public site (`frontend/app/(site)/`, GitHub Pages) is **generated from the app** — the
 docs it renders are `docs/`, the comparison is `lib/comparison.ts` — so it cannot drift
-about *how the product works*. Three things are hand-written and go stale silently:
+about *how the product works*. Two things are hand-written and go stale silently:
 
 | After tagging a release | Update | Why it rots |
 |---|---|---|
-| Always | `frontend/lib/releases.ts` | The releases page and "what improved" list. The download button reads `latestRelease()`, so a missing entry offers the *previous* installer. |
-| Always | `README.md` download badge | Bump **both** the badge label and the href; it once pointed at v1.0.1 while v1.0.2 was current. |
+| Always | `frontend/lib/releases.ts` — the `improved`/`known` prose, not just the version string | The releases page and "what improved" list. The download button reads `latestRelease()`, so a missing entry offers the *previous* installer. |
 | When behaviour changed | `README.md` pipeline diagram, `lib/comparison.ts` | The diagram claimed one human gate for weeks after the design gate shipped. |
+
+**`scripts/sync_version.py --write` derives the version string itself in four places from
+the root `VERSION` file** — `backend/app/main.py`'s `APP_VERSION`, `desktop/tauri.conf.json`,
+`desktop/Cargo.toml`, and the newest entry's `version` field in `frontend/lib/releases.ts`
+(matched by position, so add the new entry *before* running `--write`). Run it with no flag
+first — it reports drift and exits 1 instead of guessing which of the four is right. It does
+not write the `improved`/`known` prose above; that is still a person's (or an agent's) job.
+The README download badge is deliberately absent from both this table and the script — it
+points at a docs page rather than a versioned asset, so it carries no version to drift; that
+reasoning lives in `sync_version.py`'s own docstring, not repeated here to avoid a second
+copy to forget.
 
 **The generated pages are safe; the hand-written data next to them is not.** Check every
 page after a deploy, not just the one you changed: `/`, `/why`, `/docs`, `/releases`,

@@ -33,6 +33,28 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "v2.0.2",
+    date: "2026-08-31",
+    headline:
+      "The desktop app stopped reimplementing the server, and four bugs that only existed because it had.",
+    improved: [
+      "Every desktop settings-page load stopped 404ing in the background. The readiness check the settings page fetches on every host had no route on desktop at all — the frontend called it unconditionally and only branched on what it did with the answer, so the request itself always failed silently. It has a route now, answering from this host's own keys instead of the server's.",
+      "Choosing the \"Local\" model preset on desktop now offers a model the machine actually has installed, instead of a fixed name that may never have been pulled. The server has done this since 2.0.0; the desktop build never picked it up.",
+      "The routing panel's \"deployment default\" no longer mirrors your own saved preference back at you. Saving a per-role routing choice made the two numbers identical on desktop, which defeats the reason that comparison exists — seeing what changes if you clear your preference.",
+      "A project containing research runs and no chat sessions no longer shows a session count of zero. The desktop's own project list only ever counted the older kind of research.",
+      "Stopping a run from the desktop now records why in the same place a provider error would — a client reading the failure reason from the run's event history found nothing there for a user-stopped run specifically, even though the reason was visible elsewhere on the same screen.",
+      "The desktop app and the server now run the same code for every project, corpus, and research-session operation that does not depend on where a secret is stored — proved by the two literally resolving to one function, not by two implementations that currently happen to agree. A fix to one of these from here on reaches both hosts by construction.",
+    ],
+    known: [
+      "Two research pipelines still exist in the backend. The product has one, and research recorded by the earlier one stays readable; consolidating them is not a patch.",
+      "Follow-up chat scoped to a single report is available on research recorded as a session and not on a run. Project chat, which cites every approved report in a project, covers both.",
+      "Cancelling a run still does not interrupt research already in flight — it runs to its next checkpoint, and the tokens spent there are recorded because they were really spent.",
+      "Claim verification is still not implemented, claim lineage across revisions is still not tracked, and contradiction detection is still source-level and unscored.",
+      "Corpus-mode research still has no end-to-end test, because it requires a local embedder and the test environment has none.",
+      "Citation support is still measured at 90% on a single self-judged local-model run, and that measurement predates 2.0.0. It needs re-running before the number is leaned on.",
+    ],
+  },
+  {
     version: "v2.0.1",
     date: "2026-08-26",
     headline:

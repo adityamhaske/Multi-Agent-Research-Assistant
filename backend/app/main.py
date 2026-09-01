@@ -28,7 +28,7 @@ logger = structlog.get_logger()
 #: both still said `1.0.0` through the whole 1.0.x line, so `/health` reported a version the
 #: deployment had not been running for two releases. Bump this with `desktop/tauri.conf.json`
 #: and `frontend/lib/releases.ts` when cutting a tag.
-APP_VERSION = "2.0.1"
+APP_VERSION = "2.0.2"
 
 
 @asynccontextmanager
