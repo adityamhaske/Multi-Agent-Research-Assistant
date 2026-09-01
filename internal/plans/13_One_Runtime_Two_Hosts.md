@@ -361,13 +361,13 @@ these routes will meet it.
 ### 0.10 Where this stands
 
 **Backend 1025 passed / 90 skipped (one pre-existing, unrelated failure — see below).
-Frontend typecheck, lint, 315 tests, all three build targets green this session.**
-Twenty-nine commits (counted from `ca15532`, this plan's first — not carried forward by
-arithmetic, which drifted by one in the commit before this one: a count stated in the same
-commit that changes it is always one behind by the time it lands). **The packaged desktop
-app was built and launched for real on this machine —
-PyInstaller sidecar, Tauri shell, `.app` and `.dmg` — and its `GET /version` matches `HEAD`
-exactly**, closing the one verification this plan had called "owed" since revision 1.
+Frontend typecheck, lint, 315 tests, all three build targets green this session.** Thirty
+commits before this one (counted from `ca15532`, this plan's first). **The packaged desktop
+app was built and launched for real on this machine — PyInstaller sidecar, Tauri shell,
+`.app` and `.dmg` — and its `GET /version` matches `HEAD` exactly**, closing the one
+verification this plan had called "owed" since revision 1, and the resulting SHA-match
+check now runs in CI (`.github/workflows/desktop.yml`) rather than staying a one-time manual
+proof.
 
 #### Done
 
@@ -472,14 +472,33 @@ The ratchet test instead pins the *trend* — a ceiling just above the current 2
 required to move down whenever a future phase delegates further, checked by its own
 anti-rot test so the ceiling itself cannot go stale after a file shrinks.
 
-**What is still not done, honestly:** the *automated* release orchestration — a GitHub
-Actions workflow that runs this same sequence across all three OSes and fails the build if
-the sidecar and shell artifacts ever disagree on SHA — is not written. The sequence is now
-proven correct by hand on macOS, which lowers the risk of writing it considerably, but the
-YAML itself (job dependencies, cross-job artifact passing, the Linux/Windows legs) is still
-unverified in the way everything else in this plan has insisted on being verified before
-being called done. Writing it untested would be the one exception to that discipline this
-plan has held throughout, and this doc records that boundary rather than quietly crossing it.
+**A correction, not just an update.** The paragraph that stood here claimed the automated
+release workflow was unwritten. That was wrong — `.github/workflows/desktop.yml` already
+builds and smoke-tests the sidecar and shell across all three OSes, already runs a full
+fake research journey through the packaged binary and checks the resulting bundle against
+the standalone verifier, already checksums and publishes to GitHub Releases on a tag. None
+of that was written this session; it predates this plan and this doc simply hadn't been
+read closely enough against it. Stated for the record rather than silently fixed, because a
+plan that corrects its own prior claims quietly is asking to be trusted the same way it just
+failed to earn.
+
+What was genuinely missing, once actually checked: nothing in that workflow asserted the
+shipped artifact's `git_sha` matches the commit that built it — `stamp_build.py` ran, the
+app booted, but the *answer* was never compared to anything. That is the specific,
+narrower gap DoD rows 9/17/19 describe (`release-artifact-revision`), and it is now two new
+steps in `desktop.yml`: one in the `sidecar` job (all three OSes) checking the raw
+PyInstaller output, one in the `shell` job (macOS only, matching the existing size check's
+own already-justified macOS-only asymmetry — Windows/Linux pack the payload into an
+installer) checking the copy actually inside `Research Assistant.app/Contents/Resources/
+sidecar/`. Both steps' exact bash was extracted and run locally against real artifacts
+before being committed — not just YAML-linted — on both the failure path (an artifact three
+commits stale was correctly flagged) and the success path (a fresh rebuild at current `HEAD`
+correctly matched).
+
+**What remains genuinely unverified:** the GitHub Actions plumbing itself — job
+dependencies, cross-job artifact upload/download, and the Windows/Linux runners, none of
+which this environment can exercise. That boundary is real and this doc says so rather than
+crossing it.
 
 **A recorded harness limit:** the session journey omits `export.bundle.json`, because that
 route reads the checkpoint and on the server that is `AsyncPostgresSaver` while this driver
@@ -1007,7 +1026,7 @@ PR that reaches rung 7.
 | **8** | Projects, corpus, models | as above; `/models/providers/health/{provider}` served on both, query form deprecated for one release | M |
 | **9** | Version traceability | `VERSION`, `sync_version.py`, `stamp_build.py`, `/version` — **one `git_sha` + `dirty`, no engine SHA** (R-c) | L |
 | **10** | Capabilities | `GET /capabilities`; frontend branches on reported capability, not the build flag; `CAPABILITY_DIFFERENCES` table and its two assertions | M |
-| **11** | Sidecar containment | `test_sidecar_is_transport_only.py` with the ratcheting LOC ceiling **(done — see §0.10, ceiling pinned at current size, not the ~450 this row assumed)**; delete the remaining shims (n/a — Phase 6 declined, nothing to delete); CI and release work (§9, §10) **— the manual sequence is verified (§0.10), the automated workflow is not written** | L |
+| **11** | Sidecar containment | `test_sidecar_is_transport_only.py` with the ratcheting LOC ceiling **(done — see §0.10, ceiling pinned at current size, not the ~450 this row assumed)**; delete the remaining shims (n/a — Phase 6 declined, nothing to delete); CI and release work (§9, §10) **— `.github/workflows/desktop.yml` already did this, predating this session; what it lacked was the SHA-match assertion, added and verified against real artifacts (§0.10)** | L |
 
 **Constraint 8 restated:** no phase merges the session and run pipelines. `handlers/sessions.py`
 and `handlers/runs.py` are separate owners, and `test_layer_boundaries` asserts neither
@@ -1208,10 +1227,13 @@ empty by decision, ownership proven by identity instead (`test_one_canonical_own
 2's "≤500 LOC" was never reachable once the handler move was off the table, so
 `test_sidecar_is_transport_only` ratchets the *trend* from 2,803 lines instead. Rows 7, 8,
 9, 17, 18 and 19 are about the same fact — the shipped artifact's SHA — from different
-angles; §0.10 records that this session verified it **by hand** (a real PyInstaller +
-Tauri build, launched, `/version` matched `HEAD`), which is everything these rows ask for
-*except* the automated, cross-runner CI assertion rows 9, 17 and 19 specifically name
-(`release-artifact-revision`, "on both runners") — that orchestration is still unwritten.
+angles; §0.10 records that this session verified it **by hand** first (a real PyInstaller +
+Tauri build, launched, `/version` matched `HEAD`), then added the automated version of that
+same check into `.github/workflows/desktop.yml` — which already existed, built and
+smoke-tested both artifacts across all three OSes, and published releases, none of it
+written this session. What it lacked, and what closes rows 9/17/19 now, was the actual SHA
+comparison; what remains open is only the Windows/Linux legs and the Actions job plumbing
+itself, neither of which this environment can run.
 
 | # | Requirement | Satisfied by | Phase |
 |---|---|---|---|
