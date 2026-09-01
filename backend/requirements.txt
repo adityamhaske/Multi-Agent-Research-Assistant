@@ -31,7 +31,7 @@ langgraph-checkpoint-sqlite>=3.0
 # worker run fails with "no pq wrapper available" (found via docker-compose smoke test).
 psycopg[binary]>=3.3.4
 langchain-core>=1.6.1
-langchain-google-genai>=2.0
+langchain-google-genai>=4.3.7
 # BYOK providers — enabled for Anthropic routing (MODEL_*=anthropic:...).
 langchain-anthropic>=1.7.0
 # Required, not optional: OpenAI, OpenRouter, and Ollama all speak the OpenAI wire
