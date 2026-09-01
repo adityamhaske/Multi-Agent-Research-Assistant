@@ -25,7 +25,7 @@ langgraph-checkpoint-postgres>=3.1.2
 # SQLite checkpointing for the local host (research_engine.cli) and the desktop build
 # (docs/12 M9). Unused by the api/worker runtime, but kept here so CI exercises the
 # local-run tests that prove the engine works without Postgres.
-langgraph-checkpoint-sqlite>=3.0
+langgraph-checkpoint-sqlite>=3.1.1
 # AsyncPostgresSaver runs on psycopg (not asyncpg). [binary] bundles libpq so the
 # checkpointer works in the slim container without a system libpq — without this every
 # worker run fails with "no pq wrapper available" (found via docker-compose smoke test).
