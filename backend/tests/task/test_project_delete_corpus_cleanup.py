@@ -49,7 +49,10 @@ async def auth_client(user: User, monkeypatch):
     async def _mock_embeddings_for(*args, **kwargs):
         return StubEmbeddings()
 
-    monkeypatch.setattr("app.api.v1.corpus.embeddings_for", _mock_embeddings_for)
+    # See tests/task/test_api_corpus.py's matching fixture: the route resolves its
+    # embedder through `app.adapters.embeddings_for` now, via `ServerCorpusLocator`, not
+    # through its own module-level name.
+    monkeypatch.setattr("app.adapters.embeddings_for", _mock_embeddings_for)
 
     app.dependency_overrides[get_current_user] = lambda: user
     transport = ASGITransport(app=app)
@@ -63,7 +66,7 @@ async def test_delete_project_removes_its_corpus_file(
 ) -> None:
     files = {"file": ("doc.txt", b"content the corpus should not outlive.", "text/plain")}
     upload = await auth_client.post(f"/api/v1/projects/{project.id}/corpus/documents", files=files)
-    assert upload.status_code == 200, upload.json()
+    assert upload.status_code == 201, upload.json()
 
     corpus_file = settings.corpus_path / f"corpus_{project.id}.sqlite"
     assert corpus_file.exists(), "precondition: ingest must have created the corpus file"

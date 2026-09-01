@@ -71,7 +71,13 @@ async def auth_client(user: User, monkeypatch):
     async def _mock_embeddings_for(*args, **kwargs):
         return StubEmbeddings()
 
-    monkeypatch.setattr("app.api.v1.corpus.embeddings_for", _mock_embeddings_for)
+    # The route no longer holds its own `embeddings_for` reference — it goes through
+    # `ServerCorpusLocator` (via `Depends(get_corpus_locator)`), which resolves its
+    # embedder factory from `app.adapters.embeddings_for` when constructed. Patching the
+    # old `app.api.v1.corpus.embeddings_for` name left the corpus routes on the real
+    # embedder and this fixture's substitution silently did nothing (tests/parity/
+    # drivers.py's `server_driver` hit the same thing first and records why).
+    monkeypatch.setattr("app.adapters.embeddings_for", _mock_embeddings_for)
 
     app.dependency_overrides[get_current_user] = lambda: user
     transport = ASGITransport(app=app)
@@ -92,7 +98,7 @@ async def test_corpus_api_lifecycle(
         f"/api/v1/projects/{project.id}/corpus/documents",
         files=files,
     )
-    assert response.status_code == 200, response.json()
+    assert response.status_code == 201, response.json()
     doc = response.json()
     assert doc["filename"] == "test.txt"
     assert "id" in doc

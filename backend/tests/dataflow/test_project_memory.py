@@ -27,6 +27,7 @@ import zlib
 import pytest
 from sqlalchemy import func, select, text
 
+from app import adapters
 from app.models.chat_message import ChatMessage
 from app.models.chat_thread import ChatThread, derive_title
 from app.models.memory_chunk import MemoryChunk
@@ -226,7 +227,11 @@ async def test_rejected_draft_is_provably_absent_from_retrieval(db):
 
     query = (await embedder.embed(["How fast did solar capacity grow in 2025?"]))[0]
     hits = await memory.retrieve(
-        db, project_id=project.id, query_vector=query, embedding_model=embedder.model_id
+        db,
+        index=adapters.PgVectorMemoryIndex(),
+        project_id=project.id,
+        query_vector=query,
+        embedding_model=embedder.model_id,
     )
     assert hits == []
 
@@ -244,7 +249,11 @@ async def test_approved_report_is_ingested_and_retrievable(db):
 
     query = (await embedder.embed(["How fast did solar photovoltaic capacity grow?"]))[0]
     hits = await memory.retrieve(
-        db, project_id=project.id, query_vector=query, embedding_model=embedder.model_id
+        db,
+        index=adapters.PgVectorMemoryIndex(),
+        project_id=project.id,
+        query_vector=query,
+        embedding_model=embedder.model_id,
     )
     assert hits
     assert all(hit.report.id == session.id for hit in hits)
@@ -294,7 +303,11 @@ async def test_a_run_from_the_current_pipeline_is_indexed_and_retrievable(db):
 
     query = (await embedder.embed(["How fast did solar photovoltaic capacity grow?"]))[0]
     hits = await memory.retrieve(
-        db, project_id=project.id, query_vector=query, embedding_model=embedder.model_id
+        db,
+        index=adapters.PgVectorMemoryIndex(),
+        project_id=project.id,
+        query_vector=query,
+        embedding_model=embedder.model_id,
     )
     assert hits, "the run's own project must retrieve its own report"
     assert all(hit.report.id == run.id for hit in hits)
@@ -334,7 +347,11 @@ async def test_reports_from_both_pipelines_share_one_project_memory(db):
 
     query = (await embedder.embed(["What determines corporate tax residency in Ireland?"]))[0]
     hits = await memory.retrieve(
-        db, project_id=project.id, query_vector=query, embedding_model=embedder.model_id
+        db,
+        index=adapters.PgVectorMemoryIndex(),
+        project_id=project.id,
+        query_vector=query,
+        embedding_model=embedder.model_id,
     )
     assert hits
     assert hits[0].report.id == run.id, "the nearest report is the one that answers"
@@ -414,7 +431,11 @@ async def test_the_retrieval_ceiling_admits_a_genuine_match(db):
 
     query = (await embedder.embed(["How fast did solar photovoltaic capacity grow?"]))[0]
     hits = await memory.retrieve(
-        db, project_id=project.id, query_vector=query, embedding_model=embedder.model_id
+        db,
+        index=adapters.PgVectorMemoryIndex(),
+        project_id=project.id,
+        query_vector=query,
+        embedding_model=embedder.model_id,
     )
     assert hits, "a question about this project's own report retrieved nothing"
     assert hits[0].distance <= memory.MAX_COSINE_DISTANCE, (
@@ -490,13 +511,21 @@ async def test_cross_project_isolation(db):
     question = (await embedder.embed(["What determines corporate tax residency in Ireland?"]))[0]
 
     from_tax = await memory.retrieve(
-        db, project_id=tax.id, query_vector=question, embedding_model=embedder.model_id
+        db,
+        index=adapters.PgVectorMemoryIndex(),
+        project_id=tax.id,
+        query_vector=question,
+        embedding_model=embedder.model_id,
     )
     assert from_tax, "the project that owns this research should answer"
     assert {hit.report.id for hit in from_tax} == {residency.id}
 
     from_energy = await memory.retrieve(
-        db, project_id=energy.id, query_vector=question, embedding_model=embedder.model_id
+        db,
+        index=adapters.PgVectorMemoryIndex(),
+        project_id=energy.id,
+        query_vector=question,
+        embedding_model=embedder.model_id,
     )
     assert all(hit.report.id == solar.id for hit in from_energy)
     assert residency.id not in {hit.report.id for hit in from_energy}
@@ -517,7 +546,11 @@ async def test_another_users_project_is_not_retrievable(db):
 
     question = (await embedder.embed(["How fast did solar capacity grow?"]))[0]
     hits = await memory.retrieve(
-        db, project_id=bob_project.id, query_vector=question, embedding_model=embedder.model_id
+        db,
+        index=adapters.PgVectorMemoryIndex(),
+        project_id=bob_project.id,
+        query_vector=question,
+        embedding_model=embedder.model_id,
     )
     assert hits == []
 
@@ -532,7 +565,11 @@ async def test_vectors_from_another_embedding_model_are_not_ranked(db):
     current = StubEmbeddings("stub:new-model")
     question = (await current.embed(["How fast did solar capacity grow?"]))[0]
     hits = await memory.retrieve(
-        db, project_id=project.id, query_vector=question, embedding_model=current.model_id
+        db,
+        index=adapters.PgVectorMemoryIndex(),
+        project_id=project.id,
+        query_vector=question,
+        embedding_model=current.model_id,
     )
     assert hits == []
 
@@ -556,6 +593,14 @@ async def test_deleting_a_project_deletes_its_memory(db):
 
 
 async def test_deleting_a_session_deletes_only_its_chunks(db):
+    """Deleting research takes its indexed text with it — but not by an ORM cascade.
+
+    `Session.memory_chunks` is `viewonly=True` (AGENTS.md: a `db.delete(session)` under
+    the old `cascade="all, delete-orphan"` SELECTed a table the desktop does not have and
+    the delete route answered 500). `memory.purge_report` is the explicit replacement, and
+    the caller's job — `db.delete(solar)` alone deletes nothing here, which is the point
+    this test now pins instead of the cascade it used to rely on.
+    """
     user = await make_user(db)
     project = await make_project(db, user, "Energy")
     embedder = StubEmbeddings()
@@ -564,9 +609,11 @@ async def test_deleting_a_session_deletes_only_its_chunks(db):
     await memory.ingest_session(db, solar, embedder)
     await memory.ingest_session(db, tax, embedder)
 
+    purged = await memory.purge_report(db, solar.id)
     await db.delete(solar)
     await db.commit()
 
+    assert purged == 1
     survivors = (await db.execute(select(MemoryChunk.source_report_id).distinct())).scalars().all()
     assert survivors == [tax.id]
 
@@ -622,7 +669,11 @@ async def test_grounding_markers_resolve_to_their_reports(db):
 
     question = (await embedder.embed(["How fast did solar capacity grow?"]))[0]
     hits = await memory.retrieve(
-        db, project_id=project.id, query_vector=question, embedding_model=embedder.model_id
+        db,
+        index=adapters.PgVectorMemoryIndex(),
+        project_id=project.id,
+        query_vector=question,
+        embedding_model=embedder.model_id,
     )
     excerpts, citations = _grounding(hits)
 
