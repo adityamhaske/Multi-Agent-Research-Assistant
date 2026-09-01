@@ -7,7 +7,7 @@ pydantic-settings>=2.15.0
 
 
 # Database
-sqlalchemy[asyncio]>=2.0.51,<2.1
+sqlalchemy[asyncio]>=2.0.52,<2.1
 asyncpg>=0.31.0
 alembic>=1.19.1
 # pgvector's SQLAlchemy type + asyncpg codec for `memory_chunks.embedding` (docs/14 §3).
