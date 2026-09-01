@@ -79,6 +79,29 @@ jobs:
           echo "TOKEN=$TOKEN" >> "$GITHUB_ENV"
           echo "SIDECAR_PID=$PID" >> "$GITHUB_ENV"
           echo "sidecar smoke passed on $RUNNER_OS"
+      - name: Smoke — the frozen binary reports the commit that built it
+        # DoD #7/#9/#17/#19 ("bundled desktop engine exposes its exact SHA", "CI fails if
+        # revisions differ"): `stamp_build.py` runs before `pyinstaller` above specifically
+        # so the frozen app can answer this, but until now nothing asserted the answer was
+        # *right* — only that the app started. A stamping bug that silently wrote yesterday's
+        # SHA, or a stale `research_engine/_build.py` left over from a previous local build
+        # baked into this runner's cache, would both pass every other check in this job.
+        #
+        # Verified by hand before being written here (`internal/plans/13_
+        # One_Runtime_Two_Hosts.md` §0.10): a real PyInstaller build on this exact spec,
+        # launched with no server environment variables, answering /version with the
+        # building commit's SHA. This step is that same check, run on every push instead of
+        # once by a person.
+        shell: bash
+        run: |
+          set -e
+          got=$(curl -sf -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/api/v1/version" \
+            | python -c "import json,sys; print(json.load(sys.stdin)['git_sha'])")
+          if [ "$got" != "$GITHUB_SHA" ]; then
+            echo "::error::frozen sidecar reports git_sha=$got, this build is $GITHUB_SHA"
+            exit 1
+          fi
+          echo "frozen sidecar confirms its own commit: $got"
       - name: Smoke — a run reaches a bundle the standalone verifier passes
         # Issue #50: the bundle route was added to the sidecar and only ever exercised
         # through ASGI, from a checkout that has every package the spec *excludes*. A
@@ -255,6 +278,47 @@ jobs:
             echo "::error::$name is ${size} KiB — too small to contain the engine"
             exit 1
           fi
+      - name: The copy actually inside the bundle reports the commit that built it
+        if: runner.os == 'macOS'
+        shell: bash
+        # The `sidecar` job already asserts this of the raw PyInstaller output (the
+        # earlier step of the same name, above). This is the narrower, only-on-macOS
+        # question that step cannot answer: did the *copy* `tauri build` embedded at
+        # `Contents/Resources/sidecar/` — the one a user's machine actually launches —
+        # come out identical, or did the resource step silently pick up something else?
+        # AGENTS.md's documented failure was exactly a wrong copy location; a wrong
+        # *copy contents* at the right location would look identical to every check that
+        # only measures size. Windows/.msi and Linux/AppImage.deb are packed archives —
+        # the same reason the size check above only inspects macOS directly — so this
+        # stays macOS-only rather than guess at extracting the other two.
+        run: |
+          set -euo pipefail
+          bin=$(find desktop/target/release/bundle/macos -type f -name research-sidecar -print -quit)
+          if [ -z "$bin" ]; then
+            echo "::error::no research-sidecar binary found inside the .app bundle"
+            exit 1
+          fi
+          "$bin" --fake > /tmp/bundled-sidecar.log 2>&1 &
+          PID=$!
+          for i in $(seq 1 60); do
+            grep -q '"ready": true' /tmp/bundled-sidecar.log && break
+            kill -0 $PID || { cat /tmp/bundled-sidecar.log; exit 1; }
+            sleep 1
+          done
+          PORT=$(sed -n 's/.*"port": \([0-9]*\).*/\1/p' /tmp/bundled-sidecar.log | head -1)
+          TOKEN=$(sed -n 's/.*"token": "\([^"]*\)".*/\1/p' /tmp/bundled-sidecar.log | head -1)
+          for i in $(seq 1 30); do
+            curl -s -o /dev/null "http://127.0.0.1:$PORT/api/v1/auth/me" && break
+            sleep 1
+          done
+          got=$(curl -sf -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/api/v1/version" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['git_sha'])")
+          kill "$PID" || true
+          if [ "$got" != "$GITHUB_SHA" ]; then
+            echo "::error::the bundled sidecar copy reports git_sha=$got, this build is $GITHUB_SHA"
+            exit 1
+          fi
+          echo "bundled sidecar copy confirms its own commit: $got"
       - name: Upload shell bundle
         uses: actions/upload-artifact@v7
         with:
