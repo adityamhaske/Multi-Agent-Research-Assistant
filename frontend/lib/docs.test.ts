@@ -249,3 +249,57 @@ describe("allDocs (this repository)", () => {
     expect(keys).not.toContain("plans");
   });
 });
+
+// ── excerpt (meta descriptions and JSON-LD) ───────────────────────────────────────
+
+describe("excerpt", () => {
+  it("takes the first prose paragraph after the H1, with Markdown syntax stripped", async () => {
+    const { excerpt } = await loadDocsModule();
+    const body = [
+      "# Overview",
+      "",
+      "**A self-hostable, bring-your-own-key research assistant** with `citations` you",
+      "can verify, and a [link](https://example.com) to read more.",
+      "",
+      "## Next section",
+      "This is not the first paragraph and must not be picked.",
+    ].join("\n");
+    expect(excerpt(body)).toBe(
+      "A self-hostable, bring-your-own-key research assistant with citations you " +
+        "can verify, and a link to read more.",
+    );
+  });
+
+  it("skips a heading, table, list or blockquote to find the first real paragraph", async () => {
+    const { excerpt } = await loadDocsModule();
+    const body = [
+      "# Title",
+      "",
+      "## Not this",
+      "",
+      "| a | b |",
+      "|---|---|",
+      "",
+      "- not this either",
+      "",
+      "> nor this",
+      "",
+      "The actual summary paragraph.",
+    ].join("\n");
+    expect(excerpt(body)).toBe("The actual summary paragraph.");
+  });
+
+  it("truncates near the cap on a word boundary-ish point with an ellipsis", async () => {
+    const { excerpt } = await loadDocsModule();
+    const long = "word ".repeat(60).trim();
+    const body = `# Title\n\n${long}`;
+    const result = excerpt(body, 50);
+    expect(result.length).toBeLessThanOrEqual(50);
+    expect(result.endsWith("…")).toBe(true);
+  });
+
+  it("returns an empty string when there is no prose paragraph to summarize", async () => {
+    const { excerpt } = await loadDocsModule();
+    expect(excerpt("# Title only\n")).toBe("");
+  });
+});

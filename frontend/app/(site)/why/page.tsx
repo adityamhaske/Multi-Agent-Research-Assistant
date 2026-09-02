@@ -9,6 +9,7 @@ import {
   ROWS,
   type Support,
 } from "@/lib/comparison";
+import { pageUrls } from "@/lib/pages-build";
 
 /**
  * Why this over NotebookLM (docs/01 §0).
@@ -20,10 +21,12 @@ import {
  */
 
 export const metadata = {
-  title: "Why this over NotebookLM · Research Assistant",
+  // The root layout's `title.template` appends " · Research Assistant" — see app/layout.tsx.
+  title: "Why this over NotebookLM",
   description:
     "How this differs from NotebookLM, Scholar, Perplexity and Elicit — what it does that " +
     "they cannot, what they do better, and who should use which.",
+  ...pageUrls("/why"),
 };
 
 const SUPPORT_MARK: Record<

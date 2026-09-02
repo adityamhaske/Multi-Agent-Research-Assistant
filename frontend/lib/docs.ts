@@ -244,6 +244,35 @@ function stripLeadingNumber(title: string): string {
 }
 
 /**
+ * Plain-text summary for meta descriptions and JSON-LD: the first prose paragraph after the
+ * H1, Markdown syntax stripped, collapsed to one line, and capped near Google's ~155-160
+ * character snippet window (it may still rewrite this in search results, but a description
+ * this short rarely gets truncated mid-word).
+ *
+ * Skips fenced code, tables, lists, headings and blockquotes rather than guessing how to
+ * flatten them — a document whose first block is one of those gets no description rather
+ * than a garbled one.
+ */
+export function excerpt(body: string, max = 155): string {
+  const withoutH1 = body.replace(/^#\s+.+$/m, "");
+  const paragraph = withoutH1
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .find((block) => block.length > 0 && !/^(#{1,6}\s|\||-\s|\*\s|\d+\.\s|>|```)/.test(block));
+  if (!paragraph) return "";
+
+  const plain = paragraph
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return plain.length > max ? `${plain.slice(0, max - 1).trimEnd()}…` : plain;
+}
+
+/**
  * The published URL path for a file path under `docs/`.
  *
  * Strips the `.md` and the numeric prefix from each segment, so

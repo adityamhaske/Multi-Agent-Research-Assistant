@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { allDocs, docOrder, getDoc, rewriteDocLinks } from "@/lib/docs";
+import { JsonLd } from "@/components/site/JsonLd";
+import { allDocs, docOrder, excerpt, getDoc, rewriteDocLinks } from "@/lib/docs";
+import { absoluteUrl, isPagesBuild, pageUrls } from "@/lib/pages-build";
 
 /**
  * One document.
@@ -26,7 +28,15 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string[] }> }) {
   const { slug } = await params;
   const doc = getDoc(slug.join("/"));
-  return { title: doc ? `${doc.title} · Docs` : "Docs" };
+  if (!doc) return { title: "Docs", robots: { index: false, follow: true } };
+  return {
+    // The root layout's `title.template` (app/layout.tsx) appends " · Research Assistant"
+    // on top of this, so a doc page's full title reads "<Title> · Docs · Research
+    // Assistant" — specific to general, without this file restating the site name too.
+    title: `${doc.title} · Docs`,
+    description: excerpt(doc.body),
+    ...pageUrls(`/docs/${doc.slug}`),
+  };
 }
 
 /** Heading ids so section links (and the docs' own `#anchor` links) resolve. */
@@ -54,6 +64,23 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
 
   return (
     <article className="min-w-0">
+      {isPagesBuild && (
+        <JsonLd
+          data={{
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Docs", item: absoluteUrl("/docs") },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: doc.title,
+                item: absoluteUrl(`/docs/${doc.slug}`),
+              },
+            ],
+          }}
+        />
+      )}
       <div className="mb-6 font-mono text-[0.6875rem] uppercase tracking-widest text-text-muted">
         <Link href="/docs" className="hover:text-text-primary">
           Docs

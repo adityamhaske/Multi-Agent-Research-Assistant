@@ -1,9 +1,13 @@
 import Link from "next/link";
 
+import { pageUrls } from "@/lib/pages-build";
+
 export const metadata = {
-  title: "Source & Architecture · Research Assistant",
+  // The root layout's `title.template` appends " · Research Assistant" — see app/layout.tsx.
+  title: "Source & Architecture",
   description:
     "Open architecture, module map, reproducible verification, and local execution guide.",
+  ...pageUrls("/source"),
 };
 
 const MODULES = [
