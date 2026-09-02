@@ -31,9 +31,13 @@ from pathlib import Path
 
 SIDECAR = Path(__file__).resolve().parents[2] / "desktop" / "sidecar.py"
 
-#: 2,803 lines as of plan phase 11 (down from 3,015 before phase 7 began delegating
-#: session routes). Small headroom above the current count, not a target to grow into.
-CEILING = 2850
+#: 2,876 lines as of the Windows shell-watchdog fix (`shell_alive`/`_win32_pid_alive`,
+#: plus the sidecar finally calling `configure_logging` — both genuine desktop-only
+#: code with no `app/api/v1/*` route to delegate to: process supervision and logging
+#: bootstrap for a process that is not itself an HTTP handler). Was 2,850 (itself down
+#: from 3,015 before plan phase 7 began delegating session routes). Small headroom above
+#: the current count, not a target to grow into.
+CEILING = 2900
 
 
 def test_sidecar_has_not_grown_past_its_ratchet():

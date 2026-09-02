@@ -71,6 +71,7 @@ from sqlalchemy import event, select
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.logconfig import configure_logging
 from app.models import POSTGRES_ONLY_TABLES, Base
 from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
@@ -161,6 +162,15 @@ from research_engine.runconfig import (
 from research_engine.runner import RunOutcome, resume, run
 from research_engine.runner import resume as resume_run
 from research_engine.runner import run as run_pipeline
+
+# The server and worker configure structlog before their first log line (app/main.py,
+# app/workers/celery_app.py); the sidecar never did, so it ran on structlog's own
+# default `ConsoleRenderer`, which reaches for `colorama` on Windows — an unconditional
+# dependency of `click` (pulled in by `uvicorn[standard]`), so a Windows install has it
+# whether asked for or not. The sidecar's stdout is always a pipe the Tauri shell
+# captures (desktop/src/lib.rs), never an interactive terminal; JSON avoids that
+# machinery entirely and matches the server's own production logging.
+configure_logging(json_output=True)
 
 logger = structlog.get_logger()
 
@@ -2758,8 +2768,39 @@ def create_sidecar_app(
 # ── Entry point ──────────────────────────────────────────────────────────────────
 
 
+def _win32_pid_alive(pid: int) -> bool:
+    """Windows liveness probe: open a handle to `pid` and immediately close it.
+
+    `OpenProcess` fails once nothing on the system identifies as this pid any more —
+    the closest Windows equivalent of POSIX's "signal 0" existence check, without
+    sending the process anything. Isolated in its own function so tests can fake
+    `ctypes.windll` without a real Windows box.
+    """
+    import ctypes
+
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    kernel32 = ctypes.windll.kernel32
+    handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return False
+    kernel32.CloseHandle(handle)
+    return True
+
+
 def shell_alive(pid: int) -> bool:
-    """True while a process with this PID exists and we may signal it."""
+    """True while a process with this PID exists and we may signal it.
+
+    POSIX: `os.kill(pid, 0)` sends no signal, only runs the existence/permission check —
+    the standard "is it alive" idiom. Windows has no such idiom: `signal.CTRL_C_EVENT ==
+    0`, so the same call is reinterpreted as "deliver Ctrl+C to this console process
+    group" via `GenerateConsoleCtrlEvent`, which fails with `WinError 87` for any pid
+    that is not a console process-group leader — true of an ordinary launcher/shell pid —
+    and has been observed to surface as an uncatchable `SystemError` rather than
+    `OSError`, crashing this watchdog thread instead of hitting either except clause
+    below. Query a process handle instead of signaling anything.
+    """
+    if sys.platform == "win32":
+        return _win32_pid_alive(pid)
     try:
         os.kill(pid, 0)
         return True

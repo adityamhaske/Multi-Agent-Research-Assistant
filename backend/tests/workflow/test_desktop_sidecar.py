@@ -735,6 +735,36 @@ def test_sidecar_import_tree_excludes_weasyprint():
     assert result.returncode == 0, result.stderr
 
 
+def test_sidecar_configures_structlog_with_json_output():
+    """Parity gap: the server and Celery worker both call `configure_logging()` before
+    their first log line (app/main.py, app/workers/celery_app.py) — the sidecar didn't,
+    so it ran on structlog's own default `ConsoleRenderer`, which on Windows reaches for
+    `colorama` purely to color output nothing ever displays (an unconditional dependency
+    of `click`, itself pulled in by `uvicorn[standard]`, so a Windows install gets it
+    whether asked for or not — the sidecar's stdout is always a pipe the Tauri shell
+    captures, never an interactive terminal). Run in a subprocess, like
+    `test_sidecar_import_tree_excludes_weasyprint` above, so this neither depends on nor
+    pollutes other tests' structlog global configuration.
+    """
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import desktop.sidecar, structlog; "
+            "assert structlog.is_configured(), 'sidecar never called configure_logging'; "
+            "renderer = structlog.get_config()['processors'][-1]; "
+            "assert isinstance(renderer, structlog.processors.JSONRenderer), renderer",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_shell_watchdog_predicate():
     """The sidecar must not outlive a hard-killed shell (docs/13 §7).
 
@@ -753,6 +783,50 @@ def test_shell_watchdog_predicate():
         child.kill()
     child.wait()
     assert not shell_alive(child.pid)
+
+
+def test_shell_alive_probes_a_process_handle_on_windows(monkeypatch):
+    """Regression: `os.kill(pid, 0)` is not a portable liveness check. POSIX signal 0
+    sends nothing and only runs the existence check — but on Windows, `signal.
+    CTRL_C_EVENT == 0`, so the same call is reinterpreted as "deliver Ctrl+C to this
+    console process group" via `GenerateConsoleCtrlEvent`. That fails with `WinError 87`
+    for any pid that is not a console process-group leader — true of an ordinary
+    launcher pid — and was observed to surface as an uncatchable `SystemError` rather
+    than an `OSError`, crashing the watchdog thread `test_shell_watchdog_predicate`
+    covers on POSIX. `shell_alive` now branches on platform instead; this drives its
+    Windows branch without a Windows box by faking `ctypes.windll.kernel32`.
+    """
+    import ctypes
+    import sys
+
+    from desktop.sidecar import shell_alive
+
+    monkeypatch.setattr(sys, "platform", "win32")
+
+    class _FakeKernel32:
+        def __init__(self, opens_ok: bool, handle: int = 99):
+            self._opens_ok = opens_ok
+            self._handle = handle
+            self.closed: list[int] = []
+
+        def OpenProcess(self, access, inherit_handle, pid):
+            return self._handle if self._opens_ok else 0
+
+        def CloseHandle(self, handle):
+            self.closed.append(handle)
+
+    class _FakeWinDLL:
+        def __init__(self, kernel32: _FakeKernel32):
+            self.kernel32 = kernel32
+
+    live = _FakeKernel32(opens_ok=True)
+    monkeypatch.setattr(ctypes, "windll", _FakeWinDLL(live), raising=False)
+    assert shell_alive(4242) is True
+    assert live.closed == [99]  # the probe handle must not leak
+
+    gone = _FakeKernel32(opens_ok=False)
+    monkeypatch.setattr(ctypes, "windll", _FakeWinDLL(gone), raising=False)
+    assert shell_alive(4242) is False
 
 
 async def test_catalog_presets_reflect_what_is_actually_installed(sidecar, monkeypatch):

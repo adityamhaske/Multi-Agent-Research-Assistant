@@ -38,6 +38,26 @@ from research_engine.runconfig import get_run_config
 
 logger = structlog.get_logger()
 
+
+def _log_probe_failure(event: str, **fields: object) -> None:
+    """Best-effort structured log for a `probe()`/`pull()` failure.
+
+    Both callers promise never to raise, and this call sits inside the one except-block
+    standing between an already-caught transport failure and that clean return — so a
+    broken log sink would break the promise instead of just losing a diagnostic line.
+    Observed on Windows: unlike stdlib `logging` (which swallows a handler's own I/O
+    failure by design, via `Handler.handleError`), structlog's sink writes straight to
+    `sys.stdout`/`sys.stderr` with no such protection, and that write has been seen to
+    raise there. The information isn't lost either way — `error=str(exc)` still reaches
+    the caller through the returned status/event — so dropping the log line is the
+    correct trade, not a "never swallow" violation.
+    """
+    try:
+        logger.info(event, **fields)
+    except Exception:  # noqa: BLE001 — the log call itself must never be why probe()/pull() raise
+        pass
+
+
 # A probe must never make the settings page feel slow: a local server answers in
 # milliseconds, and anything slower is functionally "not there" for our purposes.
 _PROBE_TIMEOUT_SECONDS = 3.0
@@ -217,7 +237,9 @@ async def probe(base_url: str | None = None) -> LocalLLMStatus:
             response.raise_for_status()
             payload = response.json()
     except Exception as exc:  # noqa: BLE001 — every failure is "not reachable" to a user
-        logger.info("local_llm_probe_failed", configured=configured, dial_url=url, error=str(exc))
+        _log_probe_failure(
+            "local_llm_probe_failed", configured=configured, dial_url=url, error=str(exc)
+        )
         # The Docker/localhost rewrite already happened above, so a stale "retype the
         # address as host.docker.internal" instruction here would tell the user to do by
         # hand what the code just did for them and failed at anyway — worse than no hint.
@@ -333,5 +355,5 @@ async def pull(model: str, base_url: str | None = None) -> AsyncIterator[PullPro
                         error=payload.get("error"),
                     )
     except Exception as exc:  # noqa: BLE001 — every transport failure is "no response"
-        logger.info("local_llm_pull_failed", model=model, error=str(exc))
+        _log_probe_failure("local_llm_pull_failed", model=model, error=str(exc))
         yield PullProgress(status="error", error=str(exc))

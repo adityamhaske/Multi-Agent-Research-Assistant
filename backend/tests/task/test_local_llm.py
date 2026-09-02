@@ -103,6 +103,35 @@ async def test_probe_reports_not_reachable_when_nothing_is_listening(monkeypatch
     assert status.install_state == "not_installed"
 
 
+def _boom(*_args, **_kwargs):
+    """Stand-in for a logging sink that fails on write — reproduces a real Windows
+    desktop crash: structlog's default sink wrote straight to `sys.stdout` and raised
+    `OSError: [Errno 22] Invalid argument` there, which propagated out of the
+    `logger.info(...)` call inside `probe()`'s except-block and out of `probe()` itself."""
+    raise OSError(22, "Invalid argument")
+
+
+@pytest.mark.asyncio
+async def test_probe_never_raises_even_when_the_logger_itself_fails(monkeypatch):
+    """`probe()` promises "Never raises" — that promise must hold even when the
+    diagnostic log call describing the already-caught failure blows up in turn. The
+    caller-facing information (`error`, `hint`, `install_state`) must still come through
+    the return value regardless of whether the log line survives."""
+
+    def handler(request):
+        raise httpx.ConnectError("connection refused", request=request)
+
+    monkeypatch.setattr(httpx, "AsyncClient", _mock_client(handler))
+    monkeypatch.setattr(local_llm, "_binary_installed", lambda: False)
+    monkeypatch.setattr(local_llm.logger, "info", _boom)
+
+    status = await local_llm.probe("http://localhost:11434/v1")
+
+    assert status.reachable is False
+    assert status.error
+    assert status.install_state == "not_installed"
+
+
 @pytest.mark.asyncio
 async def test_probe_lists_models_and_flags_small_ones(monkeypatch):
     def handler(request):
@@ -266,6 +295,24 @@ async def test_pull_never_raises_on_a_transport_failure(monkeypatch):
     assert len(events) == 1
     assert events[0].status == "error"
     assert events[0].error
+
+
+@pytest.mark.asyncio
+async def test_pull_never_raises_even_when_the_logger_itself_fails(monkeypatch):
+    """Same contract as `test_probe_never_raises_even_when_the_logger_itself_fails`:
+    `pull()` also promises "Never raises", and shares the same except-block logging
+    call."""
+
+    def handler(request):
+        raise httpx.ConnectError("connection refused", request=request)
+
+    monkeypatch.setattr(httpx, "AsyncClient", _mock_client(handler))
+    monkeypatch.setattr(local_llm.logger, "info", _boom)
+
+    events = [e async for e in local_llm.pull("qwen2.5:14b", "http://localhost:11434/v1")]
+
+    assert len(events) == 1
+    assert events[0].status == "error"
 
 
 @pytest.mark.asyncio
