@@ -1,8 +1,12 @@
 import Link from "next/link";
 
+import { pageUrls } from "@/lib/pages-build";
+
 export const metadata = {
-  title: "License · Research Assistant",
+  // The root layout's `title.template` appends " · Research Assistant" — see app/layout.tsx.
+  title: "License",
   description: "MIT License terms, copyright notice, and verification pledge.",
+  ...pageUrls("/license"),
 };
 
 export default function LicensePage() {

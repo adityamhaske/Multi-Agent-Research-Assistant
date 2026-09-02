@@ -1,8 +1,16 @@
 import Link from "next/link";
 
 import { docCategories } from "@/lib/docs";
+import { pageUrls } from "@/lib/pages-build";
 
-export const metadata = { title: "Documentation · Research Assistant" };
+export const metadata = {
+  // The root layout's `title.template` appends " · Research Assistant" — see app/layout.tsx.
+  title: "Documentation",
+  description:
+    "Documentation for the Multi-Agent Research Assistant: getting started, the user " +
+    "guide, architecture, deployment, and the full API and export-format reference.",
+  ...pageUrls("/docs"),
+};
 
 /** One line per category explaining what a reader will find, so the index is a map rather
  *  than a second copy of the sidebar. */

@@ -109,6 +109,19 @@ copies from `app-routes/session/{web,desktop}/` before `dev`, `build`, and `e2e`
 the web build needs a dynamic `[sessionId]` route and the desktop build needs a static
 export. Edit `app-routes/`, never the generated directory.
 
+## A metadata route needs an explicit static hint, or two of three builds die
+
+`app/robots.ts`, `app/sitemap.ts`, and any `opengraph-image.tsx`/`twitter-image.tsx`
+compute everything from build-time env vars, so they are always safe to freeze at build
+time — but neither the desktop export nor `build:pages` (both `output: "export"`) infer
+that on their own. Without `export const dynamic = "force-static";` in the file, `next
+build` fails outright naming the route (`"dynamic ... not configured on route
+"/sitemap.xml" with "output: export""`), while the standalone server build (`output:
+"standalone"`) builds the exact same file with no complaint either way. That means it
+passes `npm run build` and passes in `next dev`, and only fails on the other two targets,
+at build time — add the export the moment you add a new metadata-route file, and run all
+three builds (see root `AGENTS.md`) before trusting one green build implies the others.
+
 ## Looking at it
 
 `node e2e/uiqa.mjs` screenshots every run surface in both themes at three widths, and

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { pageUrls } from "@/lib/pages-build";
 import { RELEASES } from "@/lib/releases";
 
 /**
@@ -12,9 +13,11 @@ import { RELEASES } from "@/lib/releases";
  */
 
 export const metadata = {
-  title: "Releases · Research Assistant",
+  // The root layout's `title.template` appends " · Research Assistant" — see app/layout.tsx.
+  title: "Releases",
   description:
     "Every release, what improved since the last one, and the known gaps each shipped with.",
+  ...pageUrls("/releases"),
 };
 
 export default function ReleasesPage() {

@@ -100,10 +100,12 @@ jobs:
           if [ -n "$domain" ]; then
             echo "base_path=" >> "$GITHUB_OUTPUT"
             echo "domain=$domain" >> "$GITHUB_OUTPUT"
+            echo "site_url=https://$domain" >> "$GITHUB_OUTPUT"
             echo "serving at the root of $domain"
           else
             echo "base_path=/${{ github.event.repository.name }}" >> "$GITHUB_OUTPUT"
             echo "domain=" >> "$GITHUB_OUTPUT"
+            echo "site_url=https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}" >> "$GITHUB_OUTPUT"
             echo "serving as a project page under /${{ github.event.repository.name }}/"
           fi
 
@@ -114,6 +116,12 @@ jobs:
           # prefix every internal link and asset resolves one level too high and 404s.
           # Empty when CUSTOM_DOMAIN names a domain — see the step above.
           NEXT_PUBLIC_BASE_PATH: ${{ steps.site.outputs.base_path }}
+          # The origin `robots.txt`, `sitemap.xml` and every page's canonical/OG URL are
+          # built from (`frontend/lib/pages-build.ts`). Resolved here from the same
+          # CUSTOM_DOMAIN check as base_path, so the two can never name different sites —
+          # the sitemap pointing at one origin while every page's own canonical tag points
+          # at another is the same class of bug the base-path mismatch above already is.
+          NEXT_PUBLIC_SITE_URL: ${{ steps.site.outputs.site_url }}
         run: npm run build:pages
 
       - name: Tell GitHub Pages the custom domain
@@ -131,7 +139,7 @@ jobs:
         run: |
           set -euo pipefail
           out=/tmp/pages/frontend/out
-          for page in index.html why/index.html docs/index.html download/index.html; do
+          for page in index.html why/index.html docs/index.html download/index.html 404.html; do
             test -s "$out/$page" || { echo "missing or empty: $page"; exit 1; }
           done
           # The docs index is generated from the markdown tree; if that tree was not
@@ -143,6 +151,24 @@ jobs:
           count=$(find "$out/docs" -name index.html | wc -l)
           echo "docs pages exported: $count"
           test "$count" -gt 5
+
+          # robots.txt/sitemap.xml (frontend/app/robots.ts, app/sitemap.ts) are the whole
+          # point of this workflow's SEO surface, and both would still deploy green and
+          # every page would still render if something upstream went wrong — so check their
+          # actual content, not just that a file exists. `app/robots.ts` disallows
+          # everything unless `NEXT_PUBLIC_PAGES` reached the build step above; that branch
+          # firing here means the site just published a robots.txt telling every crawler to
+          # leave, silently, with no other symptom.
+          test -s "$out/robots.txt" || { echo "missing or empty: robots.txt"; exit 1; }
+          test -s "$out/sitemap.xml" || { echo "missing or empty: sitemap.xml"; exit 1; }
+          if ! grep -q "Allow: /" "$out/robots.txt"; then
+            echo "robots.txt disallows crawling — NEXT_PUBLIC_PAGES did not reach the build step"
+            exit 1
+          fi
+          if ! grep -q "${{ steps.site.outputs.site_url }}" "$out/sitemap.xml"; then
+            echo "sitemap.xml does not reference the resolved site_url (${{ steps.site.outputs.site_url }})"
+            exit 1
+          fi
 
       - name: Disable Jekyll
         # Pages runs Jekyll by default, which silently drops every path starting with an
