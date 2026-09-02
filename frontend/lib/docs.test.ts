@@ -77,10 +77,9 @@ describe("classifyDir", () => {
     }
   });
 
-  it("withholds governance and screenshots", async () => {
+  it("withholds governance", async () => {
     const { classifyDir } = await loadDocsModule();
     expect(classifyDir("governance")).toBe("withhold");
-    expect(classifyDir("screenshots")).toBe("withhold");
   });
 
   it("refuses a planning directory rather than remembering one that was deleted", async () => {
@@ -90,6 +89,15 @@ describe("classifyDir", () => {
     // and makes someone decide, which is the whole point of failing closed.
     const { classifyDir } = await loadDocsModule();
     expect(() => classifyDir("plans")).toThrow(/not classified/);
+  });
+
+  it("refuses a screenshots directory rather than remembering one that was deleted", async () => {
+    // Same reasoning as `plans/` above: the capture tool and its images are gone
+    // (frontend/e2e/capture-screenshots.spec.ts, docs/screenshots/), so a leftover
+    // `UNPUBLISHED_DIRS` entry would silently withhold whatever a future contributor
+    // filed under that name instead of making them classify it.
+    const { classifyDir } = await loadDocsModule();
+    expect(() => classifyDir("screenshots")).toThrow(/not classified/);
   });
 
   it("refuses to guess about a directory nobody classified", async () => {
@@ -146,18 +154,6 @@ describe("allDocs (fixture tree)", () => {
       makeDocsTree({
         "00_INDEX.md": "# Documentation map\n",
         "getting-started/01-overview.md": "# Overview\n",
-      }),
-    );
-    const { allDocs } = await loadDocsModule();
-    expect(allDocs().map((d) => d.slug)).toEqual(["getting-started/overview"]);
-  });
-
-  it("does not walk screenshots", async () => {
-    vi.stubEnv(
-      "DOCS_DIR",
-      makeDocsTree({
-        "getting-started/01-overview.md": "# Overview\n",
-        "screenshots/README.md": "# Images\n",
       }),
     );
     const { allDocs } = await loadDocsModule();

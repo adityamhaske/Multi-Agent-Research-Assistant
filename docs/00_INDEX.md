@@ -29,8 +29,7 @@ docs/
 ├── developers/        working on the code
 ├── reference/         exact contracts: API, SSE, bundle format, configuration
 ├── research/          measurement methodology
-├── project/           roadmap and changelog
-└── screenshots/       UI reference images, captured by `npm run screenshots`
+└── project/           roadmap and changelog
 ```
 
 ## Getting started

@@ -129,9 +129,6 @@ UIQA_BASE=http://127.0.0.1:3040 node e2e/uiqa.mjs
 `next start` does not serve an `output: standalone` build — it will happily serve a *stale*
 `.next` from an earlier `build:desktop` instead, which costs an hour the first time.
 
-This is not `capture-screenshots.spec.ts`: that one drives a real stack to produce the
-images `docs/` publishes, and its output is a product artifact.
-
 ## Running it
 
 Dev server is port **3031** (`next dev -p 3031`). In Docker the frontend is a **static
