@@ -44,7 +44,7 @@ tavily-python>=0.5
 ddgs
 httpx>=0.27
 beautifulsoup4>=4.15.0
-lxml>=6.1.1
+lxml>=6.1.2
 
 # Airgapped corpus mode (docs/12 M10): PDF text extraction (pure Python, PyInstaller-
 # friendly — no GTK/native chain) and brute-force cosine over the SQLite vector store.
