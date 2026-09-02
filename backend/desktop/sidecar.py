@@ -2777,9 +2777,21 @@ def _win32_pid_alive(pid: int) -> bool:
     `ctypes.windll` without a real Windows box.
     """
     import ctypes
+    from ctypes import wintypes
 
     PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
     kernel32 = ctypes.windll.kernel32
+    # HANDLE is pointer-sized (64 bits on 64-bit Windows); left undeclared, ctypes
+    # defaults an unknown return to a 32-bit signed c_int and truncates it. The
+    # mismatched value this function would then hand to CloseHandle fails silently
+    # (its own return is never checked), closing nothing while the real handle leaks
+    # on every watchdog poll — declare both signatures against the real prototypes
+    # instead of trusting ctypes' default conversion.
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+
     handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
     if not handle:
         return False

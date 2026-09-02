@@ -804,16 +804,23 @@ def test_shell_alive_probes_a_process_handle_on_windows(monkeypatch):
     monkeypatch.setattr(sys, "platform", "win32")
 
     class _FakeKernel32:
+        # `OpenProcess`/`CloseHandle` are plain functions assigned on the instance,
+        # not methods defined on the class: `shell_alive` declares .restype/.argtypes
+        # on them the way real ctypes function pointers require, and a bound method
+        # (what a class-level `def` becomes through attribute access) rejects that
+        # assignment outright — a real ctypes function object accepts it.
         def __init__(self, opens_ok: bool, handle: int = 99):
-            self._opens_ok = opens_ok
-            self._handle = handle
             self.closed: list[int] = []
 
-        def OpenProcess(self, access, inherit_handle, pid):
-            return self._handle if self._opens_ok else 0
+            def open_process(access, inherit_handle, pid):
+                return handle if opens_ok else 0
 
-        def CloseHandle(self, handle):
-            self.closed.append(handle)
+            def close_handle(h):
+                self.closed.append(h)
+                return 1
+
+            self.OpenProcess = open_process
+            self.CloseHandle = close_handle
 
     class _FakeWinDLL:
         def __init__(self, kernel32: _FakeKernel32):
