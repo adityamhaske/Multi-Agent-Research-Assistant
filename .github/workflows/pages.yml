@@ -74,13 +74,55 @@ jobs:
           rm -rf "/tmp/pages/frontend/app/(app)" /tmp/pages/frontend/app/login
           rm -rf /tmp/pages/frontend/.next /tmp/pages/frontend/out
 
+      - name: Resolve where the site is served from
+        # Two ways this site can be published, and they need opposite base paths:
+        #
+        #   project page      https://<user>.github.io/<repo>/   basePath=/<repo>
+        #   custom domain     https://<domain>/                  basePath=""
+        #
+        # A root file decides, matching how `VERSION` is the one place a human edits and
+        # everything else derives (`scripts/sync_version.py`). Absent or empty — which is
+        # the committed state — means today's project-page behaviour exactly, so this is
+        # inert until someone claims a domain and writes it down.
+        #
+        # Getting this wrong is not subtle but it *is* silent: with a basePath under a
+        # custom domain every asset resolves one level too high, and with no basePath on a
+        # project page the same happens in reverse. AGENTS.md records the narrower version
+        # of this — `metadata.icons` is not covered by basePath, so the favicon 404'd at
+        # the domain root while serving fine one level down.
+        id: site
+        run: |
+          set -euo pipefail
+          domain=""
+          if [ -f CUSTOM_DOMAIN ]; then
+            domain=$(tr -d '[:space:]' < CUSTOM_DOMAIN)
+          fi
+          if [ -n "$domain" ]; then
+            echo "base_path=" >> "$GITHUB_OUTPUT"
+            echo "domain=$domain" >> "$GITHUB_OUTPUT"
+            echo "serving at the root of $domain"
+          else
+            echo "base_path=/${{ github.event.repository.name }}" >> "$GITHUB_OUTPUT"
+            echo "domain=" >> "$GITHUB_OUTPUT"
+            echo "serving as a project page under /${{ github.event.repository.name }}/"
+          fi
+
       - name: Build the static site
         working-directory: /tmp/pages/frontend
         env:
           # Pages serves a project site from /<repo>/, not the domain root. Without the
           # prefix every internal link and asset resolves one level too high and 404s.
-          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+          # Empty when CUSTOM_DOMAIN names a domain — see the step above.
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.site.outputs.base_path }}
         run: npm run build:pages
+
+      - name: Tell GitHub Pages the custom domain
+        # Pages reads this file from the published artifact; without it a custom domain
+        # serves the wrong site or none. Written from the same single source that decided
+        # the base path, so the two can never disagree — which is the actual failure mode
+        # (a CNAME present with a project-page basePath still 404s every asset).
+        if: steps.site.outputs.domain != ''
+        run: echo "${{ steps.site.outputs.domain }}" > /tmp/pages/frontend/out/CNAME
 
       - name: Fail if the export is empty or missing pages
         # A green deploy that published nothing looks like success and serves a 404. Each
