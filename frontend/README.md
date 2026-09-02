@@ -52,7 +52,6 @@ Open [http://localhost:3031](http://localhost:3031) in your browser.
 | `npm run typecheck` | Runs TypeScript compiler checks (`tsc --noEmit`) |
 | `npm run lint` | Lints JavaScript and TypeScript via ESLint |
 | `npm run e2e` | Runs end-to-end integration tests using Playwright |
-| `npm run screenshots` | Runs visual screenshot generation harness |
 
 ---
 

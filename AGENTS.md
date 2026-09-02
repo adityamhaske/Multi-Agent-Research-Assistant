@@ -54,8 +54,8 @@ Engineering notes, milestone plans and release checklists live in
 [`internal/`](internal/README.md), which the site never walks.
 
 Publication is decided **per directory** by `classifyDir` in `frontend/lib/docs.ts`:
-`CATEGORY_ORDER` publishes, `UNPUBLISHED_DIRS` withholds (`governance/`, `plans/`,
-`screenshots/`), and a directory in neither **fails the build**. Absence from
+`CATEGORY_ORDER` publishes, `UNPUBLISHED_DIRS` withholds (`governance/`), and a directory
+in neither **fails the build**. Absence from
 `CATEGORY_ORDER` alone only hides a directory from the sidebar — `generateStaticParams`
 still generates its routes (a note once filed under `docs/plans/` published at a URL
 nothing linked to). `frontend/lib/docs.test.ts` guards it; CI greps the `build:pages`

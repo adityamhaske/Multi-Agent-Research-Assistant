@@ -6,14 +6,13 @@
 [![Website](https://img.shields.io/badge/Website-Live-2563eb?logo=google-chrome&logoColor=white)](https://adityamhaske.github.io/Multi-Agent-Research-Assistant/)
 [![Documentation](https://img.shields.io/badge/Docs-Live-4f46e5?logo=readme&logoColor=white)](https://adityamhaske.github.io/Multi-Agent-Research-Assistant/docs/)
 [![CI](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/workflows/ci.yml)
-[![citation support](https://img.shields.io/badge/citation%20support-90%25%20(interim)-red)](backend/evals/results/eval-2026-08-13-ollama-run7.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-<!-- Direct link to the release asset — this downloads the file, no landing page.
-     Bump the version in BOTH the badge label and the href when cutting a release. -->
-[![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon%20·%20.dmg-000000?style=for-the-badge&logo=apple&logoColor=white)](docs/getting-started/23-desktop-app.md)
+<!-- Points at the site's download page, which resolves the latest release itself
+     (frontend/lib/releases.ts) — nothing here to bump when cutting a release. -->
+[![Download](https://img.shields.io/badge/Download-Desktop%20App-2563eb?style=for-the-badge)](https://adityamhaske.github.io/Multi-Agent-Research-Assistant/download/)
 
-Apple Silicon macOS DMG available directly (81 MB, installs to ~182 MB; right-click → **Open** on first launch). Windows `.msi`, Linux `.deb` and `.AppImage` packages are available via the [desktop installation guide](docs/getting-started/23-desktop-app.md).
+macOS, Windows, and Linux desktop builds are on the [download page](https://adityamhaske.github.io/Multi-Agent-Research-Assistant/download/); see the [desktop installation guide](docs/getting-started/23-desktop-app.md) for per-platform setup notes.
 
 ---
 
@@ -175,31 +174,6 @@ the app refuses to boot with a placeholder or short `JWT_SECRET_KEY`.
 > never trips. Cap spend at the provider for those.
 
 Full list with exact defaults: [Configuration reference](docs/reference/36-configuration.md).
-
-## Measured quality
-
-Latest real-model run:
-[`eval-2026-08-13-ollama-run7.json`](backend/evals/results/eval-2026-08-13-ollama-run7.json),
-10 queries across 8 domains.
-
-| Metric | Result |
-| --- | --- |
-| Reports completed | **10 / 10** |
-| Citation support rate | **90%** — cited sentences whose snippets actually support them |
-| Citation resolution rate | **95%** — inline `[n]` markers pointing at a real source |
-| Uncited claims | 14.9 per report (avg) |
-| Latency | 514 s per report |
-
-**Stated plainly:** this misses the 0.95 release threshold, and it is **self-judged** — the
-grader was the same local model that wrote the report, not a human and not an independent
-model. It answers "is this claim supported by what we extracted from the source it cites?",
-which is weaker than "is this claim true". Ten queries is a small set. Treat it as a
-regression signal, not a benchmark.
-
-Every run records its own method block, and `metrics_version` is bumped whenever a
-definition changes, so two runs are never silently compared across incompatible metrics.
-Method, caveats, and what a *published* benchmark would require are in
-[Citation-fidelity benchmark](docs/research/16-citation-fidelity-benchmark.md).
 
 ## Deployment
 

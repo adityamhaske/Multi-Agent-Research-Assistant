@@ -11,14 +11,6 @@ const BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3031";
  */
 export default defineConfig({
   testDir: "./e2e",
-  // The screenshot tool lives in ./e2e but is NOT a gate — its own header says so
-  // ("Not part of the golden E2E suite — this is a documentation tool"). It was running
-  // in CI anyway, purely because testDir globs the folder, and the cost was not small:
-  // it overrides the timeout to 900_000, drives a fourth full pipeline, and with
-  // `retries: 1` and `workers: 1` it consumed up to 30 minutes serially *before* the
-  // three journeys started. A documentation script was failing merges.
-  // Run it deliberately instead: `npm run screenshots`.
-  testIgnore: "**/capture-screenshots.spec.ts",
   timeout: 180_000, // a full pipeline run, even faked, crosses queue + DB + graph
   expect: { timeout: 20_000 },
   fullyParallel: false,

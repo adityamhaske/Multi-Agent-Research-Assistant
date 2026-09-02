@@ -5,13 +5,8 @@
  * Not a test and not run by CI. It exists because "it compiles" is not "it looks right",
  * and because several of the states that matter most — a failed run, an unresolved citation
  * marker, a conflicting pair, a run with no plan — are awkward to reach against a live
- * stack on demand.
- *
- * **Not a second copy of `capture-screenshots.spec.ts`.** That one drives a real backend to
- * produce the images `docs/` publishes, and its output is a product artifact. This one
- * drives fixtures with no backend at all, and its output is disposable: it answers "does
- * this state render correctly" during development, which the docs capture cannot, because
- * half these states cannot be produced on demand from a live stack.
+ * stack on demand. Drives fixtures with no backend at all, so its output is disposable:
+ * it answers "does this state render correctly" during development, nothing more.
  *
  *   node e2e/uiqa.mjs            # writes .uiqa/*.png
  *
