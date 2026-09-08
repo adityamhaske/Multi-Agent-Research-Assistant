@@ -51,7 +51,7 @@ lxml>=6.1.2
 # numpy was already present transitively; pinning it explicitly because corpus.py
 # imports it directly.
 pypdf>=6.16.2
-numpy>=1.26
+numpy>=2.5.2
 
 # Auth (bcrypt direct — passlib is unmaintained and incompatible with bcrypt>=4.1)
 PyJWT>=2.13.0
