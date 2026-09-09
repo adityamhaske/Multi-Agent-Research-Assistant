@@ -270,6 +270,10 @@ async def project_run(db: AsyncSession, run: ResearchRun) -> dict:
                 "version": r.version,
                 "report_markdown": r.report_markdown,
                 "report_hash": r.report_hash,
+                # The typed view, additive and NULL on revisions predating it. A read
+                # surface, not a dependency: `report_markdown` above remains what every
+                # existing client — and the frontend's citation renderer — reads.
+                "report_document": r.report_document,
                 "evidence_watermark": r.evidence_watermark,
                 "created_at": r.created_at.isoformat(),
             }

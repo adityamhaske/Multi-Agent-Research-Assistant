@@ -34,7 +34,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 from app.models.research import _in
-from app.models.types import UuidType
+from app.models.types import JsonType, UuidType
 
 CLAIM_EXTRACTION_METHODS = ("DERIVED_FROM_REPORT", "MODEL_STRUCTURED", "HUMAN_EDITED")
 CLAIM_VERIFICATION_STATES = (
@@ -68,6 +68,11 @@ class Revision(Base):
     # that survived until the next rework.
     report_markdown: Mapped[str] = mapped_column(Text, nullable=False)
     report_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    #: The typed view of this revision (`research_engine.document.ReportDocument`), derived
+    #: from `report_markdown` and never the other way round. NULL on revisions written
+    #: before it existed — an honest absence, not a document asserted retroactively.
+    #: Nothing authoritative reads it: the hash above is still taken over the Markdown.
+    report_document: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
     # The last `evidence.sequence` visible at synthesis. A threshold, not a count, so gaps
     # in the sequence do not affect it. Not a foreign key: pointing it at a row would imply
     # that row is special. 0 is legal — a failed run can synthesize against no evidence.
