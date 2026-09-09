@@ -1,7 +1,7 @@
 # API
 fastapi>=0.141.1,<1.0
 uvicorn[standard]>=0.52.4
-python-multipart>=0.0.32
+python-multipart>=0.0.9
 pydantic[email]>=2.13.5,<3.0
 pydantic-settings>=2.15.0
 
