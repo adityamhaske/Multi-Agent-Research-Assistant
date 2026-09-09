@@ -133,6 +133,7 @@ from app.services import (
     usage,
 )
 
+from app.services.chat_history import recent_turns
 from app.services.delegation import delegates_to
 from app.services.error_responses import install_error_handlers
 from app.services.event_stream import sse_frames
@@ -1747,18 +1748,7 @@ def create_sidecar_app(
         db.add(ChatMessage(session_id=session_id, role="user", content=payload.message))
         await db.commit()
 
-        history = (
-            (
-                await db.execute(
-                    select(ChatMessage)
-                    .where(ChatMessage.session_id == session_id)
-                    .order_by(ChatMessage.created_at.asc())
-                    .limit(20)
-                )
-            )
-            .scalars()
-            .all()
-        )
+        history = await recent_turns(db, ChatMessage.session_id == session_id)
 
         try:
             grounding = await chat_scope.gather(

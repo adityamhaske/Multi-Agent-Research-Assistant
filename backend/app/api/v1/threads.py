@@ -48,6 +48,7 @@ from app.schemas.chat import (
     ThreadResponse,
 )
 from app.services import chat_scope, crypto, memory
+from app.services.chat_history import recent_turns
 from app.services.sse import SSE_HEADERS
 from research_engine import prompts
 from research_engine.embeddings import EmbeddingsUnavailable
@@ -55,11 +56,6 @@ from research_engine.llm_factory import get_llm, reset_user_keys, set_user_keys,
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["Project chat"])
-
-# How much of the conversation is replayed to the model. The same ceiling the per-report
-# chat uses: enough for continuity, bounded so a long thread cannot grow the prompt (and
-# the bill) without limit.
-_HISTORY_LIMIT = 20
 
 
 async def _owned_thread(db: AsyncSession, thread_id: uuid.UUID, user_id: uuid.UUID) -> ChatThread:
@@ -315,18 +311,7 @@ async def send_thread_message(
     thread.last_message_at = now
     await db.commit()
 
-    history = (
-        (
-            await db.execute(
-                select(ChatMessage)
-                .where(ChatMessage.thread_id == thread_id)
-                .order_by(ChatMessage.created_at.asc())
-                .limit(_HISTORY_LIMIT)
-            )
-        )
-        .scalars()
-        .all()
-    )
+    history = await recent_turns(db, ChatMessage.thread_id == thread_id)
 
     # PROJECT_CHAT_PROMPT's refusal line stays first and unchanged — its Definition of
     # Done tests for it (docs/14 §9), and widening the scope is exactly when a model is

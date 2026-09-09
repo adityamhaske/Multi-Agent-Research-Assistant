@@ -189,6 +189,7 @@ DOMAIN = _files(
     "app/services/sse.py",
     "app/services/session_events.py",
     "app/services/corpus_ingest.py",
+    "app/services/chat_history.py",
     "app/services/chat_scope.py",
     "app/services/memory.py",
     "app/errors.py",
