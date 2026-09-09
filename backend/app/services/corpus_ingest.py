@@ -22,8 +22,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.errors import DependencyUnavailable, Invalid, PayloadTooLarge
+from app.errors import DependencyUnavailable, Invalid, PayloadTooLarge, Unprocessable
 from app.schemas.corpus import CorpusStatusResponse, DocumentResponse
+from research_engine.corpus import UnknownDocumentKey
 from research_engine.documents import MAX_DOCUMENT_BYTES
 
 __all__ = [
@@ -59,7 +60,9 @@ def clean_upload(filename: str | None, data: bytes) -> str:
     return name
 
 
-async def ingest_document(store, filename: str, data: bytes) -> DocumentResponse:
+async def ingest_document(
+    store, filename: str, data: bytes, doc_key: str | None = None
+) -> DocumentResponse:
     """Validate, ingest, and answer in the shared shape.
 
     Both failure mappings are here rather than at the call sites. An unsupported format is
@@ -71,7 +74,12 @@ async def ingest_document(store, filename: str, data: bytes) -> DocumentResponse
 
     name = clean_upload(filename, data)
     try:
-        result = await store.ingest(name, data)
+        result = await store.ingest(name, data, doc_key=doc_key)
+    except UnknownDocumentKey as e:
+        # 422 rather than 400, and refused rather than absorbed: the request was
+        # well-formed and named a document this corpus does not hold. Creating a new
+        # logical document instead would answer 201 to a request that meant "replace".
+        raise Unprocessable(f"No document with key {e.args[0]} in this corpus.") from e
     except ValueError as e:  # unsupported extension, unreadable document
         raise Invalid(str(e)) from e
     except EmbeddingsUnavailable as e:
@@ -90,6 +98,8 @@ def ingested_response(result) -> DocumentResponse:
         id=result.doc_id or "skip",
         filename=result.filename,
         chunks=result.chunks_written,
+        doc_key=result.doc_key,
+        version=result.version,
     )
 
 
@@ -111,6 +121,9 @@ def document_response(row: dict) -> DocumentResponse:
         size_bytes=row.get("size_bytes"),
         downloadable=row.get("downloadable", False),
         origin=row.get("origin", "uploaded"),
+        doc_key=row.get("doc_key"),
+        version=row.get("version"),
+        is_current=row.get("is_current", True),
     )
 
 

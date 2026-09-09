@@ -34,7 +34,11 @@ from typing import Any
 #: and holds `claude-haiku-4-5`, which is the contract itself, and `task_id` holds `"1"`.
 #: Neither looks like an identity, so neither is touched.
 def _is_id_key(key: str) -> bool:
-    return key == "id" or key.endswith("_id")
+    # `_key` joins `_id` for the reason stated above: `doc_key` is a uuid identity minted
+    # per ingest, so a golden recording its literal value would be reproducible exactly
+    # once. Shape-awareness is what keeps this safe — a `_key` holding anything but a uuid
+    # passes through untouched, the same concession `model_id` relies on.
+    return key == "id" or key.endswith(("_id", "_key"))
 
 
 #: Wall-clock, matched structurally for the same reason as identities: `archived_at` and

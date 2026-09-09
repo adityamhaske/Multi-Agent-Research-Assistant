@@ -475,6 +475,22 @@ async def execute_run(
         await engine.dispose()
 
 
+async def record_corpus_snapshot(db: AsyncSession, run: ResearchRun, store) -> None:
+    """Stamp the corpus identity and version this run is about to read.
+
+    One home for both hosts. The server reaches it through `_corpus_port` and the desktop
+    through its own run driver, and `AGENTS.md` records what happens to a rule with two
+    homes — so this is asserted by object identity rather than kept in step by discipline.
+
+    A snapshot, not a lock. Nothing prevents the corpus changing while the run proceeds, and
+    nothing needs to: a superseded version stays readable, so evidence gathered before a
+    change still resolves to the bytes that were cited. What the pair records is the state
+    at the moment the corpus was opened, which is the claim a bundle can honestly make.
+    """
+    run.corpus_id, run.corpus_version = await store.identity()
+    await db.flush()
+
+
 async def _corpus_port(db: AsyncSession, run: ResearchRun, ports: dict) -> str | None:
     """Attach the corpus store, or return the reason the run cannot proceed.
 
@@ -494,4 +510,5 @@ async def _corpus_port(db: AsyncSession, run: ResearchRun, ports: dict) -> str |
     if store is None:
         return f"Corpus database not found for project {run.project_id}. Ingest documents first."
     ports["corpus"] = store
+    await record_corpus_snapshot(db, run, store)
     return None

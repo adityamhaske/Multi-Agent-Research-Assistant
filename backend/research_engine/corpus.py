@@ -182,6 +182,36 @@ CREATE TABLE IF NOT EXISTS corpus_chunks (
 CREATE INDEX IF NOT EXISTS idx_corpus_chunks_doc ON corpus_chunks (document_id);
 """
 
+#: Who this corpus is, and how much has happened to it. One row.
+#:
+#: Identity has until now been the *file path* — one file per project on the server, one
+#: flat file for the whole app on the desktop — which means a bundle could cite a corpus
+#: document without being able to name the corpus it came from, and the desktop had no
+#: per-project path to name. Identity that lives in the data is the same on both hosts.
+#:
+#: `version` is monotonic and bumped by anything that changes what retrieval can see. It is
+#: what a run records so "reproduce this research" can say which corpus state produced it.
+_META_SCHEMA = """
+CREATE TABLE IF NOT EXISTS corpus_meta (
+    corpus_id      TEXT PRIMARY KEY,
+    schema_version INTEGER NOT NULL,
+    version        INTEGER NOT NULL,
+    created_at     TEXT NOT NULL
+);
+"""
+
+#: Corpus file schema this build writes. Bumped when `_migrate` gains a step.
+_SCHEMA_VERSION = 2
+
+
+class UnknownDocumentKey(LookupError):
+    """A caller asked to supersede a logical document this corpus does not hold.
+
+    Its own type because the alternative is silence: falling back to "create a new logical
+    document" would answer 201 to a request that meant "replace", and the caller would
+    discover months later that a corrected paper never superseded anything.
+    """
+
 
 @dataclass(frozen=True)
 class Ingested:
@@ -192,6 +222,11 @@ class Ingested:
     chunks_written: int = 0
     skipped: bool = False
     reason: str | None = None
+    #: The logical document this version belongs to, and which revision it is. Returned so
+    #: a caller can supersede this document later — `doc_key` is opaque and unguessable by
+    #: design, so it has to come back out.
+    doc_key: str | None = None
+    version: int | None = None
 
 
 class CorpusStore:
@@ -232,6 +267,44 @@ class CorpusStore:
                 "ALTER TABLE corpus_documents ADD COLUMN origin TEXT NOT NULL DEFAULT 'uploaded'"
             )
 
+        # ── Schema 2: logical documents and versions ──────────────────────────────
+        #
+        # Order matters and is the whole migration: identity, then columns, then backfill,
+        # then the uniqueness that backfill makes satisfiable. Creating the index first
+        # would fail on any corpus that already holds rows.
+        conn.executescript(_META_SCHEMA)
+        if not conn.execute("SELECT 1 FROM corpus_meta").fetchone():
+            conn.execute(
+                "INSERT INTO corpus_meta (corpus_id, schema_version, version, created_at) "
+                "VALUES (?, ?, 0, ?)",
+                (str(uuid.uuid4()), _SCHEMA_VERSION, datetime.now(UTC).isoformat()),
+            )
+        if "doc_key" not in have:
+            conn.execute("ALTER TABLE corpus_documents ADD COLUMN doc_key TEXT")
+            conn.execute("ALTER TABLE corpus_documents ADD COLUMN version INTEGER")
+            conn.execute("ALTER TABLE corpus_documents ADD COLUMN superseded_at TEXT")
+
+        # Backfill: every pre-A4 row becomes its own logical document at version 1.
+        #
+        # Deliberately NOT grouped by filename. Two rows sharing a name may be revisions of
+        # one paper or two unrelated papers, and nothing stored can tell them apart —
+        # guessing would be exactly the identity inference this model exists to refuse. So
+        # history is preserved as it actually is, no supersession is invented, and
+        # retrieval returns precisely what it returned before. A user who knows two rows
+        # are related expresses that by superseding one, which is intent rather than
+        # inference.
+        for (row_id,) in conn.execute(
+            "SELECT id FROM corpus_documents WHERE doc_key IS NULL ORDER BY ingested_at, id"
+        ).fetchall():
+            conn.execute(
+                "UPDATE corpus_documents SET doc_key = ?, version = 1 WHERE id = ?",
+                (str(uuid.uuid4()), row_id),
+            )
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_corpus_doc_version "
+            "ON corpus_documents (doc_key, version)"
+        )
+
     @property
     def embedder(self) -> Embeddings:
         return self._embedder
@@ -245,8 +318,23 @@ class CorpusStore:
 
     # -- ingestion ---------------------------------------------------------------
 
-    async def ingest(self, filename: str, data: bytes, *, origin: str = "uploaded") -> Ingested:
-        """Extract, chunk, embed, and store one document. Idempotent per content.
+    async def ingest(
+        self,
+        filename: str,
+        data: bytes,
+        *,
+        origin: str = "uploaded",
+        doc_key: str | None = None,
+    ) -> Ingested:
+        """Extract, chunk, embed, and store one document version. Idempotent per content.
+
+        `doc_key` is the only way one upload becomes a revision of another. Omitted — which
+        is every caller that predates this — the upload is a **new logical document**, so
+        two unrelated papers that happen to share a filename stay two documents. Supplied,
+        the upload becomes the next version of that document and supersedes its
+        predecessor. Nothing is inferred from the filename, the content, or anything in it:
+        `filename` is version-level display metadata and may legitimately change between
+        revisions of the same document.
 
         Phase split matters: extraction and the dedupe check run on a worker thread
         (a 25 MB PDF parse must not block the loop), embedding runs on the CALLER'S
@@ -256,7 +344,7 @@ class CorpusStore:
         `origin` distinguishes a human upload from this project's own auto-saved report
         (`app/services/report_corpus.py`) — see the column comment in `_SCHEMA`.
         """
-        prepared = await asyncio.to_thread(self._prepare_sync, filename, data)
+        prepared = await asyncio.to_thread(self._prepare_sync, filename, data, doc_key)
         if isinstance(prepared, Ingested):  # skipped (duplicate) — nothing to embed
             return prepared
         doc_id, text, page_starts, kind, digest, chunks = prepared
@@ -266,7 +354,7 @@ class CorpusStore:
         if any(len(v) != width for v in vectors):
             raise RuntimeError("Embedder returned vectors of inconsistent width.")
 
-        await asyncio.to_thread(
+        doc_key, version = await asyncio.to_thread(
             self._write_sync,
             doc_id,
             filename,
@@ -278,6 +366,7 @@ class CorpusStore:
             vectors,
             data,
             origin,
+            doc_key,
         )
         logger.info(
             "corpus_ingested",
@@ -286,22 +375,44 @@ class CorpusStore:
             chunks=len(chunks),
             model=self._embedder.model_id,
         )
-        return Ingested(doc_id=doc_id, filename=filename, chunks_written=len(chunks))
+        return Ingested(
+            doc_id=doc_id,
+            filename=filename,
+            chunks_written=len(chunks),
+            doc_key=doc_key,
+            version=version,
+        )
 
     def _prepare_sync(
-        self, filename: str, data: bytes
+        self, filename: str, data: bytes, doc_key: str | None = None
     ) -> Ingested | tuple[str, str, list[int], str, str, list]:
         text, page_starts, kind = extract_document(filename, data)
         digest = hashlib.sha256(data).hexdigest()
 
         with self._connect() as conn:
-            existing = conn.execute(
-                "SELECT id FROM corpus_documents WHERE filename = ? AND sha256 = ?",
-                (filename, digest),
-            ).fetchone()
+            if doc_key is not None:
+                # Refuse before spending anything on embeddings. An unknown key means the
+                # caller believes it is replacing something that is not here.
+                if not conn.execute(
+                    "SELECT 1 FROM corpus_documents WHERE doc_key = ?", (doc_key,)
+                ).fetchone():
+                    raise UnknownDocumentKey(doc_key)
+                # Content identity is the sha, and it is scoped to this document: the same
+                # bytes already standing as its current version are not a new revision,
+                # whatever the file is called this time.
+                existing = conn.execute(
+                    "SELECT id FROM corpus_documents "
+                    "WHERE doc_key = ? AND sha256 = ? AND superseded_at IS NULL",
+                    (doc_key, digest),
+                ).fetchone()
+            else:
+                existing = conn.execute(
+                    "SELECT id FROM corpus_documents WHERE filename = ? AND sha256 = ?",
+                    (filename, digest),
+                ).fetchone()
         if existing:
-            # Same bytes under the same name: re-ingesting would double the corpus
-            # and the embedding spend for zero new information.
+            # Same bytes: re-ingesting would double the corpus and the embedding spend for
+            # zero new information, and would mint a version number recording no change.
             return Ingested(
                 doc_id=existing[0],
                 filename=filename,
@@ -326,12 +437,34 @@ class CorpusStore:
         vectors: list[list[float]],
         blob: bytes | None = None,
         origin: str = "uploaded",
-    ) -> None:
+        doc_key: str | None = None,
+    ) -> tuple[str, int]:
+        # One transaction for the whole state change: the version number, the predecessor's
+        # supersession, the chunks, and the corpus counter. Anything less and a reader could
+        # observe two current versions of one document, or a counter that disagrees with
+        # what retrieval can see.
         with self._connect() as conn:
+            now = datetime.now(UTC).isoformat()
+            key = doc_key or str(uuid.uuid4())
+            if doc_key is not None:
+                # At most one current version per document, and it stops being current at
+                # the moment its successor exists — not before, and not in another
+                # transaction.
+                conn.execute(
+                    "UPDATE corpus_documents SET superseded_at = ? "
+                    "WHERE doc_key = ? AND superseded_at IS NULL",
+                    (now, doc_key),
+                )
+            # Allocated in the INSERT rather than read and then written, so two concurrent
+            # ingests cannot both see the same MAX and mint the same number. The unique
+            # index on (doc_key, version) is the backstop that turns a lost race into a
+            # loud failure instead of a duplicate.
             conn.execute(
                 "INSERT INTO corpus_documents "
                 "(id, filename, kind, sha256, text, page_starts, chunk_count, ingested_at, "
-                "blob, origin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "blob, origin, doc_key, version) "
+                "SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
+                "       COALESCE(MAX(version), 0) + 1 FROM corpus_documents WHERE doc_key = ?",
                 (
                     doc_id,
                     filename,
@@ -340,9 +473,11 @@ class CorpusStore:
                     text,
                     json.dumps(page_starts),
                     len(chunks),
-                    datetime.now(UTC).isoformat(),
+                    now,
                     blob,
                     origin,
+                    key,
+                    key,
                 ),
             )
             conn.executemany(
@@ -363,6 +498,14 @@ class CorpusStore:
                     for index, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True))
                 ],
             )
+            conn.execute("UPDATE corpus_meta SET version = version + 1")
+            # Read back rather than recomputed: the number that landed is the one the
+            # INSERT allocated, and a second guess at it would be a second source of
+            # truth for the identity a caller later uses to supersede this document.
+            version = conn.execute(
+                "SELECT version FROM corpus_documents WHERE id = ?", (doc_id,)
+            ).fetchone()[0]
+        return (key, int(version))
 
     async def _embed_chunks(self, texts: list[str]) -> list[list[float]]:
         """Batched embedding; a width mismatch or count mismatch fails the ingestion."""
@@ -419,7 +562,13 @@ class CorpusStore:
                 # Unconditional, not a caller-chosen filter: a generated report resolving as
                 # a clean citation for the next report is exactly the false-measurement bug
                 # this store exists to refuse (see the `origin` column comment above).
-                "WHERE c.embedding_model = ? AND d.origin != 'generated'",
+                # `superseded_at IS NULL` is a visibility filter, not a ranking one:
+                # scoring, ordering and the relevance cutoff below are untouched. A
+                # superseded version stays readable through `read()` so citations made
+                # against it keep resolving; it simply stops being offered as new evidence,
+                # or a corrected document would be cited alongside the version it corrects.
+                "WHERE c.embedding_model = ? AND d.origin != 'generated' "
+                "AND d.superseded_at IS NULL",
                 (self._embedder.model_id,),
             ).fetchall()
 
@@ -430,11 +579,31 @@ class CorpusStore:
             # query below repeats the same `origin != 'generated'` exclusion as the main
             # query above, or a corpus holding only generated reports would misreport
             # itself as "wrong embedding model" instead of the true reason.
+            # Supersession first, or the checks below misread it. Each diagnostic query
+            # repeats the main query's filters except the one it is testing — so without
+            # this branch a corpus whose documents have all been superseded matches the
+            # embedding-model check against itself and reports "indexed with a different
+            # embedding model (X); current model is 'X'", which is both untrue and
+            # unactionable. Fail closed and say what actually happened.
+            with self._connect() as conn:
+                superseded = conn.execute(
+                    "SELECT COUNT(*) FROM corpus_chunks c "
+                    "JOIN corpus_documents d ON d.id = c.document_id "
+                    "WHERE c.embedding_model = ? AND d.origin != 'generated' "
+                    "AND d.superseded_at IS NOT NULL",
+                    (self._embedder.model_id,),
+                ).fetchone()[0]
+            if superseded:
+                raise RuntimeError(
+                    "Every document in this corpus has been superseded and none has a "
+                    "current version. Retrieval only reads current versions — ingest a "
+                    "document, or the run would cite content that was replaced."
+                )
             with self._connect() as conn:
                 other = conn.execute(
                     "SELECT c.embedding_model, COUNT(*) FROM corpus_chunks c "
                     "JOIN corpus_documents d ON d.id = c.document_id "
-                    "WHERE d.origin != 'generated' GROUP BY 1"
+                    "WHERE d.origin != 'generated' AND d.superseded_at IS NULL GROUP BY 1"
                 ).fetchall()
             if other:
                 models = ", ".join(f"{m} ({n} chunks)" for m, n in other)
@@ -590,6 +759,20 @@ class CorpusStore:
 
     # -- management ----------------------------------------------------------------
 
+    async def identity(self) -> tuple[str, int]:
+        """`(corpus_id, corpus_version)` — which corpus this is, and its state right now.
+
+        The one source for both hosts. A run records the pair at the moment it opens the
+        corpus, which is what lets a finished run say which corpus state produced its
+        evidence rather than merely which documents it happened to cite.
+        """
+        return await asyncio.to_thread(self._identity_sync)
+
+    def _identity_sync(self) -> tuple[str, int]:
+        with self._connect() as conn:
+            row = conn.execute("SELECT corpus_id, version FROM corpus_meta").fetchone()
+        return (row[0], int(row[1]))
+
     async def documents(self) -> list[dict]:
         return await asyncio.to_thread(self._documents_sync)
 
@@ -597,6 +780,7 @@ class CorpusStore:
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT id, filename, kind, chunk_count, ingested_at, "
+                "       doc_key, version, superseded_at, "
                 # length() on a BLOB reads its size without loading the bytes, so listing
                 # a corpus of 25 MB PDFs stays cheap. `downloadable` is derived rather
                 # than assumed: documents ingested before the blob column existed have
@@ -611,9 +795,15 @@ class CorpusStore:
                 "kind": row[2],
                 "chunk_count": row[3],
                 "ingested_at": row[4],
-                "size_bytes": row[5],
-                "downloadable": row[5] is not None,
-                "origin": row[6],
+                "doc_key": row[5],
+                "version": row[6],
+                # Derived rather than stored: "is this the one retrieval can see" is a
+                # question about `superseded_at`, and a second column recording the same
+                # fact is a second thing that can disagree with it.
+                "is_current": row[7] is None,
+                "size_bytes": row[8],
+                "downloadable": row[8] is not None,
+                "origin": row[9],
             }
             for row in rows
         ]
@@ -640,8 +830,20 @@ class CorpusStore:
         return await asyncio.to_thread(self._delete_sync, doc_id)
 
     def _delete_sync(self, doc_id: str) -> bool:
+        """Remove one *version*. Deliberately not a logical-document operation.
+
+        Three things this does not do, each of which would be a defensible-looking mistake.
+        It does not renumber later versions — a version number is a historical identifier
+        and a citation may name it. It does not resurrect the predecessor when the current
+        version is deleted: the document is then left with no current version, which is the
+        honest state, where un-superseding one would silently republish content the user
+        removed. And it does not cascade to siblings — deleting one revision is not
+        deleting the document.
+        """
         with self._connect() as conn:
             cursor = conn.execute("DELETE FROM corpus_documents WHERE id = ?", (doc_id,))
+            if cursor.rowcount:
+                conn.execute("UPDATE corpus_meta SET version = version + 1")
         return cursor.rowcount > 0
 
     async def status(self) -> dict:
@@ -649,6 +851,7 @@ class CorpusStore:
 
     def _status_sync(self) -> dict:
         with self._connect() as conn:
+            meta = conn.execute("SELECT corpus_id, version FROM corpus_meta").fetchone()
             docs = conn.execute("SELECT COUNT(*) FROM corpus_documents").fetchone()[0]
             by_model = conn.execute(
                 "SELECT embedding_model, COUNT(*) FROM corpus_chunks GROUP BY 1 ORDER BY 1"
@@ -657,6 +860,8 @@ class CorpusStore:
             "documents": docs,
             "chunks_by_model": {model: count for model, count in by_model},
             "current_model": self._embedder.model_id,
+            "corpus_id": meta[0],
+            "corpus_version": int(meta[1]),
         }
 
 

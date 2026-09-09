@@ -57,6 +57,7 @@ from fastapi import (
     APIRouter,
     Depends,
     FastAPI,
+    Form,
     HTTPException,
     Request,
     Response,
@@ -1465,6 +1466,16 @@ def create_sidecar_app(
                 "run_config": config,
                 "corpus": sidecar["corpus"],
             }
+            # The same snapshot the server takes in `run_execution._corpus_port`, through
+            # the same function object rather than a second copy of the rule — this is a
+            # two-host contract, and AGENTS.md records what happens to those kept in step
+            # by discipline. Guarded on corpus mode for the same reason the server guards
+            # it: a web run read no corpus and must not claim one.
+            if overrides["corpus_mode"]:
+                async with session_factory() as db:
+                    row = await db.get(ResearchRun, run_id)
+                    await run_execution.record_corpus_snapshot(db, row, sidecar["corpus"])
+                    await db.commit()
             try:
                 if plan is not None:
                     outcome = await resume_run(
@@ -2428,6 +2439,7 @@ def create_sidecar_app(
     async def upload_project_corpus_document(
         project_id: uuid.UUID,
         file: UploadFile,
+        doc_key: str | None = Form(default=None),
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
@@ -2442,7 +2454,7 @@ def create_sidecar_app(
         """
         from app.api.v1.corpus import upload_document
 
-        return await upload_document(project_id, file, db, user, get_corpus_locator())
+        return await upload_document(project_id, file, doc_key, db, user, get_corpus_locator())
 
     @api.delete("/projects/{project_id}/corpus/documents/{doc_id}", status_code=204)
     @delegates_to("app.api.v1.corpus:delete_document")
