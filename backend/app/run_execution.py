@@ -120,6 +120,12 @@ async def run_config_for_run(db: AsyncSession, run: ResearchRun) -> RunConfig:
         "skip_plan_gate": bool(run.skip_plan_gate),
         "topic_seeds": tuple(run.topic_seeds or ()),
         "outline_template": run.outline_template,
+        # Installing the corpus port (`execute_run`, below) only decides what `get_corpus()`
+        # answers. This is what makes the engine *ask* it: `retrievers.search` and
+        # `tools.read_webpage` both branch on this field and neither can see a database, so
+        # a run recorded as airgapped researched the open web until this line existed.
+        # Desktop counterpart: `sidecar._drive_run`, which has always carried it.
+        "corpus_mode": bool(run.corpus_mode),
     }
     # The demo rule, shared with the session worker and both desktop drivers — see
     # `app/services/run_config.py` for why it is one branch and why it has to be one home.

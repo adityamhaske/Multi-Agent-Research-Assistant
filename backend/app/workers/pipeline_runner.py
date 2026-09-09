@@ -119,6 +119,10 @@ async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
         "skip_plan_gate": bool(session.skip_plan_gate),
         "topic_seeds": tuple(session.topic_seeds or ()),
         "outline_template": session.outline_template,
+        # The airgap promise, and the same trap `run_execution.run_config_for_run` records:
+        # `_execute` installs the corpus port, which is not the same as telling the engine
+        # to use it. Both `retrievers.search` and `tools.read_webpage` read this field.
+        "corpus_mode": bool(session.corpus_mode),
     }
     # Scripted models and fixture retrievers (docs/17 §6.2). The rule — a run that reached
     # no provider is *recorded* as a demo, whichever way it got there — is one function, in

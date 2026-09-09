@@ -1414,8 +1414,10 @@ def create_sidecar_app(
                     "skip_plan_gate": bool(run.skip_plan_gate),
                     "topic_seeds": tuple(run.topic_seeds or ()),
                     "outline_template": run.outline_template,
-                    # Server counterpart: `run_execution.execute_run`, which branches on
-                    # `run.corpus_mode`.
+                    # Server counterpart: `run_execution.run_config_for_run`, which sets
+                    # the same field. `execute_run` also branches on `run.corpus_mode`, but
+                    # only to install the corpus port — which is a different thing, and
+                    # mistaking one for the other is how the server shipped without this.
                     "corpus_mode": bool(run.corpus_mode),
                 }
                 question, depth = run.question, run.depth
