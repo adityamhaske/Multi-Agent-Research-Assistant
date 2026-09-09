@@ -25,7 +25,7 @@ from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage
 
-from research_engine.fakes import _ScriptedModel
+from research_engine.fakes import ScriptedScenario, _ScriptedModel
 
 DEMO_QUERY = "What is retrieval-augmented generation, and when does it beat fine-tuning?"
 
@@ -141,8 +141,9 @@ class _DemoModel(_ScriptedModel):
 
     def _reply(self, messages: list[BaseMessage]) -> AIMessage:
         system = "\n".join(str(m.content) for m in messages if getattr(m, "type", "") == "system")
+        scenario = self.scenario_for(system)
 
-        if "Orchestration Planner" in system:
+        if scenario is ScriptedScenario.PLANNER:
             return self._usage(
                 json.dumps(
                     {
@@ -162,7 +163,7 @@ class _DemoModel(_ScriptedModel):
                 )
             )
 
-        if "Research Executor" in system:
+        if scenario is ScriptedScenario.EXECUTOR:
             return AIMessage(
                 content="",
                 tool_calls=[
@@ -187,7 +188,7 @@ class _DemoModel(_ScriptedModel):
                 usage_metadata={"input_tokens": 100, "output_tokens": 50, "total_tokens": 150},
             )
 
-        if "Research Synthesizer" in system or "citation repair pass" in system:
+        if scenario in (ScriptedScenario.SYNTHESIZER, ScriptedScenario.SYNTHESIZER_REPAIR):
             return self._usage(DEMO_REPORT)
 
         return super()._reply(messages)
@@ -200,5 +201,5 @@ class _DemoModel(_ScriptedModel):
         )
 
 
-def demo_model() -> _DemoModel:
-    return _DemoModel()
+def demo_model(role: str) -> _DemoModel:
+    return _DemoModel(role)
