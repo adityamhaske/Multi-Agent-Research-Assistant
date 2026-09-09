@@ -1,15 +1,49 @@
+# What Dependabot is for here: telling us about upgrades we would not otherwise notice.
+#
+# It had drifted into the opposite. Twenty-three dependency pull requests merged in the
+# eight days to 2026-09-09, nearly all of them patch bumps, each costing a full CI matrix
+# — and one of them (`next` 16.3.4) was merged and then reverted, which is what a review
+# queue looks like when every entry carries the same weight regardless of importance.
+#
+# The filtering below is deliberately different per ecosystem, because the same bump has
+# very different consequences in each:
+#
+#   pip   `backend/requirements.txt` holds 35 `>=` floors and **zero** exact pins, with no
+#         lockfile and no constraints file. `pip install -r requirements.txt` therefore
+#         already resolves to the newest compatible release at build time, so a PR raising
+#         `langchain-core>=1.6.1` to `>=1.6.2` changes nothing about what actually gets
+#         installed — it re-documents a minimum. Only a **major** floor is a real decision.
+#
+#   npm   `frontend/package-lock.json` pins exactly, so a bump here genuinely changes what
+#         ships. Minors are worth seeing; patches are not worth one PR each.
+#
+# **This file governs version updates only.** Dependabot *security* updates are a separate
+# channel driven by advisories, enabled on this repository, and are NOT suppressed by the
+# `ignore` rules below — which is the whole reason filtering routine noise is safe rather
+# than reckless. CI's `pip-audit` and `npm audit` stay advisory; neither fixes anything.
+
 version: 2
 updates:
+  # ── Backend: majors only ───────────────────────────────────────────────────────────
   - package-ecosystem: "pip"
     directory: "/backend"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
+    ignore:
+      # Not "these are unimportant" — with `>=` floors and no lockfile these updates are
+      # already in effect before the PR exists. Raising the floor only records a decision
+      # nobody made. A major is different: it is the one that can break the build.
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-patch"
+          - "version-update:semver-minor"
 
+  # ── Frontend: minors, batched ──────────────────────────────────────────────────────
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
     ignore:
       # ESLint 10 removed the deprecated `context.getFilename()`. `eslint-plugin-react`
@@ -26,10 +60,13 @@ updates:
       # each time costing a full CI matrix to rediscover the same upstream fact.
       #
       # **Remove this the moment `eslint-config-next` ships an `eslint-plugin-react` that
-      # declares v10 support** — check its peer range, not its version number. Minor and
-      # patch bumps of eslint 9 are deliberately still allowed through.
+      # declares v10 support** — check its peer range, not its version number.
       - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
+      # Patch bumps are the bulk of the volume and almost none of the value. A patch that
+      # matters arrives through the security channel instead, which this does not touch.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
     groups:
       # react and react-dom are exact-pinned and reach into each other's internals, so
       # they are one unit even though npm calls them two packages. Ungrouped, Dependabot
@@ -37,25 +74,56 @@ updates:
       # mismatched pair failed to load and took 10 of 20 Vitest suites with it, which no
       # rebase could fix because nothing was stale. The type packages ride along because
       # @types/react and @types/react-dom are versioned against the same pair.
+      #
+      # Declared first, and excluded from the catch-all below by name rather than by
+      # ordering, so the pairing survives someone reordering this file.
       react:
         patterns:
           - "react"
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
+      # Everything else that is worth seeing arrives as one reviewable PR per month
+      # instead of eight. Majors stay ungrouped: each is a decision on its own.
+      frontend-minor:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+        update-types:
+          - "minor"
 
+  # ── CI workflows: batched ──────────────────────────────────────────────────────────
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
+    groups:
+      # Action bumps are near-always mechanical and are safest reviewed together, where a
+      # single red matrix implicates one PR rather than five.
+      github-actions:
+        patterns:
+          - "*"
 
+  # ── Base images: batched ───────────────────────────────────────────────────────────
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:
       interval: "monthly"
+    groups:
+      backend-images:
+        patterns:
+          - "*"
 
   - package-ecosystem: "docker"
     directory: "/frontend"
     schedule:
       interval: "monthly"
+    groups:
+      frontend-images:
+        patterns:
+          - "*"
