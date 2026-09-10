@@ -262,8 +262,21 @@ content — behind.
 - Autogenerate runs against a scratch database built from `alembic upgrade head` only.
 - `compare_type` and `compare_server_default` are on; every model module is imported in
   `env.py`.
-- Every migration has a real `downgrade()`, and the round-trip is exercised in CI.
-- Migrations are append-only once merged. Fixing a merged migration means writing a new one.
+- Every migration has a real `downgrade()` unless it is named in one of two registries in
+  `tests/task/test_migration_downgrade_policy.py`, each entry with its reason:
+  **`IRREVERSIBLE_BY_DESIGN`** (the downgrade declines on every database — dropping the
+  `vector` extension would take every vector column with it; PostgreSQL cannot drop an enum
+  value) and **`DATA_DEPENDENT_DOWNGRADE`** (the downgrade is real and correctly refuses a
+  database holding rows the older schema cannot express — both are polymorphic foreign keys
+  whose downgrade reinstates a key to `sessions`, which a row belonging to a run cannot
+  satisfy). Anything outside both is held to the rule.
+- The round-trip is exercised against a populated database, in its own scratch database,
+  by `tests/workflow/test_migration_round_trip.py` — both directions, and both refusals.
+- Migrations are append-only once merged. Fixing a merged migration means writing a new one —
+  with one exception this project has actually used: a `downgrade()` that has never run
+  anywhere, and cannot have, may be corrected in place. `0008_chat_threads` dropped a
+  constraint whose name the naming convention had already rendered, so no database had ever
+  held it and every downgrade past that revision died there.
 
 The desktop build reads the ORM models directly via `create_all` plus a startup column sync,
 so **a schema change needs both** a migration and the ORM model updated — they are two homes

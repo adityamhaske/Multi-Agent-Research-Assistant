@@ -333,6 +333,12 @@ class PersistingSink:
 # ── Keys ─────────────────────────────────────────────────────────────────────────
 
 
+def _has_rows(sync_conn, table: str) -> bool:
+    """Whether a table already holds data — the difference between an upgrade and a fresh
+    install, for the one column shape SQLite cannot add to a populated table."""
+    return sync_conn.exec_driver_sql(f'SELECT 1 FROM "{table}" LIMIT 1').first() is not None
+
+
 def _add_missing_columns(sync_conn, tables) -> None:
     """Add ORM-declared columns that an existing SQLite file is missing.
 
@@ -380,6 +386,16 @@ def _add_missing_columns(sync_conn, tables) -> None:
             if default is not None:
                 clause += f" DEFAULT {default}"
             if not column.nullable:
+                if default is None and _has_rows(sync_conn, table.name):
+                    # SQLite has nothing to give the rows that already exist, and refuses.
+                    # A Python-side `default=` does not reach the DDL — only `server_default`
+                    # does — so this is the one shape that bricks an upgrade, and it used to
+                    # arrive as a driver error during startup naming neither table nor column.
+                    raise RuntimeError(
+                        f"cannot add {table.name}.{column.name} to an existing database: it is "
+                        "NOT NULL with no server_default, and the table already has rows. Give "
+                        "the column a server_default, or make it nullable."
+                    )
                 clause += " NOT NULL"
             sync_conn.exec_driver_sql(clause)
             logger.info("sidecar_schema_column_added", table=table.name, column=column.name)
