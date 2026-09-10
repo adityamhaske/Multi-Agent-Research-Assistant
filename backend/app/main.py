@@ -1,11 +1,12 @@
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from app import metrics
 from app.api.v1.router import api_router
 from app.config import settings
 from app.db.base import engine
@@ -112,3 +113,24 @@ async def readiness_check():
     if not all(checks.values()):
         return JSONResponse(status_code=503, content={"status": "not_ready", "checks": checks})
     return {"status": "ready", "checks": checks}
+
+
+@app.get("/metrics", tags=["Health"])
+async def metrics_endpoint() -> Response:
+    """Prometheus exposition of this process's counters.
+
+    **Top-level, beside `/health`, rather than under `/api/v1`.** It is an operator surface,
+    not part of the product contract a client reads — and a path outside the versioned API
+    is one a reverse proxy can withhold with a single rule.
+
+    **Server-only**, declared in `test_host_parity.INTENTIONAL_SERVER_ONLY`: a desktop app
+    is not scraped, so an unauthenticated counter endpoint on its loopback socket would be
+    surface with no consumer. The desktop still *records* — the difference is exposition,
+    not behaviour.
+
+    Unauthenticated for the reason `/health` is: it discloses aggregate counts and no
+    research content, no user, project or run identifier, and no free-form text — that is a
+    property of `app/metrics.py`'s closed label vocabulary, not of this route.
+    """
+    payload, content_type = metrics.render()
+    return Response(content=payload, media_type=content_type)

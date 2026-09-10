@@ -134,6 +134,12 @@ class ResearchRun(Base):
         String(24), nullable=False, default="NOT_READ", server_default="NOT_READ"
     )
 
+    #: Which corpus this run read, and what state it was in when it opened it. NULL on a
+    #: run that used the web, and on every run predating the corpus version model — an
+    #: honest absence rather than a fabricated zero.
+    corpus_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    corpus_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Cancellation state is durable and on the row, not a TTL'd cache key.
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

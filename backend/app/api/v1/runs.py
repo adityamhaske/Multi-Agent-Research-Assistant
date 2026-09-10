@@ -33,11 +33,12 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import run_bundle, run_lifecycle
+from app import metrics, run_bundle, run_lifecycle
 from app.db.base import AsyncSessionLocal, get_db
 from app.db.redis import get_redis
 from app.dependencies import get_current_user
 from app.errors import Conflict, NotFound, Unprocessable
+from app.logconfig import bind_research_run_context
 from app.models.agent_log import AgentLog
 from app.models.project import Project
 from app.models.research import (
@@ -107,6 +108,13 @@ async def _run_or_404(db: AsyncSession, run_id: uuid.UUID, owner_id: uuid.UUID) 
 
     A run belonging to someone else is a 404 rather than a 403: the difference between
     "does not exist" and "exists and is not yours" is itself information.
+
+    **This is also where a request acquires its correlation identity**, and it binds here
+    rather than in a `Depends` because the sidecar wraps these handlers in its own routes
+    with its own dependencies — a dependency-based binder would bind on the server and
+    silently not on the desktop. Twelve of the fourteen run routes resolve ownership
+    through this function, so one line covers them on both hosts. A request that does not
+    resolve a run binds nothing: there is no identity to correlate to.
     """
     run = (
         await db.execute(
@@ -115,6 +123,7 @@ async def _run_or_404(db: AsyncSession, run_id: uuid.UUID, owner_id: uuid.UUID) 
     ).scalar_one_or_none()
     if run is None:
         raise NotFound("Run not found.")
+    bind_research_run_context(str(run.id), user_id=str(owner_id))
     return run
 
 
@@ -270,6 +279,10 @@ async def project_run(db: AsyncSession, run: ResearchRun) -> dict:
                 "version": r.version,
                 "report_markdown": r.report_markdown,
                 "report_hash": r.report_hash,
+                # The typed view, additive and NULL on revisions predating it. A read
+                # surface, not a dependency: `report_markdown` above remains what every
+                # existing client — and the frontend's citation renderer — reads.
+                "report_document": r.report_document,
                 "evidence_watermark": r.evidence_watermark,
                 "created_at": r.created_at.isoformat(),
             }
@@ -400,6 +413,11 @@ async def create_run(
     # Committed BEFORE dispatch: a worker that picks the message up first and cannot find
     # the row would fail a run that was about to exist.
     await db.commit()
+
+    # The one run route that does not go through `_run_or_404` — it creates the run rather
+    # than resolving one — so it binds its own identity, and does so before dispatch so the
+    # handoff is logged under the run it hands off.
+    bind_research_run_context(str(run.id), user_id=str(current_user.id))
 
     if body.dispatch:
         await dispatcher.start(str(run.id), str(current_user.id))
@@ -570,6 +588,13 @@ async def submit_report_review(
     transaction — so an approval that cannot produce a verifiable artifact is not recorded
     as an approval at all."""
     run = await _run_or_404(db, run_id, current_user.id)
+    # Read here, before the transaction and before any best-effort step that could expire
+    # the row. `was_completed` observes the transition this endpoint already performs —
+    # `!= COMPLETED` → `COMPLETED` — so a repeat approval, which the lifecycle has always
+    # accepted, is not counted as a second terminal event. Nothing is refused, no state is
+    # added, and the endpoint behaves exactly as it did.
+    was_completed = run.status == "COMPLETED"
+    spend = (run.cost_usd, run.tokens_input, run.tokens_output, run.model_routing)
     query = select(Revision).where(Revision.run_id == run.id)
     if body.revision_version is not None:
         query = query.where(Revision.version == body.revision_version)
@@ -617,6 +642,19 @@ async def submit_report_review(
         "artifact_id": artifact_id,
     }
 
+    if body.decision == "APPROVED" and not was_completed:
+        # **This is where a run terminates.** The engine is never resumed with
+        # `approved=True` — `RunDispatcher.rework` passes `False` on both hosts — so
+        # `persist_outcome` sees this run pause at the report gate and never sees it
+        # finish. Observing completion there would leave the counter permanently zero.
+        cost_usd, tokens_input, tokens_output, model_routing = spend
+        metrics.observe_completed_run(
+            cost_usd=cost_usd,
+            tokens_input=tokens_input,
+            tokens_output=tokens_output,
+            model_routing=model_routing,
+        )
+
     if body.decision == "APPROVED":
         # Both stores, after the commit and never inside the approval transaction:
         # embedding cost and provider availability must not be able to fail an approval
@@ -638,7 +676,7 @@ async def _ingest_report_into_corpus(db: AsyncSession, run, report_markdown: str
         store = await adapters.ServerCorpusLocator().ensure(
             run.project_id, keys=await provider_keys_for(db, run.owner_id)
         )
-        await ingest_report(store, session_id=str(run.id), report_markdown=report_markdown)
+        await ingest_report(store, report_id=str(run.id), report_markdown=report_markdown)
     except Exception as e:  # noqa: BLE001 — see report_corpus.ingest_report's own docstring
         logger.warning("report_corpus_ingest_setup_failed", run_id=str(run.id), error=str(e))
 

@@ -25,6 +25,7 @@ from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.schemas.research import ChatMessageSchema, ChatRequest
 from app.services import chat_scope, crypto
+from app.services.chat_history import recent_turns
 from app.services.sse import SSE_HEADERS
 from research_engine import prompts
 from research_engine.embeddings import EmbeddingsUnavailable
@@ -82,18 +83,7 @@ async def send_message(
     db.add(ChatMessage(session_id=session_id, role="user", content=payload.message))
     await db.commit()
 
-    history = (
-        (
-            await db.execute(
-                select(ChatMessage)
-                .where(ChatMessage.session_id == session_id)
-                .order_by(ChatMessage.created_at.asc())
-                .limit(20)
-            )
-        )
-        .scalars()
-        .all()
-    )
+    history = await recent_turns(db, ChatMessage.session_id == session_id)
 
     # BYOK first: the corpus store embeds on this user's key exactly as their research
     # did, so it has to be resolved before the grounding is gathered.

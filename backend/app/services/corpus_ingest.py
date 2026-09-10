@@ -22,8 +22,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.errors import DependencyUnavailable, Invalid, PayloadTooLarge
+from app import metrics
+from app.errors import DependencyUnavailable, Invalid, PayloadTooLarge, Unprocessable
 from app.schemas.corpus import CorpusStatusResponse, DocumentResponse
+from research_engine.corpus import UnknownDocumentKey
 from research_engine.documents import MAX_DOCUMENT_BYTES
 
 __all__ = [
@@ -59,23 +61,44 @@ def clean_upload(filename: str | None, data: bytes) -> str:
     return name
 
 
-async def ingest_document(store, filename: str, data: bytes) -> DocumentResponse:
+async def ingest_document(
+    store, filename: str, data: bytes, doc_key: str | None = None
+) -> DocumentResponse:
     """Validate, ingest, and answer in the shared shape.
 
     Both failure mappings are here rather than at the call sites. An unsupported format is
     the caller's mistake (`Invalid`); an unreachable embedding server is not
     (`DependencyUnavailable`), and telling them apart is the difference between "fix your
     file" and "try again later".
+
+    Every exit also counts itself. This is the one upload contract both hosts call, so a
+    counter here is the same number on the server and the desktop; a counter at the four
+    routes would be four numbers to keep in step. The outcome is a closed label and never
+    carries the refusal's message, which names the file.
     """
     from research_engine.embeddings import EmbeddingsUnavailable
 
-    name = clean_upload(filename, data)
     try:
-        result = await store.ingest(name, data)
+        name = clean_upload(filename, data)
+        result = await store.ingest(name, data, doc_key=doc_key)
+    except UnknownDocumentKey as e:
+        # 422 rather than 400, and refused rather than absorbed: the request was
+        # well-formed and named a document this corpus does not hold. Creating a new
+        # logical document instead would answer 201 to a request that meant "replace".
+        metrics.observe_ingest("rejected")
+        raise Unprocessable(f"No document with key {e.args[0]} in this corpus.") from e
+    except (Invalid, PayloadTooLarge):  # `clean_upload` refused it
+        metrics.observe_ingest("rejected")
+        raise
     except ValueError as e:  # unsupported extension, unreadable document
+        metrics.observe_ingest("rejected")
         raise Invalid(str(e)) from e
     except EmbeddingsUnavailable as e:
+        metrics.observe_ingest("unavailable")
         raise DependencyUnavailable(str(e)) from e
+    # A document the store already held is `skipped` — a success that indexed nothing, so
+    # it must not add to the byte total a throughput figure is computed from.
+    metrics.observe_ingest("skipped" if result.skipped else "ingested", byte_count=len(data))
     return ingested_response(result)
 
 
@@ -90,6 +113,8 @@ def ingested_response(result) -> DocumentResponse:
         id=result.doc_id or "skip",
         filename=result.filename,
         chunks=result.chunks_written,
+        doc_key=result.doc_key,
+        version=result.version,
     )
 
 
@@ -111,6 +136,9 @@ def document_response(row: dict) -> DocumentResponse:
         size_bytes=row.get("size_bytes"),
         downloadable=row.get("downloadable", False),
         origin=row.get("origin", "uploaded"),
+        doc_key=row.get("doc_key"),
+        version=row.get("version"),
+        is_current=row.get("is_current", True),
     )
 
 

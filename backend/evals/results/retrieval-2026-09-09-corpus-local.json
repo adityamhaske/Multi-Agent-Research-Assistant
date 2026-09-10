@@ -1,0 +1,408 @@
+{
+  "status": "measured",
+  "generated_at": "2026-09-09T15:00:49+00:00",
+  "retrieval_metrics_version": 1,
+  "dataset_version": 2,
+  "dataset_fingerprint": "2c54797be7f83872f573db4eb9d2e4f56414c26670ce12471ab7a27cc31bb985",
+  "embedding_model": "ollama:nomic-embed-text",
+  "retriever": "research_engine.corpus.CorpusStore.search",
+  "top_k": 10,
+  "aggregate": {
+    "overall": {
+      "queries": 12,
+      "recall@1": 0.7916666666666666,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "precision@1": 0.9166666666666666,
+      "precision@5": 0.2833333333333334,
+      "ndcg@10": 0.9435495291698613,
+      "dedup_rate": 0.0,
+      "span_accuracy": 1.0
+    },
+    "by_kind": {
+      "distractor": {
+        "queries": 1,
+        "recall@1": 0.0,
+        "recall@3": 1.0,
+        "recall@5": 1.0,
+        "precision@1": 1.0,
+        "precision@5": 0.8,
+        "ndcg@10": 0.8425002310410875,
+        "dedup_rate": 0.0,
+        "span_accuracy": 1.0
+      },
+      "lexical": {
+        "queries": 5,
+        "recall@1": 0.8,
+        "recall@3": 1.0,
+        "recall@5": 1.0,
+        "precision@1": 0.8,
+        "precision@5": 0.2,
+        "ndcg@10": 0.9261859507142916,
+        "dedup_rate": null,
+        "span_accuracy": 1.0
+      },
+      "semantic": {
+        "queries": 6,
+        "recall@1": 0.9166666666666666,
+        "recall@3": 1.0,
+        "recall@5": 1.0,
+        "precision@1": 1.0,
+        "precision@5": 0.26666666666666666,
+        "ndcg@10": 0.9748607275709652,
+        "dedup_rate": 0.0,
+        "span_accuracy": 1.0
+      }
+    }
+  },
+  "queries": [
+    {
+      "id": "q01-solar-semantic",
+      "kind": "semantic",
+      "query": "how does a panel turn sunlight into electric current",
+      "retrieved": [
+        "photovoltaics.md",
+        "photovoltaics-mirror.md",
+        "electrolysis-hydrogen.md",
+        "battery-storage.md",
+        "tidal-energy.md",
+        "heat-pumps.md",
+        "geothermal-power.md",
+        "hydrothermal-vents.md",
+        "transmission-constraints.md",
+        "wind-turbines.md"
+      ],
+      "recall": {
+        "@1": 0.5,
+        "@3": 1.0,
+        "@5": 1.0
+      },
+      "precision": {
+        "@1": 1.0,
+        "@5": 0.4
+      },
+      "ndcg@10": 0.9608857006116033,
+      "dedup_rate": 0.0,
+      "span_accuracy": 1.0
+    },
+    {
+      "id": "q02-rag-semantic",
+      "kind": "semantic",
+      "query": "grounding a language model in external documents so its answers can be checked",
+      "retrieved": [
+        "retrieval-augmented-generation.md",
+        "embedding-models.md",
+        "sqlite-storage.md",
+        "ingest-error-codes.md",
+        "transmission-constraints.md",
+        "transformer-attention.md",
+        "photovoltaics-mirror.md",
+        "photovoltaics.md",
+        "battery-storage.md",
+        "geothermal-power.md"
+      ],
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0
+      },
+      "precision": {
+        "@1": 1.0,
+        "@5": 0.2
+      },
+      "ndcg@10": 0.9243382314975351,
+      "dedup_rate": null,
+      "span_accuracy": 1.0
+    },
+    {
+      "id": "q03-lexical-exact-code",
+      "kind": "lexical",
+      "query": "ERR_CHUNK_7742",
+      "retrieved": [
+        "ingest-error-codes.md",
+        "photovoltaics.md",
+        "photovoltaics-mirror.md",
+        "hydrothermal-vents.md",
+        "heat-pumps.md",
+        "sqlite-storage.md",
+        "battery-storage.md",
+        "transmission-constraints.md",
+        "tidal-energy.md",
+        "embedding-models.md"
+      ],
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0
+      },
+      "precision": {
+        "@1": 1.0,
+        "@5": 0.2
+      },
+      "ndcg@10": 1.0,
+      "dedup_rate": null,
+      "span_accuracy": 1.0
+    },
+    {
+      "id": "q04-lexical-acronym",
+      "kind": "lexical",
+      "query": "LFP cell chemistry",
+      "retrieved": [
+        "battery-storage.md",
+        "photovoltaics.md",
+        "photovoltaics-mirror.md",
+        "electrolysis-hydrogen.md",
+        "hydrothermal-vents.md",
+        "geothermal-power.md",
+        "heat-pumps.md",
+        "tidal-energy.md",
+        "ingest-error-codes.md",
+        "sqlite-storage.md"
+      ],
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0
+      },
+      "precision": {
+        "@1": 1.0,
+        "@5": 0.2
+      },
+      "ndcg@10": 1.0,
+      "dedup_rate": null,
+      "span_accuracy": 1.0
+    },
+    {
+      "id": "q05-vents-semantic",
+      "kind": "semantic",
+      "query": "ecosystems that survive with no light at all",
+      "retrieved": [
+        "hydrothermal-vents.md",
+        "geothermal-power.md",
+        "tidal-energy.md",
+        "photovoltaics.md",
+        "photovoltaics-mirror.md",
+        "battery-storage.md",
+        "electrolysis-hydrogen.md",
+        "wind-turbines.md",
+        "transmission-constraints.md",
+        "nuclear-baseload.md"
+      ],
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0
+      },
+      "precision": {
+        "@1": 1.0,
+        "@5": 0.2
+      },
+      "ndcg@10": 1.0,
+      "dedup_rate": null,
+      "span_accuracy": 1.0
+    },
+    {
+      "id": "q06-renewables-distractor",
+      "kind": "distractor",
+      "query": "variable renewable electricity generation",
+      "retrieved": [
+        "tidal-energy.md",
+        "wind-turbines.md",
+        "geothermal-power.md",
+        "electrolysis-hydrogen.md",
+        "photovoltaics.md",
+        "photovoltaics-mirror.md",
+        "battery-storage.md",
+        "transmission-constraints.md",
+        "nuclear-baseload.md",
+        "heat-pumps.md"
+      ],
+      "recall": {
+        "@1": 0.0,
+        "@3": 1.0,
+        "@5": 1.0
+      },
+      "precision": {
+        "@1": 1.0,
+        "@5": 0.8
+      },
+      "ndcg@10": 0.8425002310410875,
+      "dedup_rate": 0.0,
+      "span_accuracy": 1.0
+    },
+    {
+      "id": "q07-attention-semantic",
+      "kind": "semantic",
+      "query": "why sequence models stopped processing tokens one after another",
+      "retrieved": [
+        "transformer-attention.md",
+        "embedding-models.md",
+        "transmission-constraints.md",
+        "ingest-error-codes.md",
+        "retrieval-augmented-generation.md",
+        "sqlite-storage.md",
+        "nuclear-baseload.md",
+        "heat-pumps.md",
+        "photovoltaics-mirror.md",
+        "photovoltaics.md"
+      ],
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0
+      },
+      "precision": {
+        "@1": 1.0,
+        "@5": 0.2
+      },
+      "ndcg@10": 1.0,
+      "dedup_rate": null,
+      "span_accuracy": 1.0
+    },
+    {
+      "id": "q08-chemosynthesis-lexical",
+      "kind": "lexical",
+      "query": "hydrogen sulfide oxidation by bacteria",
+      "retrieved": [
+        "hydrothermal-vents.md",
+        "electrolysis-hydrogen.md",
+        "tidal-energy.md",
+        "geothermal-power.md",
+        "heat-pumps.md",
+        "nuclear-baseload.md",
+        "battery-storage.md",
+        "sqlite-storage.md",
+        "photovoltaics-mirror.md",
+        "photovoltaics.md"
+      ],
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0
+      },
+      "precision": {
+        "@1": 1.0,
+        "@5": 0.2
+      },
+      "ndcg@10": 1.0,
+      "dedup_rate": null,
+      "span_accuracy": 1.0
+    },
+    {
+      "id": "q09-storage-semantic",
+      "kind": "semantic",
+      "query": "moving energy from cheap hours to expensive hours",
+      "retrieved": [
+        "battery-storage.md",
+        "electrolysis-hydrogen.md",
+        "photovoltaics.md",
+        "photovoltaics-mirror.md",
+        "heat-pumps.md",
+        "wind-turbines.md",
+        "tidal-energy.md",
+        "transmission-constraints.md",
+        "nuclear-baseload.md",
+        "geothermal-power.md"
+      ],
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0
+      },
+      "precision": {
+        "@1": 1.0,
+        "@5": 0.2
+      },
+      "ndcg@10": 1.0,
+      "dedup_rate": null,
+      "span_accuracy": 1.0
+    },
+    {
+      "id": "q10-embedding-width-error",
+      "kind": "lexical",
+      "query": "embedding vector of unexpected width",
+      "retrieved": [
+        "embedding-models.md",
+        "ingest-error-codes.md",
+        "sqlite-storage.md",
+        "transformer-attention.md",
+        "transmission-constraints.md",
+        "retrieval-augmented-generation.md",
+        "wind-turbines.md",
+        "battery-storage.md",
+        "tidal-energy.md",
+        "heat-pumps.md"
+      ],
+      "recall": {
+        "@1": 0.0,
+        "@3": 1.0,
+        "@5": 1.0
+      },
+      "precision": {
+        "@1": 0.0,
+        "@5": 0.2
+      },
+      "ndcg@10": 0.6309297535714574,
+      "dedup_rate": null,
+      "span_accuracy": 1.0
+    },
+    {
+      "id": "q11-embedding-choice-semantic",
+      "kind": "semantic",
+      "query": "picking a vector model for search over my own documents",
+      "retrieved": [
+        "embedding-models.md",
+        "sqlite-storage.md",
+        "retrieval-augmented-generation.md",
+        "ingest-error-codes.md",
+        "transformer-attention.md",
+        "wind-turbines.md",
+        "tidal-energy.md",
+        "transmission-constraints.md",
+        "battery-storage.md",
+        "heat-pumps.md"
+      ],
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0
+      },
+      "precision": {
+        "@1": 1.0,
+        "@5": 0.4
+      },
+      "ndcg@10": 0.9639404333166532,
+      "dedup_rate": null,
+      "span_accuracy": 1.0
+    },
+    {
+      "id": "q12-wal-lexical",
+      "kind": "lexical",
+      "query": "write-ahead logging one writer many readers",
+      "retrieved": [
+        "sqlite-storage.md",
+        "transformer-attention.md",
+        "retrieval-augmented-generation.md",
+        "ingest-error-codes.md",
+        "embedding-models.md",
+        "nuclear-baseload.md",
+        "photovoltaics-mirror.md",
+        "photovoltaics.md",
+        "battery-storage.md",
+        "tidal-energy.md"
+      ],
+      "recall": {
+        "@1": 1.0,
+        "@3": 1.0,
+        "@5": 1.0
+      },
+      "precision": {
+        "@1": 1.0,
+        "@5": 0.2
+      },
+      "ndcg@10": 1.0,
+      "dedup_rate": null,
+      "span_accuracy": 1.0
+    }
+  ]
+}

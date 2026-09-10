@@ -21,7 +21,10 @@
       "created_at": null,
       "size_bytes": null,
       "downloadable": false,
-      "origin": "uploaded"
+      "origin": "uploaded",
+      "doc_key": "<uuid>",
+      "version": 1,
+      "is_current": true
     }
   },
   {
@@ -35,7 +38,10 @@
         "created_at": "<timestamp>",
         "size_bytes": 142,
         "downloadable": true,
-        "origin": "uploaded"
+        "origin": "uploaded",
+        "doc_key": "<uuid>",
+        "version": 1,
+        "is_current": true
       }
     ]
   },
@@ -48,7 +54,9 @@
       "chunks_by_model": {
         "fake:parity-embed": 1
       },
-      "current_model": "fake:parity-embed"
+      "current_model": "fake:parity-embed",
+      "corpus_id": "<uuid>",
+      "corpus_version": 1
     }
   },
   {

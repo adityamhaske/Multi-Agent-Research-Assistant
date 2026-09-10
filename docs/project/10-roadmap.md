@@ -26,6 +26,8 @@ Shipped and in use:
 - **Local models** through Ollama, including local embeddings.
 - **Self-hosting** with Docker Compose, and a documented $0/month single-host deployment.
 - **Desktop app** for macOS, Windows, and Linux, with a bundled engine and SQLite.
+- **Operational metrics** — a server-side `/metrics` endpoint in Prometheus text, and
+  a correlation id on every log a research run produces. A dashboard is not shipped.
 
 ## In progress
 
@@ -44,7 +46,6 @@ Accepted, not yet built.
 |---|---|---|
 | **Code signing** | Signed and notarised macOS and Windows builds | Removes the first-launch warning, which is the biggest install friction today |
 | **Auto-update** | In-place desktop updates | Currently you download the new installer. The open question is whether Gatekeeper re-blocks an unsigned app after replacement |
-| **Prometheus metrics** | A `/metrics` endpoint and a dashboard | Logs and the run trace are what exist today |
 | **Cross-project chat** | A thread readable across several projects | Explicit opt-in per thread, visible scope, audited on change, still a SQL predicate |
 | **Shareable read-only report links** | Hand someone a report without an export | |
 | **Grouped citation chips** | Make `[3, 11, 18]` hoverable | Only single markers are interactive today |

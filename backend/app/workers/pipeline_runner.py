@@ -119,6 +119,10 @@ async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
         "skip_plan_gate": bool(session.skip_plan_gate),
         "topic_seeds": tuple(session.topic_seeds or ()),
         "outline_template": session.outline_template,
+        # The airgap promise, and the same trap `run_execution.run_config_for_run` records:
+        # `_execute` installs the corpus port, which is not the same as telling the engine
+        # to use it. Both `retrievers.search` and `tools.read_webpage` read this field.
+        "corpus_mode": bool(session.corpus_mode),
     }
     # Scripted models and fixture retrievers (docs/17 §6.2). The rule — a run that reached
     # no provider is *recorded* as a demo, whichever way it got there — is one function, in
@@ -324,7 +328,7 @@ async def _ingest_report_into_corpus(session: Session, provider_keys: dict[str, 
         from app.services.report_corpus import ingest_report
 
         store = await adapters.ServerCorpusLocator().ensure(session.project_id, keys=provider_keys)
-        await ingest_report(store, session_id=str(session.id), report_markdown=session.final_report)
+        await ingest_report(store, report_id=str(session.id), report_markdown=session.final_report)
     except Exception as e:  # noqa: BLE001 — see report_corpus.ingest_report's own docstring
         logger.warning(
             "report_corpus_ingest_setup_failed",

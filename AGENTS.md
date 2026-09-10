@@ -233,6 +233,20 @@ record `demo=false`, so its bundle named models nothing had called and its `.md`
 unstamped with no warning. That's the P0 honesty class, not cosmetic.)
 `tests/workflow/test_scripted_runs_are_recorded_as_demo.py` pins all three.
 
+**A field on the row is not a field the run reads.** Every per-run option has two hops —
+request → row, and **row → `RunConfig`** — and the second is invisible until the behaviour is
+wrong. `corpus_mode` lost it on *both* hosts in turn: the desktop shipped a run recorded as
+airgapped that researched the open web, and once that was fixed the server was still doing
+it. The trap is that `run_execution::execute_run` and `pipeline_runner::_execute` both branch
+on `run.corpus_mode` — but only to install the **corpus port**, which decides what
+`get_corpus()` answers, not whether anything asks it. `retrievers.search` and
+`tools.read_webpage` read `get_run_config().corpus_mode` and cannot see a database. Both
+server builders carry it now, beside `skip_plan_gate`/`topic_seeds`/`outline_template`.
+**A test that builds `RunConfig(...)` by hand cannot catch this** —
+`tests/dataflow/test_corpus_egress.py` stayed green throughout because it stubbed the exact
+hop that was broken; it now drives the host builders and asserts the retrieved sources are
+`corpus://`.
+
 **A cancelled run stays cancelled** (issue #54) — durable state
 (`sessions.cancelled_at`/`research_runs.cancelled_at`), and all three outcome writers
 refuse to move a cancelled row out of its terminal state: `pipeline_runner::_persist_outcome`,
@@ -345,8 +359,9 @@ best-effort step, not after it — `runs.submit_report_review` is the worked exa
 
 ## Never fake, never swallow
 
-- No `print` in application code — `structlog.get_logger()`, correlation bound to
-  `session_id` (see `backend/AGENTS.md`).
+- No `print` in application code — `structlog.get_logger()`, with `correlation_id` bound at
+  the boundary. **`session_id` means a `sessions.id` and `run_id` means a `research_runs.id`;
+  binding a run under `session_id` is a defect** (see `backend/AGENTS.md`).
 - A caught provider error must surface its message. `graph.py::_structured` once swallowed
   an exception into `None`, producing "planner: could not produce a valid task list" for
   what was actually an exhausted quota.

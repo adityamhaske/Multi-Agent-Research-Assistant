@@ -1,10 +1,14 @@
 """
 Structured logging + run correlation (harness Change Validation finding).
 
-structlog must be configured with merge_contextvars, and a run's correlation
+structlog must be configured with merge_contextvars, and a session's correlation
 identity (= session_id) bound at a boundary must appear on every log emitted in
-that context — that is what lets a failed research run be joined across the
+that context — that is what lets a failed session be joined across the
 API → Celery → engine boundary.
+
+The **session** half. `bind_session_context` is the original binder under an accurate
+name; the run surface has its own, and the two are held apart by
+`tests/workflow/test_run_correlation.py`. Every assertion below is unchanged.
 """
 
 from __future__ import annotations
@@ -15,7 +19,7 @@ import pytest
 import structlog
 from structlog.testing import CapturingLoggerFactory
 
-from app.logconfig import bind_run_context, clear_run_context, configure_logging
+from app.logconfig import bind_session_context, clear_run_context, configure_logging
 
 
 @pytest.fixture()
@@ -31,7 +35,7 @@ def capturing_logs():
 
 def test_bound_correlation_id_rides_along_every_log(capturing_logs):
     clear_run_context()
-    bind_run_context("sess-123", user_id="u-1")
+    bind_session_context("sess-123", user_id="u-1")
 
     structlog.get_logger().info("research_started")
 
@@ -43,7 +47,7 @@ def test_bound_correlation_id_rides_along_every_log(capturing_logs):
 
 
 def test_clear_run_context_stops_identity_leaking(capturing_logs):
-    bind_run_context("sess-123")
+    bind_session_context("sess-123")
     clear_run_context()
 
     structlog.get_logger().info("unrelated")
@@ -59,7 +63,7 @@ def test_correlation_id_propagates_into_asyncio_runs(capturing_logs):
     import asyncio
 
     clear_run_context()
-    bind_run_context("sess-async")
+    bind_session_context("sess-async")
 
     async def inner():
         structlog.get_logger().warning("executor_budget_stop")

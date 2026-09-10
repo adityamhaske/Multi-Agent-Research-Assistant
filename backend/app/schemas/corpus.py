@@ -36,6 +36,16 @@ class DocumentResponse(BaseModel):
     # generated document distinctly and must not let a user believe it is a source the
     # way an upload is — retrieval already refuses to cite one (research_engine/corpus.py).
     origin: str = "uploaded"
+    # The logical document this row is a revision of, and which revision it is. `doc_key`
+    # is an opaque uuid minted by the store — never derived from the filename, because two
+    # unrelated papers can legitimately share one. It is returned because it is the only
+    # way a caller can later say "this upload replaces that document"; nothing else in the
+    # response identifies the document rather than the version.
+    doc_key: str | None = None
+    version: int | None = None
+    # Whether retrieval can still reach this row. A superseded version stays readable, so
+    # citations made against it keep resolving, but it is no longer offered as evidence.
+    is_current: bool = True
 
 
 class CorpusStatusResponse(BaseModel):
@@ -43,3 +53,8 @@ class CorpusStatusResponse(BaseModel):
     chunks: int
     chunks_by_model: dict[str, int]
     current_model: str
+    # Which corpus this is and what state it is in. The server has one file per project and
+    # the desktop one for the whole app, so a path could never name it on both hosts;
+    # identity that lives in the data can.
+    corpus_id: str | None = None
+    corpus_version: int | None = None

@@ -57,6 +57,7 @@ from fastapi import (
     APIRouter,
     Depends,
     FastAPI,
+    Form,
     HTTPException,
     Request,
     Response,
@@ -71,7 +72,7 @@ from sqlalchemy import event, select
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.logconfig import configure_logging
+from app.logconfig import bind_research_run_context, configure_logging
 from app.models import POSTGRES_ONLY_TABLES, Base
 from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
@@ -133,6 +134,7 @@ from app.services import (
     usage,
 )
 
+from app.services.chat_history import recent_turns
 from app.services.delegation import delegates_to
 from app.services.error_responses import install_error_handlers
 from app.services.event_stream import sse_frames
@@ -279,7 +281,8 @@ async def persist_and_publish(
             row.payload = dict(payload)
             await db.commit()
     except Exception as e:  # noqa: BLE001 — live delivery must not die on persistence
-        logger.warning("sidecar_event_persist_failed", session_id=str(session_id), error=str(e))
+        # `subject_id`: this sink serves both drivers, so the value is polymorphic.
+        logger.warning("sidecar_event_persist_failed", subject_id=str(session_id), error=str(e))
     bus.append(str(session_id), payload, row_id)
 
 
@@ -330,6 +333,12 @@ class PersistingSink:
 # ── Keys ─────────────────────────────────────────────────────────────────────────
 
 
+def _has_rows(sync_conn, table: str) -> bool:
+    """Whether a table already holds data — the difference between an upgrade and a fresh
+    install, for the one column shape SQLite cannot add to a populated table."""
+    return sync_conn.exec_driver_sql(f'SELECT 1 FROM "{table}" LIMIT 1').first() is not None
+
+
 def _add_missing_columns(sync_conn, tables) -> None:
     """Add ORM-declared columns that an existing SQLite file is missing.
 
@@ -377,6 +386,16 @@ def _add_missing_columns(sync_conn, tables) -> None:
             if default is not None:
                 clause += f" DEFAULT {default}"
             if not column.nullable:
+                if default is None and _has_rows(sync_conn, table.name):
+                    # SQLite has nothing to give the rows that already exist, and refuses.
+                    # A Python-side `default=` does not reach the DDL — only `server_default`
+                    # does — so this is the one shape that bricks an upgrade, and it used to
+                    # arrive as a driver error during startup naming neither table nor column.
+                    raise RuntimeError(
+                        f"cannot add {table.name}.{column.name} to an existing database: it is "
+                        "NOT NULL with no server_default, and the table already has rows. Give "
+                        "the column a server_default, or make it nullable."
+                    )
                 clause += " NOT NULL"
             sync_conn.exec_driver_sql(clause)
             logger.info("sidecar_schema_column_added", table=table.name, column=column.name)
@@ -1186,7 +1205,7 @@ def create_sidecar_app(
 
             await ingest_report(
                 make_corpus_store(app.state.data_dir),
-                session_id=str(session.id),
+                report_id=str(session.id),
                 report_markdown=outcome.final_report,
             )
 
@@ -1383,6 +1402,10 @@ def create_sidecar_app(
         from app.models.research import ResearchRun
 
         key = str(run_id)
+        # Bound *inside* the task, not before `create_task`: a task gets a copy of the
+        # context, so binding here is what keeps two concurrent desktop runs from writing
+        # each other's id onto their logs. `execute_run` does the same for the server.
+        bind_research_run_context(key)
         if key in _runs_in_flight:
             logger.warning("sidecar_run_already_in_flight", run_id=key)
             return
@@ -1414,8 +1437,10 @@ def create_sidecar_app(
                     "skip_plan_gate": bool(run.skip_plan_gate),
                     "topic_seeds": tuple(run.topic_seeds or ()),
                     "outline_template": run.outline_template,
-                    # Server counterpart: `run_execution.execute_run`, which branches on
-                    # `run.corpus_mode`.
+                    # Server counterpart: `run_execution.run_config_for_run`, which sets
+                    # the same field. `execute_run` also branches on `run.corpus_mode`, but
+                    # only to install the corpus port — which is a different thing, and
+                    # mistaking one for the other is how the server shipped without this.
                     "corpus_mode": bool(run.corpus_mode),
                 }
                 question, depth = run.question, run.depth
@@ -1462,6 +1487,16 @@ def create_sidecar_app(
                 "run_config": config,
                 "corpus": sidecar["corpus"],
             }
+            # The same snapshot the server takes in `run_execution._corpus_port`, through
+            # the same function object rather than a second copy of the rule — this is a
+            # two-host contract, and AGENTS.md records what happens to those kept in step
+            # by discipline. Guarded on corpus mode for the same reason the server guards
+            # it: a web run read no corpus and must not claim one.
+            if overrides["corpus_mode"]:
+                async with session_factory() as db:
+                    row = await db.get(ResearchRun, run_id)
+                    await run_execution.record_corpus_snapshot(db, row, sidecar["corpus"])
+                    await db.commit()
             try:
                 if plan is not None:
                     outcome = await resume_run(
@@ -1495,8 +1530,10 @@ def create_sidecar_app(
                     db, run, outcome, saver=sidecar["saver"]
                 )
                 # Persist, commit, then publish — a client acting on COMPLETED must never
-                # re-read a status that has not caught up.
+                # re-read a status that has not caught up. The counter follows the commit
+                # for the same reason, and cannot be undone if it precedes one.
                 await db.commit()
+                run_execution.observe_persisted(run, outcome, result)
             await sink(key, run_execution.lifecycle_event(result))
         finally:
             _runs_in_flight.discard(key)
@@ -1745,18 +1782,7 @@ def create_sidecar_app(
         db.add(ChatMessage(session_id=session_id, role="user", content=payload.message))
         await db.commit()
 
-        history = (
-            (
-                await db.execute(
-                    select(ChatMessage)
-                    .where(ChatMessage.session_id == session_id)
-                    .order_by(ChatMessage.created_at.asc())
-                    .limit(20)
-                )
-            )
-            .scalars()
-            .all()
-        )
+        history = await recent_turns(db, ChatMessage.session_id == session_id)
 
         try:
             grounding = await chat_scope.gather(
@@ -2436,6 +2462,7 @@ def create_sidecar_app(
     async def upload_project_corpus_document(
         project_id: uuid.UUID,
         file: UploadFile,
+        doc_key: str | None = Form(default=None),
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
@@ -2450,7 +2477,7 @@ def create_sidecar_app(
         """
         from app.api.v1.corpus import upload_document
 
-        return await upload_document(project_id, file, db, user, get_corpus_locator())
+        return await upload_document(project_id, file, doc_key, db, user, get_corpus_locator())
 
     @api.delete("/projects/{project_id}/corpus/documents/{doc_id}", status_code=204)
     @delegates_to("app.api.v1.corpus:delete_document")
@@ -2595,7 +2622,7 @@ def create_sidecar_app(
             if revision is not None:
                 await ingest_report(
                     make_corpus_store(app.state.data_dir),
-                    session_id=str(run_id),
+                    report_id=str(run_id),
                     report_markdown=revision.report_markdown,
                 )
 

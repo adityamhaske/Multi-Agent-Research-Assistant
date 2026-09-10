@@ -6,8 +6,11 @@ intentionally absent.
 ## Observability
 
 **Logs.** Structured JSON via `structlog` to stdout, collected by Compose or journald.
-Every line in a run carries `session_id` as a correlation id, bound once at the API and
-carried through the Celery task and the engine. There is no `print` in application code.
+Every line in a unit of work carries `correlation_id`, bound once at the API and carried
+through the Celery task or the desktop's in-process driver and into the engine. Beside it
+sits the identity it names: `run_id` for a research run, `session_id` for a session. The
+two are never interchanged — a `research_runs.id` is not a session and reading one as the
+other is how a trace stops joining. There is no `print` in application code.
 
 **The trace.** The `agent_logs` table *is* the run trace. It is durable, ordered, and
 replayable after the fact — the same rows the live feed replays are the ones you read when
@@ -22,8 +25,37 @@ debugging a run that finished yesterday.
 
 **Tracing.** LangSmith is available via `LANGCHAIN_TRACING_V2`, off by default.
 
-**Not built:** a Prometheus `/metrics` endpoint. [Planned](../project/10-roadmap.md), and
-marked as such rather than half-implemented.
+**Metrics.** `GET /metrics` serves Prometheus text on the server. It is unauthenticated,
+like `/health`, and deliberately sits outside `/api/v1` so a reverse proxy can withhold it
+with one rule. Seven families, all counters and one build-info gauge:
+
+| Metric | What it answers |
+|---|---|
+| `research_run_outcomes_total{outcome}` | How many runs finished, and how. `completed`, `failed`, `cancelled` only — a run waiting at a gate has not finished and is not counted |
+| `research_run_cost_usd_total` | Estimated spend of terminated runs |
+| `research_run_cost_confidence_total{confidence}` | How far that figure can be trusted: `priced`, `unpriced`, or `unstamped` |
+| `research_run_tokens_total{direction}` | Tokens attributed to terminated runs |
+| `corpus_ingest_documents_total{outcome}` | Uploads by what happened to them |
+| `corpus_ingest_bytes_total` | Bytes actually indexed |
+| `research_build_info{version,git_sha}` | Which build answered this scrape |
+
+**Read the cost two metrics at a time.** Cost estimation returns `0` for endpoint-defined
+providers (`ollama`, `custom`, `openrouter`), so `research_run_cost_usd_total` under-reports
+whenever `research_run_cost_confidence_total{confidence="unpriced"}` is moving, and says
+nothing either way when `{confidence="unstamped"}` is. Cap spend at the provider.
+
+No research content, no user, project or run identifier, and no free-form text reaches a
+label: every value comes from a closed list, so the series count is fixed and cannot grow
+with usage.
+
+**Not exposed on the desktop, by design.** The desktop app records the same counters through
+the same code; it serves no `/metrics`, because nothing scrapes a laptop.
+
+**Deferred, and named rather than faked:** per-role token attribution, retrieval latency,
+and **run duration**. The last is worth stating plainly — the pipeline records
+`elapsed_seconds` only on a path the run surface never takes, so the column is NULL on every
+run and every bundle. There is no measured compute duration to expose, and deriving one from
+timestamps would report how long the reviewer took to approve.
 
 ## Runbook
 

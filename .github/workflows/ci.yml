@@ -62,6 +62,33 @@ jobs:
         run: ruff format --check app/ research_engine/ tests/ evals/
       - name: Migrations apply (schema built purely from Alembic)
         run: alembic upgrade head
+      - name: Migration round-trip (populated database, both directions)
+        # The reverse direction, which nothing exercised until A9 and which was broken:
+        # `0008_chat_threads` dropped a constraint name the metadata convention had already
+        # rendered, so every downgrade past that revision died on any database.
+        #
+        # No new service and no second framework — this is the same `pgvector/pgvector:pg16`
+        # and the same `DATABASE_URL` the job already has. The suite creates and drops a
+        # scratch database of its own on that server, so it cannot disturb the `ci` database
+        # the step above just migrated.
+        #
+        # **The skip check is the point of running it as its own step.** These tests skip
+        # with a reason when no server answers, which is right on a laptop and wrong here:
+        # pytest exits 0 on a fully-skipped run, so a green tick would mean "the migration
+        # gate never ran" and nobody would know. Failing on a skip is what makes the service
+        # a requirement rather than a hope. The tests themselves are unchanged.
+        run: |
+          set -o pipefail
+          python -m pytest \
+            tests/workflow/test_migration_round_trip.py \
+            tests/task/test_migration_downgrade_policy.py \
+            tests/workflow/test_desktop_column_sync.py \
+            -v --tb=short | tee migration-gate.log
+          if grep -qE "[0-9]+ skipped" migration-gate.log; then
+            echo "::error::the migration gate skipped tests — the PostgreSQL service is"\
+                 "expected here, so a skip means it was unreachable, not that it was optional"
+            exit 1
+          fi
       - name: Tests
         run: python -m pytest tests/ -v --tb=short
       - name: Dependency audit (non-blocking, docs/08 §4)
