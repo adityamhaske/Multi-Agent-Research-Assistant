@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app import metrics
 from app.errors import DependencyUnavailable, Invalid, PayloadTooLarge, Unprocessable
 from app.schemas.corpus import CorpusStatusResponse, DocumentResponse
 from research_engine.corpus import UnknownDocumentKey
@@ -69,21 +70,35 @@ async def ingest_document(
     the caller's mistake (`Invalid`); an unreachable embedding server is not
     (`DependencyUnavailable`), and telling them apart is the difference between "fix your
     file" and "try again later".
+
+    Every exit also counts itself. This is the one upload contract both hosts call, so a
+    counter here is the same number on the server and the desktop; a counter at the four
+    routes would be four numbers to keep in step. The outcome is a closed label and never
+    carries the refusal's message, which names the file.
     """
     from research_engine.embeddings import EmbeddingsUnavailable
 
-    name = clean_upload(filename, data)
     try:
+        name = clean_upload(filename, data)
         result = await store.ingest(name, data, doc_key=doc_key)
     except UnknownDocumentKey as e:
         # 422 rather than 400, and refused rather than absorbed: the request was
         # well-formed and named a document this corpus does not hold. Creating a new
         # logical document instead would answer 201 to a request that meant "replace".
+        metrics.observe_ingest("rejected")
         raise Unprocessable(f"No document with key {e.args[0]} in this corpus.") from e
+    except (Invalid, PayloadTooLarge):  # `clean_upload` refused it
+        metrics.observe_ingest("rejected")
+        raise
     except ValueError as e:  # unsupported extension, unreadable document
+        metrics.observe_ingest("rejected")
         raise Invalid(str(e)) from e
     except EmbeddingsUnavailable as e:
+        metrics.observe_ingest("unavailable")
         raise DependencyUnavailable(str(e)) from e
+    # A document the store already held is `skipped` — a success that indexed nothing, so
+    # it must not add to the byte total a throughput figure is computed from.
+    metrics.observe_ingest("skipped" if result.skipped else "ingested", byte_count=len(data))
     return ingested_response(result)
 
 

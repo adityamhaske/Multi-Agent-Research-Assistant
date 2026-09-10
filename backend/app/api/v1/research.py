@@ -25,7 +25,7 @@ from app.api.v1.projects import resolve_project
 from app.db.base import AsyncSessionLocal, get_db
 from app.db.redis import get_redis
 from app.dependencies import enforce_research_rate_limit, get_current_user
-from app.logconfig import bind_run_context
+from app.logconfig import bind_session_context
 from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
 from app.models.session import Session, SessionStatus
@@ -125,7 +125,7 @@ async def start_research(
     await dispatcher.start(str(session.id), str(current_user.id))
     # Bind the run's correlation identity so the trigger log joins with the Celery
     # task and engine logs under one correlation_id (= session_id).
-    bind_run_context(str(session.id), user_id=str(current_user.id))
+    bind_session_context(str(session.id), user_id=str(current_user.id))
     logger.info("research_started", session_id=str(session.id))
     return ResearchStartResponse(session_id=session.id, status=session.status)
 
@@ -518,7 +518,7 @@ async def submit_plan(
     await dispatcher.resume_plan(
         str(session.id), str(current_user.id), {"tasks": kept, "outline": outline}
     )
-    bind_run_context(str(session.id), user_id=str(current_user.id))
+    bind_session_context(str(session.id), user_id=str(current_user.id))
     logger.info("research_plan_approved", session_id=str(session.id), task_count=len(kept))
     return _plan_response(session)
 
@@ -559,7 +559,7 @@ async def approve_or_rework(
     await dispatcher.resume_review(
         str(session.id), str(current_user.id), payload.approved, payload.feedback
     )
-    bind_run_context(str(session.id), user_id=str(current_user.id))
+    bind_session_context(str(session.id), user_id=str(current_user.id))
     logger.info(
         "research_resumed",
         session_id=str(session.id),

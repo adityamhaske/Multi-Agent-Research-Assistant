@@ -72,7 +72,7 @@ from sqlalchemy import event, select
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.logconfig import configure_logging
+from app.logconfig import bind_research_run_context, configure_logging
 from app.models import POSTGRES_ONLY_TABLES, Base
 from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
@@ -281,7 +281,8 @@ async def persist_and_publish(
             row.payload = dict(payload)
             await db.commit()
     except Exception as e:  # noqa: BLE001 — live delivery must not die on persistence
-        logger.warning("sidecar_event_persist_failed", session_id=str(session_id), error=str(e))
+        # `subject_id`: this sink serves both drivers, so the value is polymorphic.
+        logger.warning("sidecar_event_persist_failed", subject_id=str(session_id), error=str(e))
     bus.append(str(session_id), payload, row_id)
 
 
@@ -1188,7 +1189,7 @@ def create_sidecar_app(
 
             await ingest_report(
                 make_corpus_store(app.state.data_dir),
-                session_id=str(session.id),
+                report_id=str(session.id),
                 report_markdown=outcome.final_report,
             )
 
@@ -1385,6 +1386,10 @@ def create_sidecar_app(
         from app.models.research import ResearchRun
 
         key = str(run_id)
+        # Bound *inside* the task, not before `create_task`: a task gets a copy of the
+        # context, so binding here is what keeps two concurrent desktop runs from writing
+        # each other's id onto their logs. `execute_run` does the same for the server.
+        bind_research_run_context(key)
         if key in _runs_in_flight:
             logger.warning("sidecar_run_already_in_flight", run_id=key)
             return
@@ -1509,8 +1514,10 @@ def create_sidecar_app(
                     db, run, outcome, saver=sidecar["saver"]
                 )
                 # Persist, commit, then publish — a client acting on COMPLETED must never
-                # re-read a status that has not caught up.
+                # re-read a status that has not caught up. The counter follows the commit
+                # for the same reason, and cannot be undone if it precedes one.
                 await db.commit()
+                run_execution.observe_persisted(run, outcome, result)
             await sink(key, run_execution.lifecycle_event(result))
         finally:
             _runs_in_flight.discard(key)
@@ -2599,7 +2606,7 @@ def create_sidecar_app(
             if revision is not None:
                 await ingest_report(
                     make_corpus_store(app.state.data_dir),
-                    session_id=str(run_id),
+                    report_id=str(run_id),
                     report_markdown=revision.report_markdown,
                 )
 

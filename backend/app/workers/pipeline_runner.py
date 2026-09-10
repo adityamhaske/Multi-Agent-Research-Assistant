@@ -328,7 +328,7 @@ async def _ingest_report_into_corpus(session: Session, provider_keys: dict[str, 
         from app.services.report_corpus import ingest_report
 
         store = await adapters.ServerCorpusLocator().ensure(session.project_id, keys=provider_keys)
-        await ingest_report(store, session_id=str(session.id), report_markdown=session.final_report)
+        await ingest_report(store, report_id=str(session.id), report_markdown=session.final_report)
     except Exception as e:  # noqa: BLE001 — see report_corpus.ingest_report's own docstring
         logger.warning(
             "report_corpus_ingest_setup_failed",

@@ -113,6 +113,11 @@ INTENTIONAL_SERVER_ONLY: dict[str, str] = {
     # stdout handshake (docs/13 §7), not by polling a health endpoint.
     "GET /health": "the Tauri shell uses the stdout handshake, not HTTP health",
     "GET /health/ready": "no compose healthcheck on desktop",
+    # Operator surface, same class as the two above. **Recording is not server-only** —
+    # both hosts increment the same counters through the same shared functions; what the
+    # desktop lacks is the scrape endpoint, because nothing scrapes a laptop and an
+    # unauthenticated counter endpoint on a loopback socket is surface with no consumer.
+    "GET /metrics": "a desktop app is not scraped; it records the same counters and exposes none",
     # Was "desktop uses /desktop/keys" — wrong: `useReadiness()` (hooks/queries.ts) has no
     # `enabled` gate and `SettingsLayout` calls it on every host, only branching on what it
     # *does* with the result. Every desktop settings-page render 404'd until plan phase 8

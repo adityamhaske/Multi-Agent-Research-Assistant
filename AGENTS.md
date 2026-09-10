@@ -359,8 +359,9 @@ best-effort step, not after it — `runs.submit_report_review` is the worked exa
 
 ## Never fake, never swallow
 
-- No `print` in application code — `structlog.get_logger()`, correlation bound to
-  `session_id` (see `backend/AGENTS.md`).
+- No `print` in application code — `structlog.get_logger()`, with `correlation_id` bound at
+  the boundary. **`session_id` means a `sessions.id` and `run_id` means a `research_runs.id`;
+  binding a run under `session_id` is a defect** (see `backend/AGENTS.md`).
 - A caught provider error must surface its message. `graph.py::_structured` once swallowed
   an exception into `None`, producing "planner: could not produce a valid task list" for
   what was actually an exhausted quota.

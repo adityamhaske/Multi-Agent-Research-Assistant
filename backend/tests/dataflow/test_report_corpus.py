@@ -23,7 +23,7 @@ pytestmark = pytest.mark.asyncio
 async def test_ingest_report_writes_a_document_tagged_generated(tmp_path):
     store = CorpusStore(tmp_path / "corpus.sqlite", FakeEmbeddings())
     result = await ingest_report(
-        store, session_id="s1", report_markdown="# Solar Report\n\nSolar power is growing."
+        store, report_id="s1", report_markdown="# Solar Report\n\nSolar power is growing."
     )
     assert result is not None and not result.skipped
 
@@ -44,7 +44,7 @@ async def test_a_generated_report_never_surfaces_as_a_search_result(tmp_path):
     """
     store = CorpusStore(tmp_path / "corpus.sqlite", FakeEmbeddings())
     verbatim = "Solar power capacity has grown for three decades running."
-    await ingest_report(store, session_id="s1", report_markdown=verbatim)
+    await ingest_report(store, report_id="s1", report_markdown=verbatim)
 
     with pytest.raises(RuntimeError, match="only auto-saved reports"):
         await store.search(verbatim, max_results=5)
@@ -57,7 +57,7 @@ async def test_a_generated_report_is_excluded_alongside_a_real_uploaded_match(tm
     real = "Wind turbines convert kinetic energy into electricity."
     await store.ingest("wind.txt", real.encode("utf-8"))
     verbatim = "Solar power capacity has grown for three decades running."
-    await ingest_report(store, session_id="s1", report_markdown=verbatim)
+    await ingest_report(store, report_id="s1", report_markdown=verbatim)
 
     # Query the uploaded document's own text, not the generated report's — FakeEmbeddings
     # is bag-of-words with no shared vocabulary between "wind" and "solar", so a solar
@@ -85,8 +85,8 @@ async def test_ingest_report_is_idempotent_per_session(tmp_path):
     corpus — `CorpusStore` dedupes on (filename, sha256), and the filename is keyed by
     session id specifically so this holds."""
     store = CorpusStore(tmp_path / "corpus.sqlite", FakeEmbeddings())
-    await ingest_report(store, session_id="s1", report_markdown="same content")
-    second = await ingest_report(store, session_id="s1", report_markdown="same content")
+    await ingest_report(store, report_id="s1", report_markdown="same content")
+    second = await ingest_report(store, report_id="s1", report_markdown="same content")
 
     assert second is not None and second.skipped
     docs = await store.documents()
@@ -102,7 +102,7 @@ async def test_ingest_report_never_raises_and_returns_none_on_failure(tmp_path, 
         raise RuntimeError("disk full")
 
     monkeypatch.setattr(store, "ingest", _boom)
-    result = await ingest_report(store, session_id="s1", report_markdown="content")
+    result = await ingest_report(store, report_id="s1", report_markdown="content")
     assert result is None
 
 
@@ -110,6 +110,6 @@ async def test_ingest_report_skips_a_blank_report(tmp_path):
     """No text, nothing to embed or store — must be a clean no-op, not an empty document
     or a chunking failure."""
     store = CorpusStore(tmp_path / "corpus.sqlite", FakeEmbeddings())
-    result = await ingest_report(store, session_id="s1", report_markdown="   ")
+    result = await ingest_report(store, report_id="s1", report_markdown="   ")
     assert result is None
     assert await store.documents() == []
