@@ -462,7 +462,45 @@ async def test_a_duplicate_project_name_is_a_conflict_on_the_desktop_too(sidecar
     assert "Duplicate Name" in again.json()["detail"]
 
 
-async def test_readiness_is_not_a_shipped_control_that_404s(sidecar):
+# ── Readiness ─────────────────────────────────────────────────────────────────────
+#
+# `get_readiness` computes its answer from a live probe of the configured Ollama, and
+# nothing in the suite pins `OLLAMA_BASE_URL`. Left alone, these assertions describe the
+# machine rather than the code: they hold on a box with no Ollama and invert on one that
+# has a chat model pulled. Each test below stubs the transport — never `local_llm.probe`
+# itself, the convention `tests/task/test_local_llm.py` and `test_desktop_sidecar.py`
+# already state — so the probe's own parsing stays under test while its network does not.
+
+
+def _mock_probe_transport(handler):
+    """An `httpx.AsyncClient` that answers from `handler` instead of the network.
+
+    Built from the real class at call time, so it must be constructed *before* the
+    `monkeypatch.setattr` that installs it.
+    """
+
+    class _Client(httpx.AsyncClient):
+        def __init__(self, *a, **kw):
+            kw["transport"] = httpx.MockTransport(handler)
+            super().__init__(*a, **kw)
+
+    return _Client
+
+
+def _ollama_serving(*tags: str):
+    """A handler answering Ollama's `/api/tags` with exactly these model tags."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"models": [{"name": t, "size": 1} for t in tags]})
+
+    return handler
+
+
+def _ollama_down(request: httpx.Request) -> httpx.Response:
+    raise httpx.ConnectError("connection refused", request=request)
+
+
+async def test_readiness_is_not_a_shipped_control_that_404s(sidecar, monkeypatch):
     """`useReadiness()` (frontend/hooks/queries.ts) fetches `/models/readiness`
     unconditionally on every host — `SettingsLayout` only gates how the *result* is used
     behind `!isDesktop`, not the fetch itself. The sidecar had no route for it at all, so
@@ -473,15 +511,48 @@ async def test_readiness_is_not_a_shipped_control_that_404s(sidecar):
     justified difference), when it is actually `KNOWN_DESKTOP_GAPS` territory (a control
     that ships broken) — the two answer different questions.
     """
+    monkeypatch.setattr(httpx, "AsyncClient", _mock_probe_transport(_ollama_down))
+
     resp = await sidecar.get("/api/v1/models/readiness", headers=_auth())
     assert resp.status_code == 200
     body = resp.json()
     assert set(body) == {"ready", "has_cloud_key", "local_reachable", "local_chat_models"}
     # `fake=True` carries no provider key at all (research_engine.runconfig.RunConfig's
-    # default `provider_keys` is `{}` on the fake branch), and nothing in this sandbox
-    # reaches a real Ollama — so an honest desktop with no key configured reads as not
-    # ready, the same as the server would report for a keyless deployment. Readiness
-    # measures real providers, not whether the scripted/fake path would run; conflating
-    # them is the "demo rule" AGENTS.md is explicit about.
+    # default `provider_keys` is `{}` on the fake branch) and no local server answers —
+    # so an honest desktop with no key configured reads as not ready, the same as the
+    # server would report for a keyless deployment. Readiness measures real providers,
+    # not whether the scripted/fake path would run; conflating them is the "demo rule"
+    # AGENTS.md is explicit about.
     assert body["has_cloud_key"] is False
+    assert body["local_reachable"] is False
+    assert body["ready"] is False
+
+
+async def test_readiness_is_true_on_a_reachable_server_with_a_chat_model(sidecar, monkeypatch):
+    """The other half of the verdict, and the one the unpinned probe used to decide by
+    accident: a desktop with no key is still ready when a local chat model can fill an
+    agent role.
+    """
+    monkeypatch.setattr(httpx, "AsyncClient", _mock_probe_transport(_ollama_serving("qwen2.5:14b")))
+
+    body = (await sidecar.get("/api/v1/models/readiness", headers=_auth())).json()
+    assert body["has_cloud_key"] is False
+    assert body["local_reachable"] is True
+    assert body["local_chat_models"] == 1
+    assert body["ready"] is True
+
+
+async def test_an_embedding_only_server_is_reachable_but_not_ready(sidecar, monkeypatch):
+    """Reachability is not readiness. An embedding model cannot fill an agent role, so a
+    server offering nothing else leaves the user unable to run research — which is why
+    the route counts chat models instead of trusting `reachable`. Pinning it here stops a
+    future "simplification" to `ready=local_reachable` from passing.
+    """
+    monkeypatch.setattr(
+        httpx, "AsyncClient", _mock_probe_transport(_ollama_serving("nomic-embed-text:latest"))
+    )
+
+    body = (await sidecar.get("/api/v1/models/readiness", headers=_auth())).json()
+    assert body["local_reachable"] is True
+    assert body["local_chat_models"] == 0
     assert body["ready"] is False
