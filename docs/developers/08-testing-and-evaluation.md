@@ -145,6 +145,50 @@ is opt-in, per invocation.**
 Every run records its own method block and a `metrics_version`, bumped whenever a definition
 changes, so two runs are never silently compared across incompatible metrics.
 
+### Retrieval quality
+
+Report quality is bounded by retrieval quality — [`docs/01`](../getting-started/01-overview.md),
+[`docs/10`](../project/10-roadmap.md), [`docs/21`](../getting-started/21-configuration.md) and
+[`docs/33`](33-contributing.md) all say so — and for a long time nothing measured it. A second
+harness does now, separate from the report harness above because it answers a narrower
+question: given a query, does the retriever return the right documents?
+
+```bash
+python -m evals.retrieval             # measure and print
+python -m evals.retrieval --write     # also record a write-once result file
+```
+
+It measures; it does not rank. Queries go through `CorpusStore.search` — the same call the
+executor makes — so what is recorded is production behaviour rather than a reimplementation
+of it. The dataset is a frozen 16-document corpus with a fingerprint, so a changed corpus
+cannot be mistaken for a changed retriever.
+
+| Metric | Definition |
+|---|---|
+| recall@k | Of the documents that should be found, the fraction retrieved in the top *k* |
+| precision@k | Of the top *k* retrieved, the fraction that should have been found |
+| nDCG@10 | Rank-aware relevance — being right at position 1 counts for more than at 10 |
+| dedup rate | Near-duplicate documents collapsed rather than returned twice |
+
+**A real embedder is required, and its absence is reported rather than filled in.**
+`FakeEmbeddings` hashes text with blake2b — deterministic, and carrying no semantic signal —
+so recall over those vectors would be a number with no meaning attached. With no embedding
+endpoint reachable the harness refuses and records `"status": "unmeasured"` with the reason.
+That is the same rule as [Unmeasured is not zero](#unmeasured-is-not-zero), one level up.
+
+The recorded baseline
+(`backend/evals/results/retrieval-2026-09-09-corpus-local.json`, `ollama:nomic-embed-text`,
+12 queries):
+
+| recall@1 | precision@1 | nDCG@10 | dedup rate |
+|---|---|---|---|
+| 0.792 | 0.917 | 0.944 | 0.000 |
+
+This baseline is the gate a retrieval change has to clear: no change merges without a
+measured, committed result either side of it. Hybrid retrieval was built and measured against
+exactly this and did not beat it, so it was rejected — see
+[the roadmap](../project/10-roadmap.md).
+
 ### Unmeasured is not zero
 
 The rule the whole harness is built around, and the reason it exists at all.
