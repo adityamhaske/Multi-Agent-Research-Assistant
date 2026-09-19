@@ -60,7 +60,12 @@ Ideas that fit the product but are not committed:
 - A runtime check that the synthesizer's citation use is faithful to the snippet, rather than
   measuring it only offline.
 - Retrieval quality work. Report quality tracks retrieval quality more than model quality,
-  and the keyless fallback is the weak link.
+  and the keyless fallback is the weak link. Retrieval is measured now, against a frozen
+  16-document set — recall@1 0.792, precision@1 0.917, nDCG@10 0.944 — so a change can be
+  judged rather than argued. Hybrid retrieval was the first such change: it was built,
+  measured against that baseline and **did not beat it**, so it was rejected and reported
+  rather than tuned until the number improved. Dense-only remains production behaviour, and
+  the next attempt has a bar to clear.
 - Notion and Obsidian integrations.
 
 ## Not planned

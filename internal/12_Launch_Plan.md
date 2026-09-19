@@ -678,12 +678,29 @@ adversarial critique; the set is **deliberately not padded** to match `queries.j
 > delegated to a model: it has the same blind spot the tool does. Biology and chemistry
 > need a reader from those fields.
 
-**Workstream C — `primary_source_rate`.** ☐ Blocked pending the fetched-URL gate.
+**Workstream C — `primary_source_rate`.** ☐ Not blocked on the engine any more. Blocked on a
+definition.
 
-> ⛔ `source_url` is model-authored, so a hallucinated `arxiv.org/abs/<plausible-id>`
-> would classify as **primary with full confidence**. A fakeable metric on a
-> verifiability product is worse than no metric. If the engine cannot record which URLs
-> it actually fetched, this ships as `[unmeasured]` and M19 proceeds without it.
+> The original entry read "blocked pending the fetched-URL gate", on the reasoning that
+> `source_url` is model-authored, so a hallucinated `arxiv.org/abs/<plausible-id>` would
+> classify as **primary with full confidence** — a fakeable metric on a verifiability
+> product being worse than no metric. Its own escape clause was "if the engine cannot
+> record which URLs it actually fetched".
+>
+> **It can, and does.** `graph.py::record_tool_output` accumulates what each tool really
+> returned and grades it; `verify_evidence_snippets` stamps the grade onto a chunk that
+> verifies; `run_lifecycle.record_evidence` persists it as `Evidence.attested_against`,
+> drawn from `ATTESTATION_GRADES = ("FETCHED_BODY", "SEARCH_SNIPPET", "CORPUS_DOCUMENT")`
+> and enforced by two check constraints (`ck_ev_grade`, `ck_ev_grade_vocab`). So for every
+> cited row the database already answers "was this page actually opened, merely seen in a
+> search result, or read from the corpus".
+>
+> ⛔ **What remains is a definition, and it is not an engineering task.** "Primary source"
+> is not the same question as "was fetched": a fetched blog post is `FETCHED_BODY` and is
+> not a primary source. Until someone decides what counts — and that decision is defensible
+> against the same fakeability test the original entry applied — the metric stays unbuilt
+> rather than shipped against a definition nobody chose. Nothing in `evals/` reads
+> `attested_against` today.
 
 **DoD:** no committed artifact reports a number it did not measure · no user-facing
 surface claims a rate its artifact does not support · the scholarly query set is
