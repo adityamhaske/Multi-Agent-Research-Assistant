@@ -33,6 +33,33 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "v2.1.0",
+    date: "2026-09-19",
+    headline:
+      "Two claims the product makes about itself turned out not to hold, and the things that would have caught them did not exist.",
+    improved: [
+      "Airgapped corpus mode now actually holds on the server. A run you requested as corpus-only \u2014 and which was recorded as corpus-only \u2014 could still search the open web and fetch pages from it. The flag reached the database and the corpus store, but never the code that decides whether anything asks the web in the first place, so the guarantee was recorded rather than enforced. The desktop had been fixed months earlier; the server had not. The test that should have caught it was green throughout, because it built the configuration by hand and skipped the exact step that was broken.",
+      "Follow-up chat remembers what you just said. Both chat surfaces loaded the first twenty messages ever written to a conversation instead of the last twenty, so past turn twenty the model was answering a question it had never been shown \u2014 your new message was saved, then left out of the window assembled from it.",
+      "Retrieval quality is measured, and the numbers are published. Four documents called retrieval the ceiling on report quality and nothing measured it. There is now a frozen sixteen-document set and a recorded baseline: recall@1 0.792, precision@1 0.917, nDCG@10 0.944, duplicate rate 0.000.",
+      "A corpus can say which corpus it is, and documents have versions. Re-uploading a document supersedes the old one rather than silently sitting beside it, and a run records the corpus it read, so \u201cwhich documents produced this evidence\u201d is answerable after the fact rather than inferred from a filename.",
+      "Operators get real telemetry. A server-side metrics endpoint exposes seven metric families in Prometheus text on a private registry, and terminal outcomes are recorded where runs actually end rather than where they were expected to. Run identifiers were also being logged under the field reserved for session identifiers, which made a run\u2019s logs unfindable by its own id.",
+      "Database downgrades work. No downgrade had ever been run against this schema, and the first one attempted failed on every database \u2014 one migration dropped a constraint under a name the naming convention had already rewritten. CI now runs a populated migration round-trip in both directions.",
+      "A scripted demo run can no longer pass by doing nothing. Fake mode picked its behaviour by searching the system prompt for hand-typed fragments of its own prose, falling through to an empty result when nothing matched. Rewording any prompt would have routed every scripted test to that branch and left the suite green on a pipeline producing nothing.",
+      "The readiness check\u2019s tests no longer depend on the machine they run on. Whether the settings page reported you as ready to research was asserted from a live probe of the developer\u2019s own computer, so the same commit passed or failed depending on whether Ollama happened to be running.",
+    ],
+    known: [
+      "Citation support is still measured at 90% on a single self-judged local-model run, and that measurement predates 2.0.0. Nothing in this release re-ran it, and it still needs re-running before the number is leaned on.",
+      "Retrieval is dense-only. Hybrid retrieval was built and measured against the baseline above, and it did not beat it \u2014 the residual gap is equal-weight fusion of two retrievers of unequal reliability, not the quality of the candidates. It was rejected and reported rather than tuned until it looked better.",
+      "The share of evidence coming from primary sources is not measured, and is deliberately not estimated. The source URL on a piece of evidence is written by the model, so a plausible-looking but invented link would score as a primary source with full confidence. A fakeable metric on a verifiability product is worse than none.",
+      "The scholarly evaluation set is drafted but unverified. Six of twelve questions survived review, and their rubrics were written without a human opening a cited paper. Until a domain reader checks them, a rubric naming the wrong study would penalize a correct answer, so the set grades nothing.",
+      "Desktop builds are unsigned and do not auto-update. macOS shows a Gatekeeper block and Windows shows SmartScreen on first launch, and a new version means downloading the installer again.",
+      "Two research pipelines still exist in the backend. The product has one, and research recorded by the earlier one stays readable; consolidating them is not a patch.",
+      "Follow-up chat scoped to a single report is available on research recorded as a session and not on a run. Project chat, which cites every approved report in a project, covers both.",
+      "Cancelling a run still does not interrupt research already in flight \u2014 it runs to its next checkpoint, and the tokens spent there are recorded because they were really spent.",
+      "Claim verification is still not implemented, claim lineage across revisions is still not tracked, and contradiction detection is still source-level and unscored.",
+    ],
+  },
+  {
     version: "v2.0.2",
     date: "2026-08-31",
     headline:
