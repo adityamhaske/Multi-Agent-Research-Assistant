@@ -117,6 +117,14 @@ The download page derives its asset URLs from `latestRelease()` in
 `frontend/lib/releases.ts` — so a release whose entry is missing from that file offers the
 *previous* installer. Adding the entry is part of cutting a release, not a follow-up.
 
+`latestRelease()` is the **default**, not the only path: the page also carries a version
+selector over every entry in `RELEASES`, so a reader can ask for an older build. The asset
+name template is the same either way, which is what makes the selector cheap — and also what
+bounds it. A past version resolves only while its release still carries assets under those
+exact names, so a renamed or deleted asset turns an old selection into a 404 with nothing on
+the page to say so. That widens the trap above rather than removing it: `releases.ts` is
+still the one file that decides what the page offers.
+
 **A desktop bundle that has not been launched is not verified.** The shipped `.app` must be
 ~180 MB, not ~5 MB: a 5 MB bundle means the sidecar was not copied in, which passes CI and
 dies on first launch. `desktop.yml` asserts the size, and the `shell` job must `needs:
