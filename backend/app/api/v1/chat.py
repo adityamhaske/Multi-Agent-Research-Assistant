@@ -17,6 +17,9 @@ from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
+
+logger = structlog.get_logger()
 
 from app.db.base import get_db
 from app.dependencies import enforce_chat_rate_limit, get_current_user
@@ -159,7 +162,8 @@ async def send_message(
             await db.refresh(msg)
             yield f"data: {json.dumps({'type': 'done', 'message_id': str(msg.id)})}\n\n"
         except Exception as e:  # noqa: BLE001
-            yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
+            logger.warning("chat_failed", session_id=str(session_id), error=str(e), exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'detail': 'An internal error occurred. Please try again.'})}\n\n"
         finally:
             reset_user_keys(keys_token)
 

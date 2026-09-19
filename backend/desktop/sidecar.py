@@ -1847,7 +1847,7 @@ def create_sidecar_app(
                 yield f"data: {json.dumps({'type': 'done', 'message_id': message_id})}\n\n"
             except Exception as e:  # noqa: BLE001 — surfaced to the client, never swallowed
                 logger.warning("sidecar_chat_failed", session_id=str(session_id), error=str(e))
-                yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'detail': 'An internal error occurred. Please try again.'})}\n\n"
             finally:
                 reset_run_config(cfg_token)
 

@@ -371,7 +371,7 @@ async def send_thread_message(
             )
         except Exception as e:  # noqa: BLE001
             logger.warning("thread_chat_failed", thread_id=str(thread_id), error=str(e))
-            yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'detail': 'An internal error occurred. Please try again.'})}\n\n"
         finally:
             reset_user_keys(keys_token)
 
