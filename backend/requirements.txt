@@ -9,7 +9,7 @@ pydantic-settings>=2.15.0
 # Database
 sqlalchemy[asyncio]>=2.0.52,<2.1
 asyncpg>=0.31.0
-alembic>=1.19.1
+alembic>=1.20.0
 # pgvector's SQLAlchemy type + asyncpg codec for `memory_chunks.embedding` (docs/14 §3).
 # The server-side extension is a separate prerequisite: migration 0006 enables it, and the
 # compose files pin pgvector/pgvector:pgNN because stock postgres images do not ship it.
@@ -29,7 +29,7 @@ langgraph-checkpoint-sqlite>=3.1.1
 # AsyncPostgresSaver runs on psycopg (not asyncpg). [binary] bundles libpq so the
 # checkpointer works in the slim container without a system libpq — without this every
 # worker run fails with "no pq wrapper available" (found via docker-compose smoke test).
-psycopg[binary]>=3.3.4
+psycopg[binary]>=3.3.5
 langchain-core>=1.6.2
 langchain-google-genai>=4.3.7
 # BYOK providers — enabled for Anthropic routing (MODEL_*=anthropic:...).
@@ -37,14 +37,14 @@ langchain-anthropic>=1.7.0
 # Required, not optional: OpenAI, OpenRouter, and Ollama all speak the OpenAI wire
 # protocol, so this one client covers three providers — including Ollama, which is the
 # offline/local-model story (docs/12 M8, docs/13 §6/§8).
-langchain-openai>=1.6.0
+langchain-openai>=1.6.2
 
 # Web research (retriever chain: Tavily → Brave (httpx) → DuckDuckGo fallback)
-tavily-python>=0.8.1
+tavily-python>=0.8.2
 ddgs
 httpx>=0.27
 beautifulsoup4>=4.15.0
-lxml>=6.1.2
+lxml>=6.1.3
 
 # Airgapped corpus mode (docs/12 M10): PDF text extraction (pure Python, PyInstaller-
 # friendly — no GTK/native chain) and brute-force cosine over the SQLite vector store.
