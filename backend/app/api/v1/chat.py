@@ -12,14 +12,12 @@ import json
 import uuid
 from collections.abc import AsyncGenerator
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
-
-logger = structlog.get_logger()
 
 from app.db.base import get_db
 from app.dependencies import enforce_chat_rate_limit, get_current_user
@@ -33,6 +31,8 @@ from app.services.sse import SSE_HEADERS
 from research_engine import prompts
 from research_engine.embeddings import EmbeddingsUnavailable
 from research_engine.llm_factory import get_llm, reset_user_keys, set_user_keys, text_of
+
+logger = structlog.get_logger()
 
 router = APIRouter(prefix="/research/{session_id}/chat", tags=["Chat"])
 
