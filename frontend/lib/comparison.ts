@@ -235,7 +235,7 @@ export const MECHANISMS: Mechanism[] = [
       "A cloud product structurally cannot offer this. With embargoed data, patient records " +
       "or an unpublished draft, “upload it to Google” is not a decision you are allowed to " +
       "make.",
-    source: "backend/tests/test_corpus_egress.py",
+    source: "backend/tests/dataflow/test_corpus_egress.py",
   },
 ];
 
