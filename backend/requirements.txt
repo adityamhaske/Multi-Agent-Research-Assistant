@@ -68,7 +68,7 @@ structlog>=26.1.0
 # no runtime dependencies of its own — its twisted/aiohttp/django extras are optional and
 # unused. Recorded on BOTH hosts through `app/metrics.py`, so it is in the desktop import
 # tree too; only the scrape endpoint is server-only.
-prometheus-client>=0.20
+prometheus-client>=0.26.0
 
 # Export: Markdown → HTML (python-markdown) → PDF (WeasyPrint)
 markdown>=3.10.3
