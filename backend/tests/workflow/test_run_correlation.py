@@ -472,6 +472,7 @@ def test_the_session_tasks_still_bind_a_session(monkeypatch):
 #: is a claim that the value there can only ever be a `sessions.id` — if it can also be a
 #: `research_runs.id`, the field is wrong and the fix is a neutral name, not a new row.
 SESSION_ONLY_LOG_SITES: dict[tuple[str, str], str] = {
+    ("app/api/v1/chat.py", "gen"): "report chat, which exists only on sessions",
     ("app/api/v1/projects.py", "delete_project"): "iterates `session_ids`; runs are `v2_run_ids`",
     ("app/api/v1/research.py", "start_research"): "the session router",
     ("app/api/v1/research.py", "submit_plan"): "the session router",
