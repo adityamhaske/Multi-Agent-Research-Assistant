@@ -51,6 +51,36 @@ PROBES = [
     (f"/api/v1/runs/{MISSING_RUN}/export.md", 404),
 ]
 
+#: What structlog's configured chain stamps on every record — `add_log_level` gives
+#: `level`, `TimeStamper` gives `timestamp`, and the event name is `event`
+#: (`app/logconfig.py`). No payload printed by the children below carries all three, which
+#: is what makes the set usable as a discriminator.
+_LOG_RECORD_KEYS = frozenset({"event", "level", "timestamp"})
+
+
+def _child_payload(stdout: str) -> dict:
+    """The child's payload line, identified by shape rather than by position.
+
+    The children import `desktop.sidecar`, which arms structlog's JSON renderer on stdout
+    at import time, so the sidecar's own logs and the payload share one stream. The payload
+    is printed *inside* the lifespan, and the demo run the lifespan seeds is a task it never
+    awaits — teardown can orphan it, and its failure then logs `sidecar_run_crashed` after
+    the payload. Reading the last line therefore reads a log record instead, surfacing as a
+    `KeyError` on a payload field rather than as anything that names the real cause.
+
+    Searching newest-first keeps the payload the *last* one printed if a child ever prints
+    more than one, which is the property `[-1]` was reaching for.
+    """
+    for line in reversed(stdout.strip().splitlines()):
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict) and not _LOG_RECORD_KEYS <= obj.keys():
+            return obj
+    raise AssertionError(f"no payload line in child stdout:\n{stdout}")
+
+
 # A template rather than an f-string or `.format` target: the body is mostly dict and set
 # literals, and brace-escaping them is a source of bugs in the test itself.
 _CHILD = """
@@ -114,7 +144,7 @@ def probe_results(tmp_path_factory) -> dict:
         timeout=180,
     )
     assert proc.returncode == 0, f"child failed:\nstdout={proc.stdout}\nstderr={proc.stderr}"
-    payload = json.loads(proc.stdout.strip().splitlines()[-1])
+    payload = _child_payload(proc.stdout)
     assert "error" not in payload, payload["error"]
     return payload["results"]
 
@@ -359,7 +389,7 @@ def test_the_export_path_works_with_the_bundle_s_excluded_packages_unavailable()
     assert proc.returncode == 0, (
         f"child failed:\nstdout={proc.stdout}\nstderr={proc.stderr[-3000:]}"
     )
-    out = json.loads(proc.stdout.strip().splitlines()[-1])
+    out = _child_payload(proc.stdout)
 
     assert out["create"] == 201, out
     md_status, md_body = out["export.md"]
