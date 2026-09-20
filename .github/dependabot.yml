@@ -8,8 +8,8 @@
 # The filtering below is deliberately different per ecosystem, because the same bump has
 # very different consequences in each:
 #
-#   pip   `backend/requirements.txt` holds 35 `>=` floors and **zero** exact pins, with no
-#         lockfile and no constraints file. `pip install -r requirements.txt` therefore
+#   pip   every requirement in `backend/requirements.txt` is a `>=` floor — **zero** exact
+#         pins, no lockfile, no constraints file. `pip install -r requirements.txt` therefore
 #         already resolves to the newest compatible release at build time, so a PR raising
 #         `langchain-core>=1.6.1` to `>=1.6.2` changes nothing about what actually gets
 #         installed — it re-documents a minimum. Only a **major** floor is a real decision.
@@ -21,6 +21,13 @@
 # channel driven by advisories, enabled on this repository, and are NOT suppressed by the
 # `ignore` rules below — which is the whole reason filtering routine noise is safe rather
 # than reckless. CI's `pip-audit` and `npm audit` stay advisory; neither fixes anything.
+#
+# That safety is **conditional, and the condition is invisible at the rule**: `update-types`
+# is scoped to version updates, so an `ignore` entry qualified by it leaves the security
+# channel alone — but an entry naming a dependency with *no* `update-types` (or a
+# `versions:` range) silences that dependency on **both** channels. Every entry below is
+# qualified, deliberately. Adding a bare `dependency-name` is how this file would start
+# hiding advisories while still reading as if it only trimmed noise.
 
 version: 2
 updates:
