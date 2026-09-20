@@ -11,13 +11,13 @@
 #   docker build -f frontend/Dockerfile .
 # Compose and the release workflow both set `context: .` for this reason.
 
-FROM node:22-bookworm-slim AS deps
+FROM node:25-bookworm-slim AS deps
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
 # ── Build ─────────────────────────────────────────────────────────────────────────
-FROM node:22-bookworm-slim AS builder
+FROM node:25-bookworm-slim AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 # The /api rewrite destination is baked into the build, so the backend origin must be
@@ -33,7 +33,7 @@ COPY docs/ ./project-docs/
 RUN npm run build
 
 # ── Runtime ───────────────────────────────────────────────────────────────────────
-FROM node:22-bookworm-slim AS runtime
+FROM node:25-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
