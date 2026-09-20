@@ -404,7 +404,7 @@ jobs:
     name: Eval results are write-once
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # need the merge base to diff against
       - name: Fail if a committed eval result was modified
