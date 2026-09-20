@@ -14,16 +14,25 @@ the assertions about citations resolve against actual document bytes.
 from __future__ import annotations
 
 import socket
+import uuid
+from datetime import UTC, datetime
 
 import pytest
 from langgraph.checkpoint.memory import MemorySaver
+from sqlalchemy import insert
 
+from app import run_execution, run_lifecycle
+from app.models.project import Project
+from app.models.session import Session as SessionRow
+from app.models.user import User
+from research_engine import retrievers
 from research_engine.corpus import CorpusStore, parse_corpus_url, reset_corpus, set_corpus
 from research_engine.embeddings import EmbeddingsUnavailable, LocalEmbeddings
 from research_engine.runconfig import RunConfig, reset_run_config, set_run_config
 from research_engine.runner import run
 from research_engine.tools import read_webpage, web_search
 from tests.dataflow.test_corpus_store import SOLAR_TEXT, VENTS_TEXT, FakeEmbeddings
+from tests.sqlite_support import open_db
 
 _LOOPBACK = {"127.0.0.1", "::1", "localhost"}
 
@@ -191,3 +200,158 @@ async def test_search_fails_closed_when_no_corpus_installed(no_egress):
         reset_run_config(token)
 
     assert no_egress == []
+
+
+# ── The host wiring ───────────────────────────────────────────────────────────────
+#
+# Every test above builds `RunConfig(corpus_mode=True)` by hand — the one thing a real
+# request never does. A request sets `corpus_mode` on the *row*; something then has to
+# carry it from the row into the engine config, because `retrievers.search` and
+# `read_webpage` both branch on `get_run_config().corpus_mode` and neither can see a
+# database. That hop is what these tests drive.
+#
+# Its absence is why this file stayed green while the server shipped the defect: installing
+# the corpus *port* (which `execute_run` and `pipeline_runner._execute` both did) only
+# decides what `get_corpus()` answers — it does not make anything ask. AGENTS.md names the
+# class: "a test that stubs the thing it is testing proves nothing", and a hand-built
+# `RunConfig` stubs exactly the hop that was broken.
+
+
+class _SessionDb:
+    """Enough AsyncSession for `_run_config_for`, which commits the routing snapshot.
+
+    Mirrors `test_scripted_runs_are_recorded_as_demo._Db`. The session builder takes no
+    ORM row from the database — it is handed one — so the only database work under test is
+    the routing snapshot commit.
+    """
+
+    async def commit(self) -> None:
+        return None
+
+    async def execute(self, *_a, **_k):
+        class _R:
+            def scalar_one_or_none(self):
+                return None
+
+        return _R()
+
+
+@pytest.fixture
+async def server_run(tmp_path):
+    """A real `research_runs` row, created the way `POST /runs` creates one."""
+    async with open_db(tmp_path / "airgap.sqlite") as maker, maker() as db:
+        now = datetime(2026, 9, 9, tzinfo=UTC)
+        uid, pid = uuid.uuid4(), uuid.uuid4()
+        await db.execute(
+            insert(User).values(
+                id=uid, email=f"{uid}@x.invalid", hashed_pw="x", is_active=True, created_at=now
+            )
+        )
+        await db.execute(
+            insert(Project).values(id=pid, user_id=uid, name="P", created_at=now, updated_at=now)
+        )
+        await db.commit()
+        row = await run_lifecycle.create_run(
+            db, owner_id=uid, project_id=pid, question="q", depth="fast", corpus_mode=True
+        )
+        await db.commit()
+        yield db, row
+
+
+async def test_a_run_row_asking_for_corpus_mode_produces_a_corpus_mode_config(server_run):
+    """The runs pipeline, on both hosts. The defect as it shipped on the server."""
+    db, row = server_run
+    assert row.corpus_mode is True, "fixture precondition"
+
+    cfg = await run_execution.run_config_for_run(db, row)
+
+    assert cfg.corpus_mode is True, (
+        "the run is recorded as airgapped and the engine config says otherwise — "
+        "`retrievers.search` would run the web chain and `read_webpage` would fetch it"
+    )
+
+
+async def test_a_session_row_asking_for_corpus_mode_produces_a_corpus_mode_config():
+    """The sessions pipeline, server-side. Same defect, second home."""
+    import app.workers.pipeline_runner as runner_mod
+
+    row = SessionRow(prompt="q", research_depth="fast")
+    row.corpus_mode = True
+    row.demo = False
+
+    cfg = await runner_mod._run_config_for(_SessionDb(), row, str(uuid.uuid4()))
+
+    assert cfg.corpus_mode is True, "a session recorded as airgapped would research the open web"
+
+
+async def test_a_run_that_did_not_ask_for_corpus_mode_is_not_silently_restricted(tmp_path):
+    """The control, and it is not decoration.
+
+    Unconditionally setting `corpus_mode=True` would pass the two tests above and break
+    every ordinary run into an airgapped one. The desktop's own corpus-mode fix shipped
+    with this same control for the same reason.
+    """
+    async with open_db(tmp_path / "open.sqlite") as maker, maker() as db:
+        now = datetime(2026, 9, 9, tzinfo=UTC)
+        uid, pid = uuid.uuid4(), uuid.uuid4()
+        await db.execute(
+            insert(User).values(
+                id=uid, email=f"{uid}@x.invalid", hashed_pw="x", is_active=True, created_at=now
+            )
+        )
+        await db.execute(
+            insert(Project).values(id=pid, user_id=uid, name="P", created_at=now, updated_at=now)
+        )
+        await db.commit()
+        row = await run_lifecycle.create_run(
+            db, owner_id=uid, project_id=pid, question="q", depth="fast"
+        )
+        await db.commit()
+
+        cfg = await run_execution.run_config_for_run(db, row)
+
+    assert cfg.corpus_mode is False, "an ordinary run must still reach the web"
+
+
+async def test_a_session_that_did_not_ask_for_corpus_mode_is_not_silently_restricted():
+    import app.workers.pipeline_runner as runner_mod
+
+    row = SessionRow(prompt="q", research_depth="fast")
+    row.corpus_mode = False
+    row.demo = False
+
+    cfg = await runner_mod._run_config_for(_SessionDb(), row, str(uuid.uuid4()))
+
+    assert cfg.corpus_mode is False
+
+
+async def test_the_config_the_server_builds_makes_retrieval_corpus_only(
+    server_run, corpus_store, no_egress
+):
+    """The whole hop, end to end: row → host config builder → engine → zero egress.
+
+    The two assertions above prove the field arrives. This proves the field *does* what the
+    airgap promise says, using the config the server actually builds rather than one this
+    test wrote — which is the difference between the version of this file that caught the
+    defect and the version that did not.
+    """
+    db, row = server_run
+    cfg = await run_execution.run_config_for_run(db, row)
+
+    token_cfg = set_run_config(cfg)
+    token_corpus = set_corpus(corpus_store)
+    try:
+        hits = await retrievers.search("photovoltaic sunlight", max_results=2)
+        assert hits, "the corpus must answer an airgapped search"
+        for hit in hits:
+            assert hit["url"].startswith("corpus://"), (
+                f"an airgapped run retrieved a non-corpus source: {hit['url']}"
+            )
+
+        blocked = await read_webpage.ainvoke({"url": "https://example.com/looks-plausible"})
+        assert blocked["error"] and "corpus-only" in blocked["error"]
+    finally:
+        reset_corpus(token_corpus)
+        reset_run_config(token_cfg)
+
+    assert no_egress == [], f"an airgapped run opened sockets to: {no_egress}"

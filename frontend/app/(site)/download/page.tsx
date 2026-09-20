@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 
-import { latestRelease } from "@/lib/releases";
+import { RELEASES, latestRelease } from "@/lib/releases";
 
 /**
  * Download and install (docs/17 §7).
@@ -20,12 +20,19 @@ import { latestRelease } from "@/lib/releases";
 
 const REPO = "https://github.com/adityamhaske/Multi-Agent-Research-Assistant";
 
-// Derived from `lib/releases.ts` so the version lives in exactly one place: the
-// releases page and this button cannot disagree about what "latest" means.
-const LATEST_VERSION = (latestRelease()?.version ?? "v1.0.2").replace(/^v/, "");
+// Desktop bundles started shipping in v1.0.1. Derived from `lib/releases.ts` so the
+// version lives in exactly one place: the releases page and this button cannot disagree
+// about what "latest" means.
+const DESKTOP_VERSIONS = RELEASES.filter(
+  (r) => !r.unreleased && r.version !== "v1.0.0",
+).map((r) => r.version.replace(/^v/, ""));
+
+const LATEST_VERSION =
+  DESKTOP_VERSIONS[0] ??
+  (latestRelease()?.version ?? "v2.0.2").replace(/^v/, "");
 
 /**
- * Direct installer URLs for the newest tagged release.
+ * Direct installer URLs for a tagged release.
  *
  * Verified against the assets actually attached to the release rather than guessed from a
  * naming convention — a download button that 404s is worse than one that sends you to a
@@ -37,25 +44,34 @@ const LATEST_VERSION = (latestRelease()?.version ?? "v1.0.2").replace(/^v/, "");
  * refactor that swept up this *external* GitHub asset link along with the internal ones —
  * caught by checking the actual button destination, not by reading the diff that broke it.
  */
-const ASSET: Record<Exclude<OS, "unknown">, string> = {
-  macos: `Research.Assistant_${LATEST_VERSION}_aarch64.dmg`,
-  windows: `Research.Assistant_${LATEST_VERSION}_x64_en-US.msi`,
-  linux: `Research.Assistant_${LATEST_VERSION}_amd64.AppImage`,
-};
-
-function assetUrl(os: OS): string | null {
-  if (os === "unknown") return null;
-  return `${REPO}/releases/download/v${LATEST_VERSION}/${ASSET[os]}`;
+function assetUrl(os: OS, version: string): string | null {
+  if (os === "unknown" || os === "docker") return null;
+  const assetName: Record<Exclude<OS, "unknown" | "docker">, string> = {
+    macos: `Research.Assistant_${version}_aarch64.dmg`,
+    windows: `Research.Assistant_${version}_x64_en-US.msi`,
+    linux: `Research.Assistant_${version}_amd64.AppImage`,
+  };
+  return `${REPO}/releases/download/v${version}/${assetName[os]}`;
 }
 
-type OS = "macos" | "windows" | "linux" | "unknown";
+function linuxDebUrl(version: string): string {
+  return `${REPO}/releases/download/v${version}/Research.Assistant_${version}_amd64.deb`;
+}
+
+function sourceZipUrl(version: string): string {
+  return `${REPO}/archive/refs/tags/v${version}.zip`;
+}
+
+type OS = "macos" | "windows" | "linux" | "docker" | "unknown";
+type PlatformKey = "macos" | "windows" | "linux" | "docker";
 
 interface Platform {
-  key: OS;
+  key: PlatformKey;
   label: string;
   artifact: string;
   steps: string[];
   severity: "high" | "low" | "none";
+  badgeLabel?: string;
   note?: string;
 }
 
@@ -95,6 +111,19 @@ const PLATFORMS: Platform[] = [
       "Debian/Ubuntu: install the .deb with your package manager. No warning to clear.",
     ],
   },
+  {
+    key: "docker",
+    label: "Docker / Localhost",
+    artifact: "port 3031",
+    severity: "none",
+    badgeLabel: "Containerized",
+    steps: [
+      "Clone the repository with git clone https://github.com/adityamhaske/Multi-Agent-Research-Assistant.git or download the source .zip.",
+      "Run ./start.sh (or docker compose -f docker-compose.full.yml up --build).",
+      "Open http://localhost:3031 — the entire stack runs isolated in containers with zero local dependencies.",
+    ],
+    note: "Runs the complete stack (FastAPI backend, Celery worker, Next.js frontend, Postgres with pgvector, and Redis) isolated in Docker. Host port 3031.",
+  },
 ];
 
 function detectOS(): OS {
@@ -107,14 +136,21 @@ function detectOS(): OS {
   return "unknown";
 }
 
-function SeverityChip({ severity }: { severity: Platform["severity"] }) {
+function SeverityChip({
+  severity,
+  labelOverride,
+}: {
+  severity: Platform["severity"];
+  labelOverride?: string;
+}) {
   const map = {
     high: { label: "Extra steps needed", token: "warning" },
     low: { label: "Two extra clicks", token: "text-muted" },
     none: { label: "No warning", token: "success" },
   } as const;
   const { label, token } = map[severity];
-  const c = `var(--${token})`;
+  const activeToken = labelOverride ? "text-muted" : token;
+  const c = `var(--${activeToken})`;
   return (
     <span
       className="badge font-mono text-[0.625rem] font-semibold uppercase tracking-wider"
@@ -124,7 +160,7 @@ function SeverityChip({ severity }: { severity: Platform["severity"] }) {
         borderColor: `color-mix(in srgb, ${c} 30%, var(--border))`,
       }}
     >
-      {label}
+      {labelOverride ?? label}
     </span>
   );
 }
@@ -132,13 +168,15 @@ function SeverityChip({ severity }: { severity: Platform["severity"] }) {
 function PlatformCard({
   platform,
   primary,
+  version,
 }: {
   platform: Platform;
   primary: boolean;
+  version: string;
 }) {
   return (
     <section
-      className="border p-5"
+      className="flex flex-col justify-between border p-5"
       style={{
         borderColor: primary
           ? "color-mix(in srgb, var(--accent) 35%, var(--border))"
@@ -149,30 +187,92 @@ function PlatformCard({
       }}
       aria-labelledby={`plat-${platform.key}`}
     >
-      <div className="flex flex-wrap items-center gap-2.5">
-        <h2
-          id={`plat-${platform.key}`}
-          className="font-serif text-lg font-bold text-text-primary"
-        >
-          {platform.label}
-        </h2>
-        <code className="font-mono text-xs text-text-muted">
-          {platform.artifact}
-        </code>
-        <SeverityChip severity={platform.severity} />
+      <div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h2
+            id={`plat-${platform.key}`}
+            className="font-serif text-lg font-bold text-text-primary"
+          >
+            {platform.label}
+          </h2>
+          <code className="font-mono text-xs text-text-muted">
+            {platform.artifact}
+          </code>
+          <SeverityChip
+            severity={platform.severity}
+            labelOverride={platform.badgeLabel}
+          />
+        </div>
+
+        <ol className="mt-3 flex list-decimal flex-col gap-1.5 pl-5 text-sm leading-relaxed text-text-secondary">
+          {platform.steps.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ol>
+
+        {platform.note && (
+          <p className="mt-3 border-l-2 border-border pl-3 text-xs leading-relaxed text-text-muted">
+            {platform.note}
+          </p>
+        )}
       </div>
 
-      <ol className="mt-3 flex list-decimal flex-col gap-1.5 pl-5 text-sm leading-relaxed text-text-secondary">
-        {platform.steps.map((step) => (
-          <li key={step}>{step}</li>
-        ))}
-      </ol>
-
-      {platform.note && (
-        <p className="mt-3 border-l-2 border-border pl-3 text-xs leading-relaxed text-text-muted">
-          {platform.note}
-        </p>
-      )}
+      {/* Subtle action buttons at the bottom of the card — no loud or extra colors */}
+      <div className="mt-5 flex flex-wrap items-center gap-2.5 border-t border-border pt-4">
+        {platform.key === "macos" && (
+          <a
+            href={assetUrl("macos", version)!}
+            className="btn btn-secondary font-mono text-xs"
+            download
+          >
+            Download .dmg · v{version}
+          </a>
+        )}
+        {platform.key === "windows" && (
+          <a
+            href={assetUrl("windows", version)!}
+            className="btn btn-secondary font-mono text-xs"
+            download
+          >
+            Download .msi · v{version}
+          </a>
+        )}
+        {platform.key === "linux" && (
+          <>
+            <a
+              href={assetUrl("linux", version)!}
+              className="btn btn-secondary font-mono text-xs"
+              download
+            >
+              Download .AppImage · v{version}
+            </a>
+            <a
+              href={linuxDebUrl(version)}
+              className="btn btn-secondary font-mono text-xs"
+              download
+            >
+              Download .deb · v{version}
+            </a>
+          </>
+        )}
+        {platform.key === "docker" && (
+          <>
+            <a
+              href={sourceZipUrl(version)}
+              className="btn btn-secondary font-mono text-xs"
+              download
+            >
+              Download Source (.zip)
+            </a>
+            <Link
+              href="/docs/deployment/docker"
+              className="btn btn-secondary font-mono text-xs"
+            >
+              Docker Deployment Guide →
+            </Link>
+          </>
+        )}
+      </div>
     </section>
   );
 }
@@ -197,6 +297,8 @@ export default function DownloadPage() {
     OS_STORE.getServerSnapshot,
   );
 
+  const [version, setVersion] = useState<string>(LATEST_VERSION);
+
   const mine = PLATFORMS.find((p) => p.key === os);
   const others = PLATFORMS.filter((p) => p.key !== os);
 
@@ -212,6 +314,31 @@ export default function DownloadPage() {
         login, no Docker. It opens on a demo you can read straight away;
         connecting a model comes after.
       </p>
+
+      {/* Version selector */}
+      <div className="mt-5 flex flex-wrap items-center gap-3 border border-border bg-bg-surface p-3">
+        <label
+          htmlFor="version-select"
+          className="font-mono text-xs font-semibold uppercase tracking-wider text-text-secondary"
+        >
+          Version:
+        </label>
+        <select
+          id="version-select"
+          value={version}
+          onChange={(e) => setVersion(e.target.value)}
+          className="border border-border bg-bg-elevated px-2.5 py-1 font-mono text-xs text-text-primary focus:border-text-primary focus:outline-none"
+        >
+          {DESKTOP_VERSIONS.map((v) => (
+            <option key={v} value={v}>
+              v{v} {v === LATEST_VERSION ? "(latest)" : ""}
+            </option>
+          ))}
+        </select>
+        <span className="font-mono text-xs text-text-muted">
+          Select release version to download across any platform below
+        </span>
+      </div>
 
       {/* Said before the download, not left for the OS to say after. */}
       <div
@@ -239,12 +366,12 @@ export default function DownloadPage() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        {assetUrl(os) ? (
+        {assetUrl(os, version) ? (
           // Straight at the installer for the OS you are on — an <a>, not <Link>, because
           // this is an external github.com URL, not a route this app owns.
-          <a href={assetUrl(os)!} className="btn btn-primary">
+          <a href={assetUrl(os, version)!} className="btn btn-primary" download>
             Download for {PLATFORMS.find((p) => p.key === os)?.label} · v
-            {LATEST_VERSION}
+            {version}
           </a>
         ) : (
           <Link
@@ -272,9 +399,9 @@ export default function DownloadPage() {
         {mine ? "Your platform" : "Choose your platform"}
       </h2>
       <div className="mt-3 flex flex-col gap-4">
-        {mine && <PlatformCard platform={mine} primary />}
+        {mine && <PlatformCard platform={mine} primary version={version} />}
         {others.map((p) => (
-          <PlatformCard key={p.key} platform={p} primary={false} />
+          <PlatformCard key={p.key} platform={p} primary={false} version={version} />
         ))}
       </div>
 

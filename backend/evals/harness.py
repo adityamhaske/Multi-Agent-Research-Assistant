@@ -437,7 +437,7 @@ async def main() -> None:
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "llm_mode": RUN_CONFIG.llm_mode,
         "mode": args.mode,
-        # In fake mode `llm_factory` returns `fake_model()` and no provider is contacted,
+        # In fake mode `llm_factory` returns `fake_model(role)` and no provider is contacted,
         # so writing five real-looking ids here would record models we never called —
         # the exact rule in AGENTS.md ("never record a model id you did not actually
         # call"). eval-2026-07-23.json is the artifact that did it.

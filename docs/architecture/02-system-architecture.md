@@ -235,10 +235,12 @@ kind of architecture this project rejects on principle.
 
 ## Observability
 
-Structured JSON logs to stdout, every line carrying `session_id`. The `agent_logs` table
-**is** the run trace and is replayable after the fact. `/health` (liveness) and
-`/health/ready` (database and Redis reachable) drive the compose healthchecks that gate the
-worker and frontend on migrations having run.
+Structured JSON logs to stdout, every line in a unit of work carrying a `correlation_id`
+— plus `run_id` for a research run or `session_id` for a session, never the other way
+round. The `agent_logs` table **is** the run trace and is replayable after the fact.
+`/health` (liveness) and `/health/ready` (database and Redis reachable) drive the compose
+healthchecks that gate the worker and frontend on migrations having run.
 
-LangSmith tracing is available and off by default. Prometheus metrics are
-[planned](../project/10-roadmap.md), marked as such rather than half-implemented.
+LangSmith tracing is available and off by default. `GET /metrics` serves Prometheus text on
+the server; the desktop records the same counters and exposes no endpoint, because nothing
+scrapes a laptop. See [operations](../deployment/31-operations.md#observability).

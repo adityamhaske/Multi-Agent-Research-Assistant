@@ -41,7 +41,8 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import run_lifecycle
+from app import metrics, run_lifecycle
+from app.logconfig import bind_research_run_context
 from app.models.research import ResearchRun
 from app.models.user import User
 from app.runtime import run_config_from_settings
@@ -120,6 +121,12 @@ async def run_config_for_run(db: AsyncSession, run: ResearchRun) -> RunConfig:
         "skip_plan_gate": bool(run.skip_plan_gate),
         "topic_seeds": tuple(run.topic_seeds or ()),
         "outline_template": run.outline_template,
+        # Installing the corpus port (`execute_run`, below) only decides what `get_corpus()`
+        # answers. This is what makes the engine *ask* it: `retrievers.search` and
+        # `tools.read_webpage` both branch on this field and neither can see a database, so
+        # a run recorded as airgapped researched the open web until this line existed.
+        # Desktop counterpart: `sidecar._drive_run`, which has always carried it.
+        "corpus_mode": bool(run.corpus_mode),
     }
     # The demo rule, shared with the session worker and both desktop drivers — see
     # `app/services/run_config.py` for why it is one branch and why it has to be one home.
@@ -299,6 +306,28 @@ async def persist_outcome(
     )
 
 
+def observe_persisted(run: ResearchRun, outcome: RunOutcome, result: PersistResult) -> None:
+    """Record a run that ended in the states `persist_outcome` owns.
+
+    **Called after the caller commits, never inside `persist_outcome`.** A Prometheus
+    counter has no transaction: incrementing it before the commit means a rolled-back
+    write leaves a run counted that the database never recorded, and a counter cannot be
+    decremented back. `persist_outcome`'s own docstring says the caller owns the
+    transaction, so the caller owns this too — both drivers call it on the line after their
+    `db.commit()`, while the row is still attached.
+
+    Completion is deliberately not reachable from here: a run reaches COMPLETED at the
+    approval route, and `app/metrics.py::_PERSISTED_TERMINAL` is where that is enforced.
+    """
+    metrics.observe_persisted_run(
+        result.status,
+        cost_usd=outcome.cost_usd,
+        tokens_input=outcome.tokens_input,
+        tokens_output=outcome.tokens_output,
+        model_routing=run.model_routing,
+    )
+
+
 def lifecycle_event(result: PersistResult) -> dict:
     """The event a host publishes after `persist_outcome`, in the existing vocabulary.
 
@@ -355,6 +384,10 @@ async def execute_run(
     plan: dict | None = None,
 ) -> None:
     """Drive one run through the engine and persist it into the research domain."""
+    # First, before the Redis pool, the lock and the row lookup, so everything this driver
+    # logs on the way — including the failures that return early — names the run.
+    bind_research_run_context(run_id)
+
     from app import adapters
     from app.config import settings
     from app.db.base import AsyncSessionLocal, engine
@@ -453,6 +486,7 @@ async def execute_run(
                 # Persist, commit, then publish — a client acting on COMPLETED must never
                 # re-read a status that has not caught up.
                 await db.commit()
+                observe_persisted(run, outcome, result)
                 await sink(run_id, lifecycle_event(result))
                 logger.info(
                     "run_persisted",
@@ -467,6 +501,22 @@ async def execute_run(
     finally:
         await close_redis_pool()
         await engine.dispose()
+
+
+async def record_corpus_snapshot(db: AsyncSession, run: ResearchRun, store) -> None:
+    """Stamp the corpus identity and version this run is about to read.
+
+    One home for both hosts. The server reaches it through `_corpus_port` and the desktop
+    through its own run driver, and `AGENTS.md` records what happens to a rule with two
+    homes — so this is asserted by object identity rather than kept in step by discipline.
+
+    A snapshot, not a lock. Nothing prevents the corpus changing while the run proceeds, and
+    nothing needs to: a superseded version stays readable, so evidence gathered before a
+    change still resolves to the bytes that were cited. What the pair records is the state
+    at the moment the corpus was opened, which is the claim a bundle can honestly make.
+    """
+    run.corpus_id, run.corpus_version = await store.identity()
+    await db.flush()
 
 
 async def _corpus_port(db: AsyncSession, run: ResearchRun, ports: dict) -> str | None:
@@ -488,4 +538,5 @@ async def _corpus_port(db: AsyncSession, run: ResearchRun, ports: dict) -> str |
     if store is None:
         return f"Corpus database not found for project {run.project_id}. Ingest documents first."
     ports["corpus"] = store
+    await record_corpus_snapshot(db, run, store)
     return None

@@ -12,7 +12,7 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./vitest.setup.ts"],
-    include: ["{lib,components,hooks}/**/*.test.{ts,tsx}"],
+    include: ["{lib,components,hooks,app}/**/*.test.{ts,tsx}"],
     // Playwright specs live in e2e/ and are driven by @playwright/test, not Vitest.
     exclude: ["e2e/**", "node_modules/**", ".next/**"],
   },

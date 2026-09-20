@@ -19,8 +19,29 @@ documented in the [SSE protocol](35-sse.md).
 |---|---|---|---|
 | `GET` | `/health` | No | Liveness. `{"status": "ok", "version": "..."}` |
 | `GET` | `/health/ready` | No | Readiness. `200` when database and Redis both answer, **`503`** otherwise with a per-check breakdown |
+| `GET` | `/metrics` | No | Prometheus text exposition. **Server only** — the desktop host does not serve it |
 
-Both are outside `/api/v1`.
+All three are outside `/api/v1`.
+
+`/metrics` reports seven families on a private registry, so nothing the process happens to
+import can add a series to it. The desktop host still *records* these counters — what it
+does not do is expose them, since nothing scrapes a loopback socket:
+
+| Family | What it counts |
+|---|---|
+| `research_run_outcomes_total` | Terminal run outcomes, by outcome |
+| `research_run_cost_usd_total` | Spend |
+| `research_run_cost_confidence_total` | Whether a run's cost is a measured figure or an estimate |
+| `research_run_tokens_total` | Tokens, by direction |
+| `corpus_ingest_documents_total` | Documents ingested |
+| `corpus_ingest_bytes_total` | Bytes ingested |
+| `research_build_info` | Build identity, as a gauge |
+
+Every label comes from a closed table — an unknown value is mapped to a known one rather
+than minted — because an open label set is how a metrics endpoint becomes a cardinality
+incident. Terminal outcomes are observed where runs actually terminate (completion at the
+approval route, failure and cancellation at the persistence adapter) and always after the
+commit, so a metric can never claim an outcome the database did not keep.
 
 ---
 

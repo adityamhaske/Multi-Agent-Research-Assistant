@@ -11,10 +11,13 @@ from __future__ import annotations
 
 import json
 import re
+from enum import StrEnum
 from typing import Any
 
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 from langchain_core.messages import AIMessage, BaseMessage
+
+from research_engine import prompts
 
 
 def fake_search(query: str, max_results: int) -> list[dict]:
@@ -37,16 +40,89 @@ def fake_read_webpage(url: str) -> dict:
     }
 
 
+class ScriptedScenario(StrEnum):
+    """What a scripted call is standing in for.
+
+    Named separately from `runconfig.ROLES` because the two are not the same set: three
+    scenarios route through the `critic` role (grading, contradiction detection, citation
+    verification) and two through `synthesizer` (drafting, citation repair). Collapsing
+    them would make the fake model answer the wrong contract for two of every five calls.
+    """
+
+    PLANNER = "planner"
+    EXECUTOR = "executor"
+    CRITIC = "critic"
+    CONTRADICTION_DETECTOR = "contradiction_detector"
+    CITATION_VERIFY = "citation_verify"
+    SYNTHESIZER = "synthesizer"
+    SYNTHESIZER_REPAIR = "synthesizer_repair"
+    CHAT = "chat"
+
+
+#: The prompt a call carries, when it is one of ours. Keyed on the **prompt constants
+#: themselves** rather than on fragments of their prose: rewording a prompt moves its key
+#: with it, where a hand-typed `"Orchestration Planner"` silently stopped matching. This is
+#: what separates the scenarios that share a role.
+SCENARIO_BY_PROMPT: dict[str, ScriptedScenario] = {
+    prompts.PLANNER_PROMPT_V2: ScriptedScenario.PLANNER,
+    prompts.EXECUTOR_PROMPT: ScriptedScenario.EXECUTOR,
+    prompts.CRITIC_PROMPT_V2: ScriptedScenario.CRITIC,
+    prompts.CONTRADICTION_DETECTOR_PROMPT: ScriptedScenario.CONTRADICTION_DETECTOR,
+    prompts.CITATION_VERIFY_PROMPT: ScriptedScenario.CITATION_VERIFY,
+    prompts.SYNTHESIZER_PROMPT_V2: ScriptedScenario.SYNTHESIZER,
+    prompts.SYNTHESIZER_REPAIR_PROMPT: ScriptedScenario.SYNTHESIZER_REPAIR,
+    prompts.CHAT_PROMPT: ScriptedScenario.CHAT,
+    prompts.PROJECT_CHAT_PROMPT: ScriptedScenario.CHAT,
+}
+
+#: The fallback, and the reason this indirection exists at all: under a configurable agent
+#: platform the system prompt is the user's, so it matches nothing above. The role is what
+#: the caller stated and cannot be reworded away.
+SCENARIO_BY_ROLE: dict[str, ScriptedScenario] = {
+    "planner": ScriptedScenario.PLANNER,
+    "executor": ScriptedScenario.EXECUTOR,
+    "critic": ScriptedScenario.CRITIC,
+    "synthesizer": ScriptedScenario.SYNTHESIZER,
+    "chat": ScriptedScenario.CHAT,
+}
+
+
 class _ScriptedModel(FakeMessagesListChatModel):
     """A chat model whose reply depends on which agent role invoked it.
 
-    Role is inferred from the system prompt. `usage_metadata` is populated so the
-    cost accountant has non-zero tokens to sum. Structured-output (`with_structured_output`)
-    is honored by returning JSON the schema can parse.
+    The role is **passed in**, not inferred: `get_llm(role)` already knows it, and the
+    version of this class that re-derived it by searching the system prompt for
+    `"Orchestration Planner"` returned `"{}"` the moment that line was reworded — a graph
+    that ran to completion on empty structured output rather than a failure naming its
+    cause. `usage_metadata` is populated so the cost accountant has non-zero tokens to sum.
+    Structured output (`with_structured_output`) is honored by returning parseable JSON.
     """
 
-    def __init__(self) -> None:
-        super().__init__(responses=[AIMessage(content="")])
+    #: Required, with no default. A default would restore the implicit path this class was
+    #: changed to remove — a caller that forgets to say which agent it is would silently
+    #: get someone else's script.
+    role: str
+
+    def __init__(self, role: str) -> None:
+        super().__init__(responses=[AIMessage(content="")], role=role)
+
+    def scenario_for(self, system: str) -> ScriptedScenario:
+        """Which script answers this call: the prompt if we recognise it, else the role.
+
+        Raises rather than falling back to `"{}"`. An unscriptable request must fail where
+        it happens; empty structured output parses, so it surfaces several nodes later as
+        something unrelated.
+        """
+        for prompt, scenario in SCENARIO_BY_PROMPT.items():
+            if prompt in system:
+                return scenario
+        try:
+            return SCENARIO_BY_ROLE[self.role]
+        except KeyError:
+            raise ValueError(
+                f"no scripted behaviour for role {self.role!r}: add it to SCENARIO_BY_ROLE "
+                "or route the call through a role that has one"
+            ) from None
 
     def bind_tools(self, tools, **kwargs):
         # The scripted executor signals completion by emitting a submit_evidence tool
@@ -57,13 +133,15 @@ class _ScriptedModel(FakeMessagesListChatModel):
         system = ""
         human = ""
         for m in messages:
-            role = getattr(m, "type", "")
-            if role == "system":
+            kind = getattr(m, "type", "")
+            if kind == "system":
                 system += str(m.content) + "\n"
-            elif role == "human":
+            elif kind == "human":
                 human += str(m.content) + "\n"
 
-        if "Orchestration Planner" in system:
+        scenario = self.scenario_for(system)
+
+        if scenario is ScriptedScenario.PLANNER:
             content = json.dumps(
                 {
                     "tasks": [
@@ -72,7 +150,7 @@ class _ScriptedModel(FakeMessagesListChatModel):
                     ]
                 }
             )
-        elif "Research Executor" in system:
+        elif scenario is ScriptedScenario.EXECUTOR:
             # Evidence is only accepted through the submit_evidence tool call
             # (docs/12 M7, commit 6ea7f21), so the scripted executor speaks that contract.
             return AIMessage(
@@ -105,13 +183,13 @@ class _ScriptedModel(FakeMessagesListChatModel):
                 ],
                 usage_metadata={"input_tokens": 100, "output_tokens": 50, "total_tokens": 150},
             )
-        elif "Quality Critic" in system:
+        elif scenario is ScriptedScenario.CRITIC:
             content = json.dumps(
                 {"passed": True, "confidence": 0.9, "reasons": ["two independent sources"]}
             )
-        elif "Contradiction Detector" in system:
+        elif scenario is ScriptedScenario.CONTRADICTION_DETECTOR:
             content = self._contradiction_reply(human)
-        elif "citation repair pass" in system:
+        elif scenario is ScriptedScenario.SYNTHESIZER_REPAIR:
             # Every assertive line carries a [n] marker so the repair pass converges
             # in one round (section headers stay under the 15-char claim threshold).
             content = (
@@ -121,13 +199,13 @@ class _ScriptedModel(FakeMessagesListChatModel):
                 "## Limitations\nFixture data only.\n\n"
                 "## Sources\n[1] https://example.com/fixture/1\n[2] https://example.com/fixture/2\n"
             )
-        elif "verify whether claims are supported" in system:
+        elif scenario is ScriptedScenario.CITATION_VERIFY:
             # The citation-fidelity verifier (graph._verify_citation_fidelity) asks for one
             # YES/NO line per claim. Fixture claims all resolve, so rule YES for as many
             # claims as the request carries — keeps fake-mode drafts byte-identical.
             n_claims = len(re.findall(r"Claim \d+:", human)) or 1
             content = "\n".join(f"Claim {i}: YES" for i in range(1, n_claims + 1))
-        elif "Research Synthesizer" in system:
+        elif scenario is ScriptedScenario.SYNTHESIZER:
             content = (
                 "# Fixture Report\n\n## Executive Summary\nDeterministic summary [1].\n\n"
                 "## Key Findings\n- A citable fact [1]\n- A corroborating fact [2]\n\n"
@@ -135,10 +213,8 @@ class _ScriptedModel(FakeMessagesListChatModel):
                 "## Limitations\nFixture data only.\n\n"
                 "## Sources\n[1] https://example.com/fixture/1\n[2] https://example.com/fixture/2\n"
             )
-        elif "analyst answering follow-up" in system:
+        else:  # ScriptedScenario.CHAT
             content = f"Based on the report, here is a grounded answer to: {human.strip()[:80]}"
-        else:
-            content = "{}"
 
         return AIMessage(
             content=content,
@@ -254,5 +330,5 @@ class _ScriptedModel(FakeMessagesListChatModel):
         )
 
 
-def fake_model() -> _ScriptedModel:
-    return _ScriptedModel()
+def fake_model(role: str) -> _ScriptedModel:
+    return _ScriptedModel(role)

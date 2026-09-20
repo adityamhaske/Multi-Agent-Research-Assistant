@@ -1,0 +1,160 @@
+{
+  "dataset_version": 2,
+  "description": "Retrieval golden set for V2.1-a A2. Documents under corpus/ are original fixture prose written for this dataset; relevance is a human label, not a model judgment. Grades: 2 = answers the query directly, 1 = related context, 0 = irrelevant (omitted). Gold is DOCUMENT-level because CorpusStore returns at most one hit per document by design; where the correct passage sits inside a document is measured separately via span_anchor.",
+  "duplicate_groups": [
+    [
+      "photovoltaics.md",
+      "photovoltaics-mirror.md"
+    ]
+  ],
+  "queries": [
+    {
+      "id": "q01-solar-semantic",
+      "kind": "semantic",
+      "query": "how does a panel turn sunlight into electric current",
+      "note": "Paraphrase. The document says 'photovoltaic cell' and 'photons'; the query says 'panel' and 'sunlight'.",
+      "grades": {
+        "photovoltaics.md": 2,
+        "photovoltaics-mirror.md": 2,
+        "wind-turbines.md": 1
+      },
+      "span_anchor": {
+        "photovoltaics.md": "Photons\nstriking a doped silicon wafer free electrons"
+      }
+    },
+    {
+      "id": "q02-rag-semantic",
+      "kind": "semantic",
+      "query": "grounding a language model in external documents so its answers can be checked",
+      "note": "Almost no lexical overlap with the target, which uses 'retrieval-augmented generation' and 'passages'.",
+      "grades": {
+        "retrieval-augmented-generation.md": 2,
+        "transformer-attention.md": 1
+      },
+      "span_anchor": {
+        "retrieval-augmented-generation.md": "relevant passages are fetched from a document\nstore first"
+      }
+    },
+    {
+      "id": "q03-lexical-exact-code",
+      "kind": "lexical",
+      "query": "ERR_CHUNK_7742",
+      "note": "Pure lexical. A rare exact token with no semantic neighbourhood \u2014 the case dense-only retrieval is weakest on, and the reason A3 adds a lexical index.",
+      "grades": {
+        "ingest-error-codes.md": 2
+      },
+      "span_anchor": {
+        "ingest-error-codes.md": "ERR_CHUNK_7742 is raised when a document produces no chunks"
+      }
+    },
+    {
+      "id": "q04-lexical-acronym",
+      "kind": "lexical",
+      "query": "LFP cell chemistry",
+      "note": "Acronym expanded only once in the document ('lithium iron phosphate').",
+      "grades": {
+        "battery-storage.md": 2
+      },
+      "span_anchor": {
+        "battery-storage.md": "LFP cells \u2014 lithium iron phosphate"
+      }
+    },
+    {
+      "id": "q05-vents-semantic",
+      "kind": "semantic",
+      "query": "ecosystems that survive with no light at all",
+      "grades": {
+        "hydrothermal-vents.md": 2
+      },
+      "span_anchor": {
+        "hydrothermal-vents.md": "live entirely beyond the reach of sunlight"
+      }
+    },
+    {
+      "id": "q06-renewables-distractor",
+      "kind": "distractor",
+      "query": "variable renewable electricity generation",
+      "note": "Six documents share the vocabulary. Only wind is about generation variability; geothermal and tidal are renewable but explicitly steady or predictable, which is what the ranking has to separate.",
+      "grades": {
+        "wind-turbines.md": 2,
+        "photovoltaics.md": 1,
+        "photovoltaics-mirror.md": 1,
+        "battery-storage.md": 1,
+        "geothermal-power.md": 1,
+        "tidal-energy.md": 1
+      },
+      "span_anchor": {
+        "wind-turbines.md": "Output is variable rather than unpredictable"
+      }
+    },
+    {
+      "id": "q07-attention-semantic",
+      "kind": "semantic",
+      "query": "why sequence models stopped processing tokens one after another",
+      "grades": {
+        "transformer-attention.md": 2
+      },
+      "span_anchor": {
+        "transformer-attention.md": "That serialisation was the\nbottleneck."
+      }
+    },
+    {
+      "id": "q08-chemosynthesis-lexical",
+      "kind": "lexical",
+      "query": "hydrogen sulfide oxidation by bacteria",
+      "grades": {
+        "hydrothermal-vents.md": 2
+      },
+      "span_anchor": {
+        "hydrothermal-vents.md": "bacteria oxidise that sulfide to fix carbon"
+      }
+    },
+    {
+      "id": "q09-storage-semantic",
+      "kind": "semantic",
+      "query": "moving energy from cheap hours to expensive hours",
+      "note": "The document calls this 'arbitrage' and never uses the query's wording.",
+      "grades": {
+        "battery-storage.md": 2
+      },
+      "span_anchor": {
+        "battery-storage.md": "arbitrage between cheap and expensive\nhours"
+      }
+    },
+    {
+      "id": "q10-embedding-width-error",
+      "kind": "lexical",
+      "query": "embedding vector of unexpected width",
+      "grades": {
+        "ingest-error-codes.md": 2
+      },
+      "span_anchor": {
+        "ingest-error-codes.md": "ERR_EMBED_5130 indicates the embedding endpoint returned a vector"
+      }
+    },
+    {
+      "id": "q11-embedding-choice-semantic",
+      "kind": "semantic",
+      "query": "picking a vector model for search over my own documents",
+      "note": "The document never uses the words 'vector model' or 'search over documents'.",
+      "grades": {
+        "embedding-models.md": 2,
+        "retrieval-augmented-generation.md": 1
+      },
+      "span_anchor": {
+        "embedding-models.md": "what usually decides\nretrieval quality is what the model was trained to consider similar"
+      }
+    },
+    {
+      "id": "q12-wal-lexical",
+      "kind": "lexical",
+      "query": "write-ahead logging one writer many readers",
+      "grades": {
+        "sqlite-storage.md": 2
+      },
+      "span_anchor": {
+        "sqlite-storage.md": "Write-ahead\nlogging allows one writer alongside many readers"
+      }
+    }
+  ]
+}

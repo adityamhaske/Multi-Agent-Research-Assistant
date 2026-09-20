@@ -53,10 +53,25 @@ LLM budget (docs/architecture/02 §6).
 ## Logging and correlation
 
 Log with `structlog.get_logger()`, never `print`. Configuration lives in
-`app/logconfig.py` (installed by both `app/main.py` and `app/workers/celery_app.py`).
-The correlation identity for a research run is its **session_id**: bind it at boundaries
-with `app.logconfig.bind_run_context(...)` instead of threading a new ID through
-signatures. Engine logs inherit it via contextvars under `asyncio.run`.
+`app/logconfig.py` (installed by `app/main.py`, `app/workers/celery_app.py` and
+`desktop/sidecar.py`). Bind the identity at boundaries instead of threading an ID through
+signatures; engine logs inherit it via contextvars under `asyncio.run` and `create_task`.
+
+**Two pipelines, two binders, and they are not interchangeable.**
+`bind_session_context(session_id)` is for a `sessions.id`; `bind_research_run_context(run_id)`
+is for a `research_runs.id`. Both write `correlation_id` — the join key — plus the key that
+names what it is. There was one binder once, hard-coded to write `session_id`, and the three
+*run* Celery tasks called it with run ids, so every server-side run log claimed a session
+that did not exist. **A run id under `session_id` is a defect**, pinned by
+`tests/workflow/test_run_correlation.py`.
+
+Bind sites are few and shared on purpose: `runs.py::_run_or_404` covers twelve run routes on
+**both** hosts (a `Depends` would not — the sidecar wraps these handlers in its own routes),
+`create_run` covers the thirteenth, and each host's driver binds inside the task that drives
+the run. `GET /runs` binds nothing: it names no run.
+
+`app/metrics.py` is the sibling module for counters, and the same rule holds there — every
+label value comes from a closed list, so no identifier can reach `/metrics`.
 
 ## Model catalog is a fact source, not a guess
 

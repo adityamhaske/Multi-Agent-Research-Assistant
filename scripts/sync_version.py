@@ -17,10 +17,18 @@ repository treats as a P0 class rather than a cosmetic one.
 
 CI runs the first form. `--write` is for cutting a release.
 
-**The README download badge is deliberately absent from this list.** It points at
-`docs/getting-started/23-desktop-app.md` rather than a versioned asset, so it carries no
-version to drift. `AGENTS.md` still instructs bumping "both the badge label and the href";
-that rule predates the change and no longer describes the file.
+**`desktop/Cargo.lock` carries the version too, and this script must not write it.**
+The lock repeats `version = "..."` once per package — 451 times today — so the
+single-substitution rule every entry below relies on would rewrite the first package in
+the file (`adler2`) rather than ours. Cargo owns that file: `cargo update -p research-desktop`
+rewrites the one line and leaves the dependency graph alone. It is easy to forget, and was
+— the lock sat at 2.0.1 through the whole 2.0.2 line, one release behind the manifest it
+is supposed to pin.
+
+**The README download badge is deliberately absent from this list.** It points at the
+published download page rather than a versioned asset, so it carries no version to drift.
+`AGENTS.md` agrees and defers here for the reasoning, so this paragraph is the one home for
+it — do not restate it there.
 """
 
 from __future__ import annotations

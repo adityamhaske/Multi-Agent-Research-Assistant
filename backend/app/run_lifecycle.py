@@ -47,7 +47,7 @@ from app.models.research import Contradiction, Evidence, ResearchPlan, ResearchR
 from app.models.review import AuditEvent, ResearchArtifact, Review
 from app.models.revision import Claim, ClaimEvidenceLink, Revision
 from app.services import memory
-from research_engine import citation_rate
+from research_engine import citation_rate, document
 from research_engine import claims as claim_rules
 from research_engine.graph import _norm_url
 
@@ -436,7 +436,23 @@ async def record_revision(
         run_id=run.id,
         version=version,
         report_markdown=report_markdown,
+        # Still the Markdown, and deliberately so. `reviews.reviewed_hash`,
+        # `research_artifacts.artifact_hash` and the bundle verifier's approval-chain check
+        # all pin this value, so hashing a rendered document instead would put every
+        # already-approved artifact at the mercy of a parser.
         report_hash=content_hash(report_markdown),
+        # The typed view, derived from those same bytes. `generated_at` is passed rather
+        # than read from the clock inside the parser, which is what keeps the document a
+        # pure function of the revision it describes.
+        report_document=document.parse_markdown(
+            report_markdown,
+            metadata=document.ReportMetadata(
+                run_id=str(run.id),
+                revision_version=version,
+                question=run.question,
+                generated_at=datetime.now(UTC).isoformat(),
+            ),
+        ).model_dump(mode="json"),
         evidence_watermark=watermark,
     )
     db.add(revision)

@@ -280,10 +280,10 @@ def get_llm(role: str) -> BaseChatModel:
         if cfg.demo:
             from research_engine.demo_fixtures import demo_model
 
-            return demo_model()
+            return demo_model(role)
         from research_engine.fakes import fake_model
 
-        return fake_model()
+        return fake_model(role)
     provider, _, model = cfg.model_for(role).partition(":")
     return _build(provider, model, role)
 

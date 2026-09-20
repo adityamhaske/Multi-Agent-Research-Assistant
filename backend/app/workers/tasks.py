@@ -12,7 +12,7 @@ import asyncio
 
 import structlog
 
-from app.logconfig import bind_run_context, clear_run_context
+from app.logconfig import bind_research_run_context, bind_session_context, clear_run_context
 from app.workers.celery_app import celery_app
 
 logger = structlog.get_logger()
@@ -26,7 +26,7 @@ def run_agent_pipeline(session_id: str, user_id: str) -> None:
     # never leak into the next task's logs. The bound correlation_id (= session_id)
     # rides along every log this task and the engine emit under asyncio.run.
     clear_run_context()
-    bind_run_context(session_id, user_id=user_id)
+    bind_session_context(session_id, user_id=user_id)
     logger.info("pipeline_task_started")
     try:
         asyncio.run(run_pipeline(session_id, user_id))
@@ -43,7 +43,7 @@ def resume_agent_pipeline(
     from app.workers.pipeline_runner import resume_pipeline
 
     clear_run_context()
-    bind_run_context(session_id, user_id=user_id, approved=approved)
+    bind_session_context(session_id, user_id=user_id, approved=approved)
     logger.info("resume_task_started")
     try:
         asyncio.run(resume_pipeline(session_id, user_id, approved, feedback))
@@ -66,7 +66,7 @@ def resume_plan_gate(session_id: str, user_id: str, plan: dict) -> None:
     from app.workers.pipeline_runner import resume_plan
 
     clear_run_context()
-    bind_run_context(session_id, user_id=user_id)
+    bind_session_context(session_id, user_id=user_id)
     logger.info("plan_resume_task_started", task_count=len((plan or {}).get("tasks") or []))
     try:
         asyncio.run(resume_plan(session_id, user_id, plan))
@@ -118,7 +118,7 @@ def run_research_pipeline(run_id: str, user_id: str) -> None:
     from app.run_execution import execute_run
 
     clear_run_context()
-    bind_run_context(run_id, user_id=user_id)
+    bind_research_run_context(run_id, user_id=user_id)
     logger.info("run_pipeline_task_started")
     try:
         asyncio.run(execute_run(run_id))
@@ -135,7 +135,7 @@ def resume_research_pipeline(
     from app.run_execution import execute_run
 
     clear_run_context()
-    bind_run_context(run_id, user_id=user_id, approved=approved)
+    bind_research_run_context(run_id, user_id=user_id, approved=approved)
     logger.info("run_resume_task_started")
     try:
         asyncio.run(execute_run(run_id, resume=(approved, feedback)))
@@ -150,7 +150,7 @@ def resume_research_plan_gate(run_id: str, user_id: str, plan: dict) -> None:
     from app.run_execution import execute_run
 
     clear_run_context()
-    bind_run_context(run_id, user_id=user_id)
+    bind_research_run_context(run_id, user_id=user_id)
     logger.info("run_plan_resume_task_started")
     try:
         asyncio.run(execute_run(run_id, plan=plan))

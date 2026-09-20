@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.projects import resolve_project
@@ -55,6 +55,11 @@ async def _get_corpus_store(project_id: uuid.UUID, corpus: CorpusLocator) -> Cor
 async def upload_document(
     project_id: uuid.UUID,
     file: UploadFile,
+    # Optional and absent by default, so every client that predates document versioning
+    # keeps creating new logical documents exactly as before. Supplying it is the only way
+    # one upload becomes a revision of another: nothing is inferred from the filename,
+    # because two unrelated papers can legitimately share one.
+    doc_key: str | None = Form(default=None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     corpus: CorpusLocator = Depends(get_corpus_locator),
@@ -69,7 +74,7 @@ async def upload_document(
     await resolve_project(db, current_user.id, project_id)
 
     store = await _get_corpus_store(project_id, corpus)
-    return await corpus_ingest.ingest_document(store, file.filename, await file.read())
+    return await corpus_ingest.ingest_document(store, file.filename, await file.read(), doc_key)
 
 
 @router.get("/documents", response_model=list[DocumentResponse])

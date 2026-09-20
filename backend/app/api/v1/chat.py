@@ -12,6 +12,7 @@ import json
 import uuid
 from collections.abc import AsyncGenerator
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -25,10 +26,13 @@ from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.schemas.research import ChatMessageSchema, ChatRequest
 from app.services import chat_scope, crypto
+from app.services.chat_history import recent_turns
 from app.services.sse import SSE_HEADERS
 from research_engine import prompts
 from research_engine.embeddings import EmbeddingsUnavailable
 from research_engine.llm_factory import get_llm, reset_user_keys, set_user_keys, text_of
+
+logger = structlog.get_logger()
 
 router = APIRouter(prefix="/research/{session_id}/chat", tags=["Chat"])
 
@@ -82,18 +86,7 @@ async def send_message(
     db.add(ChatMessage(session_id=session_id, role="user", content=payload.message))
     await db.commit()
 
-    history = (
-        (
-            await db.execute(
-                select(ChatMessage)
-                .where(ChatMessage.session_id == session_id)
-                .order_by(ChatMessage.created_at.asc())
-                .limit(20)
-            )
-        )
-        .scalars()
-        .all()
-    )
+    history = await recent_turns(db, ChatMessage.session_id == session_id)
 
     # BYOK first: the corpus store embeds on this user's key exactly as their research
     # did, so it has to be resolved before the grounding is gathered.
@@ -169,7 +162,8 @@ async def send_message(
             await db.refresh(msg)
             yield f"data: {json.dumps({'type': 'done', 'message_id': str(msg.id)})}\n\n"
         except Exception as e:  # noqa: BLE001
-            yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
+            logger.warning("chat_failed", session_id=str(session_id), error=str(e), exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'detail': 'An internal error occurred. Please try again.'})}\n\n"
         finally:
             reset_user_keys(keys_token)
 

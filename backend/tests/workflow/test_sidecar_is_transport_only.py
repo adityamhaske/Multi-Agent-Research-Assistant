@@ -31,13 +31,18 @@ from pathlib import Path
 
 SIDECAR = Path(__file__).resolve().parents[2] / "desktop" / "sidecar.py"
 
-#: 2,876 lines as of the Windows shell-watchdog fix (`shell_alive`/`_win32_pid_alive`,
-#: plus the sidecar finally calling `configure_logging` — both genuine desktop-only
-#: code with no `app/api/v1/*` route to delegate to: process supervision and logging
-#: bootstrap for a process that is not itself an HTTP handler). Was 2,850 (itself down
-#: from 3,015 before plan phase 7 began delegating session routes). Small headroom above
-#: the current count, not a target to grow into.
-CEILING = 2900
+#: 2,915 lines as of A9's startup schema guard: `_add_missing_columns` now detects a
+#: populated table before issuing `ADD COLUMN … NOT NULL`, and refuses by name instead of
+#: letting SQLite raise a driver error during startup that names neither table nor column.
+#: Raised from 2,900 deliberately rather than by trimming the guard — this is the same class
+#: as the two entries below it: desktop-only code with no `app/api/v1/*` route to delegate to,
+#: because `create_all` plus a column sync is how *this* host builds its schema and no server
+#: route owns that. Was 2,876 at the Windows shell-watchdog fix (`shell_alive`/
+#: `_win32_pid_alive`, plus the sidecar finally calling `configure_logging` — process
+#: supervision and logging bootstrap for a process that is not itself an HTTP handler), and
+#: 2,850 before that, itself down from 3,015 before plan phase 7 began delegating session
+#: routes. Small headroom above the current count, not a target to grow into.
+CEILING = 2920
 
 
 def test_sidecar_has_not_grown_past_its_ratchet():

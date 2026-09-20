@@ -260,6 +260,111 @@
             ]
           },
           "report_hash": "<hash>",
+          "report_document": {
+            "schema_version": 1,
+            "blocks": [
+              {
+                "kind": "heading",
+                "text": "Retrieval-augmented generation versus fine-tuning",
+                "order": 0,
+                "level": 1,
+                "citation_markers": []
+              },
+              {
+                "kind": "heading",
+                "text": "Summary",
+                "order": 1,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "Retrieval-augmented generation and fine-tuning address different problems: fine-tuning adapts a model's parameters, while retrieval supplies knowledge the model can cite at answer time [1][2].",
+                "order": 2,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  2
+                ]
+              },
+              {
+                "kind": "heading",
+                "text": "Findings",
+                "order": 3,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "Large pre-trained language models store factual knowledge in their parameters and achieve state-of-the-art results when fine-tuned on downstream NLP tasks [1].\nTheir ability to access and precisely manipulate that knowledge is still limited, and on knowledge-intensive tasks their performance lags behind task-specific architectures [1].\nProviding provenance for a model's decisions and updating its world knowledge remain open research problems [1].\nIncorporating knowledge from external databases enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks [2].\nBecause the knowledge sits outside the parameters, retrieval allows for continuous knowledge updates and integration of domain-specific information [2].",
+                "order": 4,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  1,
+                  1,
+                  2,
+                  2
+                ]
+              },
+              {
+                "kind": "heading",
+                "text": "Analysis",
+                "order": 5,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "Retrieval is the stronger choice where knowledge changes or must be attributable, since it updates continuously and carries provenance that parametric memory does not [1][2].\nFine-tuning remains the mechanism for adapting a model to a downstream task rather than for teaching it facts it must later be able to cite [1].",
+                "order": 6,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  2,
+                  1
+                ]
+              },
+              {
+                "kind": "heading",
+                "text": "Limitations",
+                "order": 7,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "This is a demonstration run on scripted models over two sources captured in advance. A real run searches the live web, may surface contradicting sources, and will not reproduce this report.",
+                "order": 8,
+                "level": null,
+                "citation_markers": []
+              },
+              {
+                "kind": "heading",
+                "text": "Sources",
+                "order": 9,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "[1] https://arxiv.org/abs/2005.11401\n[2] https://arxiv.org/abs/2312.10997",
+                "order": 10,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  2
+                ]
+              }
+            ],
+            "metadata": {
+              "run_id": "<uuid>",
+              "revision_version": 1,
+              "question": "What is retrieval-augmented generation?",
+              "generated_at": "<timestamp>"
+            },
+            "render_fidelity": "EXACT"
+          },
           "evidence_watermark": 4,
           "created_at": "<timestamp>"
         }
@@ -634,6 +739,111 @@
             ]
           },
           "report_hash": "<hash>",
+          "report_document": {
+            "schema_version": 1,
+            "blocks": [
+              {
+                "kind": "heading",
+                "text": "Retrieval-augmented generation versus fine-tuning",
+                "order": 0,
+                "level": 1,
+                "citation_markers": []
+              },
+              {
+                "kind": "heading",
+                "text": "Summary",
+                "order": 1,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "Retrieval-augmented generation and fine-tuning address different problems: fine-tuning adapts a model's parameters, while retrieval supplies knowledge the model can cite at answer time [1][2].",
+                "order": 2,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  2
+                ]
+              },
+              {
+                "kind": "heading",
+                "text": "Findings",
+                "order": 3,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "Large pre-trained language models store factual knowledge in their parameters and achieve state-of-the-art results when fine-tuned on downstream NLP tasks [1].\nTheir ability to access and precisely manipulate that knowledge is still limited, and on knowledge-intensive tasks their performance lags behind task-specific architectures [1].\nProviding provenance for a model's decisions and updating its world knowledge remain open research problems [1].\nIncorporating knowledge from external databases enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks [2].\nBecause the knowledge sits outside the parameters, retrieval allows for continuous knowledge updates and integration of domain-specific information [2].",
+                "order": 4,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  1,
+                  1,
+                  2,
+                  2
+                ]
+              },
+              {
+                "kind": "heading",
+                "text": "Analysis",
+                "order": 5,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "Retrieval is the stronger choice where knowledge changes or must be attributable, since it updates continuously and carries provenance that parametric memory does not [1][2].\nFine-tuning remains the mechanism for adapting a model to a downstream task rather than for teaching it facts it must later be able to cite [1].",
+                "order": 6,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  2,
+                  1
+                ]
+              },
+              {
+                "kind": "heading",
+                "text": "Limitations",
+                "order": 7,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "This is a demonstration run on scripted models over two sources captured in advance. A real run searches the live web, may surface contradicting sources, and will not reproduce this report.",
+                "order": 8,
+                "level": null,
+                "citation_markers": []
+              },
+              {
+                "kind": "heading",
+                "text": "Sources",
+                "order": 9,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "[1] https://arxiv.org/abs/2005.11401\n[2] https://arxiv.org/abs/2312.10997",
+                "order": 10,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  2
+                ]
+              }
+            ],
+            "metadata": {
+              "run_id": "<uuid>",
+              "revision_version": 1,
+              "question": "What is retrieval-augmented generation?",
+              "generated_at": "<timestamp>"
+            },
+            "render_fidelity": "EXACT"
+          },
           "evidence_watermark": 4,
           "created_at": "<timestamp>"
         },
@@ -648,6 +858,111 @@
             ]
           },
           "report_hash": "<hash>",
+          "report_document": {
+            "schema_version": 1,
+            "blocks": [
+              {
+                "kind": "heading",
+                "text": "Retrieval-augmented generation versus fine-tuning",
+                "order": 0,
+                "level": 1,
+                "citation_markers": []
+              },
+              {
+                "kind": "heading",
+                "text": "Summary",
+                "order": 1,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "Retrieval-augmented generation and fine-tuning address different problems: fine-tuning adapts a model's parameters, while retrieval supplies knowledge the model can cite at answer time [1][2].",
+                "order": 2,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  2
+                ]
+              },
+              {
+                "kind": "heading",
+                "text": "Findings",
+                "order": 3,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "Large pre-trained language models store factual knowledge in their parameters and achieve state-of-the-art results when fine-tuned on downstream NLP tasks [1].\nTheir ability to access and precisely manipulate that knowledge is still limited, and on knowledge-intensive tasks their performance lags behind task-specific architectures [1].\nProviding provenance for a model's decisions and updating its world knowledge remain open research problems [1].\nIncorporating knowledge from external databases enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks [2].\nBecause the knowledge sits outside the parameters, retrieval allows for continuous knowledge updates and integration of domain-specific information [2].",
+                "order": 4,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  1,
+                  1,
+                  2,
+                  2
+                ]
+              },
+              {
+                "kind": "heading",
+                "text": "Analysis",
+                "order": 5,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "Retrieval is the stronger choice where knowledge changes or must be attributable, since it updates continuously and carries provenance that parametric memory does not [1][2].\nFine-tuning remains the mechanism for adapting a model to a downstream task rather than for teaching it facts it must later be able to cite [1].",
+                "order": 6,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  2,
+                  1
+                ]
+              },
+              {
+                "kind": "heading",
+                "text": "Limitations",
+                "order": 7,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "This is a demonstration run on scripted models over two sources captured in advance. A real run searches the live web, may surface contradicting sources, and will not reproduce this report.",
+                "order": 8,
+                "level": null,
+                "citation_markers": []
+              },
+              {
+                "kind": "heading",
+                "text": "Sources",
+                "order": 9,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "[1] https://arxiv.org/abs/2005.11401\n[2] https://arxiv.org/abs/2312.10997",
+                "order": 10,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  2
+                ]
+              }
+            ],
+            "metadata": {
+              "run_id": "<uuid>",
+              "revision_version": 2,
+              "question": "What is retrieval-augmented generation?",
+              "generated_at": "<timestamp>"
+            },
+            "render_fidelity": "EXACT"
+          },
           "evidence_watermark": 8,
           "created_at": "<timestamp>"
         }
@@ -1183,6 +1498,111 @@
             ]
           },
           "report_hash": "<hash>",
+          "report_document": {
+            "schema_version": 1,
+            "blocks": [
+              {
+                "kind": "heading",
+                "text": "Retrieval-augmented generation versus fine-tuning",
+                "order": 0,
+                "level": 1,
+                "citation_markers": []
+              },
+              {
+                "kind": "heading",
+                "text": "Summary",
+                "order": 1,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "Retrieval-augmented generation and fine-tuning address different problems: fine-tuning adapts a model's parameters, while retrieval supplies knowledge the model can cite at answer time [1][2].",
+                "order": 2,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  2
+                ]
+              },
+              {
+                "kind": "heading",
+                "text": "Findings",
+                "order": 3,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "Large pre-trained language models store factual knowledge in their parameters and achieve state-of-the-art results when fine-tuned on downstream NLP tasks [1].\nTheir ability to access and precisely manipulate that knowledge is still limited, and on knowledge-intensive tasks their performance lags behind task-specific architectures [1].\nProviding provenance for a model's decisions and updating its world knowledge remain open research problems [1].\nIncorporating knowledge from external databases enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks [2].\nBecause the knowledge sits outside the parameters, retrieval allows for continuous knowledge updates and integration of domain-specific information [2].",
+                "order": 4,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  1,
+                  1,
+                  2,
+                  2
+                ]
+              },
+              {
+                "kind": "heading",
+                "text": "Analysis",
+                "order": 5,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "Retrieval is the stronger choice where knowledge changes or must be attributable, since it updates continuously and carries provenance that parametric memory does not [1][2].\nFine-tuning remains the mechanism for adapting a model to a downstream task rather than for teaching it facts it must later be able to cite [1].",
+                "order": 6,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  2,
+                  1
+                ]
+              },
+              {
+                "kind": "heading",
+                "text": "Limitations",
+                "order": 7,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "This is a demonstration run on scripted models over two sources captured in advance. A real run searches the live web, may surface contradicting sources, and will not reproduce this report.",
+                "order": 8,
+                "level": null,
+                "citation_markers": []
+              },
+              {
+                "kind": "heading",
+                "text": "Sources",
+                "order": 9,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "[1] https://arxiv.org/abs/2005.11401\n[2] https://arxiv.org/abs/2312.10997",
+                "order": 10,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  2
+                ]
+              }
+            ],
+            "metadata": {
+              "run_id": "<uuid>",
+              "revision_version": 1,
+              "question": "What is retrieval-augmented generation?",
+              "generated_at": "<timestamp>"
+            },
+            "render_fidelity": "EXACT"
+          },
           "evidence_watermark": 4,
           "created_at": "<timestamp>"
         },
@@ -1197,6 +1617,111 @@
             ]
           },
           "report_hash": "<hash>",
+          "report_document": {
+            "schema_version": 1,
+            "blocks": [
+              {
+                "kind": "heading",
+                "text": "Retrieval-augmented generation versus fine-tuning",
+                "order": 0,
+                "level": 1,
+                "citation_markers": []
+              },
+              {
+                "kind": "heading",
+                "text": "Summary",
+                "order": 1,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "Retrieval-augmented generation and fine-tuning address different problems: fine-tuning adapts a model's parameters, while retrieval supplies knowledge the model can cite at answer time [1][2].",
+                "order": 2,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  2
+                ]
+              },
+              {
+                "kind": "heading",
+                "text": "Findings",
+                "order": 3,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "Large pre-trained language models store factual knowledge in their parameters and achieve state-of-the-art results when fine-tuned on downstream NLP tasks [1].\nTheir ability to access and precisely manipulate that knowledge is still limited, and on knowledge-intensive tasks their performance lags behind task-specific architectures [1].\nProviding provenance for a model's decisions and updating its world knowledge remain open research problems [1].\nIncorporating knowledge from external databases enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks [2].\nBecause the knowledge sits outside the parameters, retrieval allows for continuous knowledge updates and integration of domain-specific information [2].",
+                "order": 4,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  1,
+                  1,
+                  2,
+                  2
+                ]
+              },
+              {
+                "kind": "heading",
+                "text": "Analysis",
+                "order": 5,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "Retrieval is the stronger choice where knowledge changes or must be attributable, since it updates continuously and carries provenance that parametric memory does not [1][2].\nFine-tuning remains the mechanism for adapting a model to a downstream task rather than for teaching it facts it must later be able to cite [1].",
+                "order": 6,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  2,
+                  1
+                ]
+              },
+              {
+                "kind": "heading",
+                "text": "Limitations",
+                "order": 7,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "This is a demonstration run on scripted models over two sources captured in advance. A real run searches the live web, may surface contradicting sources, and will not reproduce this report.",
+                "order": 8,
+                "level": null,
+                "citation_markers": []
+              },
+              {
+                "kind": "heading",
+                "text": "Sources",
+                "order": 9,
+                "level": 2,
+                "citation_markers": []
+              },
+              {
+                "kind": "paragraph",
+                "text": "[1] https://arxiv.org/abs/2005.11401\n[2] https://arxiv.org/abs/2312.10997",
+                "order": 10,
+                "level": null,
+                "citation_markers": [
+                  1,
+                  2
+                ]
+              }
+            ],
+            "metadata": {
+              "run_id": "<uuid>",
+              "revision_version": 2,
+              "question": "What is retrieval-augmented generation?",
+              "generated_at": "<timestamp>"
+            },
+            "render_fidelity": "EXACT"
+          },
           "evidence_watermark": 8,
           "created_at": "<timestamp>"
         }

@@ -75,7 +75,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint("ck_chat_messages_one_parent", "chat_messages", type_="check")
+    # Bare name, for the reason the upgrade states: the convention renders it as
+    # `ck_chat_messages_one_parent`. This passed the rendered name, which the convention
+    # expanded a second time into `ck_chat_messages_ck_chat_messages_one_parent` — a
+    # constraint no database has ever held, so every downgrade past this revision died here.
+    op.drop_constraint("one_parent", "chat_messages", type_="check")
     # Thread messages have no session to belong to, so they cannot survive the narrowing.
     op.execute("DELETE FROM chat_messages WHERE session_id IS NULL")
     op.alter_column("chat_messages", "session_id", existing_type=postgresql.UUID(), nullable=False)

@@ -12,6 +12,149 @@ deciding whether to trust the thing, and a changelog with no bad news is marketi
 
 ---
 
+## v2.1.0 — 2026-09-19
+
+Two claims the product makes about itself turned out not to hold, and the things that
+would have caught them did not exist.
+
+**Fixed**
+
+- **Airgapped corpus mode did not hold on the server.** A run requested as corpus-only,
+  and recorded as corpus-only, could still search the open web and read pages from it.
+  The flag reached the database and decided which corpus store to install, but never
+  reached `RunConfig` — and `retrievers.search` and `tools.read_webpage`, which decide
+  whether anything asks the web at all, read it from there and cannot see a database. So
+  the guarantee was recorded rather than enforced, on the host that advertises it loudest.
+  The desktop had been fixed earlier; the server had not. The egress test stayed green
+  throughout because it constructed `RunConfig` by hand, stubbing the exact hop that was
+  broken; it now drives the real host builders and asserts every retrieved source is a
+  `corpus://` location.
+- **Both chat surfaces read the oldest twenty turns, not the newest.** `ORDER BY
+  created_at ASC LIMIT 20` returns the first twenty messages ever written. Every caller
+  commits the user's new message before reading that window and assembles its prompt only
+  from it, so past turn twenty the model was answering a question it had never been shown.
+  Three homes, not two — the sidecar restated the same query — so it became one function,
+  `chat_history.recent_turns`, which selects newest-first and restores chronological order.
+  Both halves are tested independently: fixing only the limit would leave the transcript
+  reversed, which reads as a different conversation.
+- **A migration could not be reversed.** No downgrade had ever been run against this
+  schema, and the first one attempted failed on every database: `0008_chat_threads`
+  dropped a constraint under a name the naming convention had already rendered
+  differently, so every downgrade past that revision died. CI now runs a populated
+  round-trip in both directions, with two exception registries that each name a reason.
+- **Run identifiers were logged as session identifiers.** `session_id` means a
+  `sessions.id`; binding a run's id to that field made a run's own logs unfindable by its
+  id. There are two binders now, and the distinction is enforced rather than remembered.
+- **Scripted runs could pass by producing nothing.** Fake mode selected its behaviour by
+  searching the system prompt for eight hand-typed fragments of its own prose, with an
+  `else` returning an empty object. Nothing tied those fragments to the prompts they
+  quoted, so rewording any prompt would have routed every scripted test to that branch and
+  left the suite green on a pipeline that produced nothing. Behaviour is selected by agent
+  role now, and an unrecognised scenario raises instead of answering emptily.
+
+**Improved**
+
+- **Retrieval quality is measured.** Four documents call retrieval the ceiling on report
+  quality and a repository-wide search for `recall@` or `ndcg` returned nothing at all.
+  There is now a frozen sixteen-document dataset, recall@k / precision@k / nDCG / duplicate
+  metrics against the real retriever, and a write-once baseline: **recall@1 0.792 ·
+  precision@1 0.917 · nDCG@10 0.944 · dedup_rate 0.000**.
+- **A corpus has an identity, and its documents have versions.** Identity used to be the
+  file path, so a bundle citing `corpus://<id>` could say which bytes but never which
+  corpus or what state it was in. Documents carry `doc_key`, `version` and `superseded_at`,
+  a re-upload supersedes rather than duplicates, and a run records the corpus snapshot it
+  read.
+- **Operational metrics.** A server-only metrics endpoint exposes seven metric families in
+  Prometheus text on a private registry, with every label drawn from a closed table.
+  Terminal outcomes are observed where runs actually terminate — completion at the approval
+  route, failure and cancellation at the persistence adapter — and always after the commit.
+- **A typed view of a report.** `ReportDocument` is derived from the report Markdown and
+  never the other way round, recording whether the parse was exact or lossy so a lossy one
+  can never become authoritative. Markdown stays the source of truth: `report_hash` is
+  still `sha256(report_markdown)`, so every existing approval chain and bundle pins exactly
+  what it pinned before.
+- **Readiness tests are hermetic.** Whether the settings page reports you as ready to
+  research was asserted from a live probe of whatever machine ran the suite, so one commit
+  passed or failed depending on whether Ollama happened to be running. Both hosts now stub
+  the transport rather than the probe, and the reachable, unreachable and embedding-only
+  cases are each pinned — including that a reachable server offering only embedding models
+  is *not* readiness, since an embedding model cannot fill an agent role.
+
+**Measured and rejected**
+
+- **Hybrid retrieval did not beat dense-only.** It was implemented and measured against the
+  baseline above. The diagnosis is that the residual gap is equal-weight fusion of two
+  retrievers of unequal reliability, not the quality of the candidates. It was rejected and
+  reported rather than tuned until the number improved. Dense-only remains production
+  behaviour.
+
+**Known**
+
+- Citation support is still measured at 0.90 on a single self-judged local-model run, and
+  that measurement predates 2.0.0. Nothing here re-ran it.
+- The share of evidence from primary sources is not measured, and deliberately not
+  estimated: `source_url` is model-authored, so an invented but plausible link would
+  classify as primary with full confidence. A fakeable metric on a verifiability product is
+  worse than no metric.
+- The scholarly evaluation set is drafted but unverified. Six of twelve questions survived
+  review, and their rubrics were written without a human opening a cited paper. A rubric
+  naming the wrong study would penalize a *correct* answer, so the set grades nothing until
+  a domain reader checks it.
+- Desktop builds are unsigned and do not auto-update.
+- Two research pipelines still exist in the backend. The product has one, and research
+  recorded by the earlier one stays readable; consolidating the two is not a patch.
+- Follow-up chat scoped to a single report is available on research recorded as a session
+  and not on a run. Project chat, which cites every approved report in a project, covers
+  both.
+- Cancelling a run still does not interrupt work already in flight; it runs to its next
+  checkpoint, and the tokens spent there are recorded because they were really spent.
+- Claim verification is still not implemented, claim lineage across revisions is still not
+  tracked, and contradiction detection is still source-level and unscored.
+
+---
+
+## v2.0.2 — 2026-08-31
+
+The desktop app stopped reimplementing the server, and four bugs that only existed because
+it had.
+
+**Fixed**
+
+- **Every desktop settings-page load 404'd in the background.** `useReadiness()` is fetched
+  unconditionally on every host — the settings layout only branches on what it does with
+  the answer — and the sidecar had no route for it at all. A shipped control that never
+  worked. It answers from this host's own keys now.
+- **The "Local" model preset offered models the machine did not have.** The server has
+  built that preset from what Ollama actually reports since 2.0.0; the desktop kept the
+  static name, which 404s on the first planner call if it was never pulled.
+- **The routing panel's "deployment default" mirrored your own saved preference.** Both
+  numbers were computed from the same call, so saving a per-role choice made them
+  identical — which defeats the reason the comparison exists.
+- **A project with runs and no chat sessions reported zero sessions.** The desktop's
+  project list only counted the older kind of research.
+- **Stopping a run recorded no reason in its event history**, though the reason was visible
+  elsewhere on the same screen.
+
+**Improved**
+
+- **The desktop and the server run the same code** for every project, corpus and
+  research-session operation that does not depend on where a secret is stored — proved by
+  the two resolving to one function object, not by two implementations that currently agree.
+
+**Known**
+
+- Two research pipelines still exist in the backend.
+- Follow-up chat scoped to a single report is available on a session and not on a run.
+- Cancelling a run does not interrupt work already in flight.
+- Claim verification is not implemented, claim lineage is not tracked, and contradiction
+  detection is source-level and unscored.
+- Corpus-mode research has no end-to-end test, because it requires a local embedder and the
+  test environment has none.
+- Citation support is measured at 0.90 on a single self-judged local-model run predating
+  2.0.0.
+
+---
+
 ## v2.0.1 — 2026-08-26
 
 Four measurements that were wrong, a feature that was inert, and one product instead of two.

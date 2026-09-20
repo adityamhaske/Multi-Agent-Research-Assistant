@@ -125,7 +125,9 @@ Stated so nobody plans around it:
 - **No Kubernetes manifests, no autoscaling, no sharding.** See the
   [scaling path](../architecture/02-system-architecture.md#scaling-path) for the order those
   needs would actually arrive in.
-- **No Prometheus metrics endpoint.** [Planned](../project/10-roadmap.md); logs and the
-  `agent_logs` trace are what exist today.
+- **No metrics dashboard.** `GET /metrics` serves Prometheus text
+  ([operations](31-operations.md#observability)); building or shipping a dashboard on top of
+  it is yours. The endpoint is unauthenticated and outside `/api/v1` so it can be withheld
+  at the proxy.
 - **No multi-tenancy beyond per-user isolation.** No organisations, roles, or shared
   workspaces.
