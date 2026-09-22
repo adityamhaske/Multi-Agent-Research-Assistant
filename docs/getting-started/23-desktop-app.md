@@ -122,6 +122,19 @@ Auto-update is [planned](../project/10-roadmap.md) rather than dismissed. The op
 is whether Gatekeeper re-blocks an unsigned app after an in-place replacement, and that
 deserves its own cycle.
 
+**What the app does to your database on launch.** It adds any table or column the new
+version expects and, where a schema change cannot be expressed by adding one, repairs that
+specific case. One such repair exists: a database created before research runs existed
+carries an obsolete foreign key on the trace table, which silently prevented a run from
+recording its trace. It is rebuilt on first launch of a version that has this fix — **your
+existing trace rows are copied across, not discarded** — and a database that does not need
+it is left untouched.
+
+The rebuild runs inside a transaction, so an interruption leaves the database exactly as it
+was. **There is no automatic file-level backup**: the transaction is the safety net, not a
+copy. If your research history matters to you, copy the app's data directory before
+upgrading, as you would before any upgrade.
+
 ## Uninstall
 
 **macOS** — drag the app out of Applications. **Windows** — uninstall through *Apps &

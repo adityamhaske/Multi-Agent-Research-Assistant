@@ -18,6 +18,12 @@ nothing else: renames, drops, type changes and CHECK-constraint changes are out 
 without a table rebuild, and SQLite will not express most of them. Those tests exist so the
 boundary is a decision somebody can read, and so the day one is needed it fails loudly.
 
+That day came once, for one table. Dropping the obsolete `agent_logs -> sessions` foreign key
+needs a rebuild, so it has its own narrowly scoped function — `_rebuild_legacy_agent_logs`,
+covered by `test_desktop_agent_logs_rebuild.py` — rather than a widening of this one.
+`_add_missing_columns` keeps the additive-only contract the tests below pin; the next
+non-additive change needs its own decision, not a framework that one quietly grew into.
+
 The one case that could brick an install is a NOT NULL column with no `server_default` added
 to a table that already has rows: SQLite refuses it, and it used to surface as a raw driver
 error at startup with no indication of which column. It is refused by name now.

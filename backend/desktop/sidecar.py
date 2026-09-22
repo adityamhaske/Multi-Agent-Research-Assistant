@@ -68,8 +68,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-from sqlalchemy import event, select
+from sqlalchemy import MetaData, event, select
 from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.schema import CreateIndex, CreateTable
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.logconfig import bind_research_run_context, configure_logging
@@ -337,6 +338,84 @@ def _has_rows(sync_conn, table: str) -> bool:
     """Whether a table already holds data — the difference between an upgrade and a fresh
     install, for the one column shape SQLite cannot add to a populated table."""
     return sync_conn.exec_driver_sql(f'SELECT 1 FROM "{table}" LIMIT 1').first() is not None
+
+
+#: The obsolete constraint this host has to undo, and the table it pointed at. Matched by
+#: *reflection* rather than by name: `0001` created it through the metadata naming
+#: convention, a database built by `create_all` may name it differently, and a hardcoded
+#: guess fails on exactly the environments it does not match — the lesson
+#: `0018_agent_logs_polymorphic` records from its own first attempt.
+_LEGACY_AGENT_LOG_PARENT = "sessions"
+
+
+def _rebuild_legacy_agent_logs(sync_conn, tables) -> None:
+    """Drop the obsolete `agent_logs → sessions` foreign key on an installed database.
+
+    `agent_logs.session_id` is polymorphic — a `sessions.id` *or* a `research_runs.id` — so
+    an FK could only ever point at one of them (`app/models/agent_log.py`). Alembic drops it
+    in `0018_agent_logs_polymorphic`; this host does not run Alembic, and
+    `_add_missing_columns` above is additive only, so an install created before that model
+    change kept the constraint. With `PRAGMA foreign_keys=ON` (set on every connection) every
+    run-sourced trace insert then fails — and `persist_and_publish` logs that rather than
+    raising, so the run completes and the trace is silently empty. `agent_logs` *is* the
+    trace: the live feed, its replay, and a bundle's `trace` array all read these rows.
+
+    **Deliberately not a general rebuild mechanism.** One table, one obsolete constraint,
+    detected by reflection and skipped entirely when absent. `_add_missing_columns` keeps its
+    additive-only contract; the day another non-additive change is needed, it needs its own
+    decision, not a framework this one quietly grew.
+
+    **The replacement is generated from `Base.metadata`**, so the rebuilt table is whatever
+    `create_all` would have produced on a fresh install and cannot drift from the model.
+
+    **Runs inside the caller's transaction**, which is the whole safety story: SQLite's DDL is
+    transactional, so a failure anywhere below leaves the original table and every row exactly
+    as they were. There is no file-level backup — stated plainly because the alternative is a
+    reader assuming one exists.
+
+    `PRAGMA foreign_keys` is never touched. The rebuild only ever *removes* a constraint, and
+    nothing references `agent_logs` as a parent, so enforcement can stay on throughout —
+    verified by the `foreign_key_check` below rather than assumed.
+    """
+    if not any(
+        fk["referred_table"] == _LEGACY_AGENT_LOG_PARENT
+        for fk in sa_inspect(sync_conn).get_foreign_keys("agent_logs")
+    ):
+        return  # fresh install, or already repaired — the common path, and a no-op
+
+    table = next(t for t in tables if t.name == "agent_logs")
+    scratch = "_agent_logs_rebuild"
+    columns = [c.name for c in table.columns]
+    quoted = ", ".join(f'"{c}"' for c in columns)
+
+    before = sync_conn.exec_driver_sql('SELECT count(*) FROM "agent_logs"').scalar()
+
+    # Rendered from the model under a scratch name. `CreateTable` emits no indexes, which is
+    # why they are recreated explicitly after the rename rather than colliding here.
+    rebuilt = table.to_metadata(MetaData(), name=scratch)
+    rebuilt.indexes.clear()
+    sync_conn.exec_driver_sql(str(CreateTable(rebuilt).compile(dialect=sync_conn.dialect)))
+    sync_conn.exec_driver_sql(
+        f'INSERT INTO "{scratch}" ({quoted}) SELECT {quoted} FROM "agent_logs"'  # noqa: S608
+    )
+    sync_conn.exec_driver_sql('DROP TABLE "agent_logs"')
+    sync_conn.exec_driver_sql(f'ALTER TABLE "{scratch}" RENAME TO "agent_logs"')
+    for index in table.indexes:
+        sync_conn.exec_driver_sql(str(CreateIndex(index).compile(dialect=sync_conn.dialect)))
+
+    after = sync_conn.exec_driver_sql('SELECT count(*) FROM "agent_logs"').scalar()
+    if after != before:
+        # Loud, and inside the transaction, so the raise is also the rollback. A trace that
+        # lost rows silently would be worse than one that never migrated.
+        raise RuntimeError(
+            f"agent_logs rebuild would have changed the row count ({before} -> {after}); "
+            "the migration has been rolled back and the original table is intact"
+        )
+    violations = sync_conn.exec_driver_sql("PRAGMA foreign_key_check").fetchall()
+    if violations:
+        raise RuntimeError(f"agent_logs rebuild left foreign keys inconsistent: {violations}")
+
+    logger.info("desktop_agent_logs_rebuilt", rows=before)
 
 
 def _add_missing_columns(sync_conn, tables) -> None:
@@ -820,6 +899,11 @@ def create_sidecar_app(
                 lambda sync_conn: Base.metadata.create_all(sync_conn, tables=tables)
             )
             await conn.run_sync(lambda sync_conn: _add_missing_columns(sync_conn, tables))
+            # After the additive pass, because it is the one change that pass cannot make:
+            # dropping a constraint needs a table rebuild, which SQLite only does by
+            # recreating the table. Same transaction, so a failure here leaves the database
+            # as it was.
+            await conn.run_sync(lambda sync_conn: _rebuild_legacy_agent_logs(sync_conn, tables))
 
         saver = AsyncSqliteSaver.from_conn_string(str(data_path / "checkpoints.sqlite"))
         state["saver"] = await saver.__aenter__()
