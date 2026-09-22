@@ -24,12 +24,17 @@ decide anything. `is_overridable()` therefore takes a purpose and never consults
 a test asserts that structurally, because the moment eligibility can be computed from a role
 the citation verifier becomes reachable from the `critic` editor.
 
-**What this module does NOT do yet.** It reads no override and consumes no `RunConfig`; every
-purpose resolves to its shipped constant, byte for byte. `is_overridable()` is declared and
-tested but nothing calls it — consuming an override is a later change, and so is the
-untrusted-content recomposition: moving the note out of the six constants that carry it
-inline *changes the string the model sees*, which belongs with the change that makes the body
-user-authored, not with this one.
+**The shipped path is untouched.** With no override in force — and for every protected
+purpose — this returns the shipped constant *itself*, the same object, byte for byte. That
+is not an optimisation: `fakes.SCENARIO_BY_PROMPT` resolves a scripted run by prompt
+identity, so a copy would collapse the three scenarios that share `critic` into one.
+
+**The note is sandwiched only around a user's body.** The six constants that carry
+`UNTRUSTED_CONTENT_NOTE` interleave it, 41-88% of the way in and followed by further
+instructions in four of the six. Wrapping a *shipped* prompt would change what every run sees for no benefit,
+so it is not done. A user-authored body has no such framing, so it is wrapped on both
+sides — before, so the model is told what to distrust before reading the instructions, and
+after, because a body ending in an instruction would otherwise have the last word.
 """
 
 from __future__ import annotations
@@ -37,6 +42,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from research_engine import prompts
+from research_engine.runconfig import get_run_config
 
 #: Every shipped prompt, keyed by the purpose it serves. The key is `<role>.<purpose>`, so
 #: the role a purpose belongs to is readable from the key and cannot drift from it.
@@ -90,6 +96,17 @@ OVERRIDABLE_PURPOSES: frozenset[str] = frozenset(
 #:   answering from its own knowledge instead of saying "not in here".
 PROTECTED_PURPOSES: frozenset[str] = frozenset(PURPOSE_CONSTANTS) - OVERRIDABLE_PURPOSES
 
+#: Purposes whose shipped prompt carries the untrusted-content framing, and which therefore
+#: need it restored around a replacement body.
+#:
+#: **Derived, never enumerated.** A prompt that gains the note and is not added to a
+#: hand-written list would lose the framing the moment a user replaced it — the failure
+#: would be silent, in the one place silence is least affordable. Six today; an anti-rot
+#: test pins that this stays computed.
+NOTE_CARRYING_PURPOSES: frozenset[str] = frozenset(
+    p for p, constant in PURPOSE_CONSTANTS.items() if prompts.UNTRUSTED_CONTENT_NOTE in constant
+)
+
 
 def role_of(purpose: str) -> str:
     """The model role a purpose runs under — the same string `get_llm()` is called with."""
@@ -109,13 +126,35 @@ def is_overridable(purpose: str) -> bool:
 
 
 def system_prompt(purpose: str) -> str:
-    """The system prompt for this purpose.
+    """The effective system prompt for this purpose, override applied if one is in force.
 
-    Returns the shipped constant itself, not a copy: `fakes.SCENARIO_BY_PROMPT` resolves a
-    scripted run by object identity, and a copy would fall back to the role and lose the
-    distinction between the three scenarios that share `critic`.
+    **The single runtime enforcement point.** A protected purpose returns before any
+    override is read — not after a check, not filtered afterwards — so no reordering or
+    later edit can let one through. API validation refuses purpose-shaped keys, but that is
+    a separate concern: this must hold even for a `RunConfig` built by hand, or restored
+    from a row that bypassed validation entirely.
     """
-    return PURPOSE_CONSTANTS[_checked(purpose)]
+    p = _checked(purpose)
+    shipped = PURPOSE_CONSTANTS[p]
+
+    if p not in OVERRIDABLE_PURPOSES:
+        return shipped  # protected: the override is never consulted at all
+
+    # Last-resort defence for a config assembled outside the host builders, which validate
+    # all-or-nothing before a run ever starts. Anything that is not usable text — including a
+    # container that is not a mapping at all — reads as "no override", which is the shipped
+    # prompt, never a partially applied one. Falling back rather than raising because this
+    # runs per model call inside a graph node: the honest failure is a run on shipped prompts
+    # (recorded as `UNUSABLE` on the row), not a half-written report.
+    stored = get_run_config().prompt_overrides
+    body = stored.get(role_of(p)) if isinstance(stored, Mapping) else None
+    if not isinstance(body, str) or not body.strip():
+        return shipped
+
+    if p not in NOTE_CARRYING_PURPOSES:
+        return body
+    note = prompts.UNTRUSTED_CONTENT_NOTE
+    return f"{note}\n\n{body}\n\n{note}"
 
 
 def _checked(purpose: str) -> str:

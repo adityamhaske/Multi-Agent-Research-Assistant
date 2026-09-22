@@ -31,7 +31,13 @@ from pathlib import Path
 
 SIDECAR = Path(__file__).resolve().parents[2] / "desktop" / "sidecar.py"
 
-#: 3,020 lines as of PR-5's shared preference validation: `PATCH /auth/me` now validates the
+#: 3,055 lines as of PR-6's prompt-override snapshot. The *rules* all delegate — the freeze
+#: and the row-read are `run_execution.freeze_prompt_overrides`/`prompt_overrides_for_run`,
+#: the chat scope is `run_config.chat_prompt_context`, called rather than restated — so what
+#: grew is the two in-process drivers, `_drive_run` and `_drive_session`, which are this
+#: host's Celery replacement and have no `app/api/v1/*` route to hand work to. Raised
+#: deliberately for that reason, not to let a growing file pass.
+#: Was 3,020 as of PR-5's shared preference validation: `PATCH /auth/me` now validates the
 #: body through `app.schemas.auth.UserPreferences` and merges it through
 #: `app.services.preferences.merge_preferences`, instead of merging raw JSON. That is fewer
 #: lines of rule and more lines of plumbing — the validation and the merge both live on the
@@ -54,7 +60,7 @@ SIDECAR = Path(__file__).resolve().parents[2] / "desktop" / "sidecar.py"
 #: supervision and logging bootstrap for a process that is not itself an HTTP handler), and
 #: 2,850 before that, itself down from 3,015 before plan phase 7 began delegating session
 #: routes. Small headroom above the current count, not a target to grow into.
-CEILING = 3020
+CEILING = 3055
 
 
 def test_sidecar_has_not_grown_past_its_ratchet():

@@ -302,7 +302,24 @@ the default.
 | `outline_template` | unset | Resolved into the outline shown at the design gate |
 | `max_planner_tasks` | 6 | What the planner may propose unprompted; the reviewer adds more at the gate |
 | `skip_plan_gate` | `True` at the engine level | Routing after the planner — see below |
-| `prompt_overrides` | empty | Declared, no consumer yet |
+| `prompt_overrides` | empty | `prompt_composition.system_prompt`, for the five overridable purposes only — see below |
+
+`prompt_overrides` is keyed by **role**, and eligibility is decided per **purpose**. Five
+roles fan out across nine shipped prompts, so a stored `critic` body reaches
+`critic.research` and stops at the citation verifier and the contradiction detector — those
+four purposes are protected, and `system_prompt` returns their shipped constant before it
+reads any override at all. The six prompts that carry the untrusted-content note keep it
+around a replacement body; the shipped path returns the constant itself, unchanged.
+
+A run resolves its overrides **once, at start**, into `research_runs.effective_prompt_overrides`,
+and reads that row for the rest of its life — including every resume. Editing a preference
+while a run waits at a human gate therefore cannot rewrite the instructions its first half
+was already written under, which is the same rule `model_routing` follows and for the same
+reason. `research_runs.prompt_overrides_status` records which of `NONE`, `APPLIED` or
+`UNUSABLE` that resolution produced; a snapshot that cannot be used yields shipped prompts
+for every purpose rather than a partial application. Chat is the deliberate exception — it
+has no run to stay consistent with and resolves live. The session pipeline does not apply
+overrides at all and records `sessions.prompt_overrides_not_applied` when it ignored one.
 
 `skip_plan_gate` has three defaults and they disagree deliberately. The engine default is
 `True`, so the CLI and the evaluation harness — neither of which can render or resume a

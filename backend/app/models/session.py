@@ -101,6 +101,15 @@ class Session(Base):
     # output this product exists to refuse.
     demo: Mapped[bool] = mapped_column(nullable=False, server_default="false")
 
+    # This session's owner had usable prompt overrides and this path did not apply them.
+    # Sessions predate the AgentSpec override contract and are not gaining it — runs are the
+    # product, and the session path stays readable rather than deepened. Recording the fact
+    # is the honest alternative to a report that quietly ignored a configuration its owner
+    # set: the reader is told, rather than left to assume the overrides took effect.
+    prompt_overrides_not_applied: Mapped[bool] = mapped_column(
+        nullable=False, server_default="false", default=False
+    )
+
     # ── Plan gate (internal/07 Phase 4) ────────────────────────────────────────
     # The reviewer's decision, not the planner's proposal — plan_json/outline_json
     # hold the request as edited at the gate, same as model_routing snapshots what

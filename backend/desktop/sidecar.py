@@ -138,7 +138,15 @@ from app.services.delegation import delegates_to
 from app.services.error_responses import install_error_handlers
 from app.services.event_stream import sse_frames
 from app.services.preferences import merge_preferences
-from app.services.run_config import apply_demo_rule, is_scripted, preference_overrides
+from app.services.run_config import (
+    OVERRIDES_APPLIED,
+    OVERRIDES_UNUSABLE,
+    apply_demo_rule,
+    chat_prompt_context,
+    is_scripted,
+    preference_overrides,
+    snapshot_overrides,
+)
 from app.services.session_events import lifecycle_event
 from app.services.sse import SSE_HEADERS
 from research_engine import bundle, catalog, citation_rate, outlines
@@ -1360,6 +1368,13 @@ def create_sidecar_app(
             # left a session showing "Pending" for the whole of its run while the server
             # showed "Running" for the same request.
             session.status = SessionStatus.RUNNING
+            # Loaded before the commit because the flag below is written in the same
+            # transaction as RUNNING, and reused for the preference read further down.
+            local_user = await db.get(User, sidecar["user_id"])
+            # Server counterpart: `pipeline_runner._execute`, with the reasoning.
+            if approved is None and plan is None:
+                _, override_status = snapshot_overrides(local_user)
+                session.prompt_overrides_not_applied = override_status == OVERRIDES_APPLIED
             await db.commit()
             session_routing = session.model_routing
             # The research design gate (internal/07 Phase 4). Read from the session row,
@@ -1376,7 +1391,6 @@ def create_sidecar_app(
                 # `session.corpus_mode`.
                 "corpus_mode": bool(session.corpus_mode),
             }
-            local_user = await db.get(User, sidecar["user_id"])
             # The one preference contract (`app/services/run_config.py`), not a copy of it.
             # This used to restate the field list inline, which is how `_drive_run` came to
             # be written without it at all.
@@ -1537,7 +1551,19 @@ def create_sidecar_app(
                 # Read here rather than after the commit below because the row's own fields
                 # are read in this same block and expire once the session closes.
                 overrides = preference_overrides(await db.get(User, run.owner_id))
+                # Prompt overrides do not come from that read. They are frozen onto the row
+                # in the same transaction as RUNNING and read back from it thereafter —
+                # `run_execution`'s two functions, called rather than restated, because this
+                # is the two-host contract and the resume path is where a second copy would
+                # diverge unnoticed. Start is `resume`/`plan` being unset, not the column
+                # being NULL: NULL is also what every pre-upgrade run holds.
+                if resume is None and plan is None:
+                    await run_execution.freeze_prompt_overrides(db, run)
+                prompt_overrides, unusable_stamp = run_execution.prompt_overrides_for_run(run)
+                if unusable_stamp:
+                    run.prompt_overrides_status = OVERRIDES_UNUSABLE
                 overrides |= {
+                    "prompt_overrides": prompt_overrides,
                     "skip_plan_gate": bool(run.skip_plan_gate),
                     "topic_seeds": tuple(run.topic_seeds or ()),
                     "outline_template": run.outline_template,
@@ -1903,8 +1929,13 @@ def create_sidecar_app(
         except EmbeddingsUnavailable as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
+        # Server counterpart: `app/api/v1/chat.py`, through the same context manager. Live,
+        # not snapshotted — a chat turn has no run to stay consistent with.
+        with chat_prompt_context(user):
+            chat_system = system_prompt("chat.general")
+
         system = (
-            f"{system_prompt('chat.general')}\n\n"
+            f"{chat_system}\n\n"
             f"{chat_scope.system_suffix(grounding)}\n\n"
             f"<untrusted_web_content>\n{grounding.text}\n</untrusted_web_content>"
         )

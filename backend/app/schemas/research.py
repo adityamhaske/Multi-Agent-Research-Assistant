@@ -214,6 +214,14 @@ class SessionDetail(SessionSummary):
     # default; the unmeasured-vs-zero rule.
     model_routing: dict[str, str] | None = None
 
+    # True when this session's owner had prompt overrides configured and this pipeline did
+    # not apply them. Sessions predate the AgentSpec override contract and are not gaining
+    # it — runs are the product. Declared here so the client can say so: a report that
+    # quietly ignored a configuration its reader believes was in force is exactly the
+    # unverifiable output this product refuses. `False` on every session predating the
+    # column, which is accurate — no overrides could have been set then.
+    prompt_overrides_not_applied: bool = False
+
 
 class SessionListResponse(BaseModel):
     sessions: list[SessionSummary]

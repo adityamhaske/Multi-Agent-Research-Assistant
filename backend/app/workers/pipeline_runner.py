@@ -35,7 +35,12 @@ from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.runtime import run_config_from_settings
 from app.services import crypto, model_routing
-from app.services.run_config import apply_demo_rule, preference_overrides
+from app.services.run_config import (
+    OVERRIDES_APPLIED,
+    apply_demo_rule,
+    preference_overrides,
+    snapshot_overrides,
+)
 from app.services.session_events import lifecycle_event
 from research_engine import citation_rate, events, runner
 from research_engine.runconfig import RunConfig
@@ -164,6 +169,18 @@ async def _execute(
                     return
 
                 session.status = SessionStatus.RUNNING
+                # Sessions do not apply prompt overrides and are not gaining that — runs
+                # are the product and this path stays readable rather than deepened. So a
+                # session whose owner configured one is *marked*, in the same transaction
+                # that starts it, instead of quietly producing a report under instructions
+                # its owner believes are in force. Start only: a resume inherits the
+                # disclosure its run began with. Desktop counterpart: `sidecar._drive_session`.
+                if resume is None and plan is None:
+                    owner = (
+                        await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+                    ).scalar_one_or_none()
+                    _, override_status = snapshot_overrides(owner)
+                    session.prompt_overrides_not_applied = override_status == OVERRIDES_APPLIED
                 await db.commit()
 
                 sink = adapters.agent_log_sink(db, session_id)

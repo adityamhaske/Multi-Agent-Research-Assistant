@@ -1,10 +1,13 @@
 """
 Storing a replacement prompt: what is accepted, what is refused, and what reset means.
 
-PR-5 persists `prompt_overrides` and validates it. **Nothing consumes it** — the research
-graph still resolves every purpose to its shipped constant, and `is_overridable()` still has
-no runtime caller. This is the storage and the refusals, ahead of the change that makes them
-matter, which is the same order `retrieval_k` and the rest arrived in.
+This file is the **storage** half: what a request may put in `users.preferences`, what it is
+refused for, and what resetting one role means. What consuming it looks like — the snapshot a
+run freezes, and the purposes an override may reach — is
+`tests/dataflow/test_prompt_override_snapshot.py` and `tests/task/test_prompt_composition.py`.
+The split matters, because the API's refusals are not what makes the boundary safe: a
+snapshot can also arrive from a hand-edited row, so the runtime re-checks everything below
+rather than trusting that a request came through this validator.
 
 **Two things here are not just field validation.**
 
@@ -268,7 +271,7 @@ def test_neither_host_restates_the_validation_or_the_merge():
         assert "UserPreferences" not in defined, f"{rel} defines its own preferences model"
 
 
-# ── Nothing consumes it ───────────────────────────────────────────────────────────
+# ── Where the stored value is allowed to go ───────────────────────────────────────
 
 
 def _runtime_modules():
@@ -299,26 +302,64 @@ def _calls(tree) -> set[str]:
     return out
 
 
-def test_no_stored_override_reaches_a_run_config():
-    """The hop PR-6 adds, asserted absent: `users.preferences` -> `RunConfig`.
+#: The modules allowed to put a stored override into a `RunConfig`, each with why.
+#: Anywhere else is a second path from preferences to a prompt, and the second path is the
+#: one that skips the snapshot — which is how a resumed run would come to be executing
+#: instructions its first half never saw.
+_MAY_DIAL_AN_OVERRIDE = {
+    # Builds the chat turn's config: live by design, since chat has no run to be consistent
+    # with. Also the one home for the run-time snapshot rules both hosts read.
+    "app/services/run_config.py": "chat_run_config / the snapshot rules",
+    # The server's run builder, reading the frozen row and never the live preference.
+    "app/run_execution.py": "run_config_for_run, from the snapshot",
+    # The desktop's in-process driver, through `run_execution`'s two functions.
+    "desktop/sidecar.py": "_drive_run, from the same snapshot",
+}
 
-    `RunConfig.prompt_overrides` has existed and been inert since before V3. What must not
-    exist yet is anything *assigning* to it — through `replace()`, a constructor keyword, or
-    an attribute write.
+
+def test_only_the_snapshot_path_dials_a_stored_override():
+    """The hop exists now; what must not exist is a *second* one.
+
+    `RunConfig.prompt_overrides` is written three syntactic ways, and all three are checked:
+    a keyword to `replace()`/the constructor, an attribute assignment, and — how both run
+    builders actually do it — a `"prompt_overrides"` key in a dict that is later splatted
+    in. Catching only the first two would miss the shape most likely to be copied, since a
+    new builder would be written by copying an existing one. Every writer is enumerated
+    above with the reason it is allowed; an entry that stops being true fails this too.
     """
-    writers = []
+    writers = set()
     for rel, tree in _runtime_modules():
         for n in ast.walk(tree):
-            if isinstance(n, ast.Call) and any(kw.arg == "prompt_overrides" for kw in n.keywords):
-                writers.append(f"{rel}: {ast.unparse(n.func)}(prompt_overrides=...)")
-            if isinstance(n, ast.Attribute) and n.attr == "prompt_overrides":
-                if isinstance(getattr(n, "ctx", None), ast.Store):
-                    writers.append(f"{rel}: assignment to .prompt_overrides")
-    assert not writers, f"a stored override is being dialled into a run: {writers}"
+            wrote = (
+                (isinstance(n, ast.Call) and any(kw.arg == "prompt_overrides" for kw in n.keywords))
+                or (
+                    isinstance(n, ast.Attribute)
+                    and n.attr == "prompt_overrides"
+                    and isinstance(getattr(n, "ctx", None), ast.Store)
+                )
+                or (
+                    isinstance(n, ast.Dict)
+                    and any(
+                        isinstance(k, ast.Constant) and k.value == "prompt_overrides"
+                        for k in n.keys
+                    )
+                )
+            )
+            if wrote:
+                writers.add(rel)
+    assert writers == set(_MAY_DIAL_AN_OVERRIDE), (
+        f"unexpected: {sorted(writers - set(_MAY_DIAL_AN_OVERRIDE))}, "
+        f"gone: {sorted(set(_MAY_DIAL_AN_OVERRIDE) - writers)}"
+    )
 
 
-def test_system_prompt_still_takes_only_a_purpose():
-    """If resolution grew an override parameter, composition would already be live."""
+def test_system_prompt_takes_only_a_purpose():
+    """No call site may supply an override.
+
+    An override parameter would make every caller a place the policy could be bypassed —
+    which is the whole reason `system_prompt` reads the ambient config instead. The single
+    enforcement point only holds if there is no way to hand it a body directly.
+    """
     import inspect as _inspect
 
     from research_engine.prompt_composition import system_prompt
@@ -326,9 +367,11 @@ def test_system_prompt_still_takes_only_a_purpose():
     assert list(_inspect.signature(system_prompt).parameters) == ["purpose"]
 
 
-def test_the_preference_field_list_is_untouched_by_this_change():
-    """`prompt_overrides` is stored, not dialled: adding it to `PREFERENCE_FIELDS` would make
-    it reach `RunConfig`, which is PR-6."""
+def test_the_preference_field_list_stays_free_of_prompt_overrides():
+    """The five in `PREFERENCE_FIELDS` are re-read on every resume, which is right for them
+    and wrong for this one. Adding it there would restore the live read the snapshot exists
+    to remove, and every test of the snapshot would still pass — the run would simply take
+    the newer value."""
     from app.services.run_config import PREFERENCE_FIELDS
 
     assert "prompt_overrides" not in PREFERENCE_FIELDS

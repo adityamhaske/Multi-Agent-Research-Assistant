@@ -134,11 +134,28 @@ def test_the_rows_that_were_already_there_survive_it(installed):
         # 0024 — which corpus a run read, and what state it was in.
         ("research_runs", "corpus_id"),
         ("research_runs", "corpus_version"),
+        # 0026 — the prompt overrides a run was frozen under.
+        ("research_runs", "effective_prompt_overrides"),
+        # `research_runs.prompt_overrides_status` is deliberately absent, and so is
+        # `evidence_outcome`: SQLite refuses to DROP a column a CHECK constraint names, so
+        # this harness cannot make a file that predates one. They arrive through the same
+        # loop as the entry above — what an upgraded install does *not* get is the
+        # constraint, which is `test_a_check_constraint_change_is_not_applied` below.
+        # 0026 — NOT NULL, so this is also the shape that refuses on a populated table.
+        ("sessions", "prompt_overrides_not_applied"),
     ],
 )
 def test_the_most_recent_columns_reach_an_installed_database(installed, table, column):
     """Named individually rather than covered by the generic test above: these are the
-    columns shipped since the sync was written, and nobody had checked them."""
+    columns shipped since the sync was written, and nobody had checked them.
+
+    `sessions` is seeded first, so a NOT NULL entry in this list is exercised against a
+    table that already has rows — the one shape that refuses. A new column of that kind
+    fails here rather than on a user's next launch.
+    """
+    _seed_user(installed)
+    _insert(installed, "projects", id="p1", user_id="u1", name="P")
+    _insert(installed, "sessions", id="s1", user_id="u1", project_id="p1", prompt="q")
     _drop(installed, table, column)
 
     _sync(installed)

@@ -234,3 +234,34 @@ def test_the_revision_graph_is_one_linear_chain():
     ]
     assert not merges, f"the chain merges at {merges}"
     assert len(revisions) == len(ALL_MIGRATIONS)
+
+
+#: `alembic_version.version_num` is `VARCHAR(32)`, created by Alembic itself and never
+#: widened here. Alembic does not check the id it is about to store against that width.
+VERSION_NUM_WIDTH = 32
+
+
+def test_every_revision_id_fits_the_version_table():
+    """A revision id longer than the column is a migration that cannot be *recorded*.
+
+    The DDL applies, then the bookkeeping `UPDATE alembic_version` raises
+    `StringDataRightTruncationError` and the whole upgrade rolls back — so `alembic upgrade
+    head` fails outright on Postgres while every SQLite-backed test passes, because SQLite
+    does not enforce declared varchar width. That combination means the suite cannot see it
+    and only the real migration job can, which is exactly the kind of failure worth a cheap
+    structural guard.
+
+    Caught in review at 33 characters; the longest legitimate id is 30.
+    """
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(Config(str(BACKEND / "alembic.ini")))
+    too_long = {
+        r.revision: len(r.revision)
+        for r in script.walk_revisions()
+        if len(r.revision) > VERSION_NUM_WIDTH
+    }
+    assert not too_long, (
+        f"revision ids exceed alembic_version.version_num({VERSION_NUM_WIDTH}): {too_long}"
+    )

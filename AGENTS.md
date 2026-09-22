@@ -111,6 +111,27 @@ locally.
   (infrastructure, `tests/workflow/test_layer_boundaries.py`) — so the desktop restated it
   as a literal in `_drive_session` and `_drive_run` was written without it at all, silently
   ignoring every saved preference on the pipeline the product actually ships
+- **`prompt_overrides` is a preference a run honours and is deliberately *not* in
+  `PREFERENCE_FIELDS`.** Those five are re-read on every resume; this one is resolved once,
+  at start, into `research_runs.effective_prompt_overrides` and read from the row
+  thereafter — `run_execution::freeze_prompt_overrides` and `::prompt_overrides_for_run`,
+  called by both run drivers rather than restated. Adding it to `PREFERENCE_FIELDS` would
+  restore the live re-read and let an edit made while a run waits at a human gate rewrite
+  the instructions its first half was already written under, and **every snapshot test
+  would still pass** — the run would simply take the newer value. The freeze is gated on
+  the driver's `resume`/`plan` arguments, never on finding the column NULL: NULL is also
+  what every run predating the column holds. Chat is the exception and resolves live
+  (`run_config::chat_prompt_context`, both hosts) because it has no run to stay consistent
+  with; sessions do not apply overrides at all and record
+  `sessions.prompt_overrides_not_applied` when they ignored one
+- **Which purposes an override may reach is decided in exactly one place** —
+  `prompt_composition::system_prompt`, which returns the shipped constant for a protected
+  purpose *before* it reads the config at all, so no reordering can let one through. Five
+  roles fan out across nine prompts and eligibility is per **purpose**, never per role. A
+  second caller of `is_overridable` is a second place the question gets asked, and the
+  dangerous shape is a route that checks it and hands the body onward past the one function
+  that would have refused. A malformed snapshot yields shipped prompts for **every** purpose
+  and is recorded `UNUSABLE` — never a partial application
 - A new `RunOutcome.status` → `pipeline_runner::_persist_outcome` *and* **both** dict
   literals in `sidecar::_apply_outcome` (status map, lifecycle-event map) — a missing key
   raises inside a background task, so the session sits on RUNNING forever with nothing in
