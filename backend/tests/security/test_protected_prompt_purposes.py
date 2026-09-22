@@ -236,8 +236,14 @@ def test_every_fanned_out_role_spans_both_policies(role):
 # ── Nothing is active yet ─────────────────────────────────────────────────────────
 
 
-def test_nothing_consumes_eligibility_yet():
-    """PR-4 draws the boundary; PR-6 is what makes overrides flow across it.
+def test_nothing_calls_eligibility_yet():
+    """PR-4 draws the boundary; the change that makes overrides flow is what crosses it.
+
+    Detects a **call**, not a mention. A substring search cannot tell one from the other,
+    which is the failure `AGENTS.md` records about this repository's own CI greps — prose
+    naming a banned token failed the build as surely as using one. This file's own subject
+    is a function name, so it has to get that distinction right about itself: a comment that
+    explains why `is_overridable` is not consulted must not read as consulting it.
 
     If this starts failing because a caller appeared, the caller belongs in the change that
     also carries the override plumbing and its behavioural tests — not here.
@@ -245,13 +251,19 @@ def test_nothing_consumes_eligibility_yet():
     callers = []
     for path in sorted(BACKEND.rglob("*.py")):
         rel = path.relative_to(BACKEND).as_posix()
-        if rel.startswith((".venv", "desktop/target")) or "test_" in path.name:
+        if rel.startswith((".venv", "desktop/target", "alembic/")) or "test_" in path.name:
             continue
-        if rel.endswith("research_engine/prompt_composition.py"):
+        if rel == "research_engine/prompt_composition.py":
             continue
-        if "is_overridable" in path.read_text(encoding="utf-8"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        called = {
+            n.func.id if isinstance(n.func, ast.Name) else getattr(n.func, "attr", "")
+            for n in ast.walk(tree)
+            if isinstance(n, ast.Call)
+        }
+        if "is_overridable" in called:
             callers.append(rel)
-    assert not callers, f"is_overridable is being consumed by: {callers}"
+    assert not callers, f"is_overridable is being called by: {callers}"
 
 
 def test_shipped_prompt_resolution_is_unchanged_by_the_policy_layer():

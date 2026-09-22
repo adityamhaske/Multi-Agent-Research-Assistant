@@ -31,7 +31,12 @@ from pathlib import Path
 
 SIDECAR = Path(__file__).resolve().parents[2] / "desktop" / "sidecar.py"
 
-#: 3,005 lines as of the legacy `agent_logs` rebuild: an installed database created before
+#: 3,020 lines as of PR-5's shared preference validation: `PATCH /auth/me` now validates the
+#: body through `app.schemas.auth.UserPreferences` and merges it through
+#: `app.services.preferences.merge_preferences`, instead of merging raw JSON. That is fewer
+#: lines of rule and more lines of plumbing — the validation and the merge both live on the
+#: server side of the boundary now, and what is left here is the transport that calls them.
+#: Raised from 3,005, which was as of the legacy `agent_logs` rebuild: an installed database created before
 #: `session_id` became polymorphic kept `fk_agent_logs_session_id_sessions`, and with
 #: `PRAGMA foreign_keys=ON` every run-sourced trace insert failed — silently, because the
 #: sink logs rather than raises. Alembic fixes this on Postgres (`0018`); this host does not
@@ -49,7 +54,7 @@ SIDECAR = Path(__file__).resolve().parents[2] / "desktop" / "sidecar.py"
 #: supervision and logging bootstrap for a process that is not itself an HTTP handler), and
 #: 2,850 before that, itself down from 3,015 before plan phase 7 began delegating session
 #: routes. Small headroom above the current count, not a target to grow into.
-CEILING = 3005
+CEILING = 3020
 
 
 def test_sidecar_has_not_grown_past_its_ratchet():

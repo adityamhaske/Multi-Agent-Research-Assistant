@@ -32,7 +32,6 @@ What differs from the server host, and nothing else:
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import hmac
 import json
 import os
@@ -68,10 +67,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from pydantic import ValidationError
 from sqlalchemy import MetaData, event, select
 from sqlalchemy import inspect as sa_inspect
-from sqlalchemy.schema import CreateIndex, CreateTable
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.schema import CreateIndex, CreateTable
 
 from app.logconfig import bind_research_run_context, configure_logging
 from app.models import POSTGRES_ONLY_TABLES, Base
@@ -82,7 +82,7 @@ from app.models.project import Project
 from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.ports import CheckpointDeleter, CorpusLocator, TerminalEventEmitter
-from app.schemas.auth import ConnectionVerdict, UsageResponse, UserResponse
+from app.schemas.auth import ConnectionVerdict, UsageResponse, UserPreferences, UserResponse
 from app.schemas.capabilities import DESKTOP, Capabilities
 from app.schemas.corpus import CorpusStatusResponse, DocumentResponse
 from app.schemas.models import (
@@ -130,27 +130,26 @@ from app.services import (
     chat_scope,
     corpus_ingest,
     local_llm,
-    memory,
     provider_health,
     usage,
 )
-
 from app.services.chat_history import recent_turns
 from app.services.delegation import delegates_to
 from app.services.error_responses import install_error_handlers
 from app.services.event_stream import sse_frames
+from app.services.preferences import merge_preferences
 from app.services.run_config import apply_demo_rule, is_scripted, preference_overrides
 from app.services.session_events import lifecycle_event
 from app.services.sse import SSE_HEADERS
-from research_engine import bundle, catalog, citation_rate, outlines, prompts
+from research_engine import bundle, catalog, citation_rate, outlines
 from research_engine.build_info import build_info
 from research_engine.corpus import CorpusStore
 from research_engine.embeddings import EmbeddingsUnavailable, LocalEmbeddings
 from research_engine.events import make_event
 from research_engine.graph import build_graph
-from research_engine.prompt_composition import system_prompt
 from research_engine.llm_factory import get_llm, text_of
 from research_engine.local import SqliteCache, load_env_file
+from research_engine.prompt_composition import system_prompt
 from research_engine.routing_rules import validate as validate_routing_rule
 from research_engine.runconfig import (
     DEFAULT_MODELS,
@@ -1121,10 +1120,32 @@ def create_sidecar_app(
             user.display_name = body["display_name"] or None
         if "avatar_url" in body:
             user.avatar_url = body["avatar_url"] or None
-        if "preferences" in body and isinstance(body["preferences"], dict):
-            merged = dict(user.preferences or {})
-            merged.update(body["preferences"])
-            user.preferences = merged
+        if "preferences" in body:
+            # Validated through the server's own model, not merged raw.
+            #
+            # **A deliberate compatibility change, not a side effect.** This host used to
+            # merge whatever JSON arrived, so *every* preference was stored unvalidated while
+            # the server refused the same body with a 422 — `retrieval_k: 99`, an unknown
+            # key, a `density` that is not one of the two literals. Those are all refused
+            # here now. The gap was survivable while it only meant a nonsense number in a
+            # JSON blob; it stops being survivable with `prompt_overrides`, which sits
+            # directly on the boundary the protected-purpose classification draws.
+            #
+            # `tests/workflow/test_prompt_override_api.py` pins both halves: what was valid
+            # before is still accepted, and what the server always refused is refused here.
+            try:
+                validated = UserPreferences.model_validate(body["preferences"])
+            except ValidationError as e:
+                # `include_context=False` matters: pydantic puts the live `ValueError` in
+                # each error's `ctx`, and FastAPI cannot serialise that — the response would
+                # fail to render and the client would see a 500 instead of the refusal.
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    e.errors(include_url=False, include_context=False, include_input=False),
+                ) from e
+            user.preferences = merge_preferences(
+                user.preferences, validated.model_dump(exclude_unset=True)
+            )
         await db.commit()
         await db.refresh(user)
         return user
