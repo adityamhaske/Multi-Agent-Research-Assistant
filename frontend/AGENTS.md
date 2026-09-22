@@ -23,7 +23,7 @@ are not lint rules and `npm run lint` will not catch them:
 1. **No `dangerouslySetInnerHTML`, no `rehype-raw`.** Reports are model-generated Markdown
    rendered in the user's browser; raw HTML there is an XSS sink (docs/06 §5).
 2. **No hardcoded hex colors.** Every color comes from a token in `app/globals.css`
-   (docs/07 §1). This is what makes both themes switchable and contrast-auditable.
+   (docs/07 "Theming"). This is what makes both themes switchable and contrast-auditable.
 3. **No hardcoded backend URLs** (`localhost:8000`, `NEXT_PUBLIC_API_URL`,
    `127.0.0.1:8000`). The browser talks to the same-origin `/api` proxy, which is why
    there is no CORS preflight in normal operation (docs/06 §6).

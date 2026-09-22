@@ -6,7 +6,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import "./globals.css";
 
-// Self-hosted via next/font — no render-blocking external CSS import (docs/03, docs/07 §1).
+// Self-hosted via next/font — no render-blocking external CSS import (docs/03, docs/07 "Theming").
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",

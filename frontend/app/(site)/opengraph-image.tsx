@@ -18,7 +18,7 @@ export const dynamic = "force-static";
  * Generated from JSX via Satori, not a checked-in PNG, so it cannot drift from the palette
  * in `globals.css` the way a hand-exported image would — the same "generated, not
  * hand-maintained" choice `pages.yml`'s own docblock makes about the rest of the site.
- * Colors below are `rgb()`, not hex: CI greps `app/` for hardcoded hex colors (docs/07 §1),
+ * Colors below are `rgb()`, not hex: CI greps `app/` for hardcoded hex colors (docs/07 "Theming"),
  * and Satori accepts `rgb()` identically. Values are `globals.css`'s light-theme tokens
  * (`--ink`, `--ground`, `--academic-accent`), inverted — ink as the background rather than
  * the text — for a card that stays legible at thumbnail size in a chat or timeline; a
