@@ -1,6 +1,6 @@
 """Add preferences JSON column to users.
 
-Settings IA (docs/07 §2, Phase 3): the customization surface adds more knobs than a
+Settings IA (internal/07 Phase 3): the customization surface adds more knobs than a
 column-per-setting migration cadence can sustain, so this is one JSON blob validated
 shape-side by `app.schemas.auth.UserPreferences` rather than a table column each. NULL
 means "every preference unset" — the default, and what every existing user keeps until

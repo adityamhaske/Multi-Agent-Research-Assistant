@@ -31,7 +31,25 @@ from pathlib import Path
 
 SIDECAR = Path(__file__).resolve().parents[2] / "desktop" / "sidecar.py"
 
-#: 2,915 lines as of A9's startup schema guard: `_add_missing_columns` now detects a
+#: 3,055 lines as of PR-6's prompt-override snapshot. The *rules* all delegate — the freeze
+#: and the row-read are `run_execution.freeze_prompt_overrides`/`prompt_overrides_for_run`,
+#: the chat scope is `run_config.chat_prompt_context`, called rather than restated — so what
+#: grew is the two in-process drivers, `_drive_run` and `_drive_session`, which are this
+#: host's Celery replacement and have no `app/api/v1/*` route to hand work to. Raised
+#: deliberately for that reason, not to let a growing file pass.
+#: Was 3,020 as of PR-5's shared preference validation: `PATCH /auth/me` now validates the
+#: body through `app.schemas.auth.UserPreferences` and merges it through
+#: `app.services.preferences.merge_preferences`, instead of merging raw JSON. That is fewer
+#: lines of rule and more lines of plumbing — the validation and the merge both live on the
+#: server side of the boundary now, and what is left here is the transport that calls them.
+#: Raised from 3,005, which was as of the legacy `agent_logs` rebuild: an installed database created before
+#: `session_id` became polymorphic kept `fk_agent_logs_session_id_sessions`, and with
+#: `PRAGMA foreign_keys=ON` every run-sourced trace insert failed — silently, because the
+#: sink logs rather than raises. Alembic fixes this on Postgres (`0018`); this host does not
+#: run Alembic and `alembic` is excluded from the PyInstaller bundle, so the rebuild is
+#: hand-rolled here. Same class as the entries below: desktop-only schema code with no
+#: `app/api/v1/*` route to delegate to, because `create_all` plus a schema sync is how *this*
+#: host builds its schema and no server route owns that. Was 2,915 as of A9's startup guard: `_add_missing_columns` now detects a
 #: populated table before issuing `ADD COLUMN … NOT NULL`, and refuses by name instead of
 #: letting SQLite raise a driver error during startup that names neither table nor column.
 #: Raised from 2,900 deliberately rather than by trimming the guard — this is the same class
@@ -42,7 +60,7 @@ SIDECAR = Path(__file__).resolve().parents[2] / "desktop" / "sidecar.py"
 #: supervision and logging bootstrap for a process that is not itself an HTTP handler), and
 #: 2,850 before that, itself down from 3,015 before plan phase 7 began delegating session
 #: routes. Small headroom above the current count, not a target to grow into.
-CEILING = 2920
+CEILING = 3055
 
 
 def test_sidecar_has_not_grown_past_its_ratchet():

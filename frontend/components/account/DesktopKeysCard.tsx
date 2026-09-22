@@ -44,7 +44,7 @@ const PROVIDERS: { value: ApiKeyProvider; label: string; help: string; url: stri
 ];
 
 /** One provider row, isolated so each can hold its own re-probe query state
- * (docs/07 §2, Phase 2a) — hooks cannot live inside the parent's `.map()`. */
+ * (internal/07 Phase 2a) — hooks cannot live inside the parent's `.map()`. */
 function DesktopKeyRow({
   provider,
   status,

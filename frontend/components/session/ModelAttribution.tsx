@@ -1,7 +1,7 @@
 import { routeModelLabel } from "@/lib/pipeline";
 
 /**
- * "Models used" — the per-role provider:model breakdown (docs/07 §2, "truthful
+ * "Models used" — the per-role provider:model breakdown (docs/04, "truthful
  * per-agent model attribution", requirement 1: disclosure "in the report/export").
  * Mirrors the same section `research_engine/bundle.py`'s `render_model_attribution_md`
  * and `app/services/export.py`'s `_models_html` append to a downloaded `.md`/`.pdf`, so

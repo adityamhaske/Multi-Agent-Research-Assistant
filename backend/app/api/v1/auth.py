@@ -33,6 +33,7 @@ from app.schemas.auth import (
 )
 from app.services import auth_service, crypto, provider_health, rate_limit, tokens, usage
 from app.services.passwords import WeakPassword, hash_password, verify_password
+from app.services.preferences import merge_preferences
 from research_engine.net_guard import SSRFBlocked, validate_url
 
 logger = structlog.get_logger()
@@ -177,12 +178,14 @@ async def update_me(
                 value = None
             setattr(current_user, field, value)
     if payload.preferences is not None:
-        # Merged, never replaced (docs/07 §2, Phase 3): a request from one settings
+        # Merged, never replaced (internal/07 Phase 3): a request from one settings
         # section only carries that section's fields, and a naive overwrite would
-        # blank every preference set from any other section.
-        merged = dict(current_user.preferences or {})
-        merged.update(payload.preferences.model_dump(exclude_unset=True))
-        current_user.preferences = merged
+        # blank every preference set from any other section. `prompt_overrides` needs a
+        # second level of that — one function, shared with the desktop, rather than the
+        # rule restated per host.
+        current_user.preferences = merge_preferences(
+            current_user.preferences, payload.preferences.model_dump(exclude_unset=True)
+        )
     await db.commit()
     await db.refresh(current_user)
     logger.info("profile_updated", user_id=str(current_user.id), fields=sorted(fields))
@@ -264,7 +267,7 @@ async def set_api_key(
     # Log the event, never the key or its hint.
     logger.info("api_key_set", user_id=str(current_user.id), provider=payload.provider)
 
-    # Saving *is* testing (docs/07 §2, Phase 2a) — probed after the commit, so the
+    # Saving *is* testing (internal/07 Phase 2a) — probed after the commit, so the
     # verdict describes the key that is now actually stored, and a probe failure never
     # blocks the save itself (the key is good to have on file even if the check flakes).
     verdict = await provider_health.probe(

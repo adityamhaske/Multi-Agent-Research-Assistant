@@ -1,7 +1,7 @@
 import type { ConnectionState, ConnectionVerdict } from "@/lib/types";
 
 /**
- * Three states, distinct shape *and* colour — never colour alone (docs/07 §2, Phase
+ * Three states, distinct shape *and* colour — never colour alone (internal/07 Phase
  * 2a; AGENTS.md, "Agent hue as reinforcement"): ● filled green "Connected · 47
  * models", ◐ half amber "Reachable, key rejected" / "quota exhausted", ○ hollow red
  * "No response". `reason` is always shown verbatim underneath — a light with no
@@ -103,7 +103,7 @@ export function ConnectionStatus({
         )}
       </div>
       {/* Verbatim, not a paraphrase — "server refused the key" and "server errored"
-          need different fixes, and only the reason string says which (docs/07 §2). */}
+          need different fixes, and only the reason string says which (internal/07 Phase 2a). */}
       <p className="text-xs leading-relaxed text-text-muted">{verdict.reason}</p>
     </div>
   );

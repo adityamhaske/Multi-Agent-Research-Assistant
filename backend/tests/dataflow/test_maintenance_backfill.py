@@ -1,6 +1,6 @@
 """
 Backfilling `citation_resolution_rate` on sessions finished before it existed
-(docs/07 §2, Phase 7).
+(internal/07 Phase 7).
 
 Migration 0015 added the column with no default and no backfill, deliberately: it is
 recorded at finalize from a live outcome, and inventing a number in a migration is the

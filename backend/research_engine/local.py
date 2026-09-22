@@ -81,7 +81,7 @@ def run_config_from_env(*, fake: bool) -> RunConfig:
 
     **`skip_plan_gate` is deliberately not set here**, in either branch, so both callers
     take `RunConfig`'s own default of True and never reach the research design gate
-    (docs/07 §2, Phase 4). That is not an oversight to tidy up: neither the CLI nor the
+    (internal/07 Phase 4). That is not an oversight to tidy up: neither the CLI nor the
     harness can render a plan for a human or resume past that interrupt, so switching it
     on here would hang an unattended eval run at a gate nobody is watching. The two
     *hosted* paths — `pipeline_runner._run_config_for` and `sidecar._drive_session` —

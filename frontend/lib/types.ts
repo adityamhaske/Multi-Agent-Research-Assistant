@@ -7,7 +7,7 @@ export type SessionStatus =
   | "PENDING"
   | "RUNNING"
   /**
-   * Paused at the research design gate (docs/07 §2, Phase 4) — the planner has proposed
+   * Paused at the research design gate (internal/07 Phase 4) — the planner has proposed
    * subtopics and an outline and is waiting on the reviewer, before any search has spent
    * anything. Distinct from AWAITING_APPROVAL because the two resume with different
    * payloads: this one takes an edited plan, that one takes an approve/rework decision.
@@ -20,7 +20,7 @@ export type SessionStatus =
 export type ResearchDepth = "fast" | "balanced" | "comprehensive";
 
 /**
- * What a follow-up question may read (docs/07 §2, Phase 5; req 8). Mirrors
+ * What a follow-up question may read (internal/07 Phase 5; req 8). Mirrors
  * `backend/app/services/chat_scope.py::ChatScope` — one word must mean one thing on both
  * chat surfaces, which is why the wire value is shared and only the *label* of `report`
  * differs between them ("This report" vs "My research").
@@ -46,7 +46,7 @@ export interface DesktopKeyStatus {
 export type DesktopKeys = Record<ApiKeyProvider, DesktopKeyStatus>;
 
 /**
- * Three states, never a bare boolean (docs/07 §2, Phase 2a; AGENTS.md "Honest
+ * Three states, never a bare boolean (internal/07 Phase 2a; AGENTS.md "Honest
  * three-state status"). `degraded` is load-bearing: "the server answered but rejected
  * the key" and "nothing answered at all" have different fixes.
  */
@@ -60,7 +60,7 @@ export interface ConnectionVerdict {
 }
 
 /**
- * The settings IA's customization surface (docs/07 §2, Phase 3). Every field is
+ * The settings IA's customization surface (internal/07 Phase 3). Every field is
  * optional — `undefined`/`null` means "use the default", the same behaviour a user
  * who has never opened Settings already gets.
  */
@@ -100,7 +100,7 @@ export interface ProfileUpdate {
   display_name?: string | null;
   avatar_url?: string | null;
   monthly_token_limit?: number;
-  /** Merged into stored preferences server-side, never replaced (docs/07 §2). */
+  /** Merged into stored preferences server-side, never replaced (internal/07 Phase 3). */
   preferences?: UserPreferences;
 }
 
@@ -363,7 +363,7 @@ export interface LocalModelInfo {
 }
 
 /**
- * "Not detected" used to conflate two states with different fixes (docs/07 §2, Phase
+ * "Not detected" used to conflate two states with different fixes (internal/07 Phase
  * 2b): `not_installed` needs the installer link, `installed_not_running` needs the
  * one-click Start button.
  */
@@ -396,7 +396,7 @@ export interface CustomEndpointStatus {
   hint: string | null;
 }
 
-/** One line of Ollama's streaming pull response (docs/07 §2, Phase 2b). */
+/** One line of Ollama's streaming pull response (internal/07 Phase 2b). */
 export interface PullProgress {
   status: string;
   completed: number | null;
@@ -405,7 +405,7 @@ export interface PullProgress {
 }
 
 /**
- * The research design gate (docs/07 §2, Phase 4). Mirrors
+ * The research design gate (internal/07 Phase 4). Mirrors
  * `backend/app/schemas/research.py::PlanTaskSchema` — the reviewer-facing shape of a
  * research task, which is deliberately not the engine's `ResearchTask`: run state like
  * `status` never crosses to the client, and `include` never crosses back into the graph.

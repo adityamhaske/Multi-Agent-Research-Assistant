@@ -111,7 +111,7 @@ async def start_research(
         # silently ran an ordinary web search. Persist what the caller actually asked for.
         corpus_mode=payload.corpus_mode,
         demo=payload.demo,
-        # Research design gate (docs/07 §2, Phase 4). Same rule as the two above and the
+        # Research design gate (internal/07 Phase 4). Same rule as the two above and the
         # same reason they are commented: a request field that never reaches the row is
         # a promise the run does not keep. `_run_config_for` reads all three back.
         skip_plan_gate=payload.skip_plan_gate,
@@ -177,7 +177,7 @@ async def list_sessions(
 
 @router.get("/outline-templates", response_model=list[OutlineTemplateSchema])
 async def list_outline_templates(_: User = Depends(get_current_user)):
-    """The report structures offered at the design gate (docs/07 §2, Phase 4).
+    """The report structures offered at the design gate (internal/07 Phase 4).
 
     Served from `research_engine.outlines` rather than hardcoded in the picker, so the
     sections the UI previews are the sections the synthesizer is actually given. Declared
@@ -433,7 +433,7 @@ async def get_plan(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """The research design this run is working from (docs/07 §2, Phase 4).
+    """The research design this run is working from (internal/07 Phase 4).
 
     404 rather than an empty plan when `plan_json` is null: a run that skipped the gate,
     or has not reached it, has no design to show, and returning `{"tasks": []}` for that

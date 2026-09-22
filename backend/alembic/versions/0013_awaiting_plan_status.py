@@ -1,6 +1,6 @@
 """Add AWAITING_PLAN to the session_status enum.
 
-The research design gate (docs/07 §2, Phase 4) is a second durable pause, and it needs a
+The research design gate (internal/07 Phase 4) is a second durable pause, and it needs a
 status of its own rather than reusing AWAITING_APPROVAL. The two resume with different
 payloads — a plan edit versus a draft approval — so a session sitting at the plan gate
 that reported AWAITING_APPROVAL would offer the reviewer an "Approve" button that resumed

@@ -1,5 +1,5 @@
 """
-Export service tests (docs/05 §3, docs/07 §3). The HTML rendering + citation/source
+Export service tests (docs/05 §3, docs/29). The HTML rendering + citation/source
 handling is pure and tested here; the WeasyPrint PDF step needs native libs, so that
 test produces a real PDF where they're present (the Docker image, CI) and skips where
 they aren't (a bare dev box)."""

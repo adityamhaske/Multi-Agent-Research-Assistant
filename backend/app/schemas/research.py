@@ -32,7 +32,7 @@ class ResearchStartRequest(BaseModel):
     # on the session, which is what lets every export stamp itself as not-real research.
     demo: bool = False
 
-    # ── Research design gate (docs/07 §2, Phase 4) ─────────────────────────────
+    # ── Research design gate (internal/07 Phase 4) ─────────────────────────────
     # All three are persisted onto the session and read back into `RunConfig` on every
     # resume. They are accepted here only now that the whole resume path exists — the
     # groundwork commit deliberately left them out, because a field the schema accepts
@@ -133,7 +133,7 @@ class ChatRequest(BaseModel):
     model_config = {"str_strip_whitespace": True}
 
     message: str = Field(..., min_length=1, max_length=4000)
-    #: What this question may read (docs/07 §2, Phase 5). "report" is today's behaviour
+    #: What this question may read (internal/07 Phase 5). "report" is today's behaviour
     #: on both chat surfaces — finished, approved research — so an un-updated client that
     #: omits the field gets exactly the answer it got before. See
     #: `app/services/chat_scope.py` for what each value promises, and for why "corpus"
@@ -204,7 +204,7 @@ class SessionDetail(SessionSummary):
     # NOTE: `model_routing` moved up to `SessionSummary` in Phase 7 so History can filter
     # on it; it is inherited here rather than re-declared. The comment below is kept
     # because it records why the field exists at all.
-    # Resolved per-role routing (docs/07 §2, "truthful per-agent model attribution").
+    # Resolved per-role routing (docs/04, "truthful per-agent model attribution").
     # `session.model_routing` has been resolved and snapshotted since before this field
     # existed (`app/workers/pipeline_runner.py::_run_config_for`) — this class just
     # never declared it, so Pydantic silently dropped it en route to the browser. Third
@@ -213,6 +213,14 @@ class SessionDetail(SessionSummary):
     # (a run that failed before the planner, or predates this field) — never a guessed
     # default; the unmeasured-vs-zero rule.
     model_routing: dict[str, str] | None = None
+
+    # True when this session's owner had prompt overrides configured and this pipeline did
+    # not apply them. Sessions predate the AgentSpec override contract and are not gaining
+    # it — runs are the product. Declared here so the client can say so: a report that
+    # quietly ignored a configuration its reader believes was in force is exactly the
+    # unverifiable output this product refuses. `False` on every session predating the
+    # column, which is accurate — no overrides could have been set then.
+    prompt_overrides_not_applied: bool = False
 
 
 class SessionListResponse(BaseModel):

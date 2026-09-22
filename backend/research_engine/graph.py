@@ -41,6 +41,7 @@ from research_engine.llm_factory import (
     text_of,
     token_counts,
 )
+from research_engine.prompt_composition import system_prompt
 from research_engine.runconfig import get_run_config
 from research_engine.schemas import (
     ContradictionReport,
@@ -218,7 +219,7 @@ async def planner_node(state: AgentState) -> dict:
         detail={
             "query": state["original_query"],
             "depth": state.get("research_depth", "balanced"),
-            # Requirement 1 (docs/07 §2): the full role→route mapping, disclosed at plan
+            # Requirement 1 (docs/04): the full role→route mapping, disclosed at plan
             # time — before a single task or dollar is spent — not just in the finished
             # report. `model` on every node's own kickoff event (below) is this same
             # data, one role at a time, for a node emitted well after this one.
@@ -227,7 +228,7 @@ async def planner_node(state: AgentState) -> dict:
         },
     )
     messages = [
-        SystemMessage(content=prompts.PLANNER_PROMPT_V2),
+        SystemMessage(content=system_prompt("planner.main")),
         HumanMessage(
             content=prompts.planner_human(
                 state["original_query"],
@@ -546,7 +547,7 @@ class submit_evidence(BaseModel):
 def _parse_submission(args: Any) -> list[dict]:
     """Validate one `submit_evidence` payload into evidence dicts. Raises on rejection.
 
-    Truncate to the configured cap before validation (docs/07 §2, Phase 3) — this can only
+    Truncate to the configured cap before validation (internal/07 Phase 3) — this can only
     tighten `EvidenceChunk.snippet`'s own max_length=500, never loosen it, since the
     config's default (500) equals that ceiling and nothing here raises it.
     """
@@ -616,7 +617,7 @@ async def _forced_submit(
         default=str,
     )
     messages = [
-        SystemMessage(content=prompts.EXECUTOR_PROMPT),
+        SystemMessage(content=system_prompt("executor.main")),
         HumanMessage(
             content=(
                 f"Task {task['id']}: {task['query']}\n\n"
@@ -747,7 +748,7 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
 
     model = get_llm("executor").bind_tools(EXECUTOR_TOOLS + [submit_evidence])
     messages: list = [
-        SystemMessage(content=prompts.EXECUTOR_PROMPT),
+        SystemMessage(content=system_prompt("executor.main")),
         HumanMessage(content=f"Task {task['id']}: {task['query']}"),
     ]
     if feedback:
@@ -1079,7 +1080,7 @@ async def _criticize_one(
         e for e in state.get("evidence", []) if str(e.get("task_id")) == _task_key(task)
     ]
 
-    # A configured floor (docs/07 §2, Phase 3; 0 = no floor, today's behaviour) fails
+    # A configured floor (internal/07 Phase 3; 0 = no floor, today's behaviour) fails
     # closed without spending a model call — evidence that is already too thin to meet
     # the floor cannot become sufficient by asking a model to grade it.
     min_sources = get_run_config().min_sources_per_task
@@ -1093,7 +1094,7 @@ async def _criticize_one(
         return _task_key(task), verdict, 0.0, 0, 0
 
     messages = [
-        SystemMessage(content=prompts.CRITIC_PROMPT_V2),
+        SystemMessage(content=system_prompt("critic.research")),
         HumanMessage(
             content=f"Task: {task['query']}\n\n<untrusted_web_content>\n"
             f"{json.dumps(task_evidence, indent=2)}\n</untrusted_web_content>"
@@ -1314,7 +1315,7 @@ async def _verifier_verdicts(
         ]
         resp = await llm.ainvoke(
             [
-                SystemMessage(content=prompts.CITATION_VERIFY_PROMPT),
+                SystemMessage(content=system_prompt("critic.citation_verify")),
                 HumanMessage(content="\n\n".join(blocks)),
             ]
         )
@@ -1436,7 +1437,7 @@ async def contradiction_detector_node(state: AgentState) -> dict:
         message="Checking evidence for conflicting claims…",
     )
     messages = [
-        SystemMessage(content=prompts.CONTRADICTION_DETECTOR_PROMPT),
+        SystemMessage(content=system_prompt("critic.contradiction_detector")),
         HumanMessage(
             content=f"Research query: {state['original_query']}\n\n"
             f"{contradictions.build_detector_input(by_source)}"
@@ -1544,7 +1545,7 @@ async def synthesizer_node(state: AgentState) -> dict:
     evidence_text = "Evidence for citation:\n" + "\n".join(evidence_lines)
 
     messages = [
-        SystemMessage(content=prompts.SYNTHESIZER_PROMPT_V2),
+        SystemMessage(content=system_prompt("synthesizer.main")),
         HumanMessage(
             content=prompts.synthesizer_human(
                 state["original_query"],
@@ -1576,7 +1577,7 @@ async def synthesizer_node(state: AgentState) -> dict:
             uncited += 1
     if uncited > 0:
         repair_messages = [
-            SystemMessage(content=prompts.SYNTHESIZER_REPAIR_PROMPT),
+            SystemMessage(content=system_prompt("synthesizer.repair")),
             HumanMessage(
                 content=f"Draft report with {uncited} uncited sentences:\n\n{draft}\n\n"
                 f"Numbered evidence:\n{evidence_text}"
@@ -1650,7 +1651,7 @@ async def synthesizer_node(state: AgentState) -> dict:
 
 def plan_gate_node(state: AgentState) -> dict:
     """Pause after the planner for the user to edit subtopics and the outline before
-    any search spends money (docs/07 §2, Phase 4). Mirrors `hitl_gate_node` exactly:
+    any search spends money (internal/07 Phase 4). Mirrors `hitl_gate_node` exactly:
     `interrupt()` persists the checkpoint and suspends; a resume carries the decision.
 
     Resumed with `{"tasks": [...], "outline": [...]}` — both optional; an absent key
@@ -1806,7 +1807,7 @@ def route_after_planner(state: AgentState) -> str:
     # way, instead of the skip-gate path sliding through to an evidence-free report.
     if not state.get("tasks"):
         return "failer"
-    # Opt-out, not opt-in (docs/07 §2, Phase 4) — the extra pause is the default.
+    # Opt-out, not opt-in (internal/07 Phase 4) — the extra pause is the default.
     if get_run_config().skip_plan_gate:
         return "executor"
     return "plan_gate"

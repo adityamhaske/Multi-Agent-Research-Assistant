@@ -16,7 +16,7 @@ import type { LocalModelInfo, PullProgress } from "@/lib/types";
 import { Section } from "./Section";
 
 /**
- * Local model server status and one-click setup (docs/07 §2, Phase 2b; docs/12 M15).
+ * Local model server status and one-click setup (internal/07 Phase 2b; docs/12 M15).
  *
  * Honest boundary: the web build guides, the desktop build acts. A user is told which
  * they are on rather than handed a button that cannot work — the web build cannot

@@ -8,7 +8,7 @@ import { parseCorpusLocator, type CorpusLocator } from "./corpusLocator";
 import type { Source } from "./types";
 
 /**
- * Citations UX (docs/07 §5) — the product's differentiator.
+ * Citations UX (docs/27) — the product's differentiator.
  *
  * Inline `[n]` markers in the report/draft are turned into small superscript chips
  * with a hover/focus popover carrying the source's title, domain and the verbatim

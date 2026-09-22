@@ -7,7 +7,7 @@ import type { AgentEvent } from "@/lib/types";
 
 /**
  * The feed's detail pane was nine sibling boxes with no hierarchy. It is now four
- * semantic groups — Reasoning · Evidence · Verdict · Draft (docs/07 §2, Phase 7).
+ * semantic groups — Reasoning · Evidence · Verdict · Draft (internal/07 Phase 7).
  *
  * Grouped, **not merged**: "Evaluation Reasons" and "Critic Feedback For Rework" are
  * different things, and folding them into one block would destroy that distinction to

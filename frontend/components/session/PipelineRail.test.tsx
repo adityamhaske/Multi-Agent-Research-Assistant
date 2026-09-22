@@ -5,8 +5,9 @@ import { PipelineRail } from "./PipelineRail";
 import type { AgentEvent, SessionStatus } from "@/lib/types";
 
 /**
- * The rail gained a sixth node — Plan review, between Planner and Executor (docs/07 §2,
- * Phase 4). The risks worth pinning are the ones a screenshot would not catch: the
+ * The rail gained a sixth node — Plan review, between Planner and Executor
+ * (internal/07 Phase 4). The risks worth pinning are the ones a screenshot would not
+ * catch: the
  * numbering of every later node shifts, and a session that never used the gate must not
  * show a node stuck pending forever in the middle of an otherwise finished run.
  */

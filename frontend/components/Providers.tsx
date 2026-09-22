@@ -30,7 +30,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Light is the product default (docs/07 §1); enableSystem=false so a
+      {/* Light is the product default (docs/07 "Theming"); enableSystem=false so a
           dark-OS user still lands on the intended default until they toggle. */}
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
         {/* Inside the query provider — the active project is derived from a query. */}

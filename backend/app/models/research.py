@@ -40,6 +40,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 from app.models.types import JsonType, UuidType
+from app.services.run_config import PROMPT_OVERRIDE_STATUSES
 
 # ── Vocabularies ──────────────────────────────────────────────────────────────────
 #
@@ -122,6 +123,20 @@ class ResearchRun(Base):
     outline_template: Mapped[str | None] = mapped_column(String(64), nullable=True)
     model_routing: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
 
+    #: The prompt overrides this run executes under, frozen once at start and never re-read
+    #: — the same reason `model_routing` is snapshotted. A report whose first half was
+    #: written under one instruction and second half under another is attributable to
+    #: neither, and resume must reconstruct the run that was interrupted, not the
+    #: preferences as they stand now. NULL on every run predating this column: those runs
+    #: ran on shipped prompts, so NULL is a fact about them and not a gap to backfill.
+    effective_prompt_overrides: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
+
+    #: One of `PROMPT_OVERRIDE_STATUSES`, or NULL for a run predating it. Stored rather
+    #: than derived from the column above, because an empty snapshot and one that could not
+    #: be used both execute on shipped prompts — and only a reader that can tell those
+    #: apart can say whether a run honoured what its owner configured.
+    prompt_overrides_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
+
     cost_usd: Mapped[float] = mapped_column(Numeric(12, 6), nullable=False, default=0)
     tokens_input: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     tokens_output: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
@@ -158,6 +173,12 @@ class ResearchRun(Base):
     __table_args__ = (
         CheckConstraint(_in("status", RUN_STATUSES), name="ck_run_status"),
         CheckConstraint(_in("evidence_outcome", EVIDENCE_OUTCOMES), name="ck_run_evidence_outcome"),
+        # NULL is a legitimate value here, not an unset one — see the column's comment.
+        CheckConstraint(
+            "prompt_overrides_status IS NULL OR "
+            + _in("prompt_overrides_status", PROMPT_OVERRIDE_STATUSES),
+            name="ck_run_prompt_overrides_status",
+        ),
         CheckConstraint(_in("depth", RESEARCH_DEPTHS), name="ck_run_depth"),
         # A cancelled run without a timestamp, or a timestamp without the status, is not
         # representable. Both sides are booleans on Postgres and 0/1 on SQLite; `=` compares

@@ -1,5 +1,5 @@
 """
-HTML in the corpus, and how the original bytes are served back (docs/07 §2, Phase 6).
+HTML in the corpus, and how the original bytes are served back (internal/07 Phase 6).
 
 Two separate concerns that have to hold together:
 

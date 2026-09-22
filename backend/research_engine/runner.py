@@ -41,7 +41,7 @@ from research_engine.ports import Cache, Corpus, EventSink
 from research_engine.runconfig import RunConfig, reset_run_config, set_run_config
 
 #: Two of these are pauses, not ends. `awaiting_plan` is the research design gate
-#: (docs/07 §2, Phase 4) and `awaiting_approval` is the draft review gate — they are
+#: (internal/07 Phase 4) and `awaiting_approval` is the draft review gate — they are
 #: distinct values rather than one "paused" because they resume with different payloads
 #: and a host that conflated them would answer a plan edit by approving a draft that
 #: does not exist yet.

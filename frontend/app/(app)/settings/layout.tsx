@@ -9,7 +9,7 @@ import { useReadiness } from "@/hooks/queries";
 import { isDesktop } from "@/lib/desktop";
 
 /**
- * The settings IA (docs/07 §2, Phase 3): a left rail replacing the single 452-line
+ * The settings IA (internal/07 Phase 3): a left rail replacing the single 452-line
  * scroll of six unrelated concerns — depth available, never in the way.
  */
 const SECTIONS: { slug: string; label: string; icon: string }[] = [

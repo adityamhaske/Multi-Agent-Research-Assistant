@@ -5,7 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { isDesktop } from "@/lib/desktop";
 
 /**
- * Server-side auth guard for every authenticated page (docs/07 §2). A missing access
+ * Server-side auth guard for every authenticated page (docs/07 "Components"). A missing access
  * cookie means "not logged in here" — redirect before any app chrome renders. Token
  * validity / silent refresh is handled client-side by AppShell + the API client, so a
  * merely-expired access token recovers without a login round-trip.

@@ -4,7 +4,7 @@
 config is rebuilt from the session row on every resume — a value that lived only on the
 original request would be present for the planner and silently empty for every call
 after it. Both hosts write these at `Session(...)` construction; both read them back in
-their `RunConfig` builder (docs/07 §2, Phase 4).
+their `RunConfig` builder (internal/07 Phase 4).
 
 Nullable with no default, because absent is the meaningful value: no seeds and no
 template is today's unconstrained planner, which is what every existing row was.

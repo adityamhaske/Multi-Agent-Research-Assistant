@@ -104,7 +104,7 @@ class RunConfig:
     # `graph._BudgetGuard` on why concurrency can only bound overshoot, not eliminate it.
     max_parallel_tasks: int = 4
 
-    # ── Customization surface (docs/07 §2, Phase 3) ────────────────────────────
+    # ── Customization surface (internal/07 Phase 3) ────────────────────────────
     # Every default below reproduces today's behaviour exactly — turning this field
     # into a setting must never change what an account that has not touched Settings
     # gets. Where a default mirrors a value hardcoded elsewhere, the source of that
@@ -120,7 +120,7 @@ class RunConfig:
     # tighten the cap, never loosen the schema's own limit.
     snippet_max_chars: int = 500
 
-    # Consumed by the plan gate (docs/07 §2, Phase 4). Empty/unset means "no seed
+    # Consumed by the plan gate (internal/07 Phase 4). Empty/unset means "no seed
     # topics, no outline template" — exactly today's unconstrained planner.
     outline_template: str | None = None
     topic_seeds: tuple[str, ...] = ()
@@ -129,7 +129,7 @@ class RunConfig:
     # place this contract has to be threaded through later.
     prompt_overrides: Mapping[str, str] = field(default_factory=dict)
 
-    # ── Plan gate (docs/07 §2, Phase 4) ────────────────────────────────────────
+    # ── Plan gate (internal/07 Phase 4) ────────────────────────────────────────
     # A default, not a wall: the planner may still propose fewer, and a user can add
     # more at the gate. 6 reproduces today's hardcoded PlannerOutput cap exactly.
     max_planner_tasks: int = 6

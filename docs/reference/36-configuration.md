@@ -167,4 +167,4 @@ Some run-configuration fields are set per user or per run rather than by the env
 | `corpus_mode`, `demo` | The start request | `false` |
 | `enforce_ssrf_guards` | The host — strict on the server, relaxed on desktop | `true` |
 | `max_planner_tasks` | Run configuration | 6 |
-| `prompt_overrides` | Declared, no consumer yet | empty |
+| `prompt_overrides` | User preferences, snapshotted onto the run at start (live for chat) | empty |

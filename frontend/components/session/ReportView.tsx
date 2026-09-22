@@ -55,7 +55,7 @@ export function ReportView({ session }: { session: SessionDetail }) {
   const tokens = session.total_tokens_input + session.total_tokens_output;
   const [exporting, setExporting] = useState<null | ExportFormat>(null);
   // A corpus citation resolves to a document in this session's project, so clicking [3]
-  // can show the page rather than downloading it (docs/07 §2, Phase 6). Web citations
+  // can show the page rather than downloading it (internal/07 Phase 6). Web citations
   // keep their ordinary link — there is no local file to preview.
   const [preview, setPreview] = useState<{ id: string; filename: string; page: number | null } | null>(
     null,
@@ -70,7 +70,7 @@ export function ReportView({ session }: { session: SessionDetail }) {
     }
   };
 
-  // Server-rendered export (docs/05 §3, docs/07 §3): .md is the raw report; .pdf is
+  // Server-rendered export (docs/05 §3, docs/29): .md is the raw report; .pdf is
   // WeasyPrint; .bundle.json is the hash-verifiable artifact. A 501 (PDF libs missing) or
   // 400 (bundle requires a COMPLETED session) surfaces as a toast rather than a broken
   // download.

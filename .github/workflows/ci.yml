@@ -122,12 +122,12 @@ jobs:
         run: |
           ! grep -rn --include='*.tsx' --include='*.ts' -e 'rehype-raw' -e 'dangerouslySetInnerHTML' app/ components/ lib/ hooks/ || \
           (echo '::error::Banned pattern found (rehype-raw / dangerouslySetInnerHTML)'; exit 1)
-      - name: Token hygiene guard (docs/03, docs/07 §1)
+      - name: Token hygiene guard (docs/03, docs/07 "Theming")
         run: |
           set -e
           fail=0
           if grep -rnE '#[0-9a-fA-F]{3,8}\b' --include='*.tsx' --include='*.ts' app/ components/ lib/ hooks/; then
-            echo '::error::Hardcoded hex color found — use a design token (docs/07 §1)'; fail=1
+            echo '::error::Hardcoded hex color found — use a design token (docs/07 "Theming")'; fail=1
           fi
           if grep -rnE 'localhost:8000|NEXT_PUBLIC_API_URL|127\.0\.0\.1:8000' --include='*.tsx' --include='*.ts' app/ components/ lib/ hooks/; then
             echo '::error::Hardcoded backend URL found — call the same-origin /api proxy (docs/06 §6)'; fail=1

@@ -11,7 +11,7 @@ import { formatCost } from "@/lib/format";
 import type { OutlineSection, PlanTask, SessionDetail } from "@/lib/types";
 
 /**
- * The research design gate (docs/07 §2, Phase 4).
+ * The research design gate (internal/07 Phase 4).
  *
  * This is the difference between "the agent picked 6 queries" and "these are my six
  * subtopics, in my review's structure" — and it is the last moment before the run starts

@@ -1,7 +1,7 @@
 import { statusMeta } from "@/lib/status";
 import type { SessionStatus } from "@/lib/types";
 
-/** Colours flow from tokens only (docs/07 §1); the label vocabulary lives in
+/** Colours flow from tokens only (docs/07 "Theming"); the label vocabulary lives in
  *  `lib/status.ts` so the badge and the history filters cannot disagree. */
 
 export function StatusBadge({ status }: { status: SessionStatus }) {

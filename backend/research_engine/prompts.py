@@ -194,7 +194,7 @@ Rules, in order of importance:
 """
 
 
-# ── Per-run message composition (docs/07 §2, Phase 4) ──────────────────────────────
+# ── Per-run message composition (internal/07 Phase 4) ──────────────────────────────
 #
 # The system prompts above are constants; what a *particular* run adds to them — the
 # seed topics a researcher named up front, the outline they approved at the design gate

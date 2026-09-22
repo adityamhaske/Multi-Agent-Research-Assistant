@@ -27,10 +27,11 @@ from app.models.user import User
 from app.schemas.research import ChatMessageSchema, ChatRequest
 from app.services import chat_scope, crypto
 from app.services.chat_history import recent_turns
+from app.services.run_config import chat_prompt_context
 from app.services.sse import SSE_HEADERS
-from research_engine import prompts
 from research_engine.embeddings import EmbeddingsUnavailable
 from research_engine.llm_factory import get_llm, reset_user_keys, set_user_keys, text_of
+from research_engine.prompt_composition import system_prompt
 
 logger = structlog.get_logger()
 
@@ -120,8 +121,15 @@ async def send_message(
         # is to say so rather than to answer from somewhere else.
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
+    # Chat resolves prompt overrides live. There is no run to snapshot and no resume to stay
+    # consistent with, so a turn answers under the preferences as they stand — the opposite
+    # of the run path, and deliberately so. Composed through `system_prompt` rather than
+    # concatenated here, because that function is the one place override policy is applied.
+    with chat_prompt_context(current_user):
+        chat_system = system_prompt("chat.general")
+
     system = (
-        f"{prompts.CHAT_PROMPT}\n\n"
+        f"{chat_system}\n\n"
         f"{chat_scope.system_suffix(grounding)}\n\n"
         f"<untrusted_web_content>\n{grounding.text}\n</untrusted_web_content>"
     )

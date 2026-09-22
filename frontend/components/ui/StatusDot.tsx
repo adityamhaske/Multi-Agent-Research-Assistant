@@ -11,7 +11,7 @@ const TONE_COLOR: Record<StatusTone, string> = {
 };
 
 /**
- * A colored marker plus its label, always together (docs/07 §2, "Honest
+ * A colored marker plus its label, always together (docs/07 "Components", "Honest
  * three-state status" / "Agent hue as reinforcement") — color is never the
  * only signal. Wraps the `.badge` + `.status-marker` combination that was
  * being hand-assembled per call site (LiveFeed's connection pill, the

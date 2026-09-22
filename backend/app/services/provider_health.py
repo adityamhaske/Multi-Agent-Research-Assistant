@@ -1,5 +1,5 @@
 """
-Provider credential health probe (docs/07 §2, Phase 2a: "Test API / custom / OpenRouter
+Provider credential health probe (internal/07 Phase 2a: "Test API / custom / OpenRouter
 connections on save — red/yellow/green").
 
 Mirrors `local_llm.probe`'s contract exactly: never raises, always returns a Verdict a

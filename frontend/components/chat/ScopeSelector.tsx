@@ -3,7 +3,7 @@
 import type { ChatScope } from "@/lib/types";
 
 /**
- * What a follow-up question may read (docs/07 §2, Phase 5; req 8).
+ * What a follow-up question may read (internal/07 Phase 5; req 8).
  *
  * Each option names what it reads **and** what it will not touch. That second half is
  * load-bearing rather than tidy copy: a control that only advertised what it includes

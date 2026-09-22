@@ -47,7 +47,13 @@ from app.models.research import ResearchRun
 from app.models.user import User
 from app.runtime import run_config_from_settings
 from app.services import model_routing
-from app.services.run_config import apply_demo_rule
+from app.services.run_config import (
+    OVERRIDES_UNUSABLE,
+    apply_demo_rule,
+    preference_overrides,
+    snapshot_overrides,
+    usable_overrides,
+)
 from research_engine import citation_rate, events
 from research_engine.checkpoint_read import CheckpointOutcome, read_checkpoint
 from research_engine.runconfig import RunConfig
@@ -55,21 +61,17 @@ from research_engine.runner import RunOutcome
 
 logger = structlog.get_logger()
 
-#: Preference keys that map 1:1 onto a `RunConfig` field. Same list the session worker uses; it
-#: is imported rather than restated so the two hosts cannot drift on which preferences a
-#: run honours.
-from app.workers.pipeline_runner import (  # noqa: E402
-    _PREFERENCE_FIELDS,
-    _preference_overrides,
-    _user_provider_keys,
-)
+#: One decrypt path and one fallback for BYOK keys, shared with the session worker rather
+#: than restated. The *preference* contract no longer arrives from here: it lives in
+#: `app/services/run_config.py`, which the desktop may import and `app.workers` is not
+#: (`tests/workflow/test_layer_boundaries.py` lists `app.workers` as infrastructure).
+from app.workers.pipeline_runner import _user_provider_keys  # noqa: E402
 
 __all__ = [
     "PersistResult",
     "persist_outcome",
     "run_config_for_run",
     "provider_keys_for",
-    "_PREFERENCE_FIELDS",
 ]
 
 
@@ -97,6 +99,43 @@ async def provider_keys_for(db: AsyncSession, owner_id: uuid.UUID) -> dict[str, 
     return await _user_provider_keys(db, str(owner_id))
 
 
+async def freeze_prompt_overrides(db: AsyncSession, run: ResearchRun) -> None:
+    """Stamp the prompt overrides this run will execute under. Start only, exactly once.
+
+    Called inside the transaction that writes RUNNING, so a run is never observable as
+    started without the configuration it started under. **Start is decided by the caller's
+    arguments, not by finding the column NULL** — NULL is also what every run predating the
+    column holds, and re-resolving on one of those would hand a resumed run instructions its
+    first half never saw.
+    """
+    user = (await db.execute(select(User).where(User.id == run.owner_id))).scalar_one_or_none()
+    frozen, status = snapshot_overrides(user)
+    # `None` rather than `{}` for the empty case: the status already says which of the three
+    # this is, and a column holding two spellings of "nothing" invites a reader to branch on
+    # the wrong one.
+    run.effective_prompt_overrides = frozen or None
+    run.prompt_overrides_status = status
+    await db.flush()
+
+
+def prompt_overrides_for_run(run: ResearchRun) -> tuple[dict[str, str], bool]:
+    """The overrides a run executes under, read from its own row and nothing else.
+
+    **The execution-source rule, in one place for both hosts.** Once a run has started, the
+    snapshot is the only source: consulting the owner's live preferences on resume would let
+    an edit made while the run sat at a human gate rewrite the instructions its first half
+    was already written under. A snapshot that cannot be used yields shipped prompts for
+    every purpose — never a partial application, and never a re-resolution.
+
+    Returns `(overrides, needs_unusable_stamp)`. The caller owns the write because the two
+    hosts commit on different transactions; only the *status* is ever corrected, so whatever
+    was stored stays inspectable.
+    """
+    overrides, status = usable_overrides(run.effective_prompt_overrides)
+    stamp = status == OVERRIDES_UNUSABLE and run.prompt_overrides_status != OVERRIDES_UNUSABLE
+    return overrides, stamp
+
+
 async def run_config_for_run(db: AsyncSession, run: ResearchRun) -> RunConfig:
     """The engine config for a run.
 
@@ -116,8 +155,17 @@ async def run_config_for_run(db: AsyncSession, run: ResearchRun) -> RunConfig:
         await db.flush()
 
     base = run_config_from_settings()
-    overrides = _preference_overrides(user)
+    overrides = preference_overrides(user)
+
+    # Read from the row, never from `user` — see `prompt_overrides_for_run`. Desktop
+    # counterpart: `sidecar._drive_run`, calling the same function rather than restating it.
+    prompt_overrides, unusable_stamp = prompt_overrides_for_run(run)
+    if unusable_stamp:
+        run.prompt_overrides_status = OVERRIDES_UNUSABLE
+        await db.flush()
+
     overrides |= {
+        "prompt_overrides": prompt_overrides,
         "skip_plan_gate": bool(run.skip_plan_gate),
         "topic_seeds": tuple(run.topic_seeds or ()),
         "outline_template": run.outline_template,
@@ -433,6 +481,10 @@ async def execute_run(
                     return
 
                 await run_lifecycle.set_status(db, run, "RUNNING")
+                # Same transaction as RUNNING, and only on a start: a resume re-enters here
+                # with `resume`/`plan` set and must inherit the snapshot, not replace it.
+                if resume is None and plan is None:
+                    await freeze_prompt_overrides(db, run)
                 await db.commit()
 
                 sink = adapters.agent_log_sink(db, run_id)

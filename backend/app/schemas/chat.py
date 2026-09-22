@@ -42,7 +42,7 @@ class Citation(BaseModel):
 
     `excerpt` is the retrieved chunk verbatim. Storing it is what makes a citation
     checkable rather than decorative: the chip shows the user the exact text the claim
-    was drawn from, the same contract as the source snippets on a report (docs/07 §5).
+    was drawn from, the same contract as the source snippets on a report (docs/27).
     """
 
     marker: str
@@ -67,7 +67,7 @@ class ThreadMessageRequest(BaseModel):
     model_config = {"str_strip_whitespace": True}
 
     message: str = Field(..., min_length=1, max_length=4000)
-    #: What this question may read (docs/07 §2, Phase 5). Same vocabulary as
+    #: What this question may read (internal/07 Phase 5). Same vocabulary as
     #: `research.ChatRequest.scope` — one word must mean one thing on both chat
     #: surfaces, which is why both defer to `app/services/chat_scope.py`. "report"
     #: here means this project's approved research, which is today's behaviour.

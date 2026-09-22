@@ -274,7 +274,7 @@ async def test_run_persists_the_model_routing_it_actually_dialled(sidecar):
     """`_drive_session` resolves a `RunConfig` but never wrote it back onto the session
     row, so `model_routing` stayed null on every desktop session forever — the server's
     `pipeline_runner._run_config_for` does this snapshot and the sidecar never grew the
-    equivalent line (docs/07 §2, "truthful per-agent model attribution")."""
+    equivalent line (docs/04, "truthful per-agent model attribution")."""
     start = await sidecar.post(
         "/api/v1/research",
         headers=_auth(),
@@ -379,7 +379,7 @@ def _mock_probe_transport(handler):
 
 async def test_provider_test_probes_a_submitted_key_before_storing(sidecar, monkeypatch):
     """`POST /models/providers/test` — contract copy #2 of the server's endpoint
-    (docs/07 §2, Phase 2a)."""
+    (internal/07 Phase 2a)."""
     import httpx as httpx_mod
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -425,7 +425,7 @@ async def test_provider_health_checks_the_stored_keychain_key(sidecar, monkeypat
     assert body["model_count"] == 1
 
 
-# ── One-click local models (docs/07 §2, Phase 2b) ────────────────────────────────
+# ── One-click local models (internal/07 Phase 2b) ────────────────────────────────
 
 
 async def test_local_status_reports_install_state(sidecar, monkeypatch):

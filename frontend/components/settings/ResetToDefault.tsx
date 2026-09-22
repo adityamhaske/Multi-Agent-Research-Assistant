@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Per-setting revert (docs/07 §2, Phase 3) — "as much customization as possible"
+ * Per-setting revert (internal/07 Phase 3) — "as much customization as possible"
  * survives only if every knob has a visible way back. Shown only when the current
  * value differs from the default; a reset link next to an already-default field is
  * noise with nothing to do.

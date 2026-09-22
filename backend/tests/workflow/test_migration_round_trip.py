@@ -288,8 +288,12 @@ def test_a_populated_database_survives_a_full_round_trip(scratch_db):
     assert down.returncode == 0, (
         "a populated database could not be reversed to base:\n" + down.stderr[-2000:]
     )
-    assert down.stderr.count("Running downgrade") == 27, (
-        f"expected all 27 revisions to reverse, saw {down.stderr.count('Running downgrade')}"
+    # Spelled out, not derived from `ScriptDirectory`: a count read from the same source
+    # this walks would agree with itself and could not catch a revision that silently did
+    # not run. It therefore needs updating by hand whenever a migration is added — 28 since
+    # `0026_prompt_override_snapshot`.
+    assert down.stderr.count("Running downgrade") == 28, (
+        f"expected all 28 revisions to reverse, saw {down.stderr.count('Running downgrade')}"
     )
     assert _tables(scratch_db) <= {"alembic_version"}, "base still holds application tables"
 

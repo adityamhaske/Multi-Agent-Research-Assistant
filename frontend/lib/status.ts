@@ -1,7 +1,7 @@
 import type { SessionStatus } from "./types";
 
 /**
- * One status vocabulary, for the list, the card and the detail (docs/07 §2, Phase 7).
+ * One status vocabulary, for the list, the card and the detail (internal/07 Phase 7).
  *
  * These lived in two places — `StatusBadge`'s CONFIG and the history page's FILTERS —
  * and the second was already wrong: adding `AWAITING_PLAN` in Phase 4 updated the badge

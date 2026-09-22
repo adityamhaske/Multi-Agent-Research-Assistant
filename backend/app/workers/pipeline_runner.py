@@ -35,7 +35,12 @@ from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.runtime import run_config_from_settings
 from app.services import crypto, model_routing
-from app.services.run_config import apply_demo_rule
+from app.services.run_config import (
+    OVERRIDES_APPLIED,
+    apply_demo_rule,
+    preference_overrides,
+    snapshot_overrides,
+)
 from app.services.session_events import lifecycle_event
 from research_engine import citation_rate, events, runner
 from research_engine.runconfig import RunConfig
@@ -68,23 +73,6 @@ async def _user_provider_keys(db, user_id: str) -> dict[str, str]:
     return keys
 
 
-#: Preference keys that map 1:1 onto a `RunConfig` field of the same name (docs/07 §2,
-#: Phase 3). `None`/absent means "use the deployment default" — the class default
-#: already is that default, so an unset preference contributes nothing to `replace()`.
-_PREFERENCE_FIELDS = (
-    "retrieval_k",
-    "min_sources_per_task",
-    "snippet_max_chars",
-    "tavily_api_key",
-    "brave_api_key",
-)
-
-
-def _preference_overrides(user: User | None) -> dict:
-    prefs = (user.preferences if user else None) or {}
-    return {k: prefs[k] for k in _PREFERENCE_FIELDS if prefs.get(k) is not None}
-
-
 async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
     """The engine config for this run, with model routing resolved and snapshotted.
 
@@ -107,8 +95,8 @@ async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
         await db.commit()
 
     base = run_config_from_settings()
-    overrides = _preference_overrides(user)
-    # The research design gate (docs/07 §2, Phase 4), now that the whole resume path
+    overrides = preference_overrides(user)
+    # The research design gate (internal/07 Phase 4), now that the whole resume path
     # exists: SessionStatus.AWAITING_PLAN, `runner.resume(plan=…)`, the `resume_plan_gate`
     # task, and `GET/POST /research/{id}/plan`. Sourced from the session row rather than
     # the request because this is rebuilt on every resume, long after the request is gone.
@@ -181,6 +169,18 @@ async def _execute(
                     return
 
                 session.status = SessionStatus.RUNNING
+                # Sessions do not apply prompt overrides and are not gaining that — runs
+                # are the product and this path stays readable rather than deepened. So a
+                # session whose owner configured one is *marked*, in the same transaction
+                # that starts it, instead of quietly producing a report under instructions
+                # its owner believes are in force. Start only: a resume inherits the
+                # disclosure its run began with. Desktop counterpart: `sidecar._drive_session`.
+                if resume is None and plan is None:
+                    owner = (
+                        await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+                    ).scalar_one_or_none()
+                    _, override_status = snapshot_overrides(owner)
+                    session.prompt_overrides_not_applied = override_status == OVERRIDES_APPLIED
                 await db.commit()
 
                 sink = adapters.agent_log_sink(db, session_id)
@@ -237,7 +237,7 @@ async def _execute(
                 async with AsyncPostgresSaver.from_conn_string(_checkpointer_dsn()) as saver:
                     await saver.setup()
                     if plan is not None:
-                        # Resuming the design gate (docs/07 §2, Phase 4).
+                        # Resuming the design gate (internal/07 Phase 4).
                         outcome = await runner.resume(
                             checkpointer=saver, session_id=session_id, plan=plan, **ports
                         )
@@ -379,7 +379,7 @@ async def _persist_outcome(
     session.sources = outcome.sources
 
     if outcome.status == "awaiting_plan":
-        # The research design gate (docs/07 §2, Phase 4). Persisted before the event
+        # The research design gate (internal/07 Phase 4). Persisted before the event
         # leaves, same ordering as every other branch here: a client that acts on
         # PLAN_READY and immediately GETs /plan must not read a row that has not caught
         # up yet. `plan_approved_at` stays null — this is the proposal, not a decision;

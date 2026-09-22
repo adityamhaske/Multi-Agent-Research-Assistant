@@ -11,7 +11,7 @@ import type { SessionStatus } from "@/lib/types";
 const LIMIT = 20;
 
 /**
- * Derived from the shared vocabulary, never restated (docs/07 §2, Phase 7). This list
+ * Derived from the shared vocabulary, never restated (internal/07 Phase 7). This list
  * was hand-written and had already fallen behind: `AWAITING_PLAN` was missing, so a run
  * parked at the design gate — the one a user is most likely scanning for — could be seen
  * and not filtered for.

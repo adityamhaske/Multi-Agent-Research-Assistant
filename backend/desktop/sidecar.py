@@ -32,7 +32,6 @@ What differs from the server host, and nothing else:
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import hmac
 import json
 import os
@@ -68,9 +67,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-from sqlalchemy import event, select
+from pydantic import ValidationError
+from sqlalchemy import MetaData, event, select
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.schema import CreateIndex, CreateTable
 
 from app.logconfig import bind_research_run_context, configure_logging
 from app.models import POSTGRES_ONLY_TABLES, Base
@@ -81,7 +82,7 @@ from app.models.project import Project
 from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.ports import CheckpointDeleter, CorpusLocator, TerminalEventEmitter
-from app.schemas.auth import ConnectionVerdict, UsageResponse, UserResponse
+from app.schemas.auth import ConnectionVerdict, UsageResponse, UserPreferences, UserResponse
 from app.schemas.capabilities import DESKTOP, Capabilities
 from app.schemas.corpus import CorpusStatusResponse, DocumentResponse
 from app.schemas.models import (
@@ -129,19 +130,26 @@ from app.services import (
     chat_scope,
     corpus_ingest,
     local_llm,
-    memory,
     provider_health,
     usage,
 )
-
 from app.services.chat_history import recent_turns
 from app.services.delegation import delegates_to
 from app.services.error_responses import install_error_handlers
 from app.services.event_stream import sse_frames
-from app.services.run_config import apply_demo_rule, is_scripted
+from app.services.preferences import merge_preferences
+from app.services.run_config import (
+    OVERRIDES_APPLIED,
+    OVERRIDES_UNUSABLE,
+    apply_demo_rule,
+    chat_prompt_context,
+    is_scripted,
+    preference_overrides,
+    snapshot_overrides,
+)
 from app.services.session_events import lifecycle_event
 from app.services.sse import SSE_HEADERS
-from research_engine import bundle, catalog, citation_rate, outlines, prompts
+from research_engine import bundle, catalog, citation_rate, outlines
 from research_engine.build_info import build_info
 from research_engine.corpus import CorpusStore
 from research_engine.embeddings import EmbeddingsUnavailable, LocalEmbeddings
@@ -149,6 +157,7 @@ from research_engine.events import make_event
 from research_engine.graph import build_graph
 from research_engine.llm_factory import get_llm, text_of
 from research_engine.local import SqliteCache, load_env_file
+from research_engine.prompt_composition import system_prompt
 from research_engine.routing_rules import validate as validate_routing_rule
 from research_engine.runconfig import (
     DEFAULT_MODELS,
@@ -337,6 +346,84 @@ def _has_rows(sync_conn, table: str) -> bool:
     """Whether a table already holds data — the difference between an upgrade and a fresh
     install, for the one column shape SQLite cannot add to a populated table."""
     return sync_conn.exec_driver_sql(f'SELECT 1 FROM "{table}" LIMIT 1').first() is not None
+
+
+#: The obsolete constraint this host has to undo, and the table it pointed at. Matched by
+#: *reflection* rather than by name: `0001` created it through the metadata naming
+#: convention, a database built by `create_all` may name it differently, and a hardcoded
+#: guess fails on exactly the environments it does not match — the lesson
+#: `0018_agent_logs_polymorphic` records from its own first attempt.
+_LEGACY_AGENT_LOG_PARENT = "sessions"
+
+
+def _rebuild_legacy_agent_logs(sync_conn, tables) -> None:
+    """Drop the obsolete `agent_logs → sessions` foreign key on an installed database.
+
+    `agent_logs.session_id` is polymorphic — a `sessions.id` *or* a `research_runs.id` — so
+    an FK could only ever point at one of them (`app/models/agent_log.py`). Alembic drops it
+    in `0018_agent_logs_polymorphic`; this host does not run Alembic, and
+    `_add_missing_columns` above is additive only, so an install created before that model
+    change kept the constraint. With `PRAGMA foreign_keys=ON` (set on every connection) every
+    run-sourced trace insert then fails — and `persist_and_publish` logs that rather than
+    raising, so the run completes and the trace is silently empty. `agent_logs` *is* the
+    trace: the live feed, its replay, and a bundle's `trace` array all read these rows.
+
+    **Deliberately not a general rebuild mechanism.** One table, one obsolete constraint,
+    detected by reflection and skipped entirely when absent. `_add_missing_columns` keeps its
+    additive-only contract; the day another non-additive change is needed, it needs its own
+    decision, not a framework this one quietly grew.
+
+    **The replacement is generated from `Base.metadata`**, so the rebuilt table is whatever
+    `create_all` would have produced on a fresh install and cannot drift from the model.
+
+    **Runs inside the caller's transaction**, which is the whole safety story: SQLite's DDL is
+    transactional, so a failure anywhere below leaves the original table and every row exactly
+    as they were. There is no file-level backup — stated plainly because the alternative is a
+    reader assuming one exists.
+
+    `PRAGMA foreign_keys` is never touched. The rebuild only ever *removes* a constraint, and
+    nothing references `agent_logs` as a parent, so enforcement can stay on throughout —
+    verified by the `foreign_key_check` below rather than assumed.
+    """
+    if not any(
+        fk["referred_table"] == _LEGACY_AGENT_LOG_PARENT
+        for fk in sa_inspect(sync_conn).get_foreign_keys("agent_logs")
+    ):
+        return  # fresh install, or already repaired — the common path, and a no-op
+
+    table = next(t for t in tables if t.name == "agent_logs")
+    scratch = "_agent_logs_rebuild"
+    columns = [c.name for c in table.columns]
+    quoted = ", ".join(f'"{c}"' for c in columns)
+
+    before = sync_conn.exec_driver_sql('SELECT count(*) FROM "agent_logs"').scalar()
+
+    # Rendered from the model under a scratch name. `CreateTable` emits no indexes, which is
+    # why they are recreated explicitly after the rename rather than colliding here.
+    rebuilt = table.to_metadata(MetaData(), name=scratch)
+    rebuilt.indexes.clear()
+    sync_conn.exec_driver_sql(str(CreateTable(rebuilt).compile(dialect=sync_conn.dialect)))
+    sync_conn.exec_driver_sql(
+        f'INSERT INTO "{scratch}" ({quoted}) SELECT {quoted} FROM "agent_logs"'  # noqa: S608
+    )
+    sync_conn.exec_driver_sql('DROP TABLE "agent_logs"')
+    sync_conn.exec_driver_sql(f'ALTER TABLE "{scratch}" RENAME TO "agent_logs"')
+    for index in table.indexes:
+        sync_conn.exec_driver_sql(str(CreateIndex(index).compile(dialect=sync_conn.dialect)))
+
+    after = sync_conn.exec_driver_sql('SELECT count(*) FROM "agent_logs"').scalar()
+    if after != before:
+        # Loud, and inside the transaction, so the raise is also the rollback. A trace that
+        # lost rows silently would be worse than one that never migrated.
+        raise RuntimeError(
+            f"agent_logs rebuild would have changed the row count ({before} -> {after}); "
+            "the migration has been rolled back and the original table is intact"
+        )
+    violations = sync_conn.exec_driver_sql("PRAGMA foreign_key_check").fetchall()
+    if violations:
+        raise RuntimeError(f"agent_logs rebuild left foreign keys inconsistent: {violations}")
+
+    logger.info("desktop_agent_logs_rebuilt", rows=before)
 
 
 def _add_missing_columns(sync_conn, tables) -> None:
@@ -730,7 +817,7 @@ def create_sidecar_app(
         "saver": None,
         "cache": None,
         "corpus": None,
-        # The `ollama serve` process this app started, if any (docs/07 §2, Phase 2b).
+        # The `ollama serve` process this app started, if any (internal/07 Phase 2b).
         # Only ever populated by `/local/start` — a server the user started themselves
         # outside the app is never touched by `/local/stop`.
         "local_llm_process": None,
@@ -820,6 +907,11 @@ def create_sidecar_app(
                 lambda sync_conn: Base.metadata.create_all(sync_conn, tables=tables)
             )
             await conn.run_sync(lambda sync_conn: _add_missing_columns(sync_conn, tables))
+            # After the additive pass, because it is the one change that pass cannot make:
+            # dropping a constraint needs a table rebuild, which SQLite only does by
+            # recreating the table. Same transaction, so a failure here leaves the database
+            # as it was.
+            await conn.run_sync(lambda sync_conn: _rebuild_legacy_agent_logs(sync_conn, tables))
 
         saver = AsyncSqliteSaver.from_conn_string(str(data_path / "checkpoints.sqlite"))
         state["saver"] = await saver.__aenter__()
@@ -1029,17 +1121,39 @@ def create_sidecar_app(
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        """Persist Settings preferences (docs/07 §2, Phase 3) — contract copy #3 of the
+        """Persist Settings preferences (internal/07 Phase 3) — contract copy #3 of the
         server's `PATCH /auth/me`, merged rather than replaced for the same reason."""
         body = await request.json()
         if "display_name" in body:
             user.display_name = body["display_name"] or None
         if "avatar_url" in body:
             user.avatar_url = body["avatar_url"] or None
-        if "preferences" in body and isinstance(body["preferences"], dict):
-            merged = dict(user.preferences or {})
-            merged.update(body["preferences"])
-            user.preferences = merged
+        if "preferences" in body:
+            # Validated through the server's own model, not merged raw.
+            #
+            # **A deliberate compatibility change, not a side effect.** This host used to
+            # merge whatever JSON arrived, so *every* preference was stored unvalidated while
+            # the server refused the same body with a 422 — `retrieval_k: 99`, an unknown
+            # key, a `density` that is not one of the two literals. Those are all refused
+            # here now. The gap was survivable while it only meant a nonsense number in a
+            # JSON blob; it stops being survivable with `prompt_overrides`, which sits
+            # directly on the boundary the protected-purpose classification draws.
+            #
+            # `tests/workflow/test_prompt_override_api.py` pins both halves: what was valid
+            # before is still accepted, and what the server always refused is refused here.
+            try:
+                validated = UserPreferences.model_validate(body["preferences"])
+            except ValidationError as e:
+                # `include_context=False` matters: pydantic puts the live `ValueError` in
+                # each error's `ctx`, and FastAPI cannot serialise that — the response would
+                # fail to render and the client would see a 500 instead of the refusal.
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    e.errors(include_url=False, include_context=False, include_input=False),
+                ) from e
+            user.preferences = merge_preferences(
+                user.preferences, validated.model_dump(exclude_unset=True)
+            )
         await db.commit()
         await db.refresh(user)
         return user
@@ -1254,9 +1368,16 @@ def create_sidecar_app(
             # left a session showing "Pending" for the whole of its run while the server
             # showed "Running" for the same request.
             session.status = SessionStatus.RUNNING
+            # Loaded before the commit because the flag below is written in the same
+            # transaction as RUNNING, and reused for the preference read further down.
+            local_user = await db.get(User, sidecar["user_id"])
+            # Server counterpart: `pipeline_runner._execute`, with the reasoning.
+            if approved is None and plan is None:
+                _, override_status = snapshot_overrides(local_user)
+                session.prompt_overrides_not_applied = override_status == OVERRIDES_APPLIED
             await db.commit()
             session_routing = session.model_routing
-            # The research design gate (docs/07 §2, Phase 4). Read from the session row,
+            # The research design gate (internal/07 Phase 4). Read from the session row,
             # not from the request, because this runs again on every resume and the
             # request is long gone by then. Server counterpart:
             # `pipeline_runner._run_config_for`.
@@ -1270,21 +1391,10 @@ def create_sidecar_app(
                 # `session.corpus_mode`.
                 "corpus_mode": bool(session.corpus_mode),
             }
-            local_user = await db.get(User, sidecar["user_id"])
-            # Same mapping as the server's `pipeline_runner._preference_overrides`
-            # (docs/07 §2, Phase 3) — third home of this contract.
-            prefs = (local_user.preferences if local_user else None) or {}
-            preference_overrides = {
-                k: prefs[k]
-                for k in (
-                    "retrieval_k",
-                    "min_sources_per_task",
-                    "snippet_max_chars",
-                    "tavily_api_key",
-                    "brave_api_key",
-                )
-                if prefs.get(k) is not None
-            }
+            # The one preference contract (`app/services/run_config.py`), not a copy of it.
+            # This used to restate the field list inline, which is how `_drive_run` came to
+            # be written without it at all.
+            session_preferences = preference_overrides(local_user)
 
         try:
             config = sidecar_run_config(
@@ -1305,8 +1415,8 @@ def create_sidecar_app(
             # has two `RunConfig(...)` sites (fake and real) — adding a field to only one
             # of them is precisely how the fake path and the real path drift.
             config = replace(config, **plan_gate_overrides)
-            if preference_overrides:
-                config = replace(config, **preference_overrides)
+            if session_preferences:
+                config = replace(config, **session_preferences)
         except RuntimeError as e:
             async with session_factory() as db:
                 session = await _authorized_session(db, session_id, sidecar["user_id"])
@@ -1433,7 +1543,27 @@ def create_sidecar_app(
                 # its bundle names models nothing called and its export skips the stamp.
                 row_demo = bool(run.demo)
                 is_demo = is_scripted(row_demo=row_demo, host_is_scripted=bool(app.state.fake))
-                overrides = {
+                # Saved Settings first, row second, so a per-run field always wins over a
+                # standing preference — the same precedence `run_config_for_run` gets from
+                # `overrides |= {...}`. This host ignored preferences entirely until now:
+                # the run path is the product's pipeline, so a desktop user's retrieval and
+                # search-key settings applied to sessions and to nothing they actually ran.
+                # Read here rather than after the commit below because the row's own fields
+                # are read in this same block and expire once the session closes.
+                overrides = preference_overrides(await db.get(User, run.owner_id))
+                # Prompt overrides do not come from that read. They are frozen onto the row
+                # in the same transaction as RUNNING and read back from it thereafter —
+                # `run_execution`'s two functions, called rather than restated, because this
+                # is the two-host contract and the resume path is where a second copy would
+                # diverge unnoticed. Start is `resume`/`plan` being unset, not the column
+                # being NULL: NULL is also what every pre-upgrade run holds.
+                if resume is None and plan is None:
+                    await run_execution.freeze_prompt_overrides(db, run)
+                prompt_overrides, unusable_stamp = run_execution.prompt_overrides_for_run(run)
+                if unusable_stamp:
+                    run.prompt_overrides_status = OVERRIDES_UNUSABLE
+                overrides |= {
+                    "prompt_overrides": prompt_overrides,
                     "skip_plan_gate": bool(run.skip_plan_gate),
                     "topic_seeds": tuple(run.topic_seeds or ()),
                     "outline_template": run.outline_template,
@@ -1680,7 +1810,7 @@ def create_sidecar_app(
 
         return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
 
-    # ── Research design gate (docs/07 §2, Phase 4) ─────────────────────────────
+    # ── Research design gate (internal/07 Phase 4) ─────────────────────────────
     # Second home of `app/api/v1/research.py`'s plan endpoints. The bodies differ only
     # in how they dispatch — Celery there, an asyncio task here — because that is the
     # only thing that actually differs between the hosts; every rule below (404 vs empty
@@ -1799,8 +1929,13 @@ def create_sidecar_app(
         except EmbeddingsUnavailable as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
+        # Server counterpart: `app/api/v1/chat.py`, through the same context manager. Live,
+        # not snapshotted — a chat turn has no run to stay consistent with.
+        with chat_prompt_context(user):
+            chat_system = system_prompt("chat.general")
+
         system = (
-            f"{prompts.CHAT_PROMPT}\n\n"
+            f"{chat_system}\n\n"
             f"{chat_scope.system_suffix(grounding)}\n\n"
             f"<untrusted_web_content>\n{grounding.text}\n</untrusted_web_content>"
         )
@@ -2179,7 +2314,7 @@ def create_sidecar_app(
 
     @api.get("/models/providers/health/{provider}")
     async def provider_health_check(provider: str):
-        """Re-probe a stored keychain key on demand (docs/07 §2, Phase 2a).
+        """Re-probe a stored keychain key on demand (internal/07 Phase 2a).
 
         Desktop can hold a key per provider simultaneously — unlike the server's single
         `user.api_key_provider` — so this is scoped by provider rather than "the" key.
@@ -2219,7 +2354,7 @@ def create_sidecar_app(
 
     @api.post("/models/local/start")
     async def start_local_server():
-        """One-click local model server (docs/07 §2, Phase 2b) — the honest boundary
+        """One-click local model server (internal/07 Phase 2b) — the honest boundary
         stated in the UI: the web build can only guide, the desktop build can act,
         because only here does the request originate from a process already running
         on the user's own machine.

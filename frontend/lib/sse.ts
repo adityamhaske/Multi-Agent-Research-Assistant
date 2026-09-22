@@ -1,5 +1,5 @@
 /**
- * UTF-8-safe, boundary-safe SSE parsing (docs/07 §6).
+ * UTF-8-safe, boundary-safe SSE parsing (docs/35).
  *
  * The previous iteration corrupted emoji and dropped events at chunk boundaries by
  * decoding each network chunk in isolation. Two fixes, both load-bearing:

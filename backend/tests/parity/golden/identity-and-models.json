@@ -22,7 +22,8 @@
         "snippet_max_chars": null,
         "density": null,
         "tavily_api_key": null,
-        "brave_api_key": null
+        "brave_api_key": null,
+        "prompt_overrides": null
       }
     }
   },

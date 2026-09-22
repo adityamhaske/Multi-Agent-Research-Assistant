@@ -25,7 +25,7 @@ import { ApiError } from "@/lib/api";
  * "use client" page file.
  */
 export function SessionView({ sessionId }: { sessionId: string }) {
-  // useSession self-polls every 5s while the run is active (docs/07 §3) — SSE is the
+  // useSession self-polls every 5s while the run is active (docs/35) — SSE is the
   // fast path for live events, polling is the safety net for state transitions. The page
   // used to hang on the monitor forever if the terminal event was ever missed.
   const sessionQuery = useSession(sessionId);
