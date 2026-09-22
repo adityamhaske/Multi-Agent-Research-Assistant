@@ -776,6 +776,22 @@ async def get_verification(
         "bundle_hash": manifest.bundle_hash,
         "frozen": artifact is not None,
         "checks": [{"name": c.name, "passed": c.passed, "detail": c.detail} for c in result.checks],
+        # The same provenance the standalone verifier prints, so the in-app answer and the
+        # file a third party runs cannot disagree about what a run was instructed to do.
+        # Hashes only: the prompts themselves are in the bundle for whoever downloads it,
+        # and this endpoint is a verdict, not an export.
+        "bundle_version": manifest.bundle_version,
+        "prompt_overrides_status": result.prompt_overrides_status,
+        "prompt_provenance": [
+            {
+                "purpose": r.purpose,
+                "role": r.role,
+                "policy": r.policy,
+                "overridden": r.overridden,
+                "effective_prompt_sha256": r.effective_prompt_sha256,
+            }
+            for r in result.prompt_provenance
+        ],
     }
 
 

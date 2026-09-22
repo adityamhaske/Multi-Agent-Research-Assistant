@@ -107,6 +107,36 @@ NOTE_CARRYING_PURPOSES: frozenset[str] = frozenset(
     p for p, constant in PURPOSE_CONSTANTS.items() if prompts.UNTRUSTED_CONTENT_NOTE in constant
 )
 
+#: Which purposes a **research run** actually executes, and which it does not.
+#:
+#: Applicability, not policy. Nothing here decides what may be overridden — that is
+#: `OVERRIDABLE_PURPOSES` above and it is untouched by this partition. This answers a
+#: different question, asked by the bundle producer: *did this prompt take part in the run
+#: whose artifact I am assembling?* A run artifact that claimed provenance for `chat.general`
+#: would be naming a prompt nothing in that run called, which is the same dishonesty class as
+#: a bundle naming models that never answered.
+#:
+#: **An explicit partition, because neither default is safe.** Elsewhere a new purpose falls
+#: to PROTECTED and that fails closed. Here it cannot: defaulting a new purpose *out* of the
+#: run set silently drops provenance for a prompt that did run, and defaulting it *in* claims
+#: provenance for one that did not. Both are silent and both are wrong, so an unclassified
+#: purpose fails the anti-rot test instead of picking a side.
+RUN_PURPOSES: frozenset[str] = frozenset(
+    {
+        "planner.main",
+        "executor.main",
+        "critic.research",
+        "critic.citation_verify",
+        "critic.contradiction_detector",
+        "synthesizer.main",
+        "synthesizer.repair",
+    }
+)
+
+#: The complement, spelled out rather than derived, so the partition is checkable in both
+#: directions. Chat runs against a finished report; it is not part of a run's execution.
+NON_RUN_PURPOSES: frozenset[str] = frozenset({"chat.general", "chat.project"})
+
 
 def role_of(purpose: str) -> str:
     """The model role a purpose runs under — the same string `get_llm()` is called with."""
