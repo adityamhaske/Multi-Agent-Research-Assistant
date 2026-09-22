@@ -6,17 +6,58 @@ BYOK column, the desktop reads environment plus the OS keychain, and the CLI rea
 Those stay three builders. What must not be three — or four, as it was — are the *rules*
 applied on top of whatever a host built.
 
-Right now that is one rule, the one `AGENTS.md` calls out by name.
+Two rules live here: which preferences a run honours, and whether a run is scripted.
 
 Nothing here may import FastAPI, `app.config`, `app.db` or anything reaching them: the
-desktop imports this module on every run.
+desktop imports this module on every run. That is also why the preference rule below takes
+a structural type rather than importing the `User` model — the rule is about the mapping,
+not about a table.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
+from typing import Any, Protocol
 
 from research_engine.runconfig import RunConfig
+
+
+class HasPreferences(Protocol):
+    """A user row on either host: the server's decrypted-column `User`, or the desktop's
+    single local one. Only the preferences mapping is read."""
+
+    preferences: Mapping[str, Any] | None
+
+
+#: Preference keys that map 1:1 onto a `RunConfig` field of the same name
+#: (internal/07 Phase 3). `None`/absent means "use the deployment default" — the class
+#: default already
+#: is that default, so an unset preference contributes nothing to `replace()`.
+#:
+#: **One tuple, four builders.** `pipeline_runner._run_config_for`,
+#: `run_execution.run_config_for_run`, `sidecar._drive_session` and `sidecar._drive_run`
+#: all read this. It was previously private to `pipeline_runner`, imported by
+#: `run_execution`, restated as a literal in `_drive_session`, and absent entirely from
+#: `_drive_run` — so the desktop's primary pipeline silently honoured none of it. A list
+#: that three call sites share by discipline is a list the fourth can be written without.
+PREFERENCE_FIELDS: tuple[str, ...] = (
+    "retrieval_k",
+    "min_sources_per_task",
+    "snippet_max_chars",
+    "tavily_api_key",
+    "brave_api_key",
+)
+
+
+def preference_overrides(user: HasPreferences | None) -> dict[str, Any]:
+    """The `replace()` kwargs this user's saved preferences contribute, and nothing else.
+
+    Absent and `None` are both "unset" and yield no key, which is what keeps a user who
+    set one preference from resetting the other four to an explicit null.
+    """
+    prefs = (user.preferences if user else None) or {}
+    return {k: prefs[k] for k in PREFERENCE_FIELDS if prefs.get(k) is not None}
 
 
 def is_scripted(*, row_demo: bool, host_is_scripted: bool) -> bool:

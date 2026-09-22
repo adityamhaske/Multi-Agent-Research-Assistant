@@ -35,7 +35,7 @@ from app.models.session import Session, SessionStatus
 from app.models.user import User
 from app.runtime import run_config_from_settings
 from app.services import crypto, model_routing
-from app.services.run_config import apply_demo_rule
+from app.services.run_config import apply_demo_rule, preference_overrides
 from app.services.session_events import lifecycle_event
 from research_engine import citation_rate, events, runner
 from research_engine.runconfig import RunConfig
@@ -68,23 +68,6 @@ async def _user_provider_keys(db, user_id: str) -> dict[str, str]:
     return keys
 
 
-#: Preference keys that map 1:1 onto a `RunConfig` field of the same name (docs/07 §2,
-#: Phase 3). `None`/absent means "use the deployment default" — the class default
-#: already is that default, so an unset preference contributes nothing to `replace()`.
-_PREFERENCE_FIELDS = (
-    "retrieval_k",
-    "min_sources_per_task",
-    "snippet_max_chars",
-    "tavily_api_key",
-    "brave_api_key",
-)
-
-
-def _preference_overrides(user: User | None) -> dict:
-    prefs = (user.preferences if user else None) or {}
-    return {k: prefs[k] for k in _PREFERENCE_FIELDS if prefs.get(k) is not None}
-
-
 async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
     """The engine config for this run, with model routing resolved and snapshotted.
 
@@ -107,8 +90,8 @@ async def _run_config_for(db, session: Session, user_id: str) -> RunConfig:
         await db.commit()
 
     base = run_config_from_settings()
-    overrides = _preference_overrides(user)
-    # The research design gate (docs/07 §2, Phase 4), now that the whole resume path
+    overrides = preference_overrides(user)
+    # The research design gate (internal/07 Phase 4), now that the whole resume path
     # exists: SessionStatus.AWAITING_PLAN, `runner.resume(plan=…)`, the `resume_plan_gate`
     # task, and `GET/POST /research/{id}/plan`. Sourced from the session row rather than
     # the request because this is rebuilt on every resume, long after the request is gone.

@@ -138,7 +138,7 @@ from app.services.chat_history import recent_turns
 from app.services.delegation import delegates_to
 from app.services.error_responses import install_error_handlers
 from app.services.event_stream import sse_frames
-from app.services.run_config import apply_demo_rule, is_scripted
+from app.services.run_config import apply_demo_rule, is_scripted, preference_overrides
 from app.services.session_events import lifecycle_event
 from app.services.sse import SSE_HEADERS
 from research_engine import bundle, catalog, citation_rate, outlines, prompts
@@ -1271,20 +1271,10 @@ def create_sidecar_app(
                 "corpus_mode": bool(session.corpus_mode),
             }
             local_user = await db.get(User, sidecar["user_id"])
-            # Same mapping as the server's `pipeline_runner._preference_overrides`
-            # (docs/07 §2, Phase 3) — third home of this contract.
-            prefs = (local_user.preferences if local_user else None) or {}
-            preference_overrides = {
-                k: prefs[k]
-                for k in (
-                    "retrieval_k",
-                    "min_sources_per_task",
-                    "snippet_max_chars",
-                    "tavily_api_key",
-                    "brave_api_key",
-                )
-                if prefs.get(k) is not None
-            }
+            # The one preference contract (`app/services/run_config.py`), not a copy of it.
+            # This used to restate the field list inline, which is how `_drive_run` came to
+            # be written without it at all.
+            session_preferences = preference_overrides(local_user)
 
         try:
             config = sidecar_run_config(
@@ -1305,8 +1295,8 @@ def create_sidecar_app(
             # has two `RunConfig(...)` sites (fake and real) — adding a field to only one
             # of them is precisely how the fake path and the real path drift.
             config = replace(config, **plan_gate_overrides)
-            if preference_overrides:
-                config = replace(config, **preference_overrides)
+            if session_preferences:
+                config = replace(config, **session_preferences)
         except RuntimeError as e:
             async with session_factory() as db:
                 session = await _authorized_session(db, session_id, sidecar["user_id"])
@@ -1433,7 +1423,15 @@ def create_sidecar_app(
                 # its bundle names models nothing called and its export skips the stamp.
                 row_demo = bool(run.demo)
                 is_demo = is_scripted(row_demo=row_demo, host_is_scripted=bool(app.state.fake))
-                overrides = {
+                # Saved Settings first, row second, so a per-run field always wins over a
+                # standing preference — the same precedence `run_config_for_run` gets from
+                # `overrides |= {...}`. This host ignored preferences entirely until now:
+                # the run path is the product's pipeline, so a desktop user's retrieval and
+                # search-key settings applied to sessions and to nothing they actually ran.
+                # Read here rather than after the commit below because the row's own fields
+                # are read in this same block and expire once the session closes.
+                overrides = preference_overrides(await db.get(User, run.owner_id))
+                overrides |= {
                     "skip_plan_gate": bool(run.skip_plan_gate),
                     "topic_seeds": tuple(run.topic_seeds or ()),
                     "outline_template": run.outline_template,

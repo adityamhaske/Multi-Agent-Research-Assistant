@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 from app.schemas.auth import UserPreferences
-from app.workers.pipeline_runner import _preference_overrides
+from app.services.run_config import preference_overrides
 from research_engine.runconfig import RunConfig
 
 
@@ -34,7 +34,7 @@ def test_preference_overrides_only_include_set_fields():
             "brave_api_key": "BSA-test",
         }
 
-    assert _preference_overrides(_FakeUser()) == {
+    assert preference_overrides(_FakeUser()) == {
         "retrieval_k": 8,
         "tavily_api_key": "tvly-test",
         "brave_api_key": "BSA-test",
@@ -45,11 +45,11 @@ def test_preference_overrides_empty_for_a_user_with_none_set():
     class _FakeUser:
         preferences = None
 
-    assert _preference_overrides(_FakeUser()) == {}
+    assert preference_overrides(_FakeUser()) == {}
 
 
 def test_preference_overrides_empty_for_no_user():
-    assert _preference_overrides(None) == {}
+    assert preference_overrides(None) == {}
 
 
 def test_user_preferences_rejects_out_of_range_values():

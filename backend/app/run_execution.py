@@ -47,7 +47,7 @@ from app.models.research import ResearchRun
 from app.models.user import User
 from app.runtime import run_config_from_settings
 from app.services import model_routing
-from app.services.run_config import apply_demo_rule
+from app.services.run_config import apply_demo_rule, preference_overrides
 from research_engine import citation_rate, events
 from research_engine.checkpoint_read import CheckpointOutcome, read_checkpoint
 from research_engine.runconfig import RunConfig
@@ -55,21 +55,17 @@ from research_engine.runner import RunOutcome
 
 logger = structlog.get_logger()
 
-#: Preference keys that map 1:1 onto a `RunConfig` field. Same list the session worker uses; it
-#: is imported rather than restated so the two hosts cannot drift on which preferences a
-#: run honours.
-from app.workers.pipeline_runner import (  # noqa: E402
-    _PREFERENCE_FIELDS,
-    _preference_overrides,
-    _user_provider_keys,
-)
+#: One decrypt path and one fallback for BYOK keys, shared with the session worker rather
+#: than restated. The *preference* contract no longer arrives from here: it lives in
+#: `app/services/run_config.py`, which the desktop may import and `app.workers` is not
+#: (`tests/workflow/test_layer_boundaries.py` lists `app.workers` as infrastructure).
+from app.workers.pipeline_runner import _user_provider_keys  # noqa: E402
 
 __all__ = [
     "PersistResult",
     "persist_outcome",
     "run_config_for_run",
     "provider_keys_for",
-    "_PREFERENCE_FIELDS",
 ]
 
 
@@ -116,7 +112,7 @@ async def run_config_for_run(db: AsyncSession, run: ResearchRun) -> RunConfig:
         await db.flush()
 
     base = run_config_from_settings()
-    overrides = _preference_overrides(user)
+    overrides = preference_overrides(user)
     overrides |= {
         "skip_plan_gate": bool(run.skip_plan_gate),
         "topic_seeds": tuple(run.topic_seeds or ()),
