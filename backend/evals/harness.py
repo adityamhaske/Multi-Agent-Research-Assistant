@@ -259,14 +259,14 @@ async def run_one_memory(query: dict) -> dict:
 
     from langchain_core.messages import HumanMessage, SystemMessage
 
-    from research_engine import prompts
     from research_engine.llm_factory import get_llm
+    from research_engine.prompt_composition import system_prompt
 
     started = time.time()
     sources_json = json.dumps(query["excerpts"], indent=2)
 
     system = (
-        f"{prompts.PROJECT_CHAT_PROMPT}\n\n"
+        f"{system_prompt('chat.project')}\n\n"
         f"--- EXCERPTS ---\n<untrusted_web_content>\n{sources_json}\n</untrusted_web_content>"
     )
 

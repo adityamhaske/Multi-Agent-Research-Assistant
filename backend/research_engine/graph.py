@@ -41,6 +41,7 @@ from research_engine.llm_factory import (
     text_of,
     token_counts,
 )
+from research_engine.prompt_composition import system_prompt
 from research_engine.runconfig import get_run_config
 from research_engine.schemas import (
     ContradictionReport,
@@ -227,7 +228,7 @@ async def planner_node(state: AgentState) -> dict:
         },
     )
     messages = [
-        SystemMessage(content=prompts.PLANNER_PROMPT_V2),
+        SystemMessage(content=system_prompt("planner.main")),
         HumanMessage(
             content=prompts.planner_human(
                 state["original_query"],
@@ -616,7 +617,7 @@ async def _forced_submit(
         default=str,
     )
     messages = [
-        SystemMessage(content=prompts.EXECUTOR_PROMPT),
+        SystemMessage(content=system_prompt("executor.main")),
         HumanMessage(
             content=(
                 f"Task {task['id']}: {task['query']}\n\n"
@@ -747,7 +748,7 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
 
     model = get_llm("executor").bind_tools(EXECUTOR_TOOLS + [submit_evidence])
     messages: list = [
-        SystemMessage(content=prompts.EXECUTOR_PROMPT),
+        SystemMessage(content=system_prompt("executor.main")),
         HumanMessage(content=f"Task {task['id']}: {task['query']}"),
     ]
     if feedback:
@@ -1093,7 +1094,7 @@ async def _criticize_one(
         return _task_key(task), verdict, 0.0, 0, 0
 
     messages = [
-        SystemMessage(content=prompts.CRITIC_PROMPT_V2),
+        SystemMessage(content=system_prompt("critic.research")),
         HumanMessage(
             content=f"Task: {task['query']}\n\n<untrusted_web_content>\n"
             f"{json.dumps(task_evidence, indent=2)}\n</untrusted_web_content>"
@@ -1314,7 +1315,7 @@ async def _verifier_verdicts(
         ]
         resp = await llm.ainvoke(
             [
-                SystemMessage(content=prompts.CITATION_VERIFY_PROMPT),
+                SystemMessage(content=system_prompt("critic.citation_verify")),
                 HumanMessage(content="\n\n".join(blocks)),
             ]
         )
@@ -1436,7 +1437,7 @@ async def contradiction_detector_node(state: AgentState) -> dict:
         message="Checking evidence for conflicting claims…",
     )
     messages = [
-        SystemMessage(content=prompts.CONTRADICTION_DETECTOR_PROMPT),
+        SystemMessage(content=system_prompt("critic.contradiction_detector")),
         HumanMessage(
             content=f"Research query: {state['original_query']}\n\n"
             f"{contradictions.build_detector_input(by_source)}"
@@ -1544,7 +1545,7 @@ async def synthesizer_node(state: AgentState) -> dict:
     evidence_text = "Evidence for citation:\n" + "\n".join(evidence_lines)
 
     messages = [
-        SystemMessage(content=prompts.SYNTHESIZER_PROMPT_V2),
+        SystemMessage(content=system_prompt("synthesizer.main")),
         HumanMessage(
             content=prompts.synthesizer_human(
                 state["original_query"],
@@ -1576,7 +1577,7 @@ async def synthesizer_node(state: AgentState) -> dict:
             uncited += 1
     if uncited > 0:
         repair_messages = [
-            SystemMessage(content=prompts.SYNTHESIZER_REPAIR_PROMPT),
+            SystemMessage(content=system_prompt("synthesizer.repair")),
             HumanMessage(
                 content=f"Draft report with {uncited} uncited sentences:\n\n{draft}\n\n"
                 f"Numbered evidence:\n{evidence_text}"

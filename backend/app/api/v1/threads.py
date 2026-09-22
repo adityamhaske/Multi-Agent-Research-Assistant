@@ -50,9 +50,9 @@ from app.schemas.chat import (
 from app.services import chat_scope, crypto, memory
 from app.services.chat_history import recent_turns
 from app.services.sse import SSE_HEADERS
-from research_engine import prompts
 from research_engine.embeddings import EmbeddingsUnavailable
 from research_engine.llm_factory import get_llm, reset_user_keys, set_user_keys, text_of
+from research_engine.prompt_composition import system_prompt
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["Project chat"])
@@ -317,7 +317,7 @@ async def send_thread_message(
     # Done tests for it (docs/14 §9), and widening the scope is exactly when a model is
     # most tempted to answer from its own knowledge instead of saying "not in here".
     system = (
-        f"{prompts.PROJECT_CHAT_PROMPT}\n\n"
+        f"{system_prompt('chat.project')}\n\n"
         f"{chat_scope.system_suffix(grounding)}\n\n"
         f"<untrusted_web_content>\n"
         f"{grounding.text or '(nothing has been approved yet)'}\n"

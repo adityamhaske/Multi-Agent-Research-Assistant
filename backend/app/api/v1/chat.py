@@ -28,9 +28,9 @@ from app.schemas.research import ChatMessageSchema, ChatRequest
 from app.services import chat_scope, crypto
 from app.services.chat_history import recent_turns
 from app.services.sse import SSE_HEADERS
-from research_engine import prompts
 from research_engine.embeddings import EmbeddingsUnavailable
 from research_engine.llm_factory import get_llm, reset_user_keys, set_user_keys, text_of
+from research_engine.prompt_composition import system_prompt
 
 logger = structlog.get_logger()
 
@@ -121,7 +121,7 @@ async def send_message(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     system = (
-        f"{prompts.CHAT_PROMPT}\n\n"
+        f"{system_prompt('chat.general')}\n\n"
         f"{chat_scope.system_suffix(grounding)}\n\n"
         f"<untrusted_web_content>\n{grounding.text}\n</untrusted_web_content>"
     )

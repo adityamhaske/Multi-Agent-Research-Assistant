@@ -148,6 +148,7 @@ from research_engine.corpus import CorpusStore
 from research_engine.embeddings import EmbeddingsUnavailable, LocalEmbeddings
 from research_engine.events import make_event
 from research_engine.graph import build_graph
+from research_engine.prompt_composition import system_prompt
 from research_engine.llm_factory import get_llm, text_of
 from research_engine.local import SqliteCache, load_env_file
 from research_engine.routing_rules import validate as validate_routing_rule
@@ -1882,7 +1883,7 @@ def create_sidecar_app(
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
         system = (
-            f"{prompts.CHAT_PROMPT}\n\n"
+            f"{system_prompt('chat.general')}\n\n"
             f"{chat_scope.system_suffix(grounding)}\n\n"
             f"<untrusted_web_content>\n{grounding.text}\n</untrusted_web_content>"
         )
