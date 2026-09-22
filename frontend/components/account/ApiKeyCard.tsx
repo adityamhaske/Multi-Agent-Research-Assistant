@@ -17,10 +17,10 @@ import { ConnectionStatus } from "./ConnectionStatus";
 import { Field, Section } from "./Section";
 
 /**
- * Web BYOK: the account's single active provider connection (docs/06 §1, docs/07 §2).
+ * Web BYOK: the account's single active provider connection (docs/06 §1, docs/07 "Tests").
  *
  * Extracted from the Settings page module so it can be unit-tested — `app/**` is
- * outside vitest's `include` glob (`{lib,components,hooks}/**`, docs/07 §2), the same
+ * outside vitest's `include` glob (`{lib,components,hooks}/**`, docs/07 "Tests"), the same
  * reason the Overview page's logic lives in `lib/` rather than in `app/(app)/project/`.
  */
 

@@ -4,7 +4,7 @@ import type { AgentEvent, SessionStatus } from "@/lib/types";
 type NodeState = "pending" | "active" | "done";
 
 /**
- * The "brain monitor" rail (docs/07 §3): Planner → **Plan review** → Executor → Critic →
+ * The "brain monitor" rail (docs/25): Planner → **Plan review** → Executor → Critic →
  * Synthesizer → Review, with live per-node state.
  *
  * The two review nodes are presentational and derived from `status`, not from an agent
@@ -76,7 +76,7 @@ export function PipelineRail({
 }: {
   events: AgentEvent[];
   status: SessionStatus;
-  /** Resolved per-role routing (docs/07 §2). Absent/null renders every node's model
+  /** Resolved per-role routing (docs/04). Absent/null renders every node's model
    * as "—" rather than guessing — the unmeasured-vs-zero rule. */
   modelRouting?: Record<string, string> | null;
 }) {

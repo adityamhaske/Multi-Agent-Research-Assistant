@@ -1,5 +1,5 @@
 /**
- * The shared icon vocabulary (docs/07 §2): 24×24 viewBox, 1.75 stroke, square
+ * The shared icon vocabulary (docs/07 "Components"): 24×24 viewBox, 1.75 stroke, square
  * caps and miter joins — no rounded strokes, matching the square identity
  * (`--radius: 0` in globals.css). One file so nav, the activity feed and any
  * future surface draw from the same set instead of re-inventing glyphs per
@@ -198,7 +198,7 @@ export function IconClose({ className }: IconProps) {
   );
 }
 
-/* ─── Added for LiveFeed's detail blocks (docs/07 §2) ──────────────────────
+/* ─── Added for LiveFeed's detail blocks (docs/07 "Components") ──────────────────────
  * These replace the 9 emoji section headers with the same stroke vocabulary
  * as the nav icons above, so the activity feed stops being the one place in
  * the app that draws from a different (emoji) icon set. */

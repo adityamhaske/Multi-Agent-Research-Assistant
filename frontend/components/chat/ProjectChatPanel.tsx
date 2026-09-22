@@ -110,7 +110,7 @@ export function ProjectChatPanel({ threadId }: { threadId: string }) {
         signal: controller.signal,
       });
     } catch {
-      // Never reached the server — nothing persisted, so restore the input (docs/07 §6).
+      // Never reached the server — nothing persisted, so restore the input (docs/07 "Streaming").
       setStreaming(null);
       setInput(text);
       toast.error("Network error — your message was not sent.");
@@ -149,7 +149,7 @@ export function ProjectChatPanel({ threadId }: { threadId: string }) {
             setStreaming((s) => (s ? { ...s, citations } : s));
           } else if (data.type === "chunk" && typeof data.text === "string") {
             const chunk = data.text;
-            // Immutable replace — never mutate the last array element (docs/07 §6).
+            // Immutable replace — never mutate the last array element (docs/07 "Streaming").
             setStreaming((s) => (s ? { ...s, assistant: s.assistant + chunk } : s));
           } else if (data.type === "error") {
             streamError = data.detail ?? "The assistant hit an error.";

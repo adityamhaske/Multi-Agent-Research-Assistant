@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 /**
- * Route-level error boundary for authenticated pages (docs/07 §2).
+ * Route-level error boundary for authenticated pages (docs/07 "Components").
  *
  * Prevents transient errors (like temporary network drops or container restarts)
  * from crashing the entire app shell into Next.js's raw fallback screen.

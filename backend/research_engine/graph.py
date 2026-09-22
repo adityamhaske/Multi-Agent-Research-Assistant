@@ -218,7 +218,7 @@ async def planner_node(state: AgentState) -> dict:
         detail={
             "query": state["original_query"],
             "depth": state.get("research_depth", "balanced"),
-            # Requirement 1 (docs/07 §2): the full role→route mapping, disclosed at plan
+            # Requirement 1 (docs/04): the full role→route mapping, disclosed at plan
             # time — before a single task or dollar is spent — not just in the finished
             # report. `model` on every node's own kickoff event (below) is this same
             # data, one role at a time, for a node emitted well after this one.

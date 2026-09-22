@@ -109,7 +109,7 @@
   --danger-line: color-mix(in srgb, var(--danger) 35%, var(--border));
   --info-line: color-mix(in srgb, var(--info) 35%, var(--border));
 
-  /* Agent identity — one hue per pipeline stage (docs/07 §3).
+  /* Agent identity — one hue per pipeline stage (docs/07 "Theming").
    * Planner, Synthesizer and the human gate previously shared one green, which made two
    * different stages of the rail look like the same stage. Hues are spread around the
    * wheel (blue → amber → crimson → cyan → violet) so adjacent stages never collide, and

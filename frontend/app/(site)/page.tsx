@@ -8,7 +8,7 @@ import { absoluteUrl, isPagesBuild, pageUrls } from "@/lib/pages-build";
 import { latestRelease } from "@/lib/releases";
 
 /**
- * Landing page and app entry point (docs/07 §2).
+ * Landing page and app entry point (docs/07 "Components").
  *
  * The redirect logic is unchanged from when this file did nothing else: a session cookie
  * still means "go straight into the app", server-side so there is no unauthenticated

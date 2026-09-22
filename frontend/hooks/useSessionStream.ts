@@ -12,7 +12,7 @@ import { queryKeys } from "./queries";
 export type StreamState = "idle" | "connecting" | "open" | "reconnecting" | "closed";
 
 /**
- * SSE lifecycle for the session monitor (docs/07 §3).
+ * SSE lifecycle for the session monitor (docs/35).
  *
  * Uses native `EventSource`: same-origin so the httpOnly cookie authenticates it, and
  * on a dropped connection the browser auto-reconnects **with `Last-Event-ID`** — the

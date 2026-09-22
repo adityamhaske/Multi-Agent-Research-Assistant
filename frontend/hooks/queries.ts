@@ -37,7 +37,7 @@ import type {
 } from "@/lib/types";
 
 /**
- * TanStack Query owns every read/mutation (docs/03, docs/07 §7). SSE handlers write
+ * TanStack Query owns every read/mutation (docs/03, docs/07 "Non-negotiables"). SSE handlers write
  * directly into this cache (see hooks/useSessionStream) rather than keeping a parallel
  * hand-rolled state machine.
  */

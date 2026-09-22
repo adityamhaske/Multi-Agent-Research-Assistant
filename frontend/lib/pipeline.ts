@@ -1,6 +1,6 @@
 import type { AgentEvent, AgentName } from "./types";
 
-/** Pipeline shape + derivations from the agent event stream (docs/04, docs/07 §3). */
+/** Pipeline shape + derivations from the agent event stream (docs/04, docs/35). */
 
 export const AGENTS: AgentName[] = ["planner", "executor", "critic", "synthesizer"];
 
@@ -20,7 +20,7 @@ export const AGENT_TOKEN: Record<AgentName, string> = {
 };
 
 /**
- * The bare model id from a "provider:model" route, for compact display (docs/07 §2,
+ * The bare model id from a "provider:model" route, for compact display (docs/04,
  * "truthful per-agent model attribution"). `undefined`/`null` — routing not resolved
  * for this role — renders as "—", never a guessed default (the unmeasured-vs-zero rule).
  */

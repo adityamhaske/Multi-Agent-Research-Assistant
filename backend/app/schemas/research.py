@@ -204,7 +204,7 @@ class SessionDetail(SessionSummary):
     # NOTE: `model_routing` moved up to `SessionSummary` in Phase 7 so History can filter
     # on it; it is inherited here rather than re-declared. The comment below is kept
     # because it records why the field exists at all.
-    # Resolved per-role routing (docs/07 §2, "truthful per-agent model attribution").
+    # Resolved per-role routing (docs/04, "truthful per-agent model attribution").
     # `session.model_routing` has been resolved and snapshotted since before this field
     # existed (`app/workers/pipeline_runner.py::_run_config_for`) — this class just
     # never declared it, so Pydantic silently dropped it en route to the browser. Third

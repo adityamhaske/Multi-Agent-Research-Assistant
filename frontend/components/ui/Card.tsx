@@ -22,7 +22,7 @@ const PAD: Record<CardPadding, string> = {
 };
 
 /**
- * The one bordered-surface primitive (docs/07 §2). Every hand-rolled
+ * The one bordered-surface primitive (docs/07 "Components"). Every hand-rolled
  * `border border-border bg-bg-surface p-*` box in the app is this component
  * with a `padding` step and no header; every titled card (the pattern
  * `account/Section` established) is this component with `title` set. New

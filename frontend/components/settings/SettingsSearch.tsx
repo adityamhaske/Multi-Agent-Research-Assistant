@@ -8,7 +8,7 @@ import { useState } from "react";
  * "as much customization as possible" survivable instead of another 452-line scroll,
  * just split into seven scrolls. A static index rather than a live DOM search: it
  * works even before the target section has ever been rendered, and stays honest
- * about which settings actually exist (docs/07 §2 — "never fake").
+ * about which settings actually exist (docs/07 "Components" — "never fake").
  */
 type Entry = { section: string; label: string; keywords: string };
 

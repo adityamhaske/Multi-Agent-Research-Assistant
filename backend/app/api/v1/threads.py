@@ -356,7 +356,7 @@ async def send_thread_message(
 
             # Persist only the citations the answer actually used. An unused excerpt is
             # not a citation, and showing it as one would be the "sources theatre" the
-            # ⚠ chip exists to avoid (docs/07 §5).
+            # ⚠ chip exists to avoid (docs/27).
             used = [c for c in citations if f"[{c['marker']}]" in acc]
             msg = ChatMessage(
                 thread_id=thread_id, role="assistant", content=acc, citations=used or None

@@ -1,5 +1,5 @@
 """
-Report export (docs/05 §3, docs/07 §3): Markdown → styled HTML → PDF.
+Report export (docs/05 §3, docs/29): Markdown → styled HTML → PDF.
 
 WeasyPrint links native Pango/Cairo libraries. Those are present in the Docker image
 but not necessarily in a bare dev environment, so it is imported lazily inside

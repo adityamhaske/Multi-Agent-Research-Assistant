@@ -1,5 +1,5 @@
 """
-Truthful per-agent model attribution (docs/07 §2, researcher-workspace-overhaul plan
+Truthful per-agent model attribution (docs/04, researcher-workspace-overhaul plan
 Phase 1, requirement 1).
 
 `session.model_routing` was already resolved and snapshotted before this phase

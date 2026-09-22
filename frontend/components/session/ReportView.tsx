@@ -70,7 +70,7 @@ export function ReportView({ session }: { session: SessionDetail }) {
     }
   };
 
-  // Server-rendered export (docs/05 §3, docs/07 §3): .md is the raw report; .pdf is
+  // Server-rendered export (docs/05 §3, docs/29): .md is the raw report; .pdf is
   // WeasyPrint; .bundle.json is the hash-verifiable artifact. A 501 (PDF libs missing) or
   // 400 (bundle requires a COMPLETED session) surfaces as a toast rather than a broken
   // download.

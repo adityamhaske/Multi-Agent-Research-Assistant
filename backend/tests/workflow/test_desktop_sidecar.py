@@ -274,7 +274,7 @@ async def test_run_persists_the_model_routing_it_actually_dialled(sidecar):
     """`_drive_session` resolves a `RunConfig` but never wrote it back onto the session
     row, so `model_routing` stayed null on every desktop session forever — the server's
     `pipeline_runner._run_config_for` does this snapshot and the sidecar never grew the
-    equivalent line (docs/07 §2, "truthful per-agent model attribution")."""
+    equivalent line (docs/04, "truthful per-agent model attribution")."""
     start = await sidecar.post(
         "/api/v1/research",
         headers=_auth(),

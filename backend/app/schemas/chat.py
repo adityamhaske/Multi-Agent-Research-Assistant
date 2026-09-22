@@ -42,7 +42,7 @@ class Citation(BaseModel):
 
     `excerpt` is the retrieved chunk verbatim. Storing it is what makes a citation
     checkable rather than decorative: the chip shows the user the exact text the claim
-    was drawn from, the same contract as the source snippets on a report (docs/07 §5).
+    was drawn from, the same contract as the source snippets on a report (docs/27).
     """
 
     marker: str
