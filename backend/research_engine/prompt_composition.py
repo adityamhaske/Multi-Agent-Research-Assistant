@@ -18,12 +18,18 @@ the prompt constant *objects*, so a scripted run finds its script by identity. K
 constants inert preserves that, and `system_prompt()` below returns the same object rather
 than a copy — a fake run resolves exactly as it did before this module existed.
 
+**Override eligibility is a property of the purpose, never of the role.** Three purposes run
+under `critic` and only one of them may be replaced, so a role is not enough information to
+decide anything. `is_overridable()` therefore takes a purpose and never consults `role_of()`;
+a test asserts that structurally, because the moment eligibility can be computed from a role
+the citation verifier becomes reachable from the `critic` editor.
+
 **What this module does NOT do yet.** It reads no override and consumes no `RunConfig`; every
-purpose resolves to its shipped constant, byte for byte. The override policy
-(overridable vs protected) and the untrusted-content recomposition are later, deliberately
-separate changes — moving the note out of the six constants that carry it inline *changes the
-string the model sees*, and that is a behaviour change which belongs with the change that
-makes the body user-authored, not with this one.
+purpose resolves to its shipped constant, byte for byte. `is_overridable()` is declared and
+tested but nothing calls it — consuming an override is a later change, and so is the
+untrusted-content recomposition: moving the note out of the six constants that carry it
+inline *changes the string the model sees*, which belongs with the change that makes the body
+user-authored, not with this one.
 """
 
 from __future__ import annotations
@@ -53,10 +59,53 @@ PURPOSE_CONSTANTS: Mapping[str, str] = {
 #: added under a sixth role is visible here immediately instead of silently ignored.
 ROLES: tuple[str, ...] = tuple(dict.fromkeys(p.split(".", 1)[0] for p in PURPOSE_CONSTANTS))
 
+#: The purposes a user may replace. An explicit allowlist of exact purpose strings, and the
+#: only way anything becomes overridable.
+#:
+#: **Protection is the default, and that is load-bearing.** `PROTECTED_PURPOSES` below is the
+#: *complement* of this set rather than a second hand-written list, so a purpose added to
+#: `PURPOSE_CONSTANTS` and forgotten here is protected rather than exposed. Two lists kept in
+#: step by discipline would eventually disagree, and the direction they disagreed in would be
+#: the unsafe one.
+OVERRIDABLE_PURPOSES: frozenset[str] = frozenset(
+    {
+        "planner.main",
+        "executor.main",
+        "critic.research",
+        "synthesizer.main",
+        "chat.general",
+    }
+)
+
+#: Everything else. Derived, never enumerated — see above.
+#:
+#: Why each of these is not a user's to rewrite:
+#:
+#: * `critic.citation_verify` decides whether a citation is supported, which drives the ⚠
+#:   chip and `citation_resolution_rate`. A user who can rewrite it grades their own work.
+#: * `critic.contradiction_detector` can be told to find no conflicts.
+#: * `synthesizer.repair` rewrites citations on a draft, so an override could make fabricated
+#:   citations present as repaired ones — the failure the citation contract exists to prevent.
+#: * `chat.project` carries a refusal line whose absence is how a grounded assistant starts
+#:   answering from its own knowledge instead of saying "not in here".
+PROTECTED_PURPOSES: frozenset[str] = frozenset(PURPOSE_CONSTANTS) - OVERRIDABLE_PURPOSES
+
 
 def role_of(purpose: str) -> str:
     """The model role a purpose runs under — the same string `get_llm()` is called with."""
     return _checked(purpose).split(".", 1)[0]
+
+
+def is_overridable(purpose: str) -> bool:
+    """Whether a user's replacement text may be used for this purpose.
+
+    Takes a **purpose**, and deliberately has no role-shaped counterpart. `critic` owns
+    `critic.research` (overridable), `critic.citation_verify` and
+    `critic.contradiction_detector` (both protected), so any answer computed from the role
+    alone would have to be wrong for two of the three. Unknown purposes raise rather than
+    returning `False`, because a typo that silently reads as "protected" hides the typo.
+    """
+    return _checked(purpose) in OVERRIDABLE_PURPOSES
 
 
 def system_prompt(purpose: str) -> str:
