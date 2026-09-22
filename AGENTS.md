@@ -105,6 +105,12 @@ locally.
 - Request → session → `app/api/v1/research.py` *and* `desktop/sidecar.py`
 - Per-session run config → `app/workers/pipeline_runner.py` *and*
   `desktop/sidecar.py::_drive_session`
+- Which preferences a run honours → **one home**,
+  `app/services/run_config.py::PREFERENCE_FIELDS`/`preference_overrides`, imported by all
+  four per-run builders. It used to live in `app.workers`, which `desktop/` may not import
+  (infrastructure, `tests/workflow/test_layer_boundaries.py`) — so the desktop restated it
+  as a literal in `_drive_session` and `_drive_run` was written without it at all, silently
+  ignoring every saved preference on the pipeline the product actually ships
 - A new `RunOutcome.status` → `pipeline_runner::_persist_outcome` *and* **both** dict
   literals in `sidecar::_apply_outcome` (status map, lifecycle-event map) — a missing key
   raises inside a background task, so the session sits on RUNNING forever with nothing in
@@ -225,13 +231,16 @@ canonical contract** and resolves it to its own flat store internally, with no `
 branch in the frontend. Prefer that shape: one product contract, different internals.
 
 **The row records what actually ran, not what was requested.** "Scripted"/`demo` must be
-decided from the request flag *or* the resolved `llm_mode`, in one branch, in all three
+decided from the request flag *or* the resolved `llm_mode`, in one branch, in all **four**
 homes: `pipeline_runner::_run_config_for`, `run_execution::run_config_for_run`,
-`sidecar::_drive_session`. (`--fake` is a process flag, `demo` a request flag; a run that
-silently fell back to `LLM_MODE=fake` — the common first-run-with-no-key case — used to
-record `demo=false`, so its bundle named models nothing had called and its `.md` came out
-unstamped with no warning. That's the P0 honesty class, not cosmetic.)
-`tests/workflow/test_scripted_runs_are_recorded_as_demo.py` pins all three.
+`sidecar::_drive_session`, `sidecar::_drive_run`. (`--fake` is a process flag, `demo` a
+request flag; a run that silently fell back to `LLM_MODE=fake` — the common
+first-run-with-no-key case — used to record `demo=false`, so its bundle named models
+nothing had called and its `.md` came out unstamped with no warning. That's the P0 honesty
+class, not cosmetic.) `tests/workflow/test_scripted_runs_are_recorded_as_demo.py` pins the
+behaviour at the server's two homes and the desktop's session driver;
+`tests/workflow/test_run_config_has_one_home.py` pins the structure at all four, by
+asserting they resolve to the same function object.
 
 **A field on the row is not a field the run reads.** Every per-run option has two hops —
 request → row, and **row → `RunConfig`** — and the second is invisible until the behaviour is
