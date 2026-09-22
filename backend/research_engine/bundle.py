@@ -41,6 +41,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import UTC, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -89,8 +90,30 @@ class ApprovalRecord(BaseModel):
     timestamp: str = Field(description="ISO-8601 datetime")
 
 
+class PromptProvenance(BaseModel):
+    """Which system prompt one purpose actually ran under (bundle v2, scope freeze §9).
+
+    **Deliberately plain strings, and deliberately not validated against this build's
+    registry.** The verifier reads bundles it did not produce, including ones from later
+    versions whose shipped prompts differ from these. Checking `purpose` or `policy` against
+    the running code would make a bundle's validity depend on the verifier's build, which is
+    the opposite of what an offline, third-party artifact format is for — a v1 bundle
+    verifies forever, and a v2 bundle must too.
+
+    `effective_prompt` is the exact string the model received, so a reader can see what the
+    run was actually instructed to do rather than infer it from a role name.
+    """
+
+    purpose: str = Field(description="`<role>.<purpose>`, e.g. `planner.main`")
+    role: str
+    policy: Literal["OVERRIDABLE", "PROTECTED"]
+    overridden: bool = Field(description="False when the shipped prompt ran unchanged")
+    effective_prompt: str
+    effective_prompt_sha256: str = Field(description="SHA-256 of `effective_prompt`")
+
+
 class BundleManifest(BaseModel):
-    """The .bundle.json schema — version 1."""
+    """The .bundle.json schema — versions 1 and 2."""
 
     bundle_version: int = 1
     session_id: str
@@ -123,6 +146,20 @@ class BundleManifest(BaseModel):
     trace: list[dict] = Field(default_factory=list)
     trace_available: bool = True
 
+    # ── v2 (scope freeze §9) ──────────────────────────────────────────────────────
+    # Both default, so a v1 bundle and a `research_artifacts.payload` frozen before v2
+    # existed still parse unchanged — the compatibility §10 calls non-negotiable.
+    #
+    # Covered by `bundle_hash` **on a v2 bundle** — `compute_bundle_hash` hashes the fields
+    # the declared version defines, so these enter it there and are excluded from a v1's.
+    # §9 requires that be *proved* rather than assumed, which is what the tampering tests do.
+    prompt_provenance: list[PromptProvenance] = Field(default_factory=list)
+
+    # Copied from `research_runs.prompt_overrides_status`, never recomputed from the
+    # provenance above: "no override was configured" and "one was configured and could not
+    # be used" both produce shipped prompts, and only the row knows which happened.
+    prompt_overrides_status: str | None = None
+
     created_at: str = ""
     bundle_hash: str = ""
 
@@ -135,14 +172,35 @@ def content_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def compute_bundle_hash(bundle: BundleManifest) -> str:
-    """SHA-256 of all fields except ``bundle_hash`` itself.
+#: Fields that bundle v2 introduced. A v1 bundle is hashed without them.
+#:
+#: **This is what keeps already-issued bundles valid.** The hash is taken over the model's
+#: dump, so adding a field silently changes the hash of *every* bundle — including ones
+#: frozen in `research_artifacts.payload` years ago and ones a third party downloaded and
+#: still has. Their recorded `bundle_hash` would no longer match what this code computes,
+#: and `bundle_integrity` would fail on artifacts nobody touched. The scope freeze calls
+#: that outcome out by name: existing v1 bundles remain valid forever.
+#:
+#: So the hash is defined **per format version**: v1 hashes the fields v1 defined, v2 adds
+#: these two. Growing v3 means adding to this map, not editing the function.
+_FIELDS_ADDED_BY_VERSION: dict[int, tuple[str, ...]] = {
+    2: ("prompt_provenance", "prompt_overrides_status"),
+}
 
-    Produces a canonical JSON with sorted keys and ``bundle_hash`` blanked to the
-    empty string, so the hash is reproducible from the bundle's own contents.
+
+def compute_bundle_hash(bundle: BundleManifest) -> str:
+    """SHA-256 of every field this bundle's version defines, except ``bundle_hash`` itself.
+
+    Canonical JSON, sorted keys, ``bundle_hash`` blanked, so the hash is reproducible from
+    the bundle's own contents. Fields belonging to a *later* version than this bundle
+    declares are excluded — see `_FIELDS_ADDED_BY_VERSION`.
     """
     d = bundle.model_dump()
     d["bundle_hash"] = ""
+    for version, fields in _FIELDS_ADDED_BY_VERSION.items():
+        if bundle.bundle_version < version:
+            for name in fields:
+                d.pop(name, None)
     canonical = json.dumps(d, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 

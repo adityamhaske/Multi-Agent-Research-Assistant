@@ -19,6 +19,11 @@ Checks:
   6. Claim–evidence linkage (every cited source has evidence)
   7. Approval chain integrity (approved entry links to this report)
   8. Trace status (informational, not a failure)
+
+Reads bundle versions 1 and 2. v2 additionally records, per research-run purpose, the
+system prompt that purpose actually ran under and its SHA-256; check 2 covers both. A
+verifier built before v2 existed refuses a v2 bundle and cannot be taught otherwise, which
+is why this reader ships ahead of any producer.
 """
 
 from __future__ import annotations
@@ -51,6 +56,17 @@ PLAN_GATE_ACTIONS = frozenset({"plan_approved", "plan_rework_requested", "plan_r
 # ── Result types ──────────────────────────────────────────────────────────────────
 
 
+#: Bundle formats this verifier admits. v2 adds AgentSpec prompt provenance and nothing
+#: else; every check below runs identically on both, which is why one verifier serves them
+#: rather than a branch per version.
+#:
+#: **Widening this set is a one-way door.** A verifier already on someone's machine admits
+#: exactly the versions it shipped with and will refuse a newer bundle permanently — there
+#: is no upgrade path for an artifact already handed to a third party. That is the reason
+#: the dual-version verifier ships before any producer emits v2, not alongside it.
+SUPPORTED_BUNDLE_VERSIONS: frozenset[int] = frozenset({1, 2})
+
+
 @dataclass
 class CheckResult:
     name: str
@@ -70,20 +86,70 @@ class VerifyResult:
     # with nothing to say that none of it was real research.
     demo: bool = False
 
+    # The AgentSpec provenance the bundle records (scope freeze §10). Beside `passed` for
+    # the same reason `demo` is: a bundle whose planner ran on a replaced prompt verifies
+    # perfectly — its hashes match and its citations resolve — and a bare PASS would say
+    # nothing about the instructions that produced it. Empty for every v1 bundle.
+    prompt_provenance: list = field(default_factory=list)
+
+    # `NONE` / `APPLIED` / `UNUSABLE`, copied from the bundle, or None for v1. `UNUSABLE`
+    # is why this is carried separately from the list above: a run whose snapshot could not
+    # be used has shipped prompts in its provenance and is not the same as a run that was
+    # never customised.
+    prompt_overrides_status: str | None = None
+
 
 # ── Individual checks ─────────────────────────────────────────────────────────────
 
 
 def _check_bundle_integrity(bundle: BundleManifest) -> CheckResult:
+    """The bundle is internally consistent: its own hash, and every hash it carries.
+
+    **Two assertions, one check, on purpose.** The bundle hash already catches a bundle
+    edited after assembly, because `compute_bundle_hash` covers every field including the
+    provenance records. What it cannot catch alone is a bundle *rebuilt* around a lie: edit
+    an `effective_prompt`, leave its `effective_prompt_sha256` as it was, recompute
+    `bundle_hash` over the result, and the outer hash agrees with itself while the
+    provenance says two different things about the same prompt.
+
+    That belongs here rather than in a seventh check: the verification check set is six, and
+    "this artifact is internally consistent" is what this check already means. A v1 bundle
+    carries no provenance, so the loop below is empty and v1 behaviour is byte-identical.
+    """
     expected = compute_bundle_hash(bundle)
-    if bundle.bundle_hash == expected:
-        return CheckResult("bundle_integrity", True)
-    return CheckResult(
-        "bundle_integrity",
-        False,
-        f"bundle_hash mismatch: recorded {bundle.bundle_hash[:16]}… "
-        f"but computed {expected[:16]}… — the bundle was modified after assembly",
-    )
+    if bundle.bundle_hash != expected:
+        return CheckResult(
+            "bundle_integrity",
+            False,
+            f"bundle_hash mismatch: recorded {bundle.bundle_hash[:16]}… "
+            f"but computed {expected[:16]}… — the bundle was modified after assembly",
+        )
+
+    # A bundle may not carry fields from a version later than the one it declares. The hash
+    # is taken over the declared version's field set, so provenance on a *v1* bundle would
+    # sit outside it entirely — editable without breaking anything, while a v2-aware reader
+    # displays it as though it were covered. Declaring v1 is also how such a file would slip
+    # past verifiers too old to know what these fields are.
+    if bundle.bundle_version < 2 and (bundle.prompt_provenance or bundle.prompt_overrides_status):
+        return CheckResult(
+            "bundle_integrity",
+            False,
+            f"bundle declares version {bundle.bundle_version} but carries v2 prompt "
+            "provenance, which that version's hash does not cover",
+        )
+
+    for record in bundle.prompt_provenance:
+        recomputed = content_hash(record.effective_prompt)
+        if record.effective_prompt_sha256 != recomputed:
+            return CheckResult(
+                "bundle_integrity",
+                False,
+                f"prompt provenance for {record.purpose} is inconsistent: recorded "
+                f"{record.effective_prompt_sha256[:16]}… but the prompt text hashes to "
+                f"{recomputed[:16]}… — the recorded prompt and its hash disagree",
+            )
+
+    return CheckResult("bundle_integrity", True)
 
 
 def _check_report_integrity(bundle: BundleManifest) -> CheckResult:
@@ -242,7 +308,14 @@ def verify(bundle: BundleManifest) -> VerifyResult:
         notes.append("Trace is empty (no agent events recorded for this session).")
 
     passed = all(c.passed for c in checks)
-    return VerifyResult(passed=passed, checks=checks, notes=notes, demo=bundle.demo)
+    return VerifyResult(
+        passed=passed,
+        checks=checks,
+        notes=notes,
+        demo=bundle.demo,
+        prompt_provenance=list(bundle.prompt_provenance),
+        prompt_overrides_status=bundle.prompt_overrides_status,
+    )
 
 
 def verify_file(path: str | Path) -> VerifyResult:
@@ -264,14 +337,16 @@ def verify_file(path: str | Path) -> VerifyResult:
             checks=[CheckResult("schema_validity", False, f"Schema validation failed: {e}")],
         )
 
-    if bundle.bundle_version != 1:
+    if bundle.bundle_version not in SUPPORTED_BUNDLE_VERSIONS:
+        supported = ", ".join(str(v) for v in sorted(SUPPORTED_BUNDLE_VERSIONS))
         return VerifyResult(
             passed=False,
             checks=[
                 CheckResult(
                     "schema_validity",
                     False,
-                    f"Unsupported bundle_version {bundle.bundle_version} (this verifier supports version 1)",
+                    f"Unsupported bundle_version {bundle.bundle_version} "
+                    f"(this verifier supports {supported})",
                 )
             ],
         )
@@ -326,8 +401,36 @@ def format_text(result: VerifyResult, stream=None) -> str:
                 lines.append(f"    {d}")
     for note in result.notes:
         lines.append(f"  ℹ {note}")
+    if result.prompt_provenance:
+        # A summary, not the prompts themselves: the full text is in the file for anyone who
+        # wants it, and dumping five prompts of up to 2,500 characters each would bury the
+        # verdict this program exists to deliver.
+        customised = [r for r in result.prompt_provenance if getattr(r, "overridden", False)]
+        lines.append(
+            f"  ℹ AgentSpec provenance: {len(result.prompt_provenance)} purposes recorded, "
+            f"{len(customised)} running a replaced prompt"
+        )
+        for record in customised:
+            lines.append(f"    replaced: {record.purpose} ({record.effective_prompt_sha256[:16]}…)")
+        if result.prompt_overrides_status == "UNUSABLE":
+            lines.append(
+                "    note: the run's stored overrides could not be used; "
+                "every purpose ran on its shipped prompt"
+            )
+
     verdict = "PASS" if result.passed else "FAIL"
     lines.insert(0, f"Bundle verification: {verdict}")
+    if any(getattr(r, "overridden", False) for r in result.prompt_provenance):
+        # Above the verdict for the same reason the demo banner is: every integrity check
+        # passes — the hashes are real hashes of what really ran — so PASS is true and, on
+        # its own, incomplete. Whoever reads this must know the agents were reconfigured
+        # before they read what the agents concluded.
+        lines.insert(
+            0,
+            "!! CUSTOMISED AGENTS — one or more prompts were replaced by the run's owner.\n"
+            "!! The checks below confirm what those prompts were and that they are\n"
+            "!! unmodified since assembly, not that they were sound.\n",
+        )
     if result.demo:
         # Above the verdict, not below it. A demo bundle passes every integrity check —
         # the hashes are real hashes of scripted output — so "PASS" is true and, on its
@@ -347,6 +450,17 @@ def format_json(result: VerifyResult) -> str:
         {
             "passed": result.passed,
             "demo": result.demo,
+            "prompt_overrides_status": result.prompt_overrides_status,
+            "prompt_provenance": [
+                {
+                    "purpose": r.purpose,
+                    "role": r.role,
+                    "policy": r.policy,
+                    "overridden": r.overridden,
+                    "effective_prompt_sha256": r.effective_prompt_sha256,
+                }
+                for r in result.prompt_provenance
+            ],
             "checks": [
                 {"name": c.name, "passed": c.passed, "detail": c.detail or None}
                 for c in result.checks

@@ -29,10 +29,12 @@ import pytest
 
 from research_engine import fakes, prompts
 from research_engine.prompt_composition import (
+    NON_RUN_PURPOSES,
     NOTE_CARRYING_PURPOSES,
     OVERRIDABLE_PURPOSES,
     PURPOSE_CONSTANTS,
     ROLES,
+    RUN_PURPOSES,
     role_of,
     system_prompt,
 )
@@ -303,3 +305,59 @@ def test_a_demo_run_still_scripts_every_purpose_with_overrides_in_force():
             assert resolved is fakes.SCENARIO_BY_PROMPT[PURPOSE_CONSTANTS[purpose]], (
                 f"{purpose} scripts as {resolved} once overridden"
             )
+
+
+# ── Run applicability: which purposes a research run executes ─────────────────────
+
+
+def test_the_run_partition_covers_every_purpose_exactly_once():
+    """Applicability is a total, disjoint partition, and an unclassified purpose fails here.
+
+    Neither default is safe, which is why this is not derived. Leaving a new purpose out of
+    the run set silently drops provenance for a prompt that did run; putting it in claims
+    provenance for one that did not. Both are silent, both are wrong, so a new purpose has
+    to be classified by a person rather than fall to a side.
+    """
+    assert RUN_PURPOSES | NON_RUN_PURPOSES == set(PURPOSE_CONSTANTS)
+    assert not (RUN_PURPOSES & NON_RUN_PURPOSES)
+
+
+def test_the_seven_research_run_purposes_are_the_frozen_seven():
+    """Spelled out, because the scope freeze spells them out (§16 decisions, G-2)."""
+    assert RUN_PURPOSES == {
+        "planner.main",
+        "executor.main",
+        "critic.research",
+        "critic.citation_verify",
+        "critic.contradiction_detector",
+        "synthesizer.main",
+        "synthesizer.repair",
+    }
+
+
+def test_chat_is_the_whole_of_the_non_run_set():
+    """Chat answers questions about a finished report; it is not part of producing one."""
+    assert NON_RUN_PURPOSES == {"chat.general", "chat.project"}
+
+
+def test_applicability_is_not_a_restatement_of_the_override_policy():
+    """Two independent classifications over the same nine purposes.
+
+    A reader who assumed one implied the other would conclude that everything a run executes
+    is overridable, which is false in both directions: three run purposes are protected, and
+    `chat.general` is overridable but never runs during a run.
+    """
+    assert RUN_PURPOSES & OVERRIDABLE_PURPOSES == {
+        "planner.main",
+        "executor.main",
+        "critic.research",
+        "synthesizer.main",
+    }
+    assert "chat.general" in OVERRIDABLE_PURPOSES and "chat.general" not in RUN_PURPOSES
+
+
+def test_adding_applicability_did_not_move_the_override_boundary():
+    """The guard on this change: classification for the bundle must not have altered who may
+    replace a prompt. Five overridable, four protected, exactly as PR-4 froze them."""
+    assert len(OVERRIDABLE_PURPOSES) == 5
+    assert len(set(PURPOSE_CONSTANTS) - OVERRIDABLE_PURPOSES) == 4

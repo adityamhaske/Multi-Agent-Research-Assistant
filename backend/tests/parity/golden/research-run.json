@@ -2235,6 +2235,8 @@
         "planner": "google:gemini-2.5-flash",
         "synthesizer": "google:gemini-2.5-flash"
       },
+      "prompt_overrides_status": null,
+      "prompt_provenance": [],
       "query": "What is retrieval-augmented generation?",
       "report": "# Retrieval-augmented generation versus fine-tuning\n\n## Summary\nRetrieval-augmented generation and fine-tuning address different problems: fine-tuning adapts a model's parameters, while retrieval supplies knowledge the model can cite at answer time [1][2].\n\n## Findings\nLarge pre-trained language models store factual knowledge in their parameters and achieve state-of-the-art results when fine-tuned on downstream NLP tasks [1].\nTheir ability to access and precisely manipulate that knowledge is still limited, and on knowledge-intensive tasks their performance lags behind task-specific architectures [1].\nProviding provenance for a model's decisions and updating its world knowledge remain open research problems [1].\nIncorporating knowledge from external databases enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks [2].\nBecause the knowledge sits outside the parameters, retrieval allows for continuous knowledge updates and integration of domain-specific information [2].\n\n## Analysis\nRetrieval is the stronger choice where knowledge changes or must be attributable, since it updates continuously and carries provenance that parametric memory does not [1][2].\nFine-tuning remains the mechanism for adapting a model to a downstream task rather than for teaching it facts it must later be able to cite [1].\n\n## Limitations\nThis is a demonstration run on scripted models over two sources captured in advance. A real run searches the live web, may surface contradicting sources, and will not reproduce this report.\n\n## Sources\n[1] https://arxiv.org/abs/2005.11401\n[2] https://arxiv.org/abs/2312.10997\n",
       "report_hash": "<hash>",
@@ -2313,7 +2315,10 @@
           "passed": true,
           "detail": ""
         }
-      ]
+      ],
+      "bundle_version": 1,
+      "prompt_overrides_status": null,
+      "prompt_provenance": []
     }
   },
   {
