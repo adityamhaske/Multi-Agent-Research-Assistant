@@ -33,7 +33,7 @@ struct SidecarChild(Mutex<Option<Child>>);
 /// the app (or before clicking the button) is never touched by `stop_local_server`:
 /// this state starts `None` and is only ever set by a successful `start_local_server`.
 ///
-/// UNVERIFIED (docs/07 §2, Phase 2b): this struct, both commands below, the
+/// UNVERIFIED (internal/07 Phase 2b): this struct, both commands below, the
 /// `tauri-plugin-shell` dependency, and the matching `capabilities/default.json`
 /// scope were all written to the plan's spec and never compiled — this environment
 /// has no Rust/Tauri toolchain. `cargo build` and a real desktop launch must confirm
@@ -259,7 +259,7 @@ pub fn run() {
     );
 
     let app = tauri::Builder::default()
-        // UNVERIFIED (docs/07 §2, Phase 2b) — see the `LocalLLMChild` doc comment above.
+        // UNVERIFIED (internal/07 Phase 2b) — see the `LocalLLMChild` doc comment above.
         .plugin(tauri_plugin_shell::init())
         .manage(SidecarChild(Mutex::new(Some(child))))
         .manage(LocalLLMChild(Mutex::new(None)))

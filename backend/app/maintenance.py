@@ -1,5 +1,5 @@
 """
-One-off maintenance commands (docs/07 §2, Phase 7).
+One-off maintenance commands (internal/07 Phase 7).
 
     python -m app.maintenance backfill-citation-rate [--apply]
 

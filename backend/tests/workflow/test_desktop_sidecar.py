@@ -379,7 +379,7 @@ def _mock_probe_transport(handler):
 
 async def test_provider_test_probes_a_submitted_key_before_storing(sidecar, monkeypatch):
     """`POST /models/providers/test` — contract copy #2 of the server's endpoint
-    (docs/07 §2, Phase 2a)."""
+    (internal/07 Phase 2a)."""
     import httpx as httpx_mod
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -425,7 +425,7 @@ async def test_provider_health_checks_the_stored_keychain_key(sidecar, monkeypat
     assert body["model_count"] == 1
 
 
-# ── One-click local models (docs/07 §2, Phase 2b) ────────────────────────────────
+# ── One-click local models (internal/07 Phase 2b) ────────────────────────────────
 
 
 async def test_local_status_reports_install_state(sidecar, monkeypatch):

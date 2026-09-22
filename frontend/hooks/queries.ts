@@ -140,7 +140,7 @@ export function useSetApiKeyLabel() {
 }
 
 /**
- * Probe a key BEFORE it is stored (docs/07 §2, Phase 2a) — the picker's "test
+ * Probe a key BEFORE it is stored (internal/07 Phase 2a) — the picker's "test
  * connection" action, separate from saving. Same request/response shape on both
  * hosts: `POST /models/providers/test`.
  */
@@ -451,7 +451,7 @@ export function useStartResearch() {
       /** Run on scripted models and fixture sources — no provider, no key (docs/17 §6.2). */
       demo?: boolean;
       /**
-       * Research design gate (docs/07 §2, Phase 4). The API defaults this to `true`
+       * Research design gate (internal/07 Phase 4). The API defaults this to `true`
        * (skip) so an un-updated caller keeps today's journey; the run form therefore
        * has to send `false` to *get* the gate, which is the product default here.
        */
@@ -463,7 +463,7 @@ export function useStartResearch() {
   });
 }
 
-// ─── Research design gate (docs/07 §2, Phase 4) ───────────────────────────────────
+// ─── Research design gate (internal/07 Phase 4) ───────────────────────────────────
 
 export function useSessionPlan(id: string, enabled = true) {
   return useQuery({
@@ -621,8 +621,8 @@ export function useLocalLLMStatus(pollUntilReady = false) {
     queryFn: () => apiFetch<LocalLLMStatus>("/models/local/status"),
     retry: false,
     staleTime: 15_000,
-    // "2s polling that flips to green the moment the server appears" (docs/07 §2,
-    // Phase 2b) — only while opted in and not yet reachable; a card idly showing
+    // "2s polling that flips to green the moment the server appears"
+    // (internal/07 Phase 2b) — only while opted in and not yet reachable; a card idly showing
     // "Connected" has no reason to keep polling every 2 seconds forever.
     refetchInterval: pollUntilReady
       ? (query) => (query.state.data?.install_state === "running" ? false : 2000)
@@ -631,7 +631,7 @@ export function useLocalLLMStatus(pollUntilReady = false) {
 }
 
 /**
- * One-click local server (docs/07 §2, Phase 2b) — desktop only. The web build has no
+ * One-click local server (internal/07 Phase 2b) — desktop only. The web build has no
  * counterpart: it cannot spawn a process on the user's machine, so `LocalLLMCard`
  * shows an OS-detected command to copy instead of a button that calls this.
  */
@@ -656,7 +656,7 @@ export function useStopLocalServer() {
 }
 
 /**
- * Pull a model with streaming progress (docs/07 §2, Phase 2b). Works on both hosts —
+ * Pull a model with streaming progress (internal/07 Phase 2b). Works on both hosts —
  * pulling is one HTTP call to an already-running Ollama, no local process access
  * needed, unlike starting the server. Newline-delimited JSON, not `EventSource`
  * (this is a POST with a body); read as a plain fetch stream instead.

@@ -112,7 +112,7 @@ class LocalModel:
 
 #: "Not detected" used to conflate two states with different fixes: no Ollama
 #: installed needs the installer link, Ollama installed but not running needs the
-#: one-click Start button (docs/07 §2, Phase 2b). Both looked identical over HTTP.
+#: one-click Start button (internal/07 Phase 2b). Both looked identical over HTTP.
 InstallState = Literal["running", "installed_not_running", "not_installed"]
 
 # Installer locations the platform installer sometimes doesn't add to PATH.
@@ -322,7 +322,7 @@ class PullProgress:
 
 
 async def pull(model: str, base_url: str | None = None) -> AsyncIterator[PullProgress]:
-    """Stream Ollama's pull progress for `model` (docs/07 §2, Phase 2b: "recommended-
+    """Stream Ollama's pull progress for `model` (internal/07 Phase 2b: "recommended-
     model one-click pull with progress"). Never raises — a transport failure or a
     non-200 response yields one `PullProgress(status="error")` instead of propagating,
     matching `probe`'s "every failure becomes a status a user can act on" contract.

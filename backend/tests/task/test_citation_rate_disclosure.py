@@ -1,5 +1,5 @@
 """
-Verified-citation rate on the session summary (docs/07 §2, Phase 7).
+Verified-citation rate on the session summary (internal/07 Phase 7).
 
 History can filter by "how much of this report actually resolves", which is the product's
 central claim made scannable across a list rather than only inside one report.

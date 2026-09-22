@@ -13,7 +13,7 @@ from app.models.types import JsonType, UuidType
 class SessionStatus(enum.StrEnum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
-    # Paused at the research design gate (docs/07 §2, Phase 4) — the planner has proposed
+    # Paused at the research design gate (internal/07 Phase 4) — the planner has proposed
     # tasks and an outline and is waiting on the reviewer, before any search has spent
     # anything. Distinct from AWAITING_APPROVAL rather than a shared "paused": the two
     # gates resume with different payloads, so a client that could not tell them apart
@@ -84,7 +84,7 @@ class Session(Base):
     # reason the approval decision is recorded in the audit log.
     model_routing: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
 
-    # How much of this report's citation apparatus resolves (docs/07 §2, Phase 7).
+    # How much of this report's citation apparatus resolves (internal/07 Phase 7).
     # **Nullable, and NULL means "not measured"** — a report that made no citable claims,
     # or a session predating this column. A `0.0` here would mean "every marker points at
     # nothing", which is the opposite finding; storing the two as one value is the
@@ -101,7 +101,7 @@ class Session(Base):
     # output this product exists to refuse.
     demo: Mapped[bool] = mapped_column(nullable=False, server_default="false")
 
-    # ── Plan gate (docs/07 §2, Phase 4) ────────────────────────────────────────
+    # ── Plan gate (internal/07 Phase 4) ────────────────────────────────────────
     # The reviewer's decision, not the planner's proposal — plan_json/outline_json
     # hold the request as edited at the gate, same as model_routing snapshots what
     # actually ran rather than a current, possibly-since-changed preference.

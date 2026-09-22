@@ -1,5 +1,5 @@
 """
-Scoped follow-up questions (docs/07 §2, Phase 5; req 8).
+Scoped follow-up questions (internal/07 Phase 5; req 8).
 
 A follow-up can be pinned to what it may read: this report, the uploaded corpus, the
 open web, or everything. The claim the UI makes about each scope is the thing under

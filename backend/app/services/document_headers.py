@@ -37,7 +37,7 @@ def media_type_for(kind: str) -> str:
 
 
 def download_headers(kind: str, filename: str) -> dict[str, str]:
-    """Response headers for one stored document (docs/07 §2, Phase 6).
+    """Response headers for one stored document (internal/07 Phase 6).
 
     This route used to be unconditionally `attachment`, on the stated principle that an
     uploaded document must never render inline in this origin. That principle is

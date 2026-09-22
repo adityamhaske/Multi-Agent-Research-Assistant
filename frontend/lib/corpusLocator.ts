@@ -1,5 +1,5 @@
 /**
- * Parsing the engine's corpus locator (docs/07 §2, Phase 6).
+ * Parsing the engine's corpus locator (internal/07 Phase 6).
  *
  * Corpus evidence cites `corpus://<document-id>#chars=<start>-<end>[&page=<n>]`
  * (backend/research_engine/corpus.py). The scheme is not one a browser can follow, so a

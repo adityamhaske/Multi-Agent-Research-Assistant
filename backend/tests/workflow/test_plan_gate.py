@@ -1,5 +1,5 @@
 """
-The research design gate (docs/07 §2, Phase 4; plan §3 Phase 4).
+The research design gate (internal/07 Phase 4; plan §3 Phase 4).
 
 The engine primitives landed inert in 62b946d — `plan_gate_node` existed and
 interrupted correctly, but nothing could resume *past* that interrupt, so activating it

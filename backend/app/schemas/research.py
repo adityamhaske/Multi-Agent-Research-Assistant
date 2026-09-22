@@ -32,7 +32,7 @@ class ResearchStartRequest(BaseModel):
     # on the session, which is what lets every export stamp itself as not-real research.
     demo: bool = False
 
-    # ── Research design gate (docs/07 §2, Phase 4) ─────────────────────────────
+    # ── Research design gate (internal/07 Phase 4) ─────────────────────────────
     # All three are persisted onto the session and read back into `RunConfig` on every
     # resume. They are accepted here only now that the whole resume path exists — the
     # groundwork commit deliberately left them out, because a field the schema accepts
@@ -133,7 +133,7 @@ class ChatRequest(BaseModel):
     model_config = {"str_strip_whitespace": True}
 
     message: str = Field(..., min_length=1, max_length=4000)
-    #: What this question may read (docs/07 §2, Phase 5). "report" is today's behaviour
+    #: What this question may read (internal/07 Phase 5). "report" is today's behaviour
     #: on both chat surfaces — finished, approved research — so an un-updated client that
     #: omits the field gets exactly the answer it got before. See
     #: `app/services/chat_scope.py` for what each value promises, and for why "corpus"

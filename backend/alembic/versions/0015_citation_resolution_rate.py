@@ -2,7 +2,7 @@
 
 The product's central claim is that every `[n]` is falsifiable. This stores that as one
 number per report so History can filter on it without loading every report body
-(docs/07 §2, Phase 7).
+(internal/07 Phase 7).
 
 **Nullable, and NULL is a value with meaning**: "not measured" — a report that made no
 citable claims, or a session finished before this column existed. `0.0` means every

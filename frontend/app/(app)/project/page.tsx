@@ -20,7 +20,7 @@ import { pickPriorityRun } from "@/lib/runPriority";
 import { runStatusMeta } from "@/lib/runStatus";
 
 /**
- * Overview: the project's home (docs/07 §2, Phase 6; req 9).
+ * Overview: the project's home (internal/07 Phase 6; req 9).
  *
  * Answers four questions, in this order, because they are asked in this order: what needs
  * me now, what is running or done, what does this project actually know, and how do I

@@ -1,5 +1,5 @@
 """
-How much of a report's citation apparatus actually resolves (docs/07 §2, Phase 7).
+How much of a report's citation apparatus actually resolves (internal/07 Phase 7).
 
 The product's central claim is that every `[n]` is falsifiable. This turns that into one
 number per report so it is scannable across a list, not only checkable inside one.

@@ -21,7 +21,7 @@ class ResearchTask(BaseModel):
     query: str = Field(min_length=3, description="A concrete, independently searchable query")
     rationale: str = ""
     status: TaskStatus = "pending"
-    # Plan gate fields (docs/07 §2, Phase 4). Absent/empty is the exact shape a task
+    # Plan gate fields (internal/07 Phase 4). Absent/empty is the exact shape a task
     # had before this field existed, so a run that skips the gate is unaffected.
     subtopics: list[str] = Field(default_factory=list)
     # False means the reviewer dropped this task at the gate — plan_gate_node filters
@@ -41,7 +41,7 @@ class ResearchTask(BaseModel):
 
 
 class OutlineSection(BaseModel):
-    """One section of the proposed report structure (docs/07 §2, Phase 4)."""
+    """One section of the proposed report structure (internal/07 Phase 4)."""
 
     title: str = Field(min_length=1)
     description: str = ""
@@ -63,7 +63,7 @@ class PlannerOutput(BaseModel):
     def _bounded(cls, v: list[ResearchTask]) -> list[ResearchTask]:
         if not v:
             raise ValueError("planner must produce at least 1 task")
-        # A default, not a wall (docs/07 §2, Phase 4) — the plan gate is what lets a
+        # A default, not a wall (internal/07 Phase 4) — the plan gate is what lets a
         # user raise this per-run by adding tasks themselves; the configured cap is
         # only what the *planner* may propose unprompted. 6 reproduces today's
         # hardcoded ceiling exactly.

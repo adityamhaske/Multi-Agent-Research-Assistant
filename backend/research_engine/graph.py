@@ -546,7 +546,7 @@ class submit_evidence(BaseModel):
 def _parse_submission(args: Any) -> list[dict]:
     """Validate one `submit_evidence` payload into evidence dicts. Raises on rejection.
 
-    Truncate to the configured cap before validation (docs/07 §2, Phase 3) — this can only
+    Truncate to the configured cap before validation (internal/07 Phase 3) — this can only
     tighten `EvidenceChunk.snippet`'s own max_length=500, never loosen it, since the
     config's default (500) equals that ceiling and nothing here raises it.
     """
@@ -1079,7 +1079,7 @@ async def _criticize_one(
         e for e in state.get("evidence", []) if str(e.get("task_id")) == _task_key(task)
     ]
 
-    # A configured floor (docs/07 §2, Phase 3; 0 = no floor, today's behaviour) fails
+    # A configured floor (internal/07 Phase 3; 0 = no floor, today's behaviour) fails
     # closed without spending a model call — evidence that is already too thin to meet
     # the floor cannot become sufficient by asking a model to grade it.
     min_sources = get_run_config().min_sources_per_task
@@ -1650,7 +1650,7 @@ async def synthesizer_node(state: AgentState) -> dict:
 
 def plan_gate_node(state: AgentState) -> dict:
     """Pause after the planner for the user to edit subtopics and the outline before
-    any search spends money (docs/07 §2, Phase 4). Mirrors `hitl_gate_node` exactly:
+    any search spends money (internal/07 Phase 4). Mirrors `hitl_gate_node` exactly:
     `interrupt()` persists the checkpoint and suspends; a resume carries the decision.
 
     Resumed with `{"tasks": [...], "outline": [...]}` — both optional; an absent key
@@ -1806,7 +1806,7 @@ def route_after_planner(state: AgentState) -> str:
     # way, instead of the skip-gate path sliding through to an evidence-free report.
     if not state.get("tasks"):
         return "failer"
-    # Opt-out, not opt-in (docs/07 §2, Phase 4) — the extra pause is the default.
+    # Opt-out, not opt-in (internal/07 Phase 4) — the extra pause is the default.
     if get_run_config().skip_plan_gate:
         return "executor"
     return "plan_gate"

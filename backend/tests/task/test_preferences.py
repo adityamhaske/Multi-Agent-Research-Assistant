@@ -1,5 +1,5 @@
 """
-User preferences and their RunConfig wiring (docs/07 §2, Phase 3).
+User preferences and their RunConfig wiring (internal/07 Phase 3).
 
 Every preference defaults to today's behaviour — these tests pin that, plus the three
 concrete knobs this phase actually wires into the engine: retrieval_k (web_search's

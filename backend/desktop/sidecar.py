@@ -809,7 +809,7 @@ def create_sidecar_app(
         "saver": None,
         "cache": None,
         "corpus": None,
-        # The `ollama serve` process this app started, if any (docs/07 §2, Phase 2b).
+        # The `ollama serve` process this app started, if any (internal/07 Phase 2b).
         # Only ever populated by `/local/start` — a server the user started themselves
         # outside the app is never touched by `/local/stop`.
         "local_llm_process": None,
@@ -1113,7 +1113,7 @@ def create_sidecar_app(
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        """Persist Settings preferences (docs/07 §2, Phase 3) — contract copy #3 of the
+        """Persist Settings preferences (internal/07 Phase 3) — contract copy #3 of the
         server's `PATCH /auth/me`, merged rather than replaced for the same reason."""
         body = await request.json()
         if "display_name" in body:
@@ -1340,7 +1340,7 @@ def create_sidecar_app(
             session.status = SessionStatus.RUNNING
             await db.commit()
             session_routing = session.model_routing
-            # The research design gate (docs/07 §2, Phase 4). Read from the session row,
+            # The research design gate (internal/07 Phase 4). Read from the session row,
             # not from the request, because this runs again on every resume and the
             # request is long gone by then. Server counterpart:
             # `pipeline_runner._run_config_for`.
@@ -1762,7 +1762,7 @@ def create_sidecar_app(
 
         return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
 
-    # ── Research design gate (docs/07 §2, Phase 4) ─────────────────────────────
+    # ── Research design gate (internal/07 Phase 4) ─────────────────────────────
     # Second home of `app/api/v1/research.py`'s plan endpoints. The bodies differ only
     # in how they dispatch — Celery there, an asyncio task here — because that is the
     # only thing that actually differs between the hosts; every rule below (404 vs empty
@@ -2261,7 +2261,7 @@ def create_sidecar_app(
 
     @api.get("/models/providers/health/{provider}")
     async def provider_health_check(provider: str):
-        """Re-probe a stored keychain key on demand (docs/07 §2, Phase 2a).
+        """Re-probe a stored keychain key on demand (internal/07 Phase 2a).
 
         Desktop can hold a key per provider simultaneously — unlike the server's single
         `user.api_key_provider` — so this is scoped by provider rather than "the" key.
@@ -2301,7 +2301,7 @@ def create_sidecar_app(
 
     @api.post("/models/local/start")
     async def start_local_server():
-        """One-click local model server (docs/07 §2, Phase 2b) — the honest boundary
+        """One-click local model server (internal/07 Phase 2b) — the honest boundary
         stated in the UI: the web build can only guide, the desktop build can act,
         because only here does the request originate from a process already running
         on the user's own machine.

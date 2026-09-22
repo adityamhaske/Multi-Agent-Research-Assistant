@@ -55,7 +55,7 @@ export function ReportView({ session }: { session: SessionDetail }) {
   const tokens = session.total_tokens_input + session.total_tokens_output;
   const [exporting, setExporting] = useState<null | ExportFormat>(null);
   // A corpus citation resolves to a document in this session's project, so clicking [3]
-  // can show the page rather than downloading it (docs/07 §2, Phase 6). Web citations
+  // can show the page rather than downloading it (internal/07 Phase 6). Web citations
   // keep their ordinary link — there is no local file to preview.
   const [preview, setPreview] = useState<{ id: string; filename: string; page: number | null } | null>(
     null,

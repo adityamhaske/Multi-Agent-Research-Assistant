@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 /**
- * Type-to-filter across every setting (docs/07 §2, Phase 3) — the thing that makes
+ * Type-to-filter across every setting (internal/07 Phase 3) — the thing that makes
  * "as much customization as possible" survivable instead of another 452-line scroll,
  * just split into seven scrolls. A static index rather than a live DOM search: it
  * works even before the target section has ever been rendered, and stays honest

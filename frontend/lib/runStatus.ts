@@ -2,7 +2,7 @@ import type { RunStatus } from "./types";
 
 /**
  * One status vocabulary for a run — the list, the card, the header and the filters
- * (docs/07 §2, Phase 7).
+ * (internal/07 Phase 7).
  *
  * The session equivalent lives in `lib/status.ts` and is a different union: a run adds
  * `AWAITING_REVIEW` and `CANCELLED`, and has no `AWAITING_APPROVAL`. They are kept

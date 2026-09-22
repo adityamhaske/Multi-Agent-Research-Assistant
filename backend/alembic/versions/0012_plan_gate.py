@@ -1,6 +1,6 @@
 """Add plan gate columns to sessions.
 
-The research design gate (docs/07 §2, Phase 4): a second durable interrupt after the
+The research design gate (internal/07 Phase 4): a second durable interrupt after the
 planner. plan_json/outline_json hold the reviewer's edited decision, not the planner's
 raw proposal — same reasoning as model_routing snapshotting what actually ran rather
 than a preference that can change afterwards. skip_plan_gate defaults false: the

@@ -7,7 +7,7 @@ import { PlanGate } from "./PlanGate";
 import type { SessionDetail, SessionPlan } from "@/lib/types";
 
 /**
- * The gate's job is to submit the reviewer's decision faithfully (docs/07 §2, Phase 4).
+ * The gate's job is to submit the reviewer's decision faithfully (internal/07 Phase 4).
  * Everything asserted here is about the request body, because that is the only part the
  * backend acts on — an excluded task that still reaches the API is researched anyway,
  * and the reviewer would never know their edit was dropped.

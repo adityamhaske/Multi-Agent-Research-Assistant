@@ -1,5 +1,5 @@
 """
-Report outline templates (docs/07 §2, Phase 4).
+Report outline templates (internal/07 Phase 4).
 
 The four structures a researcher picks between at the design gate, held as **data** so
 there is exactly one copy of them. The alternative — a picker in the browser that knows

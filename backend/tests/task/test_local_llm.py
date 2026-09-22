@@ -201,7 +201,7 @@ async def test_probe_warns_when_only_embedding_models_are_installed(monkeypatch)
     assert "embedding models" in status.hint
 
 
-# ─── install_state (docs/07 §2, Phase 2b) ───────────────────────────────────────────
+# ─── install_state (internal/07 Phase 2b) ───────────────────────────────────────────
 #
 # "Not detected" used to conflate two states with different fixes: a machine with no
 # Ollama installed needs the installer link, a machine with Ollama installed but not
@@ -254,7 +254,7 @@ def test_binary_installed_is_false_when_nothing_is_found(monkeypatch):
     assert local_llm._binary_installed() is False
 
 
-# ─── pull() — streaming download progress (docs/07 §2, Phase 2b) ───────────────────
+# ─── pull() — streaming download progress (internal/07 Phase 2b) ───────────────────
 
 
 @pytest.mark.asyncio

@@ -111,7 +111,7 @@ async def test_emit_is_noop_without_a_sink():
     await emit("s", "agent_log", agent="planner", message="hi")
 
 
-# ─── Plan gate groundwork (docs/07 §2, Phase 4) ─────────────────────────────────────
+# ─── Plan gate groundwork (internal/07 Phase 4) ─────────────────────────────────────
 #
 # The engine primitives exist (plan_gate_node, route_after_planner routing to it) but
 # nothing can resume a session past that interrupt yet — no SessionStatus value, no

@@ -8,7 +8,7 @@ from app.services.passwords import MIN_LENGTH
 
 
 class ConnectionVerdict(BaseModel):
-    """The API shape of `app.services.provider_health.Verdict` (docs/07 §2, Phase 2a).
+    """The API shape of `app.services.provider_health.Verdict` (internal/07 Phase 2a).
 
     Three states, never a bare boolean (AGENTS.md, "Honest three-state status"): `ok`,
     `degraded` (the server answered but rejected the key / hit quota / had an outage —
@@ -33,7 +33,7 @@ class LoginRequest(BaseModel):
 
 
 class UserPreferences(BaseModel):
-    """The settings IA's customization surface (docs/07 §2, Phase 3).
+    """The settings IA's customization surface (internal/07 Phase 3).
 
     Every field is optional and `None` means "use the default" — the same value
     today's behaviour already produces, so an account that has never touched Settings
@@ -72,7 +72,7 @@ class UserResponse(BaseModel):
     api_key_set_at: datetime | None = None
     # Set only by `PUT /me/api-key` — saving a key tests it in the same request, so the
     # UI never shows a stale "connected" for a key nobody has actually probed since it
-    # changed. `None` on every other endpoint returning this schema (docs/07 §2).
+    # changed. `None` on every other endpoint returning this schema (internal/07 Phase 2a).
     connection_verdict: ConnectionVerdict | None = None
 
     preferences: UserPreferences = Field(default_factory=UserPreferences)
@@ -133,7 +133,7 @@ class ApiKeyRequest(BaseModel):
 class ApiKeyLabelRequest(BaseModel):
     """Rename the active BYOK connection. Separate from `ApiKeyRequest` on purpose —
     a nickname does not require re-proving the key, and saving one must not re-probe
-    the provider (docs/07 §2, Phase 2a's probe is a "test", not a rename)."""
+    the provider (internal/07 Phase 2a's probe is a "test", not a rename)."""
 
     model_config = {"str_strip_whitespace": True}
 

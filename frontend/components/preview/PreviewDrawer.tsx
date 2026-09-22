@@ -6,7 +6,7 @@ import { DocumentPreview } from "@/components/preview/DocumentPreview";
 
 /**
  * A right-hand drawer that shows a corpus document without leaving the page
- * (docs/07 §2, Phase 6; req 9).
+ * (internal/07 Phase 6; req 9).
  *
  * "In place" is the point. Clicking a document — or a citation that resolves to one —
  * used to mean a download and a context switch into another application, which is the

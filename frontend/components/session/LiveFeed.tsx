@@ -62,7 +62,7 @@ function ConnectionPill({ state }: { state: StreamState }) {
  * (`--radius: 0`) rather than the `rounded` utility this block used to carry.
  */
 /**
- * One of four semantic groups the nine detail blocks fall into (docs/07 §2, Phase 7):
+ * One of four semantic groups the nine detail blocks fall into (internal/07 Phase 7):
  * **Reasoning · Evidence · Verdict · Draft**.
  *
  * Grouped, not merged. "Evaluation Reasons" and "Critic Feedback For Rework" are

@@ -4,7 +4,7 @@ import { useOutlineTemplates } from "@/hooks/queries";
 import type { OutlineSection } from "@/lib/types";
 
 /**
- * Pick a report structure at the design gate (docs/07 §2, Phase 4).
+ * Pick a report structure at the design gate (internal/07 Phase 4).
  *
  * The four templates — Literature Review, Systematic Comparison, Methods Survey, Custom
  * — are **not defined here**. They come from `GET /research/outline-templates`, which

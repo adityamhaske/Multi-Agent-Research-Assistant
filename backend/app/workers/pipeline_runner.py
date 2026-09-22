@@ -220,7 +220,7 @@ async def _execute(
                 async with AsyncPostgresSaver.from_conn_string(_checkpointer_dsn()) as saver:
                     await saver.setup()
                     if plan is not None:
-                        # Resuming the design gate (docs/07 §2, Phase 4).
+                        # Resuming the design gate (internal/07 Phase 4).
                         outcome = await runner.resume(
                             checkpointer=saver, session_id=session_id, plan=plan, **ports
                         )
@@ -362,7 +362,7 @@ async def _persist_outcome(
     session.sources = outcome.sources
 
     if outcome.status == "awaiting_plan":
-        # The research design gate (docs/07 §2, Phase 4). Persisted before the event
+        # The research design gate (internal/07 Phase 4). Persisted before the event
         # leaves, same ordering as every other branch here: a client that acts on
         # PLAN_READY and immediately GETs /plan must not read a row that has not caught
         # up yet. `plan_approved_at` stays null — this is the proposal, not a decision;

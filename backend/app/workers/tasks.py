@@ -55,7 +55,7 @@ def resume_agent_pipeline(
 
 @celery_app.task(name="resume_plan_gate")
 def resume_plan_gate(session_id: str, user_id: str, plan: dict) -> None:
-    """Resume a session suspended at the research design gate (docs/07 §2, Phase 4).
+    """Resume a session suspended at the research design gate (internal/07 Phase 4).
 
     A separate task from `resume_agent_pipeline` rather than an extra argument on it:
     the two carry different payloads to different interrupts, and a single task that

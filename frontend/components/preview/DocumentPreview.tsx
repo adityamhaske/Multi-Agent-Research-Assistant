@@ -7,7 +7,7 @@ import remarkGfm from "remark-gfm";
 import { apiBase, authHeaders, isDesktop } from "@/lib/desktop";
 
 /**
- * A corpus document, rendered in place (docs/07 §2, Phase 6; req 9).
+ * A corpus document, rendered in place (internal/07 Phase 6; req 9).
  *
  * Four types, three of which never touch the download route's rendering path at all —
  * the bytes are fetched and rendered by this component, and `fetch` ignores

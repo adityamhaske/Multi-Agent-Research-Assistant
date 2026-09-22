@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PreviewDrawer } from "./PreviewDrawer";
 
 /**
- * The drawer's keyboard contract (docs/07 §2, Phase 7).
+ * The drawer's keyboard contract (internal/07 Phase 7).
  *
  * `aria-modal="true"` is a promise that everything outside the dialog is inert. Without
  * a focus trap that promise is a lie — a keyboard user tabs straight out into a page

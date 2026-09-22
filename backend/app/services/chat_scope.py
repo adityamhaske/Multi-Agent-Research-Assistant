@@ -1,5 +1,5 @@
 """
-Retrieval scope for follow-up questions (docs/07 §2, Phase 5; req 8).
+Retrieval scope for follow-up questions (internal/07 Phase 5; req 8).
 
 Two chat surfaces exist and neither could search: `ChatPanel` is grounded in one report's
 sources, `ProjectChatPanel` in project memory. This module is the single place that turns

@@ -1,5 +1,5 @@
 """
-Follow-up chat on the desktop host (docs/07 §2, Phase 5 completion).
+Follow-up chat on the desktop host (internal/07 Phase 5 completion).
 
 The sidecar implemented **no chat routes at all**, while `frontend/.../ChatPanel.tsx`
 renders on desktop and POSTs to one — so clicking Send on a finished desktop report hit

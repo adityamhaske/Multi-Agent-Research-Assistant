@@ -246,7 +246,7 @@ async def custom_endpoint_status(_current_user: User = Depends(get_current_user)
 async def test_provider(
     payload: ProviderTestRequest, _current_user: User = Depends(get_current_user)
 ):
-    """Probe a submitted key BEFORE it is stored (docs/07 §2, Phase 2a) — the picker's
+    """Probe a submitted key BEFORE it is stored (internal/07 Phase 2a) — the picker's
     "test connection" action, separate from saving.
 
     Live I/O, same reason `/local/status` is split from `GET /models`: it can
@@ -267,7 +267,7 @@ async def test_provider(
 
 @router.get("/providers/health", response_model=ConnectionVerdict)
 async def provider_health_check(current_user: User = Depends(get_current_user)):
-    """Re-probe this user's own stored BYOK key on demand (docs/07 §2, Phase 2a).
+    """Re-probe this user's own stored BYOK key on demand (internal/07 Phase 2a).
 
     404s when there is no key to check — a settings page with no key stored already
     says so in prose; this endpoint has nothing of the user's own to verify, and a
@@ -295,7 +295,7 @@ async def provider_health_check(current_user: User = Depends(get_current_user)):
 
 @router.post("/local/pull")
 async def pull_local_model(request: Request, _current_user: User = Depends(get_current_user)):
-    """Stream download progress for a recommended model (docs/07 §2, Phase 2b).
+    """Stream download progress for a recommended model (internal/07 Phase 2b).
 
     Unlike `/local/start` (spawning a server process), pulling a model is just an
     HTTP call to an already-running Ollama — no local process access required, so

@@ -13,7 +13,7 @@ import { ApiKeyCard } from "./ApiKeyCard";
  * routed through that provider shares — the behaviour under test is that a saved
  * nickname is what's actually shown, that renaming never touches the key itself,
  * and that the inline editor can't leak a submit into the card's own save-key form
- * (docs/07 §2, Phase 2a).
+ * (internal/07 Phase 2a).
  */
 
 const setApiKeyLabel = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }));

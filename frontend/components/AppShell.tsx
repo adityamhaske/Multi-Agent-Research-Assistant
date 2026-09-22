@@ -49,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       // responded to it, and nothing in between: `[data-density="compact"]` was never
       // put on the DOM, so choosing "compact" persisted a value the app never read.
       // Applied on the shell rather than <html> because the tokens are inherited and
-      // this is the outermost element the client actually owns (docs/07 §2, Phase 7).
+      // this is the outermost element the client actually owns (internal/07 Phase 7).
       data-density={user?.preferences?.density ?? "comfortable"}
       className="flex min-h-screen flex-col md:flex-row bg-bg-base"
     >

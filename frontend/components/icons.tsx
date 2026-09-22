@@ -71,7 +71,7 @@ export function IconCorpus({ className }: IconProps) {
   );
 }
 
-/** The project workspace: four panes of one thing (docs/07 §2, Phase 6). */
+/** The project workspace: four panes of one thing (internal/07 Phase 6). */
 export function IconOverview({ className }: IconProps) {
   return (
     <svg

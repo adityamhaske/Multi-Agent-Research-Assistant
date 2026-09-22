@@ -70,8 +70,8 @@ class LocalLLMStatusResponse(BaseModel):
     models: list[LocalModelInfo]
     error: str | None
     hint: str | None
-    # "Not detected" used to conflate two states with different fixes (docs/07 §2,
-    # Phase 2b): install vs. start.
+    # "Not detected" used to conflate two states with different fixes
+    # (internal/07 Phase 2b): install vs. start.
     install_state: Literal["running", "installed_not_running", "not_installed"]
 
 
@@ -104,7 +104,7 @@ class ReadinessResponse(BaseModel):
 
 
 class ProviderTestRequest(BaseModel):
-    """A key to probe before it is stored (docs/07 §2, Phase 2a)."""
+    """A key to probe before it is stored (internal/07 Phase 2a)."""
 
     model_config = {"str_strip_whitespace": True}
 
