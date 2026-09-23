@@ -237,8 +237,17 @@ def assemble(
     trace: list[dict] | None = None,
     trace_available: bool = True,
     demo: bool = False,
+    prompt_provenance: list[dict] | None = None,
+    prompt_overrides_status: str | None = None,
 ) -> BundleManifest:
-    """Build a complete bundle from session data. Pure — no DB, no ORM."""
+    """Build a complete bundle from session data. Pure — no DB, no ORM.
+
+    **`prompt_provenance` decides the format version, and its presence is not a claim about
+    customisation.** A run that captured what it composed emits v2 whether or not anything
+    was overridden — `prompt_overrides_status: NONE` is a perfectly ordinary v2 bundle. A run
+    with nothing captured emits v1, because its prompts were never recorded and no honest v2
+    can be built from a run that predates the recording.
+    """
 
     report_h = content_hash(report)
 
@@ -269,6 +278,9 @@ def assemble(
     ]
 
     bundle = BundleManifest(
+        bundle_version=2 if prompt_provenance else 1,
+        prompt_provenance=[PromptProvenance.model_validate(r) for r in (prompt_provenance or [])],
+        prompt_overrides_status=prompt_overrides_status,
         session_id=session_id,
         query=query,
         research_depth=research_depth,

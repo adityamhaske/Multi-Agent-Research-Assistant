@@ -56,6 +56,7 @@ from app.services.run_config import (
 )
 from research_engine import citation_rate, events
 from research_engine.checkpoint_read import CheckpointOutcome, read_checkpoint
+from research_engine.prompt_composition import recording_provenance
 from research_engine.runconfig import RunConfig
 from research_engine.runner import RunOutcome
 
@@ -194,13 +195,39 @@ async def persist_outcome(
     *,
     saver=None,
     state: dict | None = None,
+    prompt_provenance: dict[str, dict] | None = None,
 ) -> PersistResult:
     """Write one graph invocation's result into the research domain. Caller owns the transaction.
 
     `state` is the final checkpoint values; pass it directly (a test that already has them)
     or pass `saver` and let this read them through the tri-state reader. Passing neither
     means the evidence is **unknown**, and that is recorded rather than treated as zero.
+
+    `prompt_provenance` is what `system_prompt` composed during *this* invocation, captured
+    by `recording_provenance`. It is **merged**, not assigned: a run pausing at a human gate
+    composes the planner's prompt in one invocation and the synthesizer's in a later one, and
+    the bundle needs the union. Omitting it leaves the column exactly as it was, so a caller
+    that does not drive the graph cannot erase what an earlier segment recorded.
     """
+    # **Before every early return below.** A prompt this invocation composed is a fact about
+    # what executed, like the spend the cancelled branch deliberately keeps — not a
+    # conclusion about the run, so no outcome status suppresses it. Placed lower, it was
+    # dropped for the invocation that ends at the plan gate, and the planner's prompt —
+    # always the first one composed — never reached any bundle. The golden run journey
+    # caught that; nothing else would have, because every unit test drove a single
+    # uninterrupted invocation.
+    #
+    # Merged earlier-first: a purpose already recorded keeps the string it actually ran
+    # under, matching the recorder's own first-write-wins rule within one invocation.
+    if prompt_provenance:
+        # This invocation's records first, the existing ones second, so an already-recorded
+        # purpose keeps the string it actually ran under. A resumed run recomposes nothing,
+        # but if it ever did, the earlier segment is the one the report was written from.
+        run.effective_prompt_provenance = {
+            **prompt_provenance,
+            **(run.effective_prompt_provenance or {}),
+        }
+
     # A run the user stopped stays stopped (issue #54). Cancellation is advisory — nothing
     # interrupts the graph — so the outcome still arrives, minutes later with a real model,
     # and every branch below would move the run out of CANCELLED.
@@ -507,7 +534,10 @@ async def execute_run(
                 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
                 dsn = settings.database_url.replace("postgresql+asyncpg://", "postgresql://")
-                async with AsyncPostgresSaver.from_conn_string(dsn) as saver:
+                async with (
+                    AsyncPostgresSaver.from_conn_string(dsn) as saver,
+                    recording_provenance() as composed,
+                ):
                     await saver.setup()
                     if plan is not None:
                         outcome = await runner.resume(
@@ -533,7 +563,9 @@ async def execute_run(
                         )
                     # Read the state INSIDE the saver context: the evidence lives there and
                     # the connection closes on exit.
-                    result = await persist_outcome(db, run, outcome, saver=saver)
+                    result = await persist_outcome(
+                        db, run, outcome, saver=saver, prompt_provenance=composed
+                    )
 
                 # Persist, commit, then publish — a client acting on COMPLETED must never
                 # re-read a status that has not caught up.

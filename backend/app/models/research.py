@@ -131,6 +131,23 @@ class ResearchRun(Base):
     #: ran on shipped prompts, so NULL is a fact about them and not a gap to backfill.
     effective_prompt_overrides: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
 
+    #: What each purpose's system prompt actually was, captured as the run composed it —
+    #: `{purpose: {purpose, role, policy, overridden, effective_prompt}}`.
+    #:
+    #: **Recorded during execution, never rebuilt afterwards.** The bundle claims "this is
+    #: the prompt the model was given", and that string only exists while the run's frozen
+    #: config is installed. Re-composing it at export would report what *today's* code would
+    #: produce — for a protected purpose, the currently shipped constant rather than the one
+    #: that ran — so an upgrade between the run and its export would silently change what the
+    #: artifact asserts about history.
+    #:
+    #: Holds only the purposes that executed: three of the seven are conditional, and a run
+    #: whose draft cited everything never composes `synthesizer.repair`. NULL on every run
+    #: predating this column, which is what keeps those runs on bundle v1 — absent provenance
+    #: is not reconstructable, and a v2 bundle that invented it would be the lie the whole
+    #: column exists to prevent.
+    effective_prompt_provenance: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
+
     #: One of `PROMPT_OVERRIDE_STATUSES`, or NULL for a run predating it. Stored rather
     #: than derived from the column above, because an empty snapshot and one that could not
     #: be used both execute on shipped prompts — and only a reader that can tell those

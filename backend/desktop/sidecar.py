@@ -157,7 +157,7 @@ from research_engine.events import make_event
 from research_engine.graph import build_graph
 from research_engine.llm_factory import get_llm, text_of
 from research_engine.local import SqliteCache, load_env_file
-from research_engine.prompt_composition import system_prompt
+from research_engine.prompt_composition import recording_provenance, system_prompt
 from research_engine.routing_rules import validate as validate_routing_rule
 from research_engine.runconfig import (
     DEFAULT_MODELS,
@@ -1627,29 +1627,34 @@ def create_sidecar_app(
                     row = await db.get(ResearchRun, run_id)
                     await run_execution.record_corpus_snapshot(db, row, sidecar["corpus"])
                     await db.commit()
+            # Captured around the graph, not rebuilt afterwards: the composed prompt only
+            # exists while the run's frozen config is installed. Server counterpart:
+            # `run_execution.execute_run`, through the same context manager.
+            composed: dict[str, dict] = {}
             try:
-                if plan is not None:
-                    outcome = await resume_run(
-                        checkpointer=sidecar["saver"], session_id=key, plan=plan, **ports
-                    )
-                elif resume is None:
-                    outcome = await run_pipeline(
-                        checkpointer=sidecar["saver"],
-                        session_id=key,
-                        user_id="local",
-                        query=question,
-                        depth=depth,
-                        **ports,
-                    )
-                else:
-                    approved, feedback = resume
-                    outcome = await resume_run(
-                        checkpointer=sidecar["saver"],
-                        session_id=key,
-                        approved=approved,
-                        feedback=feedback,
-                        **ports,
-                    )
+                with recording_provenance(composed):
+                    if plan is not None:
+                        outcome = await resume_run(
+                            checkpointer=sidecar["saver"], session_id=key, plan=plan, **ports
+                        )
+                    elif resume is None:
+                        outcome = await run_pipeline(
+                            checkpointer=sidecar["saver"],
+                            session_id=key,
+                            user_id="local",
+                            query=question,
+                            depth=depth,
+                            **ports,
+                        )
+                    else:
+                        approved, feedback = resume
+                        outcome = await resume_run(
+                            checkpointer=sidecar["saver"],
+                            session_id=key,
+                            approved=approved,
+                            feedback=feedback,
+                            **ports,
+                        )
             except Exception as e:  # noqa: BLE001 — a crashed run must surface as FAILED
                 logger.exception("sidecar_v2_run_crashed", run_id=key)
                 outcome = RunOutcome(status="failed", error=str(e)[:500])
@@ -1657,7 +1662,7 @@ def create_sidecar_app(
             async with session_factory() as db:
                 run = await db.get(ResearchRun, run_id)
                 result = await run_execution.persist_outcome(
-                    db, run, outcome, saver=sidecar["saver"]
+                    db, run, outcome, saver=sidecar["saver"], prompt_provenance=composed
                 )
                 # Persist, commit, then publish — a client acting on COMPLETED must never
                 # re-read a status that has not caught up. The counter follows the commit
