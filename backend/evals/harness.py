@@ -20,6 +20,9 @@ import asyncio
 import json
 import os
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -28,7 +31,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from evals import metrics
 from research_engine.graph import build_graph
 from research_engine.local import load_env_file, run_config_from_env
-from research_engine.runconfig import set_process_default
+from research_engine.runconfig import reset_run_config, set_process_default, set_run_config
 from research_engine.runner import initial_state
 
 # The harness is a host, so it installs the engine's config (docs/13 §2) — built straight
@@ -71,7 +74,7 @@ def _routing_slug() -> str:
     return cleaned or "unknown"
 
 
-def _result_path(run_date: str) -> Path:
+def _result_path(run_date: str, *, custom_spec: bool = False) -> Path:
     """Where this run's result goes — never onto an existing file.
 
     A date is not a run identity. The old default was `eval-<date>.json`, so two runs on
@@ -79,18 +82,106 @@ def _result_path(run_date: str) -> Path:
     destroyed: `cbde168` overwrote `eval-2026-08-13.json` with a failed Gemini run and
     nothing warned. Results are write-once (AGENTS.md; CI job `eval-artifacts`), so carry
     the routing and take the next free run number rather than clobbering.
+
+    A custom-spec run (RFC §14.2) takes a `-custom` stem as well. It holds a baseline *and* a
+    candidate, so it is a different kind of evidence; sharing the numbering with plain runs
+    would let the two be mistaken for each other, and a distinct stem means neither can ever
+    resolve to the other's file.
     """
     routing = "fake" if RUN_CONFIG.llm_mode == "fake" else _routing_slug()
-    candidate = RESULTS_DIR / f"eval-{run_date}-{routing}.json"
+    stem = f"eval-{run_date}-{routing}" + ("-custom" if custom_spec else "")
+    path = RESULTS_DIR / f"{stem}.json"
     n = 2
-    while candidate.exists():
-        candidate = RESULTS_DIR / f"eval-{run_date}-{routing}-run{n}.json"
+    while path.exists():
+        path = RESULTS_DIR / f"{stem}-run{n}.json"
         n += 1
-    return candidate
+    return path
 
 
-async def run_one(query: dict) -> dict:
-    """Run one query to the gate; return its report metrics + timing."""
+@contextmanager
+def _pipeline_scope(prompt_overrides: dict[str, str] | None) -> Iterator[None]:
+    """The config the pipeline runs under — baseline or candidate — for this block only.
+
+    **Both runs derive from `RUN_CONFIG` here, by construction.** The baseline used to read
+    the process default while a candidate would be built from `RUN_CONFIG`. Those are the
+    same object in production, but only because of an unstated coupling at import; if they
+    ever diverged, a "prompt comparison" would silently compare two routings. Building both
+    from one reference makes "differs only in the prompts" true by construction.
+
+    **Scoped, never process-wide.** `set_process_default` would outlive the query and still
+    be live when the judge runs. A context-local config exists only inside the `with`, so the
+    sequence is fixed: install, run the pipeline, reset, *then* judge (RFC §14.1: a user's
+    prompt may change what the pipeline produces, never what the harness measures).
+    Synchronous by design — entered with `with`, not `async with`, around an awaited call.
+    """
+    token = set_run_config(replace(RUN_CONFIG, prompt_overrides=prompt_overrides or {}))
+    try:
+        yield
+    finally:
+        reset_run_config(token)
+
+
+class CandidateSpecError(ValueError):
+    """A `--candidate` file that cannot be evaluated as written."""
+
+
+def load_candidate(path: Path) -> dict[str, str]:
+    """Read a candidate spec — `{role: prompt}` — and validate it as production would.
+
+    **From an explicit file, never from a user's stored preferences** (RFC §14.1): the eval
+    measures a spec someone hands it, and must not reach into a database for one.
+
+    Validated through `usable_overrides`, the same all-or-nothing rule a run's snapshot goes
+    through, rather than a second copy of it. An unusable spec is refused outright instead of
+    being evaluated as the shipped prompts: in production that fallback is the honest
+    outcome, but here it would publish the baseline's numbers under the candidate's name.
+    """
+    from app.services.run_config import OVERRIDES_APPLIED, usable_overrides
+
+    try:
+        raw = json.loads(Path(path).read_text("utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        raise CandidateSpecError(f"cannot read candidate spec {path}: {e}") from e
+    overrides, status = usable_overrides(raw)
+    if status != OVERRIDES_APPLIED:
+        reason = (
+            "it replaces no prompt, so it would measure the shipped prompts twice"
+            if not raw
+            else "it names an unknown role or carries a prompt that is not non-empty text"
+        )
+        raise CandidateSpecError(f"candidate spec {path} cannot be evaluated: {reason}")
+    return overrides
+
+
+def candidate_section(overrides: dict[str, str], rows: list[dict]) -> dict:
+    """The candidate's half of a custom-spec result, judged against the same thresholds.
+
+    Beside the baseline rather than instead of it (RFC §14.2), and never gating the run: a
+    spec below `MIN_CITATION_SUPPORT` is reported, because the user chose it and the eval's
+    job is to measure honestly, not to refuse. The digest identifies exactly which text was
+    measured without anyone having to diff prompts by eye.
+    """
+    import hashlib
+
+    agg = aggregate(rows)
+    return {
+        "prompt_overrides": dict(overrides),
+        "prompt_sha256": {
+            role: hashlib.sha256(text.encode("utf-8")).hexdigest()
+            for role, text in sorted(overrides.items())
+        },
+        "aggregate": agg,
+        "release_criteria": check_release_criteria(agg),
+        "results": rows,
+    }
+
+
+async def run_one(query: dict, *, prompt_overrides: dict[str, str] | None = None) -> dict:
+    """Run one query to the gate; return its report metrics + timing.
+
+    `prompt_overrides` is a candidate spec (RFC §14.2), already validated by the caller. It
+    reaches the pipeline and is gone before the judge runs — see `_pipeline_scope`.
+    """
     graph = build_graph(MemorySaver())
     thread_id = f"eval-{query['id']}"
     config = {"configurable": {"thread_id": thread_id}}
@@ -104,7 +195,10 @@ async def run_one(query: dict) -> dict:
     started = time.time()
     error = None
     try:
-        await graph.ainvoke(initial, config)
+        # The candidate is live for the pipeline alone. Reading the state back composes no
+        # prompt, so it runs after the reset; so does everything below, the judge included.
+        with _pipeline_scope(prompt_overrides):
+            await graph.ainvoke(initial, config)
         state = (await graph.aget_state(config)).values
     except Exception as e:  # noqa: BLE001
         return {
@@ -318,9 +412,16 @@ async def run_one_memory(query: dict) -> dict:
 
 
 def aggregate(rows: list[dict]) -> dict:
+    """The run's summary. Every rate over nothing is `None`, never `0.0` (RFC §14.3, AC-13).
+
+    A completion rate over zero queries is not a rate of zero: `0.0` reads as "every query
+    failed", and against `MIN_COMPLETION_RATE` it reports a failure that never happened.
+    `citation_support_rate` and the averages already returned `None` on an empty input; the
+    completion rate was the one that did not.
+    """
     n = len(rows)
     done = [r for r in rows if r.get("completed")]
-    completion_rate = round(len(done) / n, 4) if n else 0.0
+    completion_rate = round(len(done) / n, 4) if n else None
 
     def mean(key: str, source=done) -> float | None:
         vals = [r[key] for r in source if isinstance(r.get(key), (int, float))]
@@ -343,6 +444,42 @@ def aggregate(rows: list[dict]) -> dict:
     }
 
 
+#: How an unmeasured value is shown to a person — the same words `benchmark.py` and
+#: `retrieval.py` already use. The result file stores `null`; this is only the console's
+#: rendering, so a reader of the terminal never sees a bare `null` and wonders whether it
+#: meant zero (RFC §14.3: an unmeasured result is reported as `n/a (unmeasured)`).
+UNMEASURED = "n/a (unmeasured)"
+
+
+def _for_display(summary: dict) -> dict:
+    """`summary` with every unmeasured value spelled out, for the console only."""
+    return {k: (UNMEASURED if v is None else v) for k, v in summary.items()}
+
+
+#: The memory eval's pass threshold. Named rather than left inline in `main()`, where it
+#: was untestable; the value is unchanged.
+MIN_MEMORY_PASS_RATE = 0.90
+
+
+def aggregate_memory(rows: list[dict]) -> dict:
+    """The memory eval's summary, with the same rule as `aggregate`: nothing measured is
+    `None`. This was inline in `main()` and published `0.0` for both fields on an empty run."""
+    n = len(rows)
+    passed = sum(1 for r in rows if r.get("pass_test"))
+    return {
+        "queries": n,
+        "pass_rate": round(passed / n, 4) if n else None,
+        "avg_latency_s": round(sum(r.get("latency_s", 0) for r in rows) / n, 4) if n else None,
+    }
+
+
+def check_memory_criteria(agg: dict) -> dict:
+    return {
+        "pass_rate_ok": _meets(agg["pass_rate"], MIN_MEMORY_PASS_RATE),
+        "thresholds": {"min_pass_rate": MIN_MEMORY_PASS_RATE},
+    }
+
+
 def _retriever_in_use() -> str:
     """Which search backend this run actually had available.
 
@@ -359,11 +496,19 @@ def _retriever_in_use() -> str:
     return "duckduckgo (keyless fallback — rate-limited)"
 
 
+def _meets(value: float | None, threshold: float) -> bool | None:
+    """`True`/`False` against an inclusive threshold, or `None` when nothing was measured.
+
+    `None` is a third answer, not a failure: "could not tell" must never be reported as
+    "fell short", or an empty run becomes indistinguishable from a regression.
+    """
+    return None if value is None else value >= threshold
+
+
 def check_release_criteria(agg: dict) -> dict:
-    support = agg.get("citation_support_rate")
     return {
-        "completion_rate_ok": agg["completion_rate"] >= MIN_COMPLETION_RATE,
-        "citation_support_ok": None if support is None else support >= MIN_CITATION_SUPPORT,
+        "completion_rate_ok": _meets(agg["completion_rate"], MIN_COMPLETION_RATE),
+        "citation_support_ok": _meets(agg.get("citation_support_rate"), MIN_CITATION_SUPPORT),
         "thresholds": {
             "min_completion_rate": MIN_COMPLETION_RATE,
             "min_citation_support": MIN_CITATION_SUPPORT,
@@ -384,7 +529,23 @@ async def main() -> None:
         "--out", type=str, default=None, help="output path (default results/eval-<date>.json)"
     )
     parser.add_argument("--date", type=str, default=None, help="override the run date (YYYY-MM-DD)")
+    parser.add_argument(
+        "--candidate",
+        type=str,
+        default=None,
+        help="JSON file of {role: prompt}. Runs the query set twice — shipped prompts, then "
+        "this spec — and reports both against the same thresholds (report mode only)",
+    )
     args = parser.parse_args()
+
+    candidate = None
+    if args.candidate:
+        if args.mode != "report":
+            parser.error("--candidate applies to the report eval (RFC §14.2), not --mode memory")
+        try:
+            candidate = load_candidate(Path(args.candidate))
+        except CandidateSpecError as e:
+            parser.error(str(e))
 
     if args.mode == "memory":
         queries_file = EVALS_DIR / "memory_queries.json"
@@ -415,18 +576,24 @@ async def main() -> None:
         if RUN_CONFIG.llm_mode == "real":
             await asyncio.sleep(60)
 
+    candidate_rows: list[dict] = []
+    if candidate is not None:
+        roles = ", ".join(sorted(candidate))
+        print(f"\nCandidate spec ({roles}) — the same {len(queries)} queries, the same thresholds…")
+        for q in queries:
+            row = await run_one(q, prompt_overrides=candidate)
+            candidate_rows.append(row)
+            flag = "✓" if row.get("completed") else "✗"
+            print(
+                f"  {flag} {q['id']:24s} sources={row.get('source_count')} "
+                f"uncited={row.get('uncited_claim_count')} cost=${row.get('cost_usd')}"
+            )
+            if RUN_CONFIG.llm_mode == "real":
+                await asyncio.sleep(60)
+
     if args.mode == "memory":
-        n = len(rows)
-        passed = sum(1 for r in rows if r.get("pass_test"))
-        agg = {
-            "queries": n,
-            "pass_rate": round(passed / n, 4) if n else 0.0,
-            "avg_latency_s": round(sum(r.get("latency_s", 0) for r in rows) / n, 4) if n else 0.0,
-        }
-        release_criteria = {
-            "pass_rate_ok": agg["pass_rate"] >= 0.90,
-            "thresholds": {"min_pass_rate": 0.90},
-        }
+        agg = aggregate_memory(rows)
+        release_criteria = check_memory_criteria(agg)
     else:
         agg = aggregate(rows)
         release_criteria = check_release_criteria(agg)
@@ -455,9 +622,13 @@ async def main() -> None:
         "release_criteria": release_criteria,
         "results": rows,
     }
+    if candidate is not None:
+        # The top-level `aggregate`/`release_criteria`/`results` stay the shipped baseline,
+        # exactly as in a plain run, so a reader of the existing schema reads it unchanged.
+        payload["candidate"] = candidate_section(candidate, candidate_rows)
 
     RESULTS_DIR.mkdir(exist_ok=True)
-    out = Path(args.out) if args.out else _result_path(run_date)
+    out = Path(args.out) if args.out else _result_path(run_date, custom_spec=candidate is not None)
     if out.exists():
         # Only reachable via an explicit --out; `_result_path` never returns a live path.
         # Refuse rather than overwrite: a committed result is evidence (AGENTS.md).
@@ -466,8 +637,12 @@ async def main() -> None:
             f"Pass a new --out, or omit --out to get an auto-numbered filename."
         )
     out.write_text(json.dumps(payload, indent=2) + "\n")
-    print(f"\nAggregate: {json.dumps(agg)}")
-    print(f"Release criteria: {json.dumps(payload['release_criteria'])}")
+    print(f"\nAggregate: {json.dumps(_for_display(agg))}")
+    print(f"Release criteria: {json.dumps(_for_display(payload['release_criteria']))}")
+    if candidate is not None:
+        section = payload["candidate"]
+        print(f"Candidate aggregate: {json.dumps(_for_display(section['aggregate']))}")
+        print(f"Candidate criteria: {json.dumps(_for_display(section['release_criteria']))}")
     # Show a repo-relative path when the output is inside the repo, and the plain path
     # when it isn't — `relative_to` raises on an outside path, which used to crash the
     # run *after* the results file had already been written.
