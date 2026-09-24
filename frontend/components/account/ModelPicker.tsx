@@ -5,12 +5,17 @@ import toast from "react-hot-toast";
 
 import {
   useCustomEndpointStatus,
+  useMe,
   useModelCatalog,
+  usePromptDefaults,
   useResetModelRouting,
   useSetModelRouting,
+  useUpdateProfile,
 } from "@/hooks/queries";
+import { customisedRoles } from "@/lib/promptOverrides";
 import type { AgentRole, ModelInfo, ModelRouting } from "@/lib/types";
 
+import { RolePromptEditor } from "./RolePromptEditor";
 import { Section } from "./Section";
 
 /**
@@ -69,6 +74,12 @@ export function ModelPicker() {
   const customStatus = useCustomEndpointStatus();
   const setRouting = useSetModelRouting();
   const resetRouting = useResetModelRouting();
+  // The prompt editors (scope freeze §12): the user's own overrides from `/auth/me`, the
+  // shipped starting text from `/models/prompt-defaults`, saved through the same merged
+  // preferences write every other setting uses.
+  const { data: me } = useMe();
+  const { data: promptDefaults } = usePromptDefaults();
+  const updateProfile = useUpdateProfile();
 
   const [customizing, setCustomizing] = useState(false);
   const [draft, setDraft] = useState<ModelRouting | null>(null);
@@ -180,6 +191,15 @@ export function ModelPicker() {
 
   const busy = setRouting.isPending || resetRouting.isPending;
 
+  const overrides = me?.preferences.prompt_overrides ?? null;
+  const customised = customisedRoles(overrides);
+  const shippedByRole = new Map((promptDefaults?.roles ?? []).map((d) => [d.role, d]));
+
+  // `null` is the reset (§12): the API merges per role, so this touches no other role.
+  const writeInstructions = async (role: AgentRole, text: string | null) => {
+    await updateProfile.mutateAsync({ preferences: { prompt_overrides: { [role]: text } } });
+  };
+
   return (
     <Section
       title="Models"
@@ -190,6 +210,10 @@ export function ModelPicker() {
             {catalog.user_routing
               ? "Using your selection."
               : "Using this deployment's default models."}
+            {customised.length > 0 &&
+              ` ${customised.length} role${customised.length === 1 ? "" : "s"} ${
+                customised.length === 1 ? "uses" : "use"
+              } custom instructions.`}
           </span>
           <div className="flex items-center gap-2">
             {catalog.user_routing && (
@@ -275,6 +299,14 @@ export function ModelPicker() {
           <div className="text-xs font-mono font-semibold uppercase tracking-wider text-text-secondary">
             Role Allocations
           </div>
+          <p className="text-xs leading-relaxed text-text-muted">
+            Each role can also follow your own instructions instead of its shipped prompt.
+            Saved instructions apply to research you start afterwards — a run keeps the
+            instructions it started with — and follow-up chat uses them straight away. A
+            run&apos;s verification bundle records them in full, so anyone you share it with
+            can read them. Bundles from this release use format v2, which a verifier from
+            before this release refuses: check them with the current one.
+          </p>
           {catalog.roles.map((role) => {
             const selected = byRoute.get(current[role]);
             return (
@@ -283,8 +315,13 @@ export function ModelPicker() {
                 className="grid items-center gap-3 sm:grid-cols-[14rem_1fr] border border-border/60 bg-bg-base/40 p-3.5"
               >
                 <div className="min-w-0">
-                  <div className="text-[0.8125rem] font-semibold text-text-primary">
+                  <div className="flex flex-wrap items-center gap-2 text-[0.8125rem] font-semibold text-text-primary">
                     {ROLE_COPY[role].label}
+                    {customised.includes(role) && (
+                      <span className="badge border-accent/40 bg-accent/10 font-mono text-[0.625rem] uppercase tracking-wider text-accent">
+                        Custom instructions
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs leading-relaxed text-text-muted">
                     {ROLE_COPY[role].blurb}
@@ -330,6 +367,23 @@ export function ModelPicker() {
                     </p>
                   )}
                 </div>
+                {me && promptDefaults && shippedByRole.has(role) && (
+                  <div className="border-t border-border/40 pt-3 sm:col-span-2">
+                    <RolePromptEditor
+                      label={ROLE_COPY[role].label}
+                      shipped={shippedByRole.get(role)!}
+                      maxChars={promptDefaults.max_chars}
+                      saved={
+                        typeof overrides?.[role] === "string"
+                          ? (overrides[role] as string)
+                          : undefined
+                      }
+                      busy={updateProfile.isPending}
+                      onSave={(text) => writeInstructions(role, text)}
+                      onReset={() => writeInstructions(role, null)}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}
