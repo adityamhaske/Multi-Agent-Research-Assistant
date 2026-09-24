@@ -116,9 +116,10 @@ carry the weight.
 This guard applies to every live page fetch, on every hop, in every deployment — the desktop
 app included — and no setting turns it off. `RunConfig.enforce_ssrf_guards` is a separate
 control over **custom model endpoints**: when it is on, a custom endpoint's base URL is
-checked against the same address ranges before it is called or probed. It is on when
-`ENVIRONMENT=production` and off otherwise, and always off on the desktop app, which has to
-reach a local model server on loopback.
+checked against the same address ranges before it is called or probed. It is on by default.
+The server turns it off unless `ENVIRONMENT=production`, and so do the CLI and evaluation
+harness when they call a real model. The desktop app turns it off for the runs and chat turns
+that call a real model, which have to reach a local model server on loopback.
 
 ## 6. Prompt injection and untrusted content
 
@@ -178,7 +179,7 @@ it does. The mechanics are in [agent architecture](04-agent-architecture.md).
 | Citation repair | **No** | A protected prompt. It rewrites citations on a draft, so a replacement could make fabricated citations look repaired |
 | Project chat | **No** | A protected prompt. Its refusal line is what keeps grounded answers grounded |
 | Page-fetch SSRF guard | **No** | Code, on every hop (§5) |
-| Custom-endpoint SSRF check | **No** | `enforce_ssrf_guards`, set by the deployment (§5) |
+| Custom-endpoint SSRF check | **No** | `enforce_ssrf_guards`, set by the host, never by an account (§5) |
 | Corpus-only egress | **No** | `corpus_mode` comes from the run's own request; retrieval and page reads branch on it in code |
 | Budgets, and whether a run is recorded as a demo | **No** | Deployment configuration and the run's own request |
 | Artifact authorization | **No** | Database constraints, the authorization module, the bundle assembler, and the verifier |
