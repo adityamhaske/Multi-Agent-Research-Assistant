@@ -335,6 +335,7 @@ class _InProcessDispatcher:
         from app import run_execution, run_lifecycle
         from app.models.research import ResearchRun
         from research_engine import runner
+        from research_engine.prompt_composition import recording_provenance
 
         async with self._sessions() as db:
             run = await db.get(ResearchRun, uuid.UUID(run_id))
@@ -346,32 +347,40 @@ class _InProcessDispatcher:
             await db.commit()
 
         ports = {"run_config": config, "event_sink": self._sink}
-        if plan is not None:
-            outcome = await runner.resume(
-                checkpointer=self._saver, session_id=run_id, plan=plan, **ports
-            )
-        elif resume is None:
-            outcome = await runner.run(
-                checkpointer=self._saver,
-                session_id=run_id,
-                user_id="parity",
-                query=question,
-                depth=depth,
-                **ports,
-            )
-        else:
-            approved, feedback = resume
-            outcome = await runner.resume(
-                checkpointer=self._saver,
-                session_id=run_id,
-                approved=approved,
-                feedback=feedback,
-                **ports,
-            )
+        # Mirrors `execute_run`, which wraps the graph so `system_prompt` can record what it
+        # composed. This class restates that function's body rather than calling it, so every
+        # responsibility `execute_run` gains has to be added here too — the harness is a third
+        # run driver, and one that silently lags the real one reports its own omission as a
+        # product divergence between the hosts.
+        with recording_provenance() as composed:
+            if plan is not None:
+                outcome = await runner.resume(
+                    checkpointer=self._saver, session_id=run_id, plan=plan, **ports
+                )
+            elif resume is None:
+                outcome = await runner.run(
+                    checkpointer=self._saver,
+                    session_id=run_id,
+                    user_id="parity",
+                    query=question,
+                    depth=depth,
+                    **ports,
+                )
+            else:
+                approved, feedback = resume
+                outcome = await runner.resume(
+                    checkpointer=self._saver,
+                    session_id=run_id,
+                    approved=approved,
+                    feedback=feedback,
+                    **ports,
+                )
 
         async with self._sessions() as db:
             run = await db.get(ResearchRun, uuid.UUID(run_id))
-            await run_execution.persist_outcome(db, run, outcome, saver=self._saver)
+            await run_execution.persist_outcome(
+                db, run, outcome, saver=self._saver, prompt_provenance=composed
+            )
             await db.commit()
 
     async def start(self, run_id: str, user_id: str) -> None:

@@ -143,6 +143,8 @@ def test_the_rows_that_were_already_there_survive_it(installed):
         # constraint, which is `test_a_check_constraint_change_is_not_applied` below.
         # 0026 — NOT NULL, so this is also the shape that refuses on a populated table.
         ("sessions", "prompt_overrides_not_applied"),
+        # 0027 — the prompts each purpose actually ran under.
+        ("research_runs", "effective_prompt_provenance"),
     ],
 )
 def test_the_most_recent_columns_reach_an_installed_database(installed, table, column):

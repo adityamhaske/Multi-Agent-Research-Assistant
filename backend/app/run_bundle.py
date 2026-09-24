@@ -60,6 +60,35 @@ async def _trace(db: AsyncSession, run_id) -> list[dict]:
     return [row.payload for row in rows]
 
 
+def _provenance_records(run: ResearchRun) -> list[dict] | None:
+    """This run's captured prompt provenance, or None when it has none to report.
+
+    **Read, never recomposed.** The strings come from `research_runs.effective_prompt_
+    provenance`, written while the run was executing. Calling `system_prompt` here would
+    answer what *today's* build composes — for a protected purpose the constant shipped now,
+    not the one that ran — so an upgrade between a run and its export would silently rewrite
+    what the artifact claims about history.
+
+    Ordered by purpose so two assemblies of one run produce byte-identical bundles; the hash
+    covers this list, and dict iteration order is not a contract.
+
+    None for a run predating the column, which keeps it on v1. Its prompts are unrecoverable
+    and inventing them is the failure the column exists to prevent.
+    """
+    stored = run.effective_prompt_provenance
+    if not stored:
+        return None
+    records = []
+    for purpose in sorted(stored):
+        entry = dict(stored[purpose])
+        # The digest is taken here rather than stored, so it can only ever describe the text
+        # in this bundle: a row edited after the fact yields a hash of the edit, and
+        # `bundle_integrity` compares the two.
+        entry["effective_prompt_sha256"] = bundle_mod.content_hash(entry["effective_prompt"])
+        records.append(entry)
+    return records
+
+
 async def assemble_with_reason(
     db: AsyncSession, run_id
 ) -> tuple[bundle_mod.BundleManifest | None, str | None]:
@@ -202,6 +231,8 @@ async def assemble_with_reason(
             }
         )
 
+    provenance = _provenance_records(run)
+
     return (
         bundle_mod.assemble(
             session_id=str(run.id),
@@ -220,6 +251,11 @@ async def assemble_with_reason(
             trace=await _trace(db, run.id),
             trace_available=True,
             demo=run.demo,
+            prompt_provenance=provenance,
+            # Copied from the row, never recomputed: "nothing was configured" and "something
+            # was configured and could not be used" both run on shipped prompts, and only the
+            # row knows which. NULL predates the column and reads as NONE.
+            prompt_overrides_status=(run.prompt_overrides_status or "NONE") if provenance else None,
         ),
         None,
     )

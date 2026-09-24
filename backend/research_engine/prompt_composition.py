@@ -39,7 +39,9 @@ after, because a body ending in an instruction would otherwise have the last wor
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from research_engine import prompts
 from research_engine.runconfig import get_run_config
@@ -168,7 +170,9 @@ def system_prompt(purpose: str) -> str:
     shipped = PURPOSE_CONSTANTS[p]
 
     if p not in OVERRIDABLE_PURPOSES:
-        return shipped  # protected: the override is never consulted at all
+        # Protected: the override is never consulted at all. `_observed` runs *after* the
+        # decision and cannot reach the config, so recording cannot weaken this ordering.
+        return _observed(p, shipped, overridden=False)
 
     # Last-resort defence for a config assembled outside the host builders, which validate
     # all-or-nothing before a run ever starts. Anything that is not usable text — including a
@@ -179,12 +183,97 @@ def system_prompt(purpose: str) -> str:
     stored = get_run_config().prompt_overrides
     body = stored.get(role_of(p)) if isinstance(stored, Mapping) else None
     if not isinstance(body, str) or not body.strip():
-        return shipped
+        return _observed(p, shipped, overridden=False)
 
-    if p not in NOTE_CARRYING_PURPOSES:
-        return body
-    note = prompts.UNTRUSTED_CONTENT_NOTE
-    return f"{note}\n\n{body}\n\n{note}"
+    if p in NOTE_CARRYING_PURPOSES:
+        note = prompts.UNTRUSTED_CONTENT_NOTE
+        body = f"{note}\n\n{body}\n\n{note}"
+    return _observed(p, body, overridden=True)
+
+
+class PromptProvenanceConflict(RuntimeError):
+    """One purpose composed two different prompts inside a single run.
+
+    Impossible while the run's overrides stay frozen, which is why it raises rather than
+    picking a winner: the recovery is to fix whatever unfroze them, not to publish one of
+    two prompts as though it were the only one.
+    """
+
+
+#: Where `system_prompt` reports what it just composed, when anyone is listening.
+#:
+#: **Observation, not a second composer.** The bundle has to state the prompt a run actually
+#: sent to the model, and the only moment that string exists is the one below — the config
+#: that produced it is torn down when the run ends, and rebuilding it later would report
+#: what *today's* code would compose, which for a protected purpose is the currently shipped
+#: constant rather than the one that ran. So the composer is watched rather than replayed.
+#:
+#: A `ContextVar` holding a **mutable dict**: child tasks inherit a copy of the context, and
+#: that copy holds the same dict, so a node running in its own task still records into the
+#: caller's collection. Nothing is rebound after the run starts.
+_provenance: ContextVar[dict[str, dict] | None] = ContextVar("_prompt_provenance", default=None)
+
+
+def _observed(purpose: str, text: str, *, overridden: bool) -> str:
+    """Record what was composed and hand it back untouched.
+
+    Returns its argument by identity — `fakes.SCENARIO_BY_PROMPT` resolves a scripted run by
+    `is`, so the shipped path must still yield the constant object itself.
+
+    **`overridden` is the decision, not a comparison.** It comes from the branch that just
+    ran, so a user whose override happens to equal the shipped text is still recorded as
+    having overridden, and a protected purpose can never be recorded as overridden at all.
+
+    **A repeat must be identical, and a conflict raises.** `executor.main` composes at two
+    call sites, and one entry per purpose is only honest because `system_prompt` is pure over
+    (purpose, the run's frozen overrides) — so within one recorder scope the two cannot
+    differ. Silently keeping the first would make a bundle assert one of two prompts while
+    the model saw both, which is the class of quiet wrongness this column exists to remove.
+    Raising instead is loud in the only situation that can produce it: a code change that
+    broke the frozen-config invariant, in which case no provenance is trustworthy anyway.
+    """
+    records = _provenance.get()
+    if records is None:
+        return text
+
+    record = {
+        "purpose": purpose,
+        "role": role_of(purpose),
+        "policy": "OVERRIDABLE" if purpose in OVERRIDABLE_PURPOSES else "PROTECTED",
+        "overridden": overridden,
+        "effective_prompt": text,
+    }
+    existing = records.get(purpose)
+    if existing is not None and existing != record:
+        raise PromptProvenanceConflict(
+            f"{purpose} composed twice within one run and the results differ — the run's "
+            "prompt overrides are supposed to be frozen for its whole life, so this means "
+            "that invariant is broken and no provenance for this run can be trusted"
+        )
+    records[purpose] = record
+    return text
+
+
+@contextmanager
+def recording_provenance(into: dict[str, dict] | None = None) -> Iterator[dict[str, dict]]:
+    """Collect every prompt composed inside this block, keyed by purpose.
+
+    Scoped rather than always-on: composition happens on chat turns and in tests too, and a
+    process-wide accumulator would mix runs together. `into` lets a resumed run keep adding
+    to what its earlier segments already recorded — a run that pauses at the design gate
+    composes the planner's prompt in one invocation and the synthesizer's in the next, and
+    the bundle needs both.
+
+    Only purposes that actually executed appear. A run whose draft cited everything never
+    composes `synthesizer.repair`, and the absence is the honest record — the frozen RFC asks
+    for "each applicable purpose", not for all seven.
+    """
+    records: dict[str, dict] = {} if into is None else into
+    token = _provenance.set(records)
+    try:
+        yield records
+    finally:
+        _provenance.reset(token)
 
 
 def _checked(purpose: str) -> str:
