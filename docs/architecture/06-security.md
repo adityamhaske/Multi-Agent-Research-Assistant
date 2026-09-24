@@ -21,6 +21,10 @@ what to fetch next. That single property drives most of what follows.
 Explicitly **not** in the threat model: a hostile operator of your own self-hosted
 deployment, and a compromised model provider.
 
+Letting an account replace an agent's system prompt adds no adversary to this table. The
+account can change only the instructions its own runs and chat follow, and the attacker is
+still the web page. What a replaced prompt can and cannot reach is set out in §6.
+
 ## 2. Authentication and sessions
 
 **Design: httpOnly cookies through the same-origin proxy.** This prevents token theft via
@@ -109,8 +113,13 @@ DNS-rebinding race between the check and the fetch is not fully closed by this
 implementation. The address-range checks and the per-hop redirect re-validation are what
 carry the weight.
 
-The guard is relaxable via `RunConfig.enforce_ssrf_guards` for the desktop build, which has
-to reach a local model server on loopback. It is strict on the server.
+This guard applies to every live page fetch, on every hop, in every deployment — the desktop
+app included — and no setting turns it off. `RunConfig.enforce_ssrf_guards` is a separate
+control over **custom model endpoints**: when it is on, a custom endpoint's base URL is
+checked against the same address ranges before it is called or probed. It is on by default.
+The server turns it off unless `ENVIRONMENT=production`, and so do the CLI and evaluation
+harness when they call a real model. The desktop app turns it off for the runs and chat turns
+that call a real model, which have to reach a local model server on loopback.
 
 ## 6. Prompt injection and untrusted content
 
@@ -126,6 +135,99 @@ to reach a local model server on loopback. It is strict on the server.
 - Memory persists attacker-influenced text indefinitely, so an injection captured months ago
   can resurface long after the run that ingested it. Retrieved chunks inherit the framing
   unconditionally for exactly that reason.
+
+### User-authored system prompts
+
+An account may replace the system prompt of the five agent roles — planner, executor,
+critic, synthesizer, and chat — from its own settings. That changes who writes a system
+prompt, not who the attacker is:
+
+| | Shipped prompts | A replaced prompt |
+|---|---|---|
+| Who writes the system prompt | The project | The account, for its own runs and chat |
+| Untrusted-content framing | Part of the shipped text | Added by the system around the replacement; not part of the editable text |
+| Attacker | A web page, or a memory excerpt that was once one | Unchanged |
+| Blast radius | The account's own run | The account's own runs and chat |
+
+**Composition, not validation.** Where a shipped prompt carries the instruction to treat
+`<untrusted_web_content>` as data, the system adds that instruction before and after the
+replacement text. The replacement is never checked for it: a check that a prompt "contains
+the instruction" is satisfied by text that then contradicts it — the same reason a
+prompt-level "only use project X" is not treated as isolation. What holds the boundary is
+which prompts a replacement may reach, and the fact that the framing is added rather than
+asked for.
+
+Replacements are validated identically on both hosts — one of the five roles, non-empty text,
+at most 2,500 characters each — and checked again when a run starts. A stored set that fails
+that check is not partly applied: the run uses its shipped prompts and records that it did.
+
+#### What a replacement can and cannot reach
+
+Five roles share nine prompts, and whether a prompt may be replaced is decided per prompt,
+not per role — so a replacement for the critic reaches its per-task grading and nothing else
+it does. The mechanics are in [agent architecture](04-agent-architecture.md).
+
+| Control | Can a replaced prompt affect it? | Why |
+|---|---|---|
+| Planner behaviour | **Yes**, by design | Its output is still schema-validated |
+| Executor strategy | **Yes**, by design | Evidence snippets must still be text the tools actually fetched (§7) |
+| Critic grading of each task's evidence | **Yes**, by design — including more lenient grading | The critic still fails closed on invalid output (§7) |
+| Report drafting | **Yes**, by design | Citation markers are still validated against the evidence (§7) |
+| Report chat | **Yes**, by design | General report chat only |
+| Citation verification | **No** | A protected prompt. It decides whether a citation is supported, so replacing it would let an account grade its own citations |
+| Contradiction detection | **No** | A protected prompt. A replacement could be told to report no conflicts |
+| Citation repair | **No** | A protected prompt. It rewrites citations on a draft, so a replacement could make fabricated citations look repaired |
+| Project chat | **No** | A protected prompt. Its refusal line is what keeps grounded answers grounded |
+| Page-fetch SSRF guard | **No** | Code, on every hop (§5) |
+| Custom-endpoint SSRF check | **No** | `enforce_ssrf_guards`, set by the host, never by an account (§5) |
+| Corpus-only egress | **No** | `corpus_mode` comes from the run's own request; retrieval and page reads branch on it in code |
+| Budgets, and whether a run is recorded as a demo | **No** | Deployment configuration and the run's own request |
+| Artifact authorization | **No** | Database constraints, the authorization module, the bundle assembler, and the verifier |
+| Project isolation | **No** | A SQL predicate applied before retrieval (above) |
+| Bundle integrity | **No** | SHA-256 over the manifest ([bundle format](../reference/15-bundle-format.md)) |
+| Output validation | **No** | A Pydantic model at every model boundary; a parse failure is a node failure (§7) |
+| The evaluation judge | **No** | Literal judge prompts, and a candidate prompt removed before judging ([testing and evaluation](../developers/08-testing-and-evaluation.md)) |
+
+The **No** rows hold for structural reasons, not because of anything a prompt says. A stored
+replacement is read in exactly one place, the function that selects a system prompt, and for a
+protected prompt that function returns the shipped text before it reads any replacement at
+all. What it returns is used as system-message text and, inside a run, recorded as that
+run's prompt provenance; no guard or limit reads it. None of the controls above is a user
+preference, so the one surface an account edits cannot carry them.
+`backend/tests/security/test_prompt_override_reach.py` and
+`backend/tests/security/test_protected_prompt_purposes.py` pin those facts.
+
+#### One account's prompt, one account's work
+
+Replacements are a per-account preference. A research run uses its owner's replacements,
+copied onto the run when it starts and read from there on every resume, so editing them while
+a run waits at a gate cannot change it. Report chat uses the replacements of the account
+asking. The earlier session pipeline does not apply replacements at all: a session whose owner
+had them configured records that they were not applied, and the session API returns that
+record. The evaluation harness never reads an account's preferences.
+
+Nothing lets one account share, import, or apply another account's prompt, and that absence is
+load-bearing. Shared prompts, shared workspaces, or links that carry a run's configuration to
+someone else would make a prompt input from another party, and this section would no longer
+hold.
+
+#### A custom prompt is not a secret
+
+It is stored as plain text in the account's preferences, copied onto every run started while
+it is set, and included in full in the version 2 bundle of any run whose prompt it replaced
+([bundle format](../reference/15-bundle-format.md)); the verification endpoint returns hashes
+only. Do not put a key, a password, or anything confidential in one. Saving a prompt never logs
+its text — the server records which settings changed, the desktop app records nothing — and no
+metric label carries prompt content.
+
+#### Limits, and what is not a threat
+
+Composition guarantees the untrusted-content instruction is present, not that the model obeys
+it. A replacement that tells the model to ignore it weakens only its author's own runs.
+
+A poorly written prompt is a quality problem, not a security one; the custom-spec evaluation
+measures a replacement against the shipped prompts
+([testing and evaluation](../developers/08-testing-and-evaluation.md)).
 
 ## 7. Structured-output validation
 
