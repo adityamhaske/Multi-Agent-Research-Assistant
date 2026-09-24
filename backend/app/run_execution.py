@@ -534,33 +534,36 @@ async def execute_run(
                 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
                 dsn = settings.database_url.replace("postgresql+asyncpg://", "postgresql://")
-                async with (
-                    AsyncPostgresSaver.from_conn_string(dsn) as saver,
-                    recording_provenance() as composed,
-                ):
+                async with AsyncPostgresSaver.from_conn_string(dsn) as saver:
                     await saver.setup()
-                    if plan is not None:
-                        outcome = await runner.resume(
-                            checkpointer=saver, session_id=run_id, plan=plan, **ports
-                        )
-                    elif resume is None:
-                        outcome = await runner.run(
-                            checkpointer=saver,
-                            session_id=run_id,
-                            user_id=str(run.owner_id),
-                            query=run.question,
-                            depth=run.depth,
-                            **ports,
-                        )
-                    else:
-                        approved, feedback = resume
-                        outcome = await runner.resume(
-                            checkpointer=saver,
-                            session_id=run_id,
-                            approved=approved,
-                            feedback=feedback,
-                            **ports,
-                        )
+                    # A plain `with`, not an item of the `async with` above: the recorder is
+                    # synchronous, and naming it there raises TypeError before the graph
+                    # starts — every server run failed on entry that way, and only the real
+                    # worker in golden-e2e reached this line to show it. It wraps the graph
+                    # alone; the collection outlives the block, which only uninstalls it.
+                    with recording_provenance() as composed:
+                        if plan is not None:
+                            outcome = await runner.resume(
+                                checkpointer=saver, session_id=run_id, plan=plan, **ports
+                            )
+                        elif resume is None:
+                            outcome = await runner.run(
+                                checkpointer=saver,
+                                session_id=run_id,
+                                user_id=str(run.owner_id),
+                                query=run.question,
+                                depth=run.depth,
+                                **ports,
+                            )
+                        else:
+                            approved, feedback = resume
+                            outcome = await runner.resume(
+                                checkpointer=saver,
+                                session_id=run_id,
+                                approved=approved,
+                                feedback=feedback,
+                                **ports,
+                            )
                     # Read the state INSIDE the saver context: the evidence lives there and
                     # the connection closes on exit.
                     result = await persist_outcome(
