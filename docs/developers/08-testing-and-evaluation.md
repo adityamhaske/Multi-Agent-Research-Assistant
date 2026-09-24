@@ -200,16 +200,76 @@ a quality collapse. So:
 - unjudged claims are **excluded from the denominator**, not counted as failures;
 - a metric returns `None` when nothing could be judged, and `None` renders as
   `n/a (unmeasured)`, never `0.0`;
+- a **rate over nothing is `None` too** — a completion or pass rate over zero queries, and an
+  average over none. `0.0` completion would read as "every query failed" and report a
+  failure against the threshold that never happened;
+- a threshold check has **three answers**: met, missed, or `None` when there was nothing to
+  measure. `None` is never reported as a miss;
 - a trace records the model that actually answered, never the one that was requested.
+
+The result file stores an unmeasured value as `null`; the console prints it as
+`n/a (unmeasured)`, the same words the harness, the benchmark and the retrieval eval all use.
 
 **The rule has two homes** — the harness and the benchmark — and they must change together.
 
 ### Release criteria
 
-Citation support ≥ 0.95 and completion ≥ 0.90 on the fixed set. The most recent real-model
+Citation support ≥ 0.95 and completion ≥ 0.90 on the fixed set. Both are inclusive — a run at
+exactly the threshold meets it — and both are fixed: nothing a user configures changes them. The most recent real-model
 run does not clear the first; see
 [Citation-fidelity benchmark](../research/16-citation-fidelity-benchmark.md) for what has
 actually been measured, and under what caveats.
+
+### Custom-spec evaluation
+
+A user can replace a role's system prompt, so the harness can measure a replacement against
+the shipped prompts:
+
+```bash
+cd backend && python -m evals.harness --candidate spec.json   # {"planner": "…", "critic": "…"}
+```
+
+It runs the fixed ten-query set twice — once with the shipped prompts, once with the
+candidate — and judges both against **the same thresholds**. The result file keeps the
+shipped run where a plain run puts it (`aggregate`, `release_criteria`, `results`) and adds
+the candidate beside it under `candidate`, with each replaced prompt and its SHA-256. It is
+written to its own write-once file, `eval-<date>-<routing>-custom.json`, so it can never land
+on a plain run's result.
+
+**A candidate below threshold is reported, not blocked.** The user chose it; the harness's
+job is to measure honestly, not to refuse. A threshold miss never stops the process — the
+only exit is the write-once guard.
+
+**The candidate is refused, not quietly substituted, if it cannot be used.** It is validated
+by the same all-or-nothing rule a run's own override snapshot goes through. In production an
+unusable snapshot falls back to the shipped prompts and records that it did; here the same
+fallback would publish the baseline's numbers under the candidate's name. It comes from the
+file you pass, never from a user's stored preferences, and applies to the report eval only.
+
+#### What the candidate can and cannot reach
+
+A user's prompt may change **what the pipeline produces**, never **what the harness
+measures**. Two independent protections keep the judge out of reach:
+
+- **Scope.** The candidate is installed around the pipeline run alone and removed before the
+  judge is called. It is never installed process-wide, which would outlive the query and
+  still be live when the judge ran. Both runs are built from the same base configuration, so
+  they differ in their prompts and nothing else — the same models, the same limits.
+- **Construction.** Both judges carry their system prompt as literal text and never compose
+  one through the prompt machinery. A replaced prompt has no path into a judge's messages
+  even if it were live at the moment the judge ran.
+
+The project-chat prompt the memory eval composes is a protected purpose, so no override
+reaches it either.
+
+#### What scripted mode proves, and what it does not
+
+`make eval` runs scripted models, and so does CI. That proves the **mechanism** — the
+candidate reaches the pipeline, both runs are recorded, the same thresholds apply, the judge
+never sees the candidate. It does **not** show that one prompt is better than another: the
+judge runs only against a real provider, so citation support is unmeasured for both runs, and
+the scripted models answer by role, so a candidate produces the baseline's output. Comparing
+the quality of two specs needs a real-model run.
 
 ## Quality gates
 

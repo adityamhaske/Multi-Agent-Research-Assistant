@@ -314,6 +314,11 @@ _MAY_DIAL_AN_OVERRIDE = {
     "app/run_execution.py": "run_config_for_run, from the snapshot",
     # The desktop's in-process driver, through `run_execution`'s two functions.
     "desktop/sidecar.py": "_drive_run, from the same snapshot",
+    # Not a stored override: the custom-spec eval's candidate, read from an explicit
+    # `--candidate` file and installed only around `graph.ainvoke` (AgentSpec RFC §14.1).
+    # This test cannot see what feeds that write; `test_eval_custom_spec::
+    # test_the_candidate_never_comes_from_a_stored_row` is what keeps preferences out.
+    "evals/harness.py": "_pipeline_scope, from an explicit candidate file",
 }
 
 
