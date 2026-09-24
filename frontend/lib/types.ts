@@ -200,6 +200,12 @@ export interface SessionDetail extends SessionSummary {
   sources: Source[] | null;
   error_message: string | null;
   updated_at: string;
+  /**
+   * True when the owner had prompt overrides configured and this session — the earlier
+   * pipeline, which never applies them — ran on the shipped prompts instead (scope freeze
+   * §8). False on every session predating the flag, which is accurate: none could be set.
+   */
+  prompt_overrides_not_applied?: boolean;
 }
 
 export interface SessionListResponse {
@@ -662,6 +668,21 @@ export interface RunVerification {
   bundle_hash?: string;
   frozen?: boolean;
   checks: { name: string; passed: boolean; detail: string | null }[];
+  /** 1 or 2. Absent when the verifier did not run. */
+  bundle_version?: number;
+  /** What the run was configured with; null for a v1 bundle, which records no prompts. */
+  prompt_overrides_status?: "NONE" | "APPLIED" | "UNUSABLE" | null;
+  /** Per recorded purpose: hashes and flags only — the prompt text stays in the bundle. */
+  prompt_provenance?: PromptProvenanceEntry[];
+}
+
+/** One recorded purpose in a run's bundle, as the verification endpoint reports it. */
+export interface PromptProvenanceEntry {
+  purpose: string;
+  role: string;
+  policy: "OVERRIDABLE" | "PROTECTED";
+  overridden: boolean;
+  effective_prompt_sha256: string;
 }
 
 /** One row of `GET /runs` — the History list. */
