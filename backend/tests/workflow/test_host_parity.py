@@ -263,6 +263,7 @@ DESKTOP_UI_CALLS: dict[str, str] = {
     "PUT /models/routing": "settings",
     "DELETE /models/routing": "settings",
     "GET /models/local/status": "LocalLLMCard",
+    "GET /models/prompt-defaults": "ModelPicker — the per-role prompt editors (PR-10)",
     "POST /models/local/pull": "LocalLLMCard",
     "POST /models/providers/test": "connection test",
     # The research workspace. This block was missing while the desktop build was already

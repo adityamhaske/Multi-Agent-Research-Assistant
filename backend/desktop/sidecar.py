@@ -89,6 +89,7 @@ from app.schemas.models import (
     CatalogResponse,
     CustomEndpointStatusResponse,
     LocalLLMStatusResponse,
+    PromptDefaultsResponse,
     ProviderTestRequest,
     ReadinessResponse,
     RoutingResponse,
@@ -2356,6 +2357,13 @@ def create_sidecar_app(
         from app.api.v1.models import custom_endpoint_status
 
         return await custom_endpoint_status(user)
+
+    @api.get("/models/prompt-defaults", response_model=PromptDefaultsResponse)
+    @delegates_to("app.api.v1.models:get_prompt_defaults")
+    async def prompt_defaults(user: User = Depends(get_local_user)):
+        from app.api.v1.models import get_prompt_defaults
+
+        return await get_prompt_defaults(user)
 
     @api.post("/models/local/start")
     async def start_local_server():

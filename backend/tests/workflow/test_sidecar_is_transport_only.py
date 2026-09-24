@@ -31,7 +31,10 @@ from pathlib import Path
 
 SIDECAR = Path(__file__).resolve().parents[2] / "desktop" / "sidecar.py"
 
-#: 3,055 lines as of PR-6's prompt-override snapshot. The *rules* all delegate — the freeze
+#: 3,063 lines as of PR-10's `GET /models/prompt-defaults`: an eight-line wrapper that
+#: delegates to `app.api.v1.models.get_prompt_defaults` and restates nothing — the one
+#: route the prompt editors need, and it cannot live anywhere but here on this host.
+#: Was 3,055 as of PR-6's prompt-override snapshot. The *rules* all delegate — the freeze
 #: and the row-read are `run_execution.freeze_prompt_overrides`/`prompt_overrides_for_run`,
 #: the chat scope is `run_config.chat_prompt_context`, called rather than restated — so what
 #: grew is the two in-process drivers, `_drive_run` and `_drive_session`, which are this
@@ -60,7 +63,7 @@ SIDECAR = Path(__file__).resolve().parents[2] / "desktop" / "sidecar.py"
 #: supervision and logging bootstrap for a process that is not itself an HTTP handler), and
 #: 2,850 before that, itself down from 3,015 before plan phase 7 began delegating session
 #: routes. Small headroom above the current count, not a target to grow into.
-CEILING = 3055
+CEILING = 3063
 
 
 def test_sidecar_has_not_grown_past_its_ratchet():

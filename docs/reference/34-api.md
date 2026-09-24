@@ -89,7 +89,8 @@ The current user. Never includes the stored provider key — only its provider, 
   "api_key_hint": null, "api_key_label": null, "api_key_set_at": null,
   "connection_verdict": null,
   "preferences": { "retrieval_k": null, "min_sources_per_task": null,
-                   "snippet_max_chars": null, "density": null }
+                   "snippet_max_chars": null, "density": null,
+                   "prompt_overrides": null }
 }
 ```
 
@@ -101,6 +102,12 @@ present in the body change.
 **`preferences` is merged, never replaced** — a request from one settings section carries
 only that section's fields, and overwriting would blank every other preference. Avatar URLs
 must be `http(s)`; they render in an `<img>`.
+
+`preferences.prompt_overrides` is merged **per role**: `{"planner": "…"}` sets one role and
+leaves the others alone, and `{"planner": null}` resets that role to its shipped prompt. Keys
+are the five roles only; a value must be non-empty text of at most 2,500 characters. An empty
+or whitespace-only string is refused rather than read as a reset. Both hosts validate with the
+same model, so a refusal is a `422` carrying the same message on either.
 
 ### `POST /auth/me/password`
 
@@ -514,6 +521,7 @@ quietly incomplete, and neither is otherwise distinguishable from "there is noth
 | `POST` | `/models/providers/test` | Probe a key before storing it → an `ok`/`degraded`/`failed` verdict |
 | `GET` | `/models/providers/health` | Re-probe the stored key |
 | `GET` | `/models/local/status` | Ollama discovery |
+| `GET` | `/models/prompt-defaults` | What each role's prompt editor starts from: `{max_chars, roles: [{role, default_prompt, untrusted_content_framed}]}`. The five roles' shipped prompts with the system-added untrusted-content instruction removed; `untrusted_content_framed` says the system adds it around a replacement. Identical for every user and on both hosts — never a protected prompt, never the caller's own overrides |
 | `POST` | `/models/local/pull` | Pull a model, streaming progress |
 
 Each catalog entry carries `route`, `provider`, `model_id`, `display_name`, per-million input

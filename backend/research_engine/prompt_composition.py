@@ -42,6 +42,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
+from typing import NamedTuple
 
 from research_engine import prompts
 from research_engine.runconfig import get_run_config
@@ -155,6 +156,56 @@ def is_overridable(purpose: str) -> bool:
     returning `False`, because a typo that silently reads as "protected" hides the typo.
     """
     return _checked(purpose) in OVERRIDABLE_PURPOSES
+
+
+class EditableDefault(NamedTuple):
+    """One role's shipped prompt, as someone about to replace it should see it."""
+
+    role: str
+    text: str
+    #: Whether `system_prompt` adds the untrusted-content note around a replacement for this
+    #: role — so an editor can say that it will, instead of showing the note as editable.
+    framed: bool
+
+
+def editable_defaults() -> tuple[EditableDefault, ...]:
+    """The starting text for each role's prompt editor, in `ROLES` order (scope freeze §12).
+
+    **Display, not reach.** Each role's entry is the shipped text of its one purpose in
+    `OVERRIDABLE_PURPOSES` — the same allowlist `system_prompt` enforces — and nothing reads
+    this to decide what an override may reach; `system_prompt` still answers that alone,
+    before it looks at any config. A protected purpose has no entry because it is not in the
+    allowlist, so no caller can get its text out of here however it asks.
+
+    **The untrusted-content note is removed** from the four shipped prompts that carry it.
+    §5 makes it system-added and not user-editable, and `system_prompt` wraps whatever a user
+    saves in it — so leaving it in the editable text would copy it into the saved body and
+    compose it three times. `framed` says the system adds it, so an editor can say so.
+
+    Reads no run config and no user state: the answer is a property of this build.
+    """
+    by_role: dict[str, str] = {}
+    for purpose in sorted(OVERRIDABLE_PURPOSES):
+        role = role_of(purpose)
+        if role in by_role:
+            raise RuntimeError(
+                f"role {role!r} has two overridable purposes ({by_role[role]}, {purpose}); "
+                "a role-keyed editor cannot say which one it replaces"
+            )
+        by_role[role] = purpose
+
+    note = prompts.UNTRUSTED_CONTENT_NOTE
+    defaults = []
+    for role in ROLES:
+        purpose = by_role.get(role)
+        if purpose is None:
+            raise RuntimeError(f"role {role!r} has no overridable purpose to edit")
+        framed = purpose in NOTE_CARRYING_PURPOSES
+        text = PURPOSE_CONSTANTS[purpose]
+        if framed:
+            text = text.replace(f"{note}\n", "").replace(note, "")
+        defaults.append(EditableDefault(role=role, text=text.strip(), framed=framed))
+    return tuple(defaults)
 
 
 def system_prompt(purpose: str) -> str:
