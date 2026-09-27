@@ -13,9 +13,9 @@ describe("OverridesNotAppliedNotice", () => {
     const note = screen.getByRole("note");
     expect(note).toHaveTextContent("Custom instructions not applied");
     expect(note).toHaveTextContent(/written with the shipped prompts/);
-    expect(screen.getByRole("link", { name: "Settings → Models" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Settings → Agents" })).toHaveAttribute(
       "href",
-      "/settings/models",
+      "/settings/agents",
     );
   });
 

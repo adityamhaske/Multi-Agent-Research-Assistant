@@ -31,8 +31,8 @@ export function OverridesNotAppliedNotice({ notApplied }: { notApplied: boolean 
         You had custom agent instructions set when this session started, but sessions run on
         the earlier research pipeline, which does not use them — this report was written with
         the shipped prompts. Research you start now applies them. Manage them in{" "}
-        <Link href="/settings/models" className="text-accent hover:underline">
-          Settings → Models
+        <Link href="/settings/agents" className="text-accent hover:underline">
+          Settings → Agents
         </Link>
         .
       </p>

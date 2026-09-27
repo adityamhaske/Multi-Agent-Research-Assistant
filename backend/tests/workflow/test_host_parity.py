@@ -250,7 +250,7 @@ DESKTOP_UI_CALLS: dict[str, str] = {
     "POST /research/{session_id}/unarchive": "history archive view",
     "DELETE /research/{session_id}": "SessionCard — delete",
     "GET /research/outline-templates": "OutlineTemplatePicker",
-    "GET /models": "StartModelPicker, ModelPicker",
+    "GET /models": "StartModelPicker, ModelPicker, AgentsSection (read-only model per agent)",
     # Missing here — not merely unserved — for a whole release: `DESKTOP_UI_CALLS` is
     # audited from the frontend, and this path was never added even though
     # `useReadiness()` has always fetched it unconditionally. `test_desktop_ui_calls_are_
@@ -263,7 +263,7 @@ DESKTOP_UI_CALLS: dict[str, str] = {
     "PUT /models/routing": "settings",
     "DELETE /models/routing": "settings",
     "GET /models/local/status": "LocalLLMCard",
-    "GET /models/prompt-defaults": "ModelPicker — the per-role prompt editors (PR-10)",
+    "GET /models/prompt-defaults": "AgentsSection — Settings → Agents instruction editors (PR-10)",
     "POST /models/local/pull": "LocalLLMCard",
     "POST /models/providers/test": "connection test",
     # The research workspace. This block was missing while the desktop build was already

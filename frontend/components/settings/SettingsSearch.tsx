@@ -15,6 +15,7 @@ type Entry = { section: string; label: string; keywords: string };
 const INDEX: Entry[] = [
   { section: "models", label: "Per-role model routing", keywords: "model routing role planner executor critic synthesizer chat" },
   { section: "models", label: "Local models (Ollama)", keywords: "ollama local llm model server" },
+  { section: "agents", label: "Agent instructions", keywords: "agents agent instructions prompt system customize customise behaviour behavior reset planner executor critic synthesizer chat" },
   { section: "connections", label: "API key (BYOK)", keywords: "api key byok provider anthropic openai google gemini claude openrouter custom endpoint token" },
   { section: "connections", label: "Connection health", keywords: "connection test probe status red yellow green" },
   { section: "search", label: "Tavily Search API key", keywords: "tavily search provider retriever web key" },
