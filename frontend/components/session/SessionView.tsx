@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ApprovalGate } from "@/components/session/ApprovalGate";
 import { FailedState } from "@/components/session/FailedState";
 import { LiveFeed } from "@/components/session/LiveFeed";
+import { OverridesNotAppliedNotice } from "@/components/session/OverridesNotAppliedNotice";
 import { PipelineRail } from "@/components/session/PipelineRail";
 import { PlanGate } from "@/components/session/PlanGate";
 import { ReportView } from "@/components/session/ReportView";
@@ -114,6 +115,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
           </p>
         </div>
       )}
+
+      <OverridesNotAppliedNotice notApplied={session.prompt_overrides_not_applied} />
 
       {/* Header */}
       <div>

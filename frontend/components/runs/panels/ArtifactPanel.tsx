@@ -9,6 +9,7 @@ import { useV2Verification } from "@/hooks/runs";
 import { ApiError } from "@/lib/api";
 import { apiBase } from "@/lib/desktop";
 import { downloadExport } from "@/lib/download";
+import { provenanceNotice } from "@/lib/promptProvenance";
 import type { RunGraph } from "@/lib/types";
 
 import { Hash, runTotals } from "../primitives";
@@ -59,6 +60,7 @@ export function ArtifactPanel({ graph }: { graph: RunGraph }) {
   const [busy, setBusy] = useState<Format | null>(null);
   const base = apiBase();
   const totals = runTotals(graph);
+  const prompts = provenanceNotice(data);
 
   if (!graph.artifact) {
     return (
@@ -151,6 +153,43 @@ export function ArtifactPanel({ graph }: { graph: RunGraph }) {
           Run by the same standalone verifier that ships with the bundle — not asserted by
           this page.
         </p>
+        {/* Above the checks, as the standalone verifier prints it above its verdict: every
+            check can pass on a run whose agents were reconfigured, and a reader must know
+            that before reading what the agents concluded (scope freeze §10). */}
+        {prompts.replaced.length > 0 && (
+          <div
+            role="note"
+            className="mt-3 border p-2 text-xs leading-relaxed"
+            style={{
+              color: "var(--warning)",
+              backgroundColor: "var(--warning-soft)",
+              borderColor: "var(--warning-line)",
+            }}
+          >
+            <p>
+              <strong>Custom instructions in force.</strong> The run&apos;s owner replaced the
+              shipped prompt for:
+            </p>
+            <ul className="mt-1 space-y-0.5">
+              {prompts.replaced.map((p) => (
+                <li key={`${p.role}-${p.hash}`} className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-semibold">{p.role}</span>
+                  <Hash value={p.hash} label={`${p.role} prompt SHA-256`} />
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1">
+              The checks confirm what those prompts were and that they are unchanged since the
+              bundle was assembled — not that they were sound. The full text is in the bundle.
+            </p>
+          </div>
+        )}
+        {prompts.unusable && (
+          <p role="note" className="mt-3 text-xs leading-relaxed text-text-secondary">
+            Custom instructions were configured for this run but could not be used, so it ran
+            on the shipped prompts.
+          </p>
+        )}
         <div className="mt-3 space-y-1.5">
           {isLoading && (
             <p className="text-xs text-text-muted">

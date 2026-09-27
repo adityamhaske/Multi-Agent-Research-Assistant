@@ -120,3 +120,24 @@ class RoutingRequest(BaseModel):
 class RoutingResponse(BaseModel):
     routing: dict[str, str] | None
     effective_routing: dict[str, str]
+
+
+class PromptDefault(BaseModel):
+    """One role's editable shipped prompt (scope freeze §12, D-1)."""
+
+    role: str
+    # The shipped text with the untrusted-content note removed — the part a user replaces.
+    default_prompt: str
+    # True when the system adds that note before and after a replacement for this role.
+    untrusted_content_framed: bool
+
+
+class PromptDefaultsResponse(BaseModel):
+    """`GET /models/prompt-defaults` — what the per-role prompt editors start from.
+
+    A property of the build, identical for every caller and on both hosts: no user state,
+    no protected purpose, no hash. A user's own overrides come from `GET /auth/me`.
+    """
+
+    max_chars: int
+    roles: list[PromptDefault]

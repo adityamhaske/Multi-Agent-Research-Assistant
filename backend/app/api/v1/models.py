@@ -19,9 +19,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.dependencies import get_current_user, get_db
 from app.models.user import User
-from app.schemas.auth import ConnectionVerdict
+from app.schemas.auth import MAX_PROMPT_OVERRIDE_CHARS, ConnectionVerdict
 from app.services import crypto, custom_endpoint, local_llm, model_routing, provider_health
 from research_engine import catalog
+from research_engine.prompt_composition import editable_defaults
 from research_engine.runconfig import ROLES
 
 router = APIRouter(prefix="/models", tags=["Models"])
@@ -36,6 +37,8 @@ from app.schemas.models import (  # noqa: E402  (re-export)
     LocalLLMStatusResponse,
     LocalModelInfo,
     ModelInfo,
+    PromptDefault,
+    PromptDefaultsResponse,
     ProviderTestRequest,
     ReadinessResponse,
     RoutingRequest,
@@ -48,6 +51,8 @@ __all__ = [
     "LocalLLMStatusResponse",
     "LocalModelInfo",
     "ModelInfo",
+    "PromptDefault",
+    "PromptDefaultsResponse",
     "ProviderTestRequest",
     "ReadinessResponse",
     "RoutingRequest",
@@ -239,6 +244,26 @@ async def custom_endpoint_status(_current_user: User = Depends(get_current_user)
         models=status_.models,
         error=status_.error,
         hint=status_.hint,
+    )
+
+
+@router.get("/prompt-defaults", response_model=PromptDefaultsResponse)
+async def get_prompt_defaults(_current_user: User = Depends(get_current_user)):
+    """The shipped text each role's prompt editor starts from (scope freeze §12).
+
+    Its own route rather than a field on `GET /models`, which the run form fetches too and
+    which has no use for several kilobytes of prompt text. Authenticated like its
+    neighbours, though it reads nothing about the caller: the answer is fixed by the build,
+    identical for every user and on both hosts, and a user's own overrides — served by
+    `GET /auth/me` — never appear here. What may be shown is decided by
+    `prompt_composition.editable_defaults`, so no protected purpose can reach this body.
+    """
+    return PromptDefaultsResponse(
+        max_chars=MAX_PROMPT_OVERRIDE_CHARS,
+        roles=[
+            PromptDefault(role=d.role, default_prompt=d.text, untrusted_content_framed=d.framed)
+            for d in editable_defaults()
+        ],
     )
 
 

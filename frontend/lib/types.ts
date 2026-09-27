@@ -71,6 +71,12 @@ export interface UserPreferences {
   density?: "comfortable" | "compact" | null;
   tavily_api_key?: string | null;
   brave_api_key?: string | null;
+  /**
+   * Replacement system prompts, keyed by role (scope freeze §7, §12). A role present here is
+   * customised. On a write, `null` for a role resets it to the shipped prompt; an empty or
+   * whitespace-only string is refused by the API, never read as a reset.
+   */
+  prompt_overrides?: Partial<Record<AgentRole, string | null>> | null;
 }
 
 export interface User {
@@ -194,6 +200,12 @@ export interface SessionDetail extends SessionSummary {
   sources: Source[] | null;
   error_message: string | null;
   updated_at: string;
+  /**
+   * True when the owner had prompt overrides configured and this session — the earlier
+   * pipeline, which never applies them — ran on the shipped prompts instead (scope freeze
+   * §8). False on every session predating the flag, which is accurate: none could be set.
+   */
+  prompt_overrides_not_applied?: boolean;
 }
 
 export interface SessionListResponse {
@@ -329,6 +341,21 @@ export interface ModelInfo {
   notes: string;
   /** False when this user has no usable key for the provider. Shown disabled, not hidden. */
   available: boolean;
+}
+
+/** One role's editable shipped prompt, from `GET /models/prompt-defaults` (scope freeze §12). */
+export interface PromptDefault {
+  role: AgentRole;
+  /** The shipped prompt with the system-added untrusted-content instruction removed. */
+  default_prompt: string;
+  /** The system adds that instruction before and after a replacement for this role. */
+  untrusted_content_framed: boolean;
+}
+
+/** What the per-role prompt editors start from. Identical for every user and both hosts. */
+export interface PromptDefaults {
+  max_chars: number;
+  roles: PromptDefault[];
 }
 
 export interface ModelCatalog {
@@ -641,6 +668,21 @@ export interface RunVerification {
   bundle_hash?: string;
   frozen?: boolean;
   checks: { name: string; passed: boolean; detail: string | null }[];
+  /** 1 or 2. Absent when the verifier did not run. */
+  bundle_version?: number;
+  /** What the run was configured with; null for a v1 bundle, which records no prompts. */
+  prompt_overrides_status?: "NONE" | "APPLIED" | "UNUSABLE" | null;
+  /** Per recorded purpose: hashes and flags only — the prompt text stays in the bundle. */
+  prompt_provenance?: PromptProvenanceEntry[];
+}
+
+/** One recorded purpose in a run's bundle, as the verification endpoint reports it. */
+export interface PromptProvenanceEntry {
+  purpose: string;
+  role: string;
+  policy: "OVERRIDABLE" | "PROTECTED";
+  overridden: boolean;
+  effective_prompt_sha256: string;
 }
 
 /** One row of `GET /runs` — the History list. */

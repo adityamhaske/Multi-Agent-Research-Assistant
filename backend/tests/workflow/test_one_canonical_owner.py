@@ -83,6 +83,10 @@ SHARED_OWNERSHIP: dict[str, str] = {
     "GET /models/local/status": "app.api.v1.models",
     "GET /models/custom/status": "app.api.v1.models",
     "POST /models/local/pull": "app.api.v1.models",
+    # The prompt editors' starting text. Same shape as the four above: the user is an
+    # auth gate only, and the answer is a property of the build, so there is nothing
+    # host-specific to diverge on.
+    "GET /models/prompt-defaults": "app.api.v1.models",
 }
 
 #: The models routes that stay divergent, and why. Longer than the other surfaces'

@@ -12,6 +12,7 @@ import { CustomEndpointCard } from "@/components/account/CustomEndpointCard";
 import { ModelPicker } from "@/components/account/ModelPicker";
 import { Field, Section } from "@/components/account/Section";
 import { AboutSection } from "@/components/settings/AboutSection";
+import { AgentsSection } from "@/components/settings/AgentsSection";
 import { ProjectsSection } from "@/components/settings/ProjectsSection";
 import { ResetToDefault } from "@/components/settings/ResetToDefault";
 import { useMe, useUpdateProfile, useUsage,
@@ -594,6 +595,7 @@ function SearchProvidersSection() {
 
 const SECTIONS: Record<string, () => JSX.Element> = {
   models: ModelsSection,
+  agents: AgentsSection,
   connections: ConnectionsSection,
   search: SearchProvidersSection,
   research: ResearchSection,

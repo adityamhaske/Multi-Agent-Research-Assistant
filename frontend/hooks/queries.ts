@@ -22,6 +22,7 @@ import type {
   Project,
   ProjectListResponse,
   ProfileUpdate,
+  PromptDefaults,
   PullProgress,
   ResearchDepth,
   ResearchStartResponse,
@@ -55,6 +56,7 @@ export const queryKeys = {
   threadMessages: (threadId: string) => ["thread-messages", threadId] as const,
   memoryStatus: (projectId: string) => ["memory-status", projectId] as const,
   models: ["models"] as const,
+  promptDefaults: ["prompt-defaults"] as const,
   desktopKeys: ["desktop-keys"] as const,
   localLLM: ["local-llm-status"] as const,
 };
@@ -584,6 +586,19 @@ export function useMemoryStatus(projectId: string | undefined) {
  * `available` on a whole provider — so it's invalidated by the key mutations rather
  * than polled.
  */
+/**
+ * The shipped text each role's prompt editor starts from (scope freeze §12). Fixed by the
+ * build, so it is fetched once per session rather than refreshed: nothing a user does can
+ * change it, and their own overrides come from `useMe`.
+ */
+export function usePromptDefaults() {
+  return useQuery({
+    queryKey: queryKeys.promptDefaults,
+    queryFn: () => apiFetch<PromptDefaults>("/models/prompt-defaults"),
+    staleTime: Infinity,
+  });
+}
+
 export function useModelCatalog() {
   return useQuery({
     queryKey: queryKeys.models,

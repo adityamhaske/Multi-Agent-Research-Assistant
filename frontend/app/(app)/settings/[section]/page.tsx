@@ -8,6 +8,7 @@ export function generateStaticParams() {
   // A fixed, known set — unlike `/session/[sessionId]`'s unbounded ids.
   return [
     "models",
+    "agents",
     "connections",
     "search",
     "research",

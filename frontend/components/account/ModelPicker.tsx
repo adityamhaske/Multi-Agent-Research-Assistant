@@ -9,7 +9,8 @@ import {
   useResetModelRouting,
   useSetModelRouting,
 } from "@/hooks/queries";
-import type { AgentRole, ModelInfo, ModelRouting } from "@/lib/types";
+import { ROLE_COPY } from "@/lib/agentRoles";
+import type { ModelInfo, ModelRouting } from "@/lib/types";
 
 import { Section } from "./Section";
 
@@ -25,14 +26,6 @@ import { Section } from "./Section";
  * wants the strongest model available. The copy says so, because a picker that only offers
  * knobs teaches nothing.
  */
-
-const ROLE_COPY: Record<AgentRole, { label: string; blurb: string }> = {
-  planner: { label: "Planner", blurb: "Breaks your question into research tasks." },
-  executor: { label: "Executor", blurb: "Runs the searches and gathers evidence." },
-  critic: { label: "Critic", blurb: "Grades that evidence and sends weak work back." },
-  synthesizer: { label: "Synthesizer", blurb: "Writes the cited report you read." },
-  chat: { label: "Follow-up chat", blurb: "Answers questions about a finished report." },
-};
 
 const PRESET_COPY: Record<string, string> = {
   fast: "Cheapest and quickest. Good for scoping a question.",
