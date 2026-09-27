@@ -12,10 +12,19 @@ whole 1.0.x line, so `/health` reported a version the deployment had not been ru
 two releases." That is a measurement about the running system being wrong, which this
 repository treats as a P0 class rather than a cosmetic one.
 
-    python scripts/sync_version.py            # report drift, exit 1 if any
-    python scripts/sync_version.py --write     # rewrite the derived files
+    python scripts/sync_version.py                 # report drift, exit 1 if any
+    python scripts/sync_version.py --write          # rewrite the derived files
+    python scripts/sync_version.py --tag v3.0.0     # refuse a tag that is not VERSION
 
-CI runs the first form. `--write` is for cutting a release.
+CI runs the first form. `--write` is for cutting a release. `--tag` is the release
+workflows' guard, run before either of them builds anything a tag would publish.
+
+**A tag that disagrees with `VERSION` ships mislabelled, and nothing else notices.** The
+installers are named from `tauri.conf.json` and the images from the tag, so tagging before
+the version bump merged would publish `2.1.0` installers under a `v3.0.0` release — every
+build step green, every artifact wrong. `--tag` compares exactly (`v` + `VERSION`, no
+prefix matching, so `v3.0` is not `v3.0.0`) and runs the drift check too: a tag that
+matches a `VERSION` its derived files do not is the same mislabelling one file later.
 
 **`desktop/Cargo.lock` carries the version too, and this script must not write it.**
 The lock repeats `version = "..."` once per package — 451 times today — so the
@@ -108,10 +117,32 @@ def drift() -> list[str]:
     return out
 
 
+def tag_mismatch(tag: str) -> str | None:
+    expected = f"v{canonical()}"
+    if tag == expected:
+        return None
+    return (
+        f"tag {tag!r} does not name VERSION {canonical()} (expected {expected!r}) — every "
+        f"artifact built from this commit would be labelled {canonical()}"
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--write", action="store_true", help="rewrite the derived files")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--write", action="store_true", help="rewrite the derived files")
+    mode.add_argument("--tag", help="fail unless this tag is exactly v + VERSION")
     args = parser.parse_args()
+
+    if args.tag is not None:
+        problems = [p for p in [tag_mismatch(args.tag), *drift()] if p]
+        if problems:
+            print(f"refusing to release {args.tag}:", file=sys.stderr)
+            for problem in problems:
+                print(f"  {problem}", file=sys.stderr)
+            return 1
+        print(f"tag {args.tag} names version {canonical()}, consistent across {len(DERIVED)} files")
+        return 0
 
     if args.write:
         for derived in DERIVED:
