@@ -122,7 +122,7 @@ records per-report metrics to a dated JSON file, so report quality is diffable o
 
 ```bash
 make eval                                   # fake mode: deterministic, free, no keys
-LLM_MODE=real GOOGLE_API_KEY=… make eval    # real models
+LLM_MODE=real make eval EVAL_ARGS="--judge anthropic:claude-sonnet-4-6"   # real models
 ```
 
 Mode is read from the *real* environment before `.env` is loaded, and `.env` supplies keys
@@ -211,6 +211,34 @@ The result file stores an unmeasured value as `null`; the console prints it as
 `n/a (unmeasured)`, the same words the harness, the benchmark and the retrieval eval all use.
 
 **The rule has two homes** — the harness and the benchmark — and they must change together.
+
+### The judge
+
+Citation support is graded by the model `--judge` names, and a real-mode report eval refuses
+to start without one. It is refused, before a single query runs, if it is:
+
+- a route the pipeline itself runs, or the same model reached another way
+  (`openrouter:google/gemini-2.5-flash` is `google:gemini-2.5-flash`);
+- a router alias (`auto/*`), which can resolve to a different model on every call;
+- set while any pipeline role is on a router alias, since then nothing can be shown to be
+  independent of it.
+
+Judging never falls back to the pipeline's own critic. That was the harness's behaviour until
+V3, which is why the runs recorded before it are self-judged.
+
+The result file names the judge in a `judge` block beside `models`, never inside it:
+`models` is the system under evaluation, and `judge` is what graded it. The block holds:
+
+- the judge's route;
+- the routes it was checked against;
+- for the baseline and any candidate, how many claims it ruled on, how many it never
+  reached, and which model the provider reported answering;
+- whether it answered at all.
+
+Each claim verdict also records the model that served it. That name is read from the
+provider's response, never copied from the route: a judge that answered as something else,
+or did not disclose what answered, shows it. A scripted run calls no judge and writes no
+`judge` block.
 
 ### Release criteria
 

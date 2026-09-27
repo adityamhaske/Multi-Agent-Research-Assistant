@@ -72,6 +72,8 @@ def scripted_judge(monkeypatch):
     def _install(items: list) -> _ScriptedLLM:
         llm = _ScriptedLLM(items)
         monkeypatch.setattr("research_engine.llm_factory.get_llm", lambda role: llm)
+        # Judging refuses without a named judge (RG-5); the route is only a label here.
+        monkeypatch.setattr(harness, "JUDGE_ROUTE", "anthropic:independent-judge")
         return llm
 
     return _install

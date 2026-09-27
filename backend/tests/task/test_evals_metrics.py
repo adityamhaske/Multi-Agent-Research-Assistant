@@ -307,6 +307,7 @@ async def test_both_support_homes_agree(monkeypatch, verdicts):
         f"Claim {i}: {'YES' if v else 'NO'}" for i, v in enumerate(verdicts, 1) if v is not None
     )
     monkeypatch.setattr("research_engine.llm_factory.get_llm", lambda role: _Scripted(reply))
+    monkeypatch.setattr(_harness, "JUDGE_ROUTE", "anthropic:independent-judge")
     report, sources = _report_with(len(verdicts))
     harness_rate, _ = await _harness.judge_citation_support(report, sources)
 

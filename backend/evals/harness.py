@@ -6,11 +6,12 @@ quality is diffable over time.
 Per-commit CI uses fake models; evals measure real-model quality. Run:
 
     make eval                       # fake mode (deterministic, no keys) — smoke/baseline
-    LLM_MODE=real GOOGLE_API_KEY=… make eval
+    LLM_MODE=real make eval EVAL_ARGS="--judge anthropic:claude-sonnet-4-6"
 
 The committed baseline in results/ is a fake-mode run: it exercises the metric plumbing
 and pins structural numbers. Real-model runs additionally compute an LLM-judged citation
-support rate and are what the release criteria gate on.
+support rate and are what the release criteria gate on — judged by the model `--judge`
+names, which must be independent of every route under evaluation (RG-5).
 """
 
 from __future__ import annotations
@@ -31,7 +32,12 @@ from langgraph.checkpoint.memory import MemorySaver
 from evals import metrics
 from research_engine.graph import build_graph
 from research_engine.local import load_env_file, run_config_from_env
-from research_engine.runconfig import reset_run_config, set_process_default, set_run_config
+from research_engine.runconfig import (
+    get_run_config,
+    reset_run_config,
+    set_process_default,
+    set_run_config,
+)
 from research_engine.runner import initial_state
 
 # The harness is a host, so it installs the engine's config (docs/13 §2) — built straight
@@ -60,6 +66,133 @@ MIN_CITATION_SUPPORT = 0.95
 MIN_COMPLETION_RATE = 0.90
 
 _ROLES = ("planner", "executor", "critic", "synthesizer", "chat")
+
+
+# ── The judge (RG-5) ──────────────────────────────────────────────────────────────
+#
+# The citation judge used to be `get_llm("critic")` — the pipeline's own critic model grading
+# the pipeline's own citations. That is a self-judged number, and RG-5 requires "a disclosed
+# independent judge that actually answered" (internal/rfcs/V3.0-agentspec-scope.md §20). So
+# the judge is named per invocation, checked against the routes under evaluation before a
+# single query runs, and recorded beside them — never inferred, never defaulted.
+
+
+class JudgeConfigError(ValueError):
+    """A judge that cannot serve as the independent one, or no judge at all."""
+
+
+#: The route `judge_citation_support` builds its judge from, set by `configure_judge`. None
+#: until then — and judging then refuses rather than falling back to the pipeline's critic,
+#: which is the self-judged measurement this exists to end.
+JUDGE_ROUTE: str | None = None
+
+
+def _is_router_alias(model: str) -> bool:
+    """`auto`, `auto/*` and `*/auto` resolve per call (AGENTS.md: not pinned models)."""
+    model = model.lower()
+    return model == "auto" or model.startswith("auto/") or model.endswith("/auto")
+
+
+def _model_identity(model: str) -> str:
+    """The model a route names, with the provider's spelling removed.
+
+    Catches one model reached two ways — `openrouter:google/gemini-2.5-flash` and
+    `google:gemini-2.5-flash`, `ollama:qwen2.5` and `ollama:qwen2.5:latest` — which a plain
+    string comparison of routes would call independent. It does not decide whether two
+    *different* models are too closely related; the result names both, so a reader can.
+    """
+    name = model.lower().rsplit("/", 1)[-1]
+    return name.removesuffix(":latest")
+
+
+def validate_judge(route: str, pipeline: dict[str, str]) -> str:
+    """`route` if it can judge `pipeline` independently; otherwise say exactly why not."""
+    provider, _, model = route.partition(":")
+    if not provider or not model:
+        raise JudgeConfigError(
+            f"a judge must be 'provider:model' (got {route!r}), e.g. anthropic:claude-sonnet-4-6"
+        )
+    if _is_router_alias(model):
+        raise JudgeConfigError(
+            f"{route} is a router alias, not a pinned model: it can resolve to a different "
+            "model on every call, including one the pipeline uses, so it cannot be disclosed "
+            "as the judge"
+        )
+    for role, used in sorted(pipeline.items()):
+        used_model = used.partition(":")[2]
+        if _is_router_alias(used_model):
+            raise JudgeConfigError(
+                f"the pipeline's {role} routes to the alias {used}; what it resolves to is "
+                "unknown, so no judge can be shown to be independent of it. Pin the model."
+            )
+        if used == route or _model_identity(used_model) == _model_identity(model):
+            raise JudgeConfigError(
+                f"{route} is the model the pipeline's {role} runs on ({used}); the system "
+                "under evaluation cannot also be its judge"
+            )
+    return route
+
+
+def configure_judge(route: str) -> str:
+    """Install the judge for this process, checked against every route the harness runs."""
+    global JUDGE_ROUTE
+    JUDGE_ROUTE = validate_judge(route, {role: RUN_CONFIG.models[role] for role in _ROLES})
+    return JUDGE_ROUTE
+
+
+def _judge_llm():
+    """Build the configured judge through the engine's factory — every provider the product
+    supports, no second client. `critic` is borrowed only for its zero-temperature settings;
+    the route is the judge's, installed for the build and removed straight after, as
+    `benchmark.py::_build_judge` does."""
+    if JUDGE_ROUTE is None:
+        raise JudgeConfigError(
+            "no independent judge is configured (--judge provider:model). Judging never falls "
+            "back to the pipeline's own critic: a self-judged rate is not evidence for RG-5."
+        )
+    from research_engine import llm_factory
+
+    base = get_run_config()
+    token = set_run_config(replace(base, models={**base.models, "critic": JUDGE_ROUTE}))
+    try:
+        return llm_factory.get_llm("critic")
+    finally:
+        reset_run_config(token)
+
+
+def judge_tally(rows: list[dict]) -> dict:
+    """What the judge actually did across a run's reports: how many claims it ruled on, how
+    many it never reached, and which model the provider says answered.
+
+    `served_models` is read from each response (`llm_factory.served_model_id`), not copied
+    from the route, so a judge that silently answered as something else shows it. Empty when
+    the provider discloses nothing — never filled in from the route.
+    """
+    verdicts = [c for r in rows for c in r.get("claim_verdicts") or []]
+    judged = [c for c in verdicts if c.get("judged")]
+    return {
+        "claims_judged": len(judged),
+        "claims_unjudged": len(verdicts) - len(judged),
+        "served_models": sorted({c["judged_by"] for c in judged if c.get("judged_by")}),
+    }
+
+
+def judge_section(route: str, rows: list[dict], candidate_rows: list[dict] | None) -> dict:
+    """The result file's account of its judge, beside — never inside — `models`.
+
+    `models` is the system under evaluation; this is what graded it. Keeping them apart is
+    what lets a reader check the claim "independent" without trusting the harness's word.
+    """
+    section = {
+        "route": route,
+        "independent_of": {role: RUN_CONFIG.models[role] for role in _ROLES},
+        "baseline": judge_tally(rows),
+    }
+    if candidate_rows is not None:
+        section["candidate"] = judge_tally(candidate_rows)
+    tallies = [section["baseline"], *([section["candidate"]] if candidate_rows is not None else [])]
+    section["answered"] = any(t["claims_judged"] for t in tallies)
+    return section
 
 
 def _routing_slug() -> str:
@@ -258,14 +391,15 @@ async def judge_citation_support(
 
     from langchain_core.messages import HumanMessage, SystemMessage
 
-    from research_engine.llm_factory import get_llm
+    from research_engine.llm_factory import served_model_id
 
     by_index = {s.get("index"): s for s in sources if isinstance(s, dict)}
     claims = [c for c in metrics.claim_lines(report) if metrics.CITE_RE.search(c)]
     if not claims:
         return None, []
 
-    llm = get_llm("critic")
+    # The configured independent judge, or a refusal — never the pipeline's critic (RG-5).
+    llm = _judge_llm()
 
     # Build per-claim evidence blocks once, then batch.
     claim_evidence: list[tuple[str, str]] = []
@@ -287,6 +421,9 @@ async def judge_citation_support(
     # Only claims the judge actually ruled on enter this map, and every number below is
     # derived from it — so an unjudged claim cannot reach the rate as a miss.
     verdict_by_claim: dict[int, bool] = {}
+    # What the provider says served each ruling — the disclosure half of "a judge that
+    # actually answered". None when the response names no model.
+    served_by_claim: dict[int, str | None] = {}
     for batch_start in range(0, len(claim_evidence), BATCH_SIZE):
         batch = claim_evidence[batch_start : batch_start + BATCH_SIZE]
 
@@ -313,10 +450,12 @@ async def judge_citation_support(
         try:
             resp = await llm.ainvoke(messages)
             text = resp.content if isinstance(resp.content, str) else ""
+            served = served_model_id(resp)
             # Parse each "Claim N: YES/NO" line from the response.
             for match in _re.finditer(r"Claim\s+(\d+)\s*:\s*(YES|NO)", text, _re.IGNORECASE):
                 idx = batch_start + int(match.group(1)) - 1
                 verdict_by_claim[idx] = match.group(2).upper() == "YES"
+                served_by_claim[idx] = served
         except Exception as e:  # noqa: BLE001 — one failed batch must not sink the run
             # The batch's claims stay UNJUDGED and are excluded from the denominator
             # below. Counting them as unsupported — which this did until M18 — is what
@@ -336,6 +475,7 @@ async def judge_citation_support(
             # the two must never be collapsed by a downstream truthiness check.
             "supported": verdict_by_claim.get(i),
             "judged": i in verdict_by_claim,
+            "judged_by": served_by_claim.get(i),
             "cites": metrics.extract_citations(claim),
         }
         for i, claim in enumerate(claims)
@@ -536,7 +676,29 @@ async def main() -> None:
         help="JSON file of {role: prompt}. Runs the query set twice — shipped prompts, then "
         "this spec — and reports both against the same thresholds (report mode only)",
     )
+    parser.add_argument(
+        "--judge",
+        type=str,
+        default=None,
+        help="provider:model of the citation judge. Required for a real-mode report eval, and "
+        "refused if it is a router alias or any model the pipeline runs on (RG-5)",
+    )
     args = parser.parse_args()
+
+    # Before any query runs: a run that would be self-judged must cost nothing.
+    judging = args.mode == "report" and RUN_CONFIG.llm_mode == "real"
+    if judging:
+        if not args.judge:
+            parser.error(
+                "a real-mode report eval needs --judge provider:model, a pinned model "
+                "independent of the pipeline's routes (RG-5); nothing was run"
+            )
+        try:
+            configure_judge(args.judge)
+        except JudgeConfigError as e:
+            parser.error(f"{e}; nothing was run")
+    elif args.judge:
+        parser.error("--judge applies to a real-mode report eval; this run judges nothing")
 
     candidate = None
     if args.candidate:
@@ -626,6 +788,12 @@ async def main() -> None:
         # The top-level `aggregate`/`release_criteria`/`results` stay the shipped baseline,
         # exactly as in a plain run, so a reader of the existing schema reads it unchanged.
         payload["candidate"] = candidate_section(candidate, candidate_rows)
+    if judging:
+        # Only where a judge ran. A scripted run calls no judge, and naming one it never
+        # called is the "model id you did not call" rule the `models` note above follows.
+        payload["judge"] = judge_section(
+            JUDGE_ROUTE, rows, candidate_rows if candidate is not None else None
+        )
 
     RESULTS_DIR.mkdir(exist_ok=True)
     out = Path(args.out) if args.out else _result_path(run_date, custom_spec=candidate is not None)
@@ -638,6 +806,16 @@ async def main() -> None:
         )
     out.write_text(json.dumps(payload, indent=2) + "\n")
     print(f"\nAggregate: {json.dumps(_for_display(agg))}")
+    if judging:
+        judge = payload["judge"]
+        served = sorted(
+            {
+                m
+                for part in ("baseline", "candidate")
+                for m in judge.get(part, {}).get("served_models", [])
+            }
+        )
+        print(f"Judge: {judge['route']} (answered as: {', '.join(served) or 'undisclosed'})")
     print(f"Release criteria: {json.dumps(_for_display(payload['release_criteria']))}")
     if candidate is not None:
         section = payload["candidate"]
