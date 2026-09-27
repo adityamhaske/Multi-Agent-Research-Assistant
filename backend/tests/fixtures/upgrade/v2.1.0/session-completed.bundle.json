@@ -1,0 +1,478 @@
+{
+  "approval_chain": [
+    {
+      "action": "approved",
+      "draft_hash": "e65541df7798d793f27662aeccaee82259816883c5b79d293ed7abf58198f714",
+      "feedback": null,
+      "timestamp": "2026-09-27T15:43:25"
+    }
+  ],
+  "bundle_hash": "28eb1b7be4031565d41ef6e0d31ef8b46ad0abb2ccfd954c07f92a4ef1b95c50",
+  "bundle_version": 1,
+  "claims": [
+    {
+      "citation_indices": [
+        1,
+        2
+      ],
+      "sentence": "Retrieval-augmented generation and fine-tuning address different problems: fine-tuning adapts a model's parameters, while retrieval supplies knowledge the model can cite at answer time [1][2]."
+    },
+    {
+      "citation_indices": [
+        1
+      ],
+      "sentence": "Large pre-trained language models store factual knowledge in their parameters and achieve state-of-the-art results when fine-tuned on downstream NLP tasks [1]."
+    },
+    {
+      "citation_indices": [
+        1
+      ],
+      "sentence": "Their ability to access and precisely manipulate that knowledge is still limited, and on knowledge-intensive tasks their performance lags behind task-specific architectures [1]."
+    },
+    {
+      "citation_indices": [
+        1
+      ],
+      "sentence": "Providing provenance for a model's decisions and updating its world knowledge remain open research problems [1]."
+    },
+    {
+      "citation_indices": [
+        2
+      ],
+      "sentence": "Incorporating knowledge from external databases enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks [2]."
+    },
+    {
+      "citation_indices": [
+        2
+      ],
+      "sentence": "Because the knowledge sits outside the parameters, retrieval allows for continuous knowledge updates and integration of domain-specific information [2]."
+    },
+    {
+      "citation_indices": [
+        1,
+        2
+      ],
+      "sentence": "Retrieval is the stronger choice where knowledge changes or must be attributable, since it updates continuously and carries provenance that parametric memory does not [1][2]."
+    },
+    {
+      "citation_indices": [
+        1
+      ],
+      "sentence": "Fine-tuning remains the mechanism for adapting a model to a downstream task rather than for teaching it facts it must later be able to cite [1]."
+    }
+  ],
+  "contradictions": [],
+  "cost_usd": 0.001283,
+  "created_at": "2026-09-27T15:43:26.868774+00:00",
+  "demo": true,
+  "elapsed_seconds": 0.53,
+  "evidence": [
+    {
+      "content_hash": "5a26f8bd9d500f29dec53f25b6466f7530809ab7cdc1314506c58e594416e08b",
+      "key_fact": "Parametric knowledge is hard to access precisely, and provenance and updates remain open problems.",
+      "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
+      "source_title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+      "source_url": "https://arxiv.org/abs/2005.11401"
+    },
+    {
+      "content_hash": "a47b13fa215d1f874d4b2c999ce2103f0ba794e6b5dbdbb9536a2cd35e8c677c",
+      "key_fact": "External-database knowledge improves accuracy and credibility and allows continuous updates.",
+      "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
+      "source_title": "Retrieval-Augmented Generation for Large Language Models: A Survey",
+      "source_url": "https://arxiv.org/abs/2312.10997"
+    },
+    {
+      "content_hash": "5a26f8bd9d500f29dec53f25b6466f7530809ab7cdc1314506c58e594416e08b",
+      "key_fact": "Parametric knowledge is hard to access precisely, and provenance and updates remain open problems.",
+      "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
+      "source_title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+      "source_url": "https://arxiv.org/abs/2005.11401"
+    },
+    {
+      "content_hash": "a47b13fa215d1f874d4b2c999ce2103f0ba794e6b5dbdbb9536a2cd35e8c677c",
+      "key_fact": "External-database knowledge improves accuracy and credibility and allows continuous updates.",
+      "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
+      "source_title": "Retrieval-Augmented Generation for Large Language Models: A Survey",
+      "source_url": "https://arxiv.org/abs/2312.10997"
+    }
+  ],
+  "models": {
+    "chat": "google:gemini-2.5-flash",
+    "critic": "google:gemini-2.5-flash",
+    "executor": "google:gemini-2.5-flash",
+    "planner": "google:gemini-2.5-pro",
+    "synthesizer": "google:gemini-2.5-pro"
+  },
+  "query": "What are the leading approaches to long-term memory in LLM agents?",
+  "report": "# Retrieval-augmented generation versus fine-tuning\n\n## Summary\nRetrieval-augmented generation and fine-tuning address different problems: fine-tuning adapts a model's parameters, while retrieval supplies knowledge the model can cite at answer time [1][2].\n\n## Findings\nLarge pre-trained language models store factual knowledge in their parameters and achieve state-of-the-art results when fine-tuned on downstream NLP tasks [1].\nTheir ability to access and precisely manipulate that knowledge is still limited, and on knowledge-intensive tasks their performance lags behind task-specific architectures [1].\nProviding provenance for a model's decisions and updating its world knowledge remain open research problems [1].\nIncorporating knowledge from external databases enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks [2].\nBecause the knowledge sits outside the parameters, retrieval allows for continuous knowledge updates and integration of domain-specific information [2].\n\n## Analysis\nRetrieval is the stronger choice where knowledge changes or must be attributable, since it updates continuously and carries provenance that parametric memory does not [1][2].\nFine-tuning remains the mechanism for adapting a model to a downstream task rather than for teaching it facts it must later be able to cite [1].\n\n## Limitations\nThis is a demonstration run on scripted models over two sources captured in advance. A real run searches the live web, may surface contradicting sources, and will not reproduce this report.\n\n## Sources\n[1] https://arxiv.org/abs/2005.11401\n[2] https://arxiv.org/abs/2312.10997\n",
+  "report_hash": "e65541df7798d793f27662aeccaee82259816883c5b79d293ed7abf58198f714",
+  "research_depth": "fast",
+  "session_id": "0e5fb77b-5112-435c-8089-0044bcc75eb7",
+  "sources": [
+    {
+      "index": 1,
+      "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
+      "snippets": [
+        "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems."
+      ],
+      "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+      "url": "https://arxiv.org/abs/2005.11401"
+    },
+    {
+      "index": 2,
+      "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
+      "snippets": [
+        "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information."
+      ],
+      "title": "Retrieval-Augmented Generation for Large Language Models: A Survey",
+      "url": "https://arxiv.org/abs/2312.10997"
+    }
+  ],
+  "tokens_input": 1000,
+  "tokens_output": 500,
+  "trace": [
+    {
+      "agent": "planner",
+      "data": null,
+      "detail": {
+        "depth": "fast",
+        "model": "google:gemini-2.5-pro",
+        "models": {
+          "chat": "google:gemini-2.5-flash",
+          "critic": "google:gemini-2.5-flash",
+          "executor": "google:gemini-2.5-flash",
+          "planner": "google:gemini-2.5-pro",
+          "synthesizer": "google:gemini-2.5-pro"
+        },
+        "query": "What are the leading approaches to long-term memory in LLM agents?"
+      },
+      "id": 14,
+      "message": "Decomposing the query into tasks…",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "planner",
+      "data": null,
+      "detail": {
+        "proposed_outline": [],
+        "tasks": [
+          {
+            "id": 1,
+            "include": true,
+            "query": "what retrieval-augmented generation is",
+            "rationale": "define the mechanism before comparing it",
+            "source_hint": null,
+            "status": "pending",
+            "subtopics": []
+          },
+          {
+            "id": 2,
+            "include": true,
+            "query": "when retrieval beats fine-tuning",
+            "rationale": "the comparison the question actually asks for",
+            "source_hint": null,
+            "status": "pending",
+            "subtopics": []
+          }
+        ]
+      },
+      "id": 15,
+      "message": "Created 2 research tasks",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "executor",
+      "data": null,
+      "detail": {
+        "max_parallel": 4,
+        "model": "google:gemini-2.5-flash",
+        "round": 1,
+        "task_ids": [
+          1,
+          2
+        ]
+      },
+      "id": 16,
+      "message": "Round 1: researching 2 tasks in parallel",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "executor",
+      "data": null,
+      "detail": {
+        "feedback": null,
+        "model": "google:gemini-2.5-flash",
+        "query": "when retrieval beats fine-tuning",
+        "task_id": 2
+      },
+      "id": 17,
+      "message": "Researching: 'when retrieval beats fine-tuning'",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "executor",
+      "data": null,
+      "detail": {
+        "feedback": null,
+        "model": "google:gemini-2.5-flash",
+        "query": "what retrieval-augmented generation is",
+        "task_id": 1
+      },
+      "id": 18,
+      "message": "Researching: 'what retrieval-augmented generation is'",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "executor",
+      "data": null,
+      "detail": {
+        "evidence": [
+          {
+            "key_fact": "Parametric knowledge is hard to access precisely, and provenance and updates remain open problems.",
+            "retrieved_at": "2026-08-15T00:00:00Z",
+            "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
+            "source_title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+            "source_url": "https://arxiv.org/abs/2005.11401",
+            "task_id": 1
+          },
+          {
+            "key_fact": "External-database knowledge improves accuracy and credibility and allows continuous updates.",
+            "retrieved_at": "2026-08-15T00:00:00Z",
+            "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
+            "source_title": "Retrieval-Augmented Generation for Large Language Models: A Survey",
+            "source_url": "https://arxiv.org/abs/2312.10997",
+            "task_id": 1
+          }
+        ],
+        "task_id": 1,
+        "thought": null
+      },
+      "id": 19,
+      "message": "Submitted 2 evidence item(s) for task 1",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "executor",
+      "data": null,
+      "detail": {
+        "evidence": [
+          {
+            "key_fact": "Parametric knowledge is hard to access precisely, and provenance and updates remain open problems.",
+            "retrieved_at": "2026-08-15T00:00:00Z",
+            "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
+            "source_title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+            "source_url": "https://arxiv.org/abs/2005.11401",
+            "task_id": 1
+          },
+          {
+            "key_fact": "External-database knowledge improves accuracy and credibility and allows continuous updates.",
+            "retrieved_at": "2026-08-15T00:00:00Z",
+            "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
+            "source_title": "Retrieval-Augmented Generation for Large Language Models: A Survey",
+            "source_url": "https://arxiv.org/abs/2312.10997",
+            "task_id": 1
+          }
+        ],
+        "source_count": 2,
+        "task_id": 1
+      },
+      "id": 20,
+      "message": "Gathered 2 source(s) for task 1",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "executor",
+      "data": null,
+      "detail": {
+        "evidence": [
+          {
+            "key_fact": "Parametric knowledge is hard to access precisely, and provenance and updates remain open problems.",
+            "retrieved_at": "2026-08-15T00:00:00Z",
+            "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
+            "source_title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+            "source_url": "https://arxiv.org/abs/2005.11401",
+            "task_id": 1
+          },
+          {
+            "key_fact": "External-database knowledge improves accuracy and credibility and allows continuous updates.",
+            "retrieved_at": "2026-08-15T00:00:00Z",
+            "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
+            "source_title": "Retrieval-Augmented Generation for Large Language Models: A Survey",
+            "source_url": "https://arxiv.org/abs/2312.10997",
+            "task_id": 1
+          }
+        ],
+        "task_id": 2,
+        "thought": null
+      },
+      "id": 21,
+      "message": "Submitted 2 evidence item(s) for task 2",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "executor",
+      "data": null,
+      "detail": {
+        "evidence": [
+          {
+            "key_fact": "Parametric knowledge is hard to access precisely, and provenance and updates remain open problems.",
+            "retrieved_at": "2026-08-15T00:00:00Z",
+            "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
+            "source_title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+            "source_url": "https://arxiv.org/abs/2005.11401",
+            "task_id": 2
+          },
+          {
+            "key_fact": "External-database knowledge improves accuracy and credibility and allows continuous updates.",
+            "retrieved_at": "2026-08-15T00:00:00Z",
+            "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
+            "source_title": "Retrieval-Augmented Generation for Large Language Models: A Survey",
+            "source_url": "https://arxiv.org/abs/2312.10997",
+            "task_id": 2
+          }
+        ],
+        "source_count": 2,
+        "task_id": 2
+      },
+      "id": 22,
+      "message": "Gathered 2 source(s) for task 2",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "critic",
+      "data": null,
+      "detail": {
+        "model": "google:gemini-2.5-flash",
+        "task_ids": [
+          1,
+          2
+        ]
+      },
+      "id": 23,
+      "message": "Evaluating evidence for 2 task(s)…",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "critic",
+      "data": null,
+      "detail": {
+        "confidence": 0.9,
+        "feedback_for_executor": null,
+        "passed": true,
+        "reasons": [
+          "two independent sources"
+        ],
+        "task_id": "1"
+      },
+      "id": 24,
+      "message": "✅ PASS task 1",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "critic",
+      "data": null,
+      "detail": {
+        "confidence": 0.9,
+        "feedback_for_executor": null,
+        "passed": true,
+        "reasons": [
+          "two independent sources"
+        ],
+        "task_id": "2"
+      },
+      "id": 25,
+      "message": "✅ PASS task 2",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "contradiction_detector",
+      "data": null,
+      "detail": null,
+      "id": 26,
+      "message": "Checking evidence for conflicting claims…",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "contradiction_detector",
+      "data": null,
+      "detail": null,
+      "id": 27,
+      "message": "No conflicting claims found",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "synthesizer",
+      "data": null,
+      "detail": {
+        "model": "google:gemini-2.5-pro"
+      },
+      "id": 28,
+      "message": "Compiling the report…",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "synthesizer",
+      "data": null,
+      "detail": null,
+      "id": 29,
+      "message": "Citation repair: fixed 2 uncited claims",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": "synthesizer",
+      "data": null,
+      "detail": {
+        "preview": "# Retrieval-augmented generation versus fine-tuning\n\n## Summary\nRetrieval-augmented generation and fine-tuning address different problems: fine-tuning adapts a model's parameters, while retrieval supplies knowledge the model can cite at answer time [1][2].\n\n## Findings\nLarge pre-trained language models store factual knowledge in their parameters and achieve state-of-the-art results when fine-tuned on downstream NLP tasks [1].\nTheir ability to access and precisely manipulate that knowledge is still limited, and on knowledge-intensive tasks their performance lags behind task-specific architectures [1].\nProviding provenance for a model's decisions and updating its world knowledge remain open research problems [1].\nIncorporating knowledge from external databases enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks [2].\nBecause the knowledge sits outside the parameters, retrieval allows for continuous knowledge updates and integration of domain-specific information [2].\n\n## Analysis\nRetrieval is the stronger choice where knowledge changes or must be attributable, since it updates continuously and carries provenance that parametric memory do...",
+        "served_model": null,
+        "sources_count": 2,
+        "word_count": 222
+      },
+      "id": 30,
+      "message": "Draft compiled (222 words, 2 sources)",
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "agent_log"
+    },
+    {
+      "agent": null,
+      "data": {
+        "cost_usd": 0.0013,
+        "source_count": 2,
+        "word_count": 222
+      },
+      "detail": null,
+      "id": 31,
+      "message": null,
+      "ts": "2026-09-27T15:43:24Z",
+      "type": "HITL_READY"
+    },
+    {
+      "agent": null,
+      "data": {
+        "cost_usd": 0.0013,
+        "elapsed_s": 0.53
+      },
+      "detail": null,
+      "id": 32,
+      "message": null,
+      "ts": "2026-09-27T15:43:25Z",
+      "type": "COMPLETED"
+    }
+  ],
+  "trace_available": true
+}
