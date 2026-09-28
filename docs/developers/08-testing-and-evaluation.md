@@ -240,6 +240,26 @@ provider's response, never copied from the route: a judge that answered as somet
 or did not disclose what answered, shows it. A scripted run calls no judge and writes no
 `judge` block.
 
+### The release run
+
+RG-5 is this harness on the fixed query set with a named judge and the committed candidate,
+nothing more. The pipeline runs one research task at a time: a hosted route that throttles
+bursts (Antigravity via OmniRoute returned empty responses after a burst of parallel calls in
+the preflight) would otherwise fail queries for reasons that have nothing to do with quality.
+
+```bash
+cd backend
+LLM_MODE=real MAX_PARALLEL_TASKS=1 \
+  MODEL_PLANNER=custom:antigravity/gemini-2.5-flash MODEL_EXECUTOR=custom:antigravity/gemini-2.5-flash \
+  MODEL_CRITIC=custom:antigravity/gemini-2.5-flash MODEL_SYNTHESIZER=custom:antigravity/gemini-2.5-flash \
+  MODEL_CHAT=custom:antigravity/gemini-2.5-flash \
+  python -m evals.harness --judge custom:kiro/claude-sonnet-4.5 \
+    --candidate evals/candidates/v3-release-planner.json
+```
+
+Parallelism changes wall-clock, not what is measured, and the result records it: `method.limits`
+holds every execution limit the run used, so a result can be reproduced from its own file.
+
 ### Release criteria
 
 Citation support ≥ 0.95 and completion ≥ 0.90 on the fixed set. Both are inclusive — a run at

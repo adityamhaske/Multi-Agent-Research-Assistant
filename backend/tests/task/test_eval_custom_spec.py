@@ -231,6 +231,21 @@ async def test_a_plain_run_keeps_its_existing_shape(monkeypatch, tmp_path):
     assert "custom" not in path.name
 
 
+async def test_the_result_records_the_limits_the_pipeline_ran_under(monkeypatch, tmp_path):
+    """A non-default limit changes how the run was driven; the file has to say so."""
+    from dataclasses import replace
+
+    monkeypatch.setattr(harness, "RUN_CONFIG", replace(harness.RUN_CONFIG, max_parallel_tasks=1))
+    payload, _ = await _main(monkeypatch, tmp_path)
+    assert payload["method"]["limits"] == {
+        "max_parallel_tasks": 1,
+        "max_critic_loops": harness.RUN_CONFIG.max_critic_loops,
+        "max_cost_per_session_usd": harness.RUN_CONFIG.max_cost_per_session_usd,
+        "max_wallclock_seconds": harness.RUN_CONFIG.max_wallclock_seconds,
+        "max_input_tokens": harness.RUN_CONFIG.max_input_tokens,
+    }
+
+
 async def test_a_custom_run_reports_both_side_by_side(monkeypatch, tmp_path):
     spec = tmp_path / "spec"
     spec.mkdir()

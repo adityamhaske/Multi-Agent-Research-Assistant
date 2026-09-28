@@ -845,6 +845,17 @@ async def main() -> None:
             "metrics_version": metrics.METRICS_VERSION,
             "retriever": _retriever_in_use() if args.mode == "report" else "none (static memory)",
             "query_set": f"evals/{'memory_' if args.mode == 'memory' else ''}queries.json",
+            # How the pipeline was driven — read from the environment (research_engine/local.py),
+            # so a result that omitted them could not be reproduced from its own file. The
+            # release run sets `max_parallel_tasks` to 1 so a provider sees sequential calls,
+            # not bursts; that changes wall-clock and nothing the harness measures.
+            "limits": {
+                "max_parallel_tasks": RUN_CONFIG.max_parallel_tasks,
+                "max_critic_loops": RUN_CONFIG.max_critic_loops,
+                "max_cost_per_session_usd": RUN_CONFIG.max_cost_per_session_usd,
+                "max_wallclock_seconds": RUN_CONFIG.max_wallclock_seconds,
+                "max_input_tokens": RUN_CONFIG.max_input_tokens,
+            },
         },
         "aggregate": agg,
         "release_criteria": release_criteria,
