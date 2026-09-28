@@ -62,14 +62,16 @@ package manager.
 
 ## First run
 
-The app opens into a **completed demo session** — a real report produced by scripted models
-and fixture sources, with citations that resolve — so you can see what the product produces
-before configuring anything.
+On first launch the app seeds one **demo session** — a report produced by scripted models
+and fixture sources — so you can see what the product produces before configuring anything.
+In this release that demo does not complete on a fresh install: it is created corpus-only,
+against a corpus that is still empty, so it finds no evidence and ends as failed.
 
-Demo mode is a first-class runtime state, not an environment variable: it is selectable in
-the UI, it is the default when no key is configured, and it shows a persistent banner while
-active. Demo runs are marked in the database and every export path stamps the artifact, so
-a demo report cannot be mistaken for real research.
+The desktop app has no switch for demo mode: research you start needs a model, and without
+one the app points you at Settings. (A self-hosted stack's keyless path is
+`./start.sh --fake`; see the [quick start](20-quick-start.md).) Demo runs are marked in the
+database and every export path stamps the artifact, so a demo report cannot be mistaken for
+real research.
 
 **Only one thing is mandatory: a way to reach a model.** Everything else has a free path.
 
