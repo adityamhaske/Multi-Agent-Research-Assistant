@@ -17,7 +17,9 @@ reaching them, or the packaged sidecar dies at import (#50).
 from __future__ import annotations
 
 from fastapi import Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 
 from app.errors import (
     AppError,
@@ -96,3 +98,20 @@ def install_error_handlers(app) -> None:
 #: Exposed so a test can assert both hosts registered *this* handler rather than each
 #: having some handler of its own.
 install_error_handlers.handler = _handle
+
+
+def body_validation_error(exc: ValidationError, *, at: tuple[str, ...]) -> RequestValidationError:
+    """A pydantic failure on part of a request body, raised the way FastAPI raises its own.
+
+    Scope freeze §7: a refused preference is a 422 with an **identical body on both hosts**.
+    The server validates `PATCH /auth/me` as FastAPI parameters, so its body is FastAPI's —
+    every error located from `body`, carrying the rejected `input`, rendered by the default
+    handler. A host that validates part of a body itself (the desktop reads
+    `body["preferences"]` in order to merge it) refuses with that same body by raising this:
+    located the same way and rendered by the same default handler, so there is one renderer
+    rather than two that happen to agree. `include_url=False` because FastAPI's own
+    validation omits it; `tests/workflow/test_prompt_override_422_parity.py` compares the two.
+    """
+    return RequestValidationError(
+        [{**err, "loc": ("body", *at, *err["loc"])} for err in exc.errors(include_url=False)]
+    )
