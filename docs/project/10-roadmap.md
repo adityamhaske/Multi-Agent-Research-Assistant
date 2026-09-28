@@ -26,6 +26,10 @@ Shipped and in use:
 - **Local models** through Ollama, including local embeddings.
 - **Self-hosting** with Docker Compose, and a documented $0/month single-host deployment.
 - **Desktop app** for macOS, Windows, and Linux, with a bundled engine and SQLite.
+- **An independently judged evaluation** — citation support is graded by a named judge that
+  is none of the models under test. The V3.0.0 release run measured 0.9638 on the fixed
+  ten-query set, clearing the 0.95 threshold
+  ([what was measured, and its caveats](../research/16-citation-fidelity-benchmark.md)).
 - **Operational metrics** — a server-side `/metrics` endpoint in Prometheus text, and
   a correlation id on every log a research run produces. A dashboard is not shipped.
 
@@ -35,8 +39,6 @@ Shipped and in use:
   [methodology](../research/16-citation-fidelity-benchmark.md) is specified and the runner
   exists; no comparative run has been published. The blocker is an independent judge and a
   reproducible baseline configuration, not the harness.
-- **A real-model evaluation run that clears the 0.95 support threshold.** The most recent run
-  is 0.90 and self-judged, which is stated wherever the number appears.
 
 ## Planned
 

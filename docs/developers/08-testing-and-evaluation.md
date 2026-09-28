@@ -263,8 +263,8 @@ holds every execution limit the run used, so a result can be reproduced from its
 ### Release criteria
 
 Citation support ≥ 0.95 and completion ≥ 0.90 on the fixed set. Both are inclusive — a run at
-exactly the threshold meets it — and both are fixed: nothing a user configures changes them. The most recent real-model
-run does not clear the first; see
+exactly the threshold meets it — and both are fixed: nothing a user configures changes them. The V3.0.0
+release run clears both under an independent judge; see
 [Citation-fidelity benchmark](../research/16-citation-fidelity-benchmark.md) for what has
 actually been measured, and under what caveats.
 

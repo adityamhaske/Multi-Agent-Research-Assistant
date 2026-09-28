@@ -42,9 +42,9 @@ describe("comparison data", () => {
 
   it("keeps a substantive losses section", () => {
     expect(LOSSES.length).toBeGreaterThanOrEqual(4);
-    // The interim citation-support number is the most load-bearing admission on the page:
-    // it is the product's own headline metric, and it is not 100%.
-    expect(LOSSES.join(" ")).toMatch(/90%/);
+    // The citation-support number is the most load-bearing admission on the page: it is the
+    // product's own headline metric, it rests on one small run, and it is not 100%.
+    expect(LOSSES.join(" ")).toMatch(/96\.4%/);
   });
 
   it("sends some readers elsewhere", () => {
