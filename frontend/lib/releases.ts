@@ -80,7 +80,6 @@ export const RELEASES: Release[] = [
     ],
     knownSummary:
       "macOS still blocks the first launch until you run one Terminal command, because the build is not notarized. Bundles need a verifier from 3.0.0 or later, custom instructions do not reach research recorded as sessions, and the 96.4% rests on a single run.",
-    unreleased: true,
   },
   {
     version: "v3.0.0",
