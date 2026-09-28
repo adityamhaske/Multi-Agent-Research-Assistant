@@ -21,6 +21,17 @@ contract" — here it is two hosts *and* two generations):
     sessions       `app/workers/pipeline_runner.py::_persist_outcome`
     sessions, app  `desktop/sidecar.py::_apply_outcome`
 
+Two more things have to hold for those writers to mean anything, and both were found
+missing during the V3.0.0 release, after this file's first version shipped green:
+
+- **The start write** — both session drivers set RUNNING when they pick a session up, and a
+  stop landing before that write was overwritten. `app/session_lifecycle.py::mark_running`
+  is now the one write, conditional on `cancelled_at` inside the UPDATE.
+- **A fresh read** — the server's workers load the row once and hold that object for the
+  whole run, so an outcome writer handed it saw "not cancelled" after a mid-run stop. The
+  tests that proved the guards handed them rows that were *already* cancelled, which is the
+  one case where a stale object and the row agree.
+
 Every test below was verified to fail with its guard removed; the negative controls are
 recorded in the docstrings so a future reader can re-run them rather than trust this note.
 
@@ -33,6 +44,7 @@ decision outlives the run that ignored it.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import uuid
 from datetime import UTC, datetime
 
@@ -40,7 +52,7 @@ import httpx
 import pytest
 from sqlalchemy import insert, select
 
-from app import run_execution, run_lifecycle
+from app import run_execution, run_lifecycle, session_lifecycle
 from app.models.project import Project
 from app.models.research import ResearchRun
 from app.models.session import Session as SessionRow
@@ -293,6 +305,38 @@ async def test_v2_set_status_refuses_to_move_a_cancelled_run(v2_run):
         await run_lifecycle.set_status(db, await _reload(db, run.id), "RUNNING")
 
 
+async def test_v2_a_run_stopped_mid_run_keeps_its_status_and_its_spend(tmp_path, monkeypatch):
+    """t0 → t1 through the real `execute_run`, with the stop made while the worker runs.
+
+    The worker loads the run once and holds it for the whole invocation. Negative control:
+    remove the re-read before `persist_outcome` and its guard misses the stop, the write
+    lands on CANCELLED, `ck_run_cancelled` rejects it, and the rollback takes the $0.50 with
+    it — the run keeps its status only by accident, and records no spend.
+    """
+    from tests.workflow.test_execute_run_records_provenance import _stage
+
+    staged: dict = {}
+
+    async def graph(**_kwargs):
+        async with staged["maker"]() as db:  # the user's Stop, on its own connection
+            run = await db.get(ResearchRun, uuid.UUID(staged["run_id"]))
+            await run_lifecycle.request_cancel(db, run, by=run.owner_id)
+            await db.commit()
+        return COMPLETING_OUTCOME
+
+    ctx, maker, run_id = await _stage(tmp_path, monkeypatch, graph)
+    staged.update(maker=maker, run_id=run_id)
+    try:
+        await run_execution.execute_run(run_id)
+        async with maker() as db:
+            run = await db.get(ResearchRun, uuid.UUID(run_id))
+    finally:
+        await ctx.__aexit__(None, None, None)
+
+    assert run.status == "CANCELLED"
+    assert run.cost_usd == pytest.approx(0.5), "the spend was rolled back with the write"
+
+
 # ── Sessions, server: the Celery worker's writer ──────────────────────────────────────────
 
 
@@ -382,6 +426,194 @@ async def test_server_v1_an_uncancelled_session_still_reaches_the_gate():
     assert [e["type"] for e in published] == ["HITL_READY"]
 
 
+# ── Sessions: the start write, and a stop the worker's loaded object cannot see ───────────
+
+
+async def _pending_session(maker) -> tuple[uuid.UUID, uuid.UUID]:
+    """A user, a project, and a session as the start route leaves it: PENDING, handed over."""
+    now = datetime(2026, 9, 28, tzinfo=UTC)
+    uid, pid, sid = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    async with maker() as db:
+        await db.execute(
+            insert(User).values(
+                id=uid, email=f"{uid}@x.invalid", hashed_pw="x", is_active=True, created_at=now
+            )
+        )
+        await db.execute(
+            insert(Project).values(id=pid, user_id=uid, name="P", created_at=now, updated_at=now)
+        )
+        db.add(
+            SessionRow(
+                id=sid,
+                user_id=uid,
+                project_id=pid,
+                prompt="q",
+                research_depth="fast",
+                status=SessionStatus.PENDING,
+                # Set explicitly, as the start route does: left to its SQLite default the
+                # column reads back true, and the worker fails the session on the corpus
+                # guard before the graph — and the stop — are ever reached.
+                corpus_mode=False,
+                demo=False,
+            )
+        )
+        await db.commit()
+    return uid, sid
+
+
+async def _stop(maker, uid: uuid.UUID, sid: uuid.UUID) -> None:
+    """The user's Stop through the real route function, on a connection of its own."""
+    from app.api.v1.research import cancel_session
+
+    async def _no_stream(*_a, **_k) -> None:
+        return None
+
+    async with maker() as db:
+        await cancel_session(sid, db, await db.get(User, uid), _no_stream)
+
+
+async def _session(maker, sid: uuid.UUID) -> SessionRow:
+    """The row as a reload at t2 reads it, never a cached object."""
+    async with maker() as db:
+        return (await db.execute(select(SessionRow).where(SessionRow.id == sid))).scalars().one()
+
+
+async def test_v1_mark_running_moves_a_session_nobody_stopped(tmp_path):
+    """The control: the stop check must not swallow an ordinary start."""
+    async with open_db(tmp_path / "start.sqlite") as maker:
+        _uid, sid = await _pending_session(maker)
+        async with maker() as db:
+            assert await session_lifecycle.mark_running(db, sid) is True
+            await db.commit()
+        assert (await _session(maker, sid)).status == SessionStatus.RUNNING
+
+
+async def test_v1_a_stop_after_the_drivers_read_beats_its_start_write(tmp_path):
+    """The interleaving a check-then-write cannot survive, forced every time.
+
+    The driver has loaded the row — which says nothing of a stop — when the Stop commits.
+    Its write has to lose. Negative control: make `mark_running` an unconditional UPDATE and
+    the row comes back RUNNING with `cancelled_at` set, which no outcome writer will ever
+    move again.
+    """
+    async with open_db(tmp_path / "start.sqlite") as maker:
+        uid, sid = await _pending_session(maker)
+        async with maker() as driver:
+            assert (await driver.get(SessionRow, sid)).is_cancelled is False
+            await _stop(maker, uid, sid)
+            assert await session_lifecycle.mark_running(driver, sid) is False
+            await driver.commit()
+        row = await _session(maker, sid)
+
+    assert row.status == SessionStatus.FAILED, f"a stopped session came back as {row.status}"
+    assert row.is_cancelled
+
+
+async def _stage_session_driver(tmp_path, monkeypatch, graph):
+    """The server's real session driver, with only what a test cannot open swapped out.
+
+    The session counterpart of `test_execute_run_records_provenance._stage`: Redis, the
+    Postgres checkpointer and the graph are stubs; `_execute`, `mark_running`,
+    `_persist_outcome` and the rows are real. Lifecycle events are collected, not published.
+    """
+    from langgraph.checkpoint.postgres import aio as pg_aio
+
+    import app.adapters as adapters
+    import research_engine.runner as runner_mod
+    from app.workers import pipeline_runner
+
+    ctx = open_db(tmp_path / "worker.sqlite")
+    maker = await ctx.__aenter__()
+    published: list[dict] = []
+
+    async def _noop(*_a, **_k):
+        return None
+
+    async def _granted(*_a, **_k):
+        return True
+
+    async def _collect(_session_id: str, event: dict) -> None:
+        published.append(event)
+
+    class _Saver:
+        async def setup(self) -> None:
+            return None
+
+    @contextlib.asynccontextmanager
+    async def _saver_cm(*_a, **_k):
+        yield _Saver()
+
+    class _Engine:
+        async def dispose(self) -> None:
+            return None
+
+    for name in ("init_redis_pool", "close_redis_pool", "release_session_lock"):
+        monkeypatch.setattr(pipeline_runner, name, _noop)
+    monkeypatch.setattr(pipeline_runner, "acquire_session_lock", _granted)
+    monkeypatch.setattr(pipeline_runner, "AsyncSessionLocal", maker)
+    monkeypatch.setattr(pipeline_runner, "engine", _Engine())
+    monkeypatch.setattr(pg_aio.AsyncPostgresSaver, "from_conn_string", _saver_cm)
+    monkeypatch.setattr(adapters, "RedisCache", lambda: None)
+    monkeypatch.setattr(adapters, "agent_log_sink", lambda *_a, **_k: _collect)
+    monkeypatch.setattr(runner_mod, "run", graph)
+    return ctx, maker, published
+
+
+async def test_server_v1_a_session_stopped_mid_run_stays_stopped(tmp_path, monkeypatch):
+    """t0 → t1 through the real server driver, with the stop made while the worker runs.
+
+    The worker holds the object it loaded at start, with `expire_on_commit=False`, so the
+    stop is in the row and not in the object. Negative control: remove the re-read before
+    `_persist_outcome` and the session reaches the review gate with its draft written and
+    HITL_READY published — issue #54, still live on this path after its guard shipped.
+    """
+    from app.workers import pipeline_runner
+
+    ids: dict = {}
+
+    async def graph(**_kwargs):
+        await _stop(ids["maker"], ids["uid"], ids["sid"])  # the user stops it mid-run
+        return COMPLETING_OUTCOME
+
+    ctx, maker, published = await _stage_session_driver(tmp_path, monkeypatch, graph)
+    try:
+        uid, sid = await _pending_session(maker)
+        ids.update(maker=maker, uid=uid, sid=sid)
+        await pipeline_runner._execute(str(sid), str(uid), resume=None)
+        row = await _session(maker, sid)
+    finally:
+        await ctx.__aexit__(None, None, None)
+
+    assert row.status == SessionStatus.FAILED, f"a stopped session came back as {row.status}"
+    assert row.draft_report is None, "a stopped session was offered for approval"
+    assert published == [], f"a stopped session announced itself: {published}"
+    assert row.total_cost_usd == pytest.approx(0.5), "the spend was dropped"
+
+
+async def test_server_v1_a_stop_before_the_worker_starts_holds(tmp_path, monkeypatch):
+    """The start write on the server: a stop between the route's commit and the worker.
+
+    Negative control: write RUNNING unconditionally in `_execute` and the session ends on
+    RUNNING — the outcome writer rightly refuses to move a cancelled row, so nothing does.
+    """
+    from app.workers import pipeline_runner
+
+    async def graph(**_kwargs):
+        return COMPLETING_OUTCOME
+
+    ctx, maker, published = await _stage_session_driver(tmp_path, monkeypatch, graph)
+    try:
+        uid, sid = await _pending_session(maker)
+        await _stop(maker, uid, sid)
+        await pipeline_runner._execute(str(sid), str(uid), resume=None)
+        row = await _session(maker, sid)
+    finally:
+        await ctx.__aexit__(None, None, None)
+
+    assert row.status == SessionStatus.FAILED, f"a stopped session came back as {row.status}"
+    assert published == []
+
+
 # ── Sessions, desktop: the sidecar's writer, over real HTTP ───────────────────────────────
 
 
@@ -456,6 +688,52 @@ async def test_desktop_v1_a_cancelled_session_survives_the_late_outcome(gated_si
     assert float(detail["total_cost_usd"]) == pytest.approx(0.5), "the spend was dropped"
 
 
+async def test_desktop_v1_a_stop_between_the_drivers_read_and_its_write_holds(
+    gated_sidecar, monkeypatch
+):
+    """The start write on the desktop, forced into the order that lost on `main`'s CI.
+
+    The driver is held after it has read the row and before it writes RUNNING, and the Stop
+    lands in that gap. Negative control: make `mark_running` unconditional and t2 reads
+    RUNNING — the test above's intermittent failure, made to happen every time.
+    """
+    client, release = gated_sidecar
+    real = session_lifecycle.mark_running
+    reached, proceed = asyncio.Event(), asyncio.Event()
+
+    async def held(db, session_id):
+        reached.set()
+        await proceed.wait()
+        return await real(db, session_id)
+
+    monkeypatch.setattr(session_lifecycle, "mark_running", held)
+
+    start = await client.post(
+        "/api/v1/research",
+        headers=_auth(),
+        json={"query": "What is retrieval-augmented generation?", "depth": "fast"},
+    )
+    session_id = start.json()["session_id"]
+    await asyncio.wait_for(reached.wait(), timeout=10)
+
+    cancel = await client.post(f"/api/v1/research/{session_id}/cancel", headers=_auth())
+    assert cancel.status_code == 200
+    proceed.set()
+    release.set()
+
+    deadline = asyncio.get_event_loop().time() + 30
+    while asyncio.get_event_loop().time() < deadline:
+        detail = (await client.get(f"/api/v1/research/{session_id}", headers=_auth())).json()
+        if detail["total_cost_usd"]:
+            break
+        await asyncio.sleep(0.05)
+
+    assert detail["status"] == SessionStatus.FAILED.value, (
+        f"a stopped run came back as {detail['status']}"
+    )
+    assert float(detail["total_cost_usd"]) == pytest.approx(0.5), "the spend was dropped"
+
+
 async def test_desktop_v1_an_uncancelled_session_still_reaches_the_gate(gated_sidecar):
     """The control: the same fixture, without the cancel, must still finish normally."""
     client, release = gated_sidecar
@@ -480,6 +758,21 @@ async def test_desktop_v1_an_uncancelled_session_still_reaches_the_gate(gated_si
 
 
 # ── The flag that never did anything ───────────────────────────────────────────────
+
+
+def test_both_session_drivers_start_through_one_function():
+    """Two hosts, one start write — asserted rather than kept in step by hand (AGENTS.md)."""
+    import inspect
+
+    import desktop.sidecar as sidecar_module
+    from app.workers import pipeline_runner
+
+    assert pipeline_runner.mark_running is session_lifecycle.mark_running
+    assert "from app.session_lifecycle import mark_running" in inspect.getsource(sidecar_module)
+    for module in (pipeline_runner, sidecar_module):
+        assert "status = SessionStatus.RUNNING" not in inspect.getsource(module), (
+            f"{module.__name__} writes RUNNING directly, past the stop check"
+        )
 
 
 def test_the_write_only_redis_cancellation_key_is_gone():

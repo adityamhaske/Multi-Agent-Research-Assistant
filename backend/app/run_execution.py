@@ -564,6 +564,12 @@ async def execute_run(
                                 feedback=feedback,
                                 **ports,
                             )
+                    # `run` was loaded before the pipeline started and has been held since,
+                    # with `expire_on_commit=False`: a stop made mid-run is in the row and not
+                    # in the object. Re-read what `persist_outcome`'s guard decides on, or it
+                    # misses the stop, writes over CANCELLED, and `ck_run_cancelled` rolls the
+                    # spend back with the write (issue #54).
+                    await db.refresh(run, ["status", "cancelled_at"])
                     # Read the state INSIDE the saver context: the evidence lives there and
                     # the connection closes on exit.
                     result = await persist_outcome(

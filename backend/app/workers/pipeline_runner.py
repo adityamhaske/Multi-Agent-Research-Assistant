@@ -42,6 +42,7 @@ from app.services.run_config import (
     snapshot_overrides,
 )
 from app.services.session_events import lifecycle_event
+from app.session_lifecycle import mark_running
 from research_engine import citation_rate, events, runner
 from research_engine.runconfig import RunConfig
 from research_engine.runner import RunOutcome
@@ -168,7 +169,11 @@ async def _execute(
                     logger.error("session_not_found", session_id=session_id)
                     return
 
-                session.status = SessionStatus.RUNNING
+                # RUNNING unless the user stopped it after the route handed it over —
+                # the condition is inside the UPDATE, see `app/session_lifecycle.py`. The
+                # pipeline still runs either way: cancellation is advisory, and the outcome
+                # writer below is what keeps the stop.
+                await mark_running(db, session.id)
                 # Sessions do not apply prompt overrides and are not gaining that — runs
                 # are the product and this path stays readable rather than deepened. So a
                 # session whose owner configured one is *marked*, in the same transaction
@@ -260,6 +265,11 @@ async def _execute(
                             **ports,
                         )
 
+                # `session` was loaded before the pipeline started and has been held since,
+                # with `expire_on_commit=False`: a stop made mid-run is in the row and not in
+                # the object. Without this re-read the outcome writer's guard saw "not
+                # cancelled" and moved a stopped session to the review gate (issue #54).
+                await db.refresh(session, ["cancelled_at"])
                 await _persist_outcome(
                     db, session, session_id, outcome, sink, ports["provider_keys"]
                 )

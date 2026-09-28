@@ -76,6 +76,22 @@ which instructions produced it.
   a run waiting at a gate and its exported bundles — is upgraded on every CI run, and
   `scripts/check_packaged_upgrade.py` repeats the journey against a packaged build.
 
+**Fixed**
+
+- **A stop now holds wherever it lands** (issue #54). Three gaps in that guarantee predate
+  3.0.0 and were found when `main`'s CI lost a cancellation race after the release branch
+  merged:
+  - On the server, a session stopped mid-run reached the review gate anyway. A run stopped
+    mid-run kept its status only because `ck_run_cancelled` rejected the late write, which
+    also discarded its spend and crashed the worker. Both workers held the object they loaded
+    at start, so their guards never saw the stop. They now re-read it from the row.
+  - On both hosts, a session stopped before its driver started was set back to RUNNING and
+    stayed there. The start write is now `app/session_lifecycle.py::mark_running`,
+    conditional on the stop inside the UPDATE.
+
+  Each is pinned by a deterministic test in `test_cancellation_is_authoritative.py` that
+  fails with its guard removed.
+
 **Known**
 
 - Bundles from this release are format v2, and a verifier from before 3.0.0 refuses them.
