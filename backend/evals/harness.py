@@ -155,9 +155,51 @@ def _judge_llm():
     base = get_run_config()
     token = set_run_config(replace(base, models={**base.models, "critic": JUDGE_ROUTE}))
     try:
-        return llm_factory.get_llm("critic")
+        llm = llm_factory.get_llm("critic")
     finally:
         reset_run_config(token)
+    # A gateway reports in response headers which connection and model served a call, and the
+    # OpenAI-compatible client drops them unless asked (`gateway_routing` reads them). Set on
+    # this judge's own instance only — the pipeline's clients are untouched — and only where
+    # the client declares the option; a native SDK client or a test double is left as built.
+    if "include_response_headers" in getattr(type(llm), "model_fields", {}):
+        llm.include_response_headers = True
+    return llm
+
+
+#: The headers OmniRoute documents for "what actually served this call". Read by name, and
+#: nothing else from a response's headers is kept — so a credential, token or cookie a
+#: gateway happened to send back can never reach a result file.
+_ROUTING_HEADERS = {
+    "provider": "x-omniroute-provider",
+    "model": "x-omniroute-model",
+    "decision": "x-omniroute-decision",
+}
+
+
+def gateway_routing(response) -> dict[str, str | None]:
+    """The connection, model and routing decision a gateway reports for one judge call.
+
+    Observational only: a header the response did not carry is None, never filled in from
+    the configured route. A direct provider client sends none of them, so every field is
+    None there — which says "no gateway reported this", not "served by the route".
+    """
+    meta = getattr(response, "response_metadata", None) or {}
+    headers = {str(k).lower(): v for k, v in (meta.get("headers") or {}).items()}
+    return {
+        field: (str(headers[name]) if headers.get(name) else None)
+        for field, name in _ROUTING_HEADERS.items()
+    }
+
+
+def _decision_strategy(decision: str) -> str | None:
+    """`single`, a combo strategy, … — the `strategy=` field of OmniRoute's documented
+    `strategy=<name>; provider=<alias>; latency_ms=<n>` decision header, or None."""
+    for part in decision.split(";"):
+        key, _, value = part.strip().partition("=")
+        if key == "strategy" and value:
+            return value
+    return None
 
 
 def judge_tally(rows: list[dict]) -> dict:
@@ -170,10 +212,27 @@ def judge_tally(rows: list[dict]) -> dict:
     """
     verdicts = [c for r in rows for c in r.get("claim_verdicts") or []]
     judged = [c for c in verdicts if c.get("judged")]
+    routed = [c.get("judge_routing") or {} for c in judged]
     return {
         "claims_judged": len(judged),
         "claims_unjudged": len(verdicts) - len(judged),
         "served_models": sorted({c["judged_by"] for c in judged if c.get("judged_by")}),
+        # What the gateway said served each ruling. `strategy` single means the pinned
+        # connection answered directly — no combo, no fallback to another provider.
+        "routing": {
+            "providers": sorted({r["provider"] for r in routed if r.get("provider")}),
+            "models": sorted({r["model"] for r in routed if r.get("model")}),
+            "strategies": sorted(
+                {
+                    s
+                    for r in routed
+                    if r.get("decision")
+                    for s in [_decision_strategy(r["decision"])]
+                    if s
+                }
+            ),
+            "rulings_without_routing": sum(1 for r in routed if not r.get("provider")),
+        },
     }
 
 
@@ -424,6 +483,8 @@ async def judge_citation_support(
     # What the provider says served each ruling — the disclosure half of "a judge that
     # actually answered". None when the response names no model.
     served_by_claim: dict[int, str | None] = {}
+    # And, through a gateway, which connection served it (`gateway_routing`).
+    routing_by_claim: dict[int, dict[str, str | None]] = {}
     for batch_start in range(0, len(claim_evidence), BATCH_SIZE):
         batch = claim_evidence[batch_start : batch_start + BATCH_SIZE]
 
@@ -451,11 +512,13 @@ async def judge_citation_support(
             resp = await llm.ainvoke(messages)
             text = resp.content if isinstance(resp.content, str) else ""
             served = served_model_id(resp)
+            routing = gateway_routing(resp)
             # Parse each "Claim N: YES/NO" line from the response.
             for match in _re.finditer(r"Claim\s+(\d+)\s*:\s*(YES|NO)", text, _re.IGNORECASE):
                 idx = batch_start + int(match.group(1)) - 1
                 verdict_by_claim[idx] = match.group(2).upper() == "YES"
                 served_by_claim[idx] = served
+                routing_by_claim[idx] = routing
         except Exception as e:  # noqa: BLE001 — one failed batch must not sink the run
             # The batch's claims stay UNJUDGED and are excluded from the denominator
             # below. Counting them as unsupported — which this did until M18 — is what
@@ -476,6 +539,9 @@ async def judge_citation_support(
             "supported": verdict_by_claim.get(i),
             "judged": i in verdict_by_claim,
             "judged_by": served_by_claim.get(i),
+            # None for a claim nothing ruled on; a dict of Nones when a ruling came back
+            # through no gateway that reports routing.
+            "judge_routing": routing_by_claim.get(i),
             "cites": metrics.extract_citations(claim),
         }
         for i, claim in enumerate(claims)
