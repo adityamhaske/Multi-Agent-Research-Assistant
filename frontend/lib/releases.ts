@@ -34,7 +34,7 @@ export interface Release {
 export const RELEASES: Release[] = [
   {
     version: "v3.0.0",
-    date: "2026-09-27",
+    date: "2026-09-28",
     headline:
       "You can rewrite how each research agent behaves, and every artifact now records exactly which instructions produced it.",
     improved: [
@@ -66,7 +66,6 @@ export const RELEASES: Release[] = [
       "Cancelling a run still does not interrupt research already in flight \u2014 it runs to its next checkpoint, and the tokens spent there are recorded because they were really spent.",
       "Claim verification is still not implemented, claim lineage across revisions is still not tracked, and contradiction detection is still source-level and unscored.",
     ],
-    unreleased: true,
   },
   {
     version: "v2.1.0",

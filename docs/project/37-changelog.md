@@ -12,7 +12,7 @@ deciding whether to trust the thing, and a changelog with no bad news is marketi
 
 ---
 
-## v3.0.0 — unreleased
+## v3.0.0 — 2026-09-28
 
 You can rewrite how each research agent behaves, and every artifact now records exactly
 which instructions produced it.
