@@ -50,9 +50,25 @@ happens through an API key or an Ollama you supply.
 
 ## Install
 
-**macOS.** Open the `.dmg` and drag the app to Applications. On first launch macOS refuses
-to open it. Either right-click the app → **Open** → **Open**, or go to *System Settings →
-Privacy & Security* and choose **Open Anyway**.
+**macOS.** Open the `.dmg` and drag the app to Applications. Then, once, in Terminal:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Research Assistant.app"
+```
+
+and open the app from Applications.
+
+The build is not signed with an Apple Developer ID or notarized, so macOS blocks it until you
+say otherwise, and this command is how you say it: it clears the flag macOS attaches to every
+downloaded file. `-r` matters — the app starts its engine as a separate program inside the
+bundle, and that file carries the flag too.
+
+**Every macOS build from 1.0.1 to 3.0.0 is reported as "damaged and can't be opened".** Those
+builds were signed only by the linker, so a downloaded copy fails signature verification, and
+macOS treats that as tampering: it offers the Trash and no *Open Anyway*. The command above is
+the only way to open them. From 3.0.1 the whole bundle is signed, CI refuses a disk image
+whose app is not, and a downloaded copy is an ordinary unverified app rather than a damaged
+one.
 
 **Windows.** Run the `.msi`. SmartScreen shows an unrecognised-publisher warning; choose
 **More info** → **Run anyway**.

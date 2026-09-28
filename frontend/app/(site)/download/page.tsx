@@ -72,8 +72,23 @@ interface Platform {
   badgeLabel?: string;
   /** Which machines the artifact runs on, when that is narrower than the OS name says. */
   requirement?: string;
+  /** A command a step tells the reader to run, shown copyable beneath the steps. */
+  command?: string;
   note?: string;
 }
+
+/**
+ * The one command that opens every macOS build this page offers.
+ *
+ * Every macOS build from 1.0.1 to 3.0.0 was signed only by the linker, so a downloaded copy
+ * fails signature verification and macOS calls it "damaged" — a state System Settings
+ * offers no way out of. Clearing the quarantine flag is the only thing that opens those
+ * builds, and it opens later ones too, so it is the step the card leads with rather than a
+ * workaround buried under it. `-r` reaches the engine inside the bundle as well: every file
+ * copied out of a quarantined disk image carries the flag, and the app starts that engine
+ * as a separate program.
+ */
+const MACOS_UNQUARANTINE = 'xattr -dr com.apple.quarantine "/Applications/Research Assistant.app"';
 
 const PLATFORMS: Platform[] = [
   {
@@ -88,12 +103,11 @@ const PLATFORMS: Platform[] = [
       "Apple Silicon Macs only (M1 or later). There is no Intel build: on an Intel Mac, run the Docker / Localhost version below instead.",
     steps: [
       "Open the .dmg and drag the app to Applications.",
-      "Double-click it. macOS refuses to open it and says it cannot verify the developer.",
-      "Open System Settings → Privacy & Security.",
-      'Scroll to Security. A line about the blocked app appears — click "Open Anyway".',
-      "Authenticate, then confirm once more. Only needed the first time.",
+      "Open Terminal and run the command below, once. It lifts the download block macOS puts on the app and on everything inside it, including the research engine the app starts.",
+      "Open Research Assistant from Applications.",
     ],
-    note: "This is the one platform where the friction is real. Apple charges $99/year for the certificate that removes it, and this project does not pay it yet.",
+    command: MACOS_UNQUARANTINE,
+    note: 'The app is not signed with an Apple Developer ID or notarized — Apple charges $99/year for that, and this project does not pay it yet — so macOS blocks it until you say otherwise. Versions up to 3.0.0 go further: macOS calls them "damaged and can\'t be opened", because their signature was incomplete, and the command above is the only way to open them.',
   },
   {
     key: "windows",
@@ -170,6 +184,33 @@ function SeverityChip({
   );
 }
 
+/** A command to paste into a terminal, with a button that copies it exactly. */
+function CommandLine({ command }: { command: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="mt-3 flex items-stretch border border-border bg-bg-elevated">
+      <pre className="min-w-0 flex-1 overflow-x-auto px-3 py-2 font-mono text-xs text-text-primary">
+        <code>{command}</code>
+      </pre>
+      <button
+        type="button"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(command);
+            setCopied(true);
+          } catch {
+            setCopied(false);
+          }
+        }}
+        className="shrink-0 border-l border-border px-3 font-mono text-xs text-text-secondary transition-colors hover:bg-bg-surface hover:text-text-primary"
+        aria-label="Copy the command"
+      >
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
+  );
+}
+
 function PlatformCard({
   platform,
   primary,
@@ -220,6 +261,8 @@ function PlatformCard({
             <li key={step}>{step}</li>
           ))}
         </ol>
+
+        {platform.command && <CommandLine command={platform.command} />}
 
         {platform.note && (
           <p className="mt-3 border-l-2 border-border pl-3 text-xs leading-relaxed text-text-muted">

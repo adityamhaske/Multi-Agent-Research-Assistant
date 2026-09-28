@@ -12,6 +12,45 @@ deciding whether to trust the thing, and a changelog with no bad news is marketi
 
 ---
 
+## v3.0.1 — unreleased
+
+The macOS app opens. Every Mac download before this one was reported as damaged.
+
+**Fixed**
+
+- **macOS builds are signed as a whole bundle.** Every macOS build from 1.0.1 to 3.0.0
+  carried only the ad-hoc signature the linker stamps on an arm64 executable
+  (`flags=adhoc,linker-signed`, `Sealed Resources=none`): nothing signed the `.app`, so
+  `codesign --verify` failed with "code has no resources but signature indicates they must
+  be present". A copy downloaded by a browser carries `com.apple.quarantine`, and Gatekeeper
+  reports a quarantined app whose signature fails verification as "damaged and can't be
+  opened" — no *Open Anyway*, only the Trash. `bundle.macOS.signingIdentity: "-"` in
+  `desktop/tauri.conf.json` now has the bundler ad-hoc sign the binary and then the whole
+  bundle, sealing the engine under `Contents/Resources/sidecar/`, before the disk image is
+  built. It is still not a Developer ID signature and is not notarized.
+- **CI refuses a disk image whose app is not validly signed.** The macOS shell job mounts
+  the `.dmg` it is about to publish and fails if the app inside is only linker-signed,
+  fails `codesign --verify --deep --strict`, or — as a quarantined copy — gets anything
+  from `spctl` other than a policy verdict. Run against the shipped 3.0.0 image (fails:
+  linker-signed), a correctly signed image (passes) and one edited after signing (fails:
+  a sealed resource is invalid).
+- **Install steps that work.** The download page, the release notes and
+  [the desktop guide](../getting-started/23-desktop-app.md) sent Mac users to *Open Anyway*,
+  which the damaged builds never offered, and to right-click → *Open*, which current macOS
+  no longer offers. They now give the command that opens every macOS build, older versions
+  included: `xattr -dr com.apple.quarantine "/Applications/Research Assistant.app"`.
+
+Research is unchanged from 3.0.0.
+
+**Known**
+
+- Desktop builds are still not signed with a publisher certificate or notarized, so macOS
+  blocks the first launch until the download flag is cleared, and Windows shows SmartScreen.
+- Everything listed under 3.0.0's **Known** below still applies, apart from its
+  description of the macOS warning, which this release corrects.
+
+---
+
 ## v3.0.0 — 2026-09-28
 
 You can rewrite how each research agent behaves, and every artifact now records exactly

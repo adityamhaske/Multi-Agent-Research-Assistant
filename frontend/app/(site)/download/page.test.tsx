@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { RELEASES } from "@/lib/releases";
@@ -104,5 +104,19 @@ describe("DownloadPage", () => {
 
     const dockerZip = screen.getByRole("link", { name: /download source \(\.zip\)/i });
     expect(dockerZip.getAttribute("href")).toContain("archive/refs/tags/v2.0.1.zip");
+  });
+
+  // Every macOS build up to 3.0.0 is reported as "damaged" once downloaded — its signature
+  // was incomplete — and System Settings offers no way past that state. The one step that
+  // opens every version this page offers is clearing the quarantine flag, recursively, on
+  // the installed app; a card that led with "Open Anyway" sent people to a button that
+  // never appears for those builds.
+  it("gives macOS the command that opens every offered version, copyable and exact", () => {
+    render(<DownloadPage />);
+    const card = screen.getByRole("region", { name: /macos/i });
+    const command = 'xattr -dr com.apple.quarantine "/Applications/Research Assistant.app"';
+    expect(within(card).getByText(command)).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: /copy the command/i })).toBeInTheDocument();
+    expect(within(card).getByText(/damaged and can.t be opened/i)).toBeInTheDocument();
   });
 });

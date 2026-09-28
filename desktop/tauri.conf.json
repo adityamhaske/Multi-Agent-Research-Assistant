@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Research Assistant",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "identifier": "dev.researchengine.desktop",
   "build": {
     "beforeDevCommand": "npm --prefix ../frontend run dev",
@@ -20,6 +20,9 @@
     "targets": "all",
     "resources": {
       "../backend/dist/research-sidecar/": "sidecar/"
+    },
+    "macOS": {
+      "signingIdentity": "-"
     },
     "icon": [
       "icons/32x32.png",

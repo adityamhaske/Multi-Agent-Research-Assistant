@@ -48,6 +48,41 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "v3.0.1",
+    date: "2026-09-28",
+    headline:
+      "The macOS app opens. Every Mac download before this one was reported as damaged.",
+    improved: [
+      "The macOS app is no longer reported as damaged. Every macOS build from 1.0.1 to 3.0.0 carried only the signature the linker stamps on the executable: nothing signed the app bundle, so its contents were unsealed and signature verification failed. Downloaded by a browser, the app was judged tampered with and macOS offered only to move it to the Trash \u2014 a state with no Open Anyway, so the unblock steps this project published never worked for it. The whole bundle is now signed before the disk image is built.",
+      "A broken signature can no longer ship. CI mounts the disk image it is about to publish and fails the build if the app inside is only linker-signed, fails codesign\u2019s strict verification, or gets anything from Gatekeeper other than a policy verdict. The check was run against the damaged 3.0.0 image, a correctly signed one and one modified after signing, and failed the two it should.",
+      "The install steps describe what actually happens. The download page, the release notes and the desktop guide sent Mac users to an Open Anyway button the damaged builds never offered. They now give the one Terminal command that opens every macOS build, including the older versions the download page still offers.",
+      "Research itself is unchanged from 3.0.0: the engine, its results and the bundle format are the same.",
+    ],
+    improvedSummary:
+      "The macOS app opens. Every Mac build from 1.0.1 to 3.0.0 was signed only by the linker, so a downloaded copy was reported as damaged with no way past it; the whole bundle is now signed, CI refuses an image whose app is not, and the install steps give the one command that opens every version.",
+    known: [
+      "Bundles from this release are format v2, and a verifier from before 3.0.0 refuses them. Check a bundle with the verifier from this release; it still verifies every earlier bundle unchanged.",
+      "Research recorded before 3.0.0 still exports as a v1 bundle with no instructions recorded. Its prompts were never captured, and the bundle does not invent them.",
+      "Research recorded on the earlier pipeline (Sessions) does not apply customized instructions, and says so.",
+      "Customization is per account and applies to every run you start; there is no per-run override, and you cannot add agents of your own.",
+      "Customized instructions are written into the verification bundle in full, so anyone you share a bundle with can read them.",
+      "The default model routing is Google\u2019s Gemini 2.5 models \u2014 2.5 Pro for the planner and synthesizer, 2.5 Flash for the executor, critic and chat \u2014 and Google now limits each 2.5 model to accounts that have used it before. On a key from an account that has not, the first call to that model is refused. Choose other models in Settings \u2192 Models.",
+      "On a fresh desktop install, the demo report the app prepares on first launch fails: it is treated as corpus-only research against an empty corpus, so it finds no evidence. Your own research is unaffected.",
+      "Citation support rests on one run: ten fixed questions on one model routing. It measures whether each claim matches the evidence it cites, not whether the claim is true.",
+      "The share of evidence coming from primary sources is not measured, and is deliberately not estimated. The source URL on a piece of evidence is written by the model, so an invented link would score as a primary source with full confidence.",
+      "Three questions of the scholarly evaluation set carry citation-check records and three are unverified; the set is not yet used to grade anything.",
+      "Retrieval is dense-only; hybrid retrieval was measured against the baseline and did not beat it.",
+      "Desktop builds are still not signed with a publisher certificate or notarized, and do not auto-update. macOS blocks the first launch until you clear the download flag with the Terminal command on the download page; Windows shows SmartScreen.",
+      "Two research pipelines still exist in the backend. The product has one, and research recorded by the earlier one stays readable.",
+      "Follow-up chat scoped to a single report is available on research recorded as a session and not on a run. Project chat, which cites every approved report in a project, covers both.",
+      "Cancelling a run still does not interrupt research already in flight \u2014 it runs to its next checkpoint, and the tokens spent there are recorded because they were really spent.",
+      "Claim verification is still not implemented, claim lineage across revisions is still not tracked, and contradiction detection is still source-level and unscored.",
+    ],
+    knownSummary:
+      "macOS still blocks the first launch until you run one Terminal command, because the build is not notarized. Bundles need a verifier from 3.0.0 or later, custom instructions do not reach research recorded as sessions, and the 96.4% rests on a single run.",
+    unreleased: true,
+  },
+  {
     version: "v3.0.0",
     date: "2026-09-28",
     headline:
@@ -77,7 +112,7 @@ export const RELEASES: Release[] = [
       "The share of evidence coming from primary sources is not measured, and is deliberately not estimated. The source URL on a piece of evidence is written by the model, so an invented link would score as a primary source with full confidence.",
       "Three questions of the scholarly evaluation set carry citation-check records and three are unverified; the set is not yet used to grade anything.",
       "Retrieval is dense-only; hybrid retrieval was measured against the baseline and did not beat it.",
-      "Desktop builds are unsigned and do not auto-update. macOS shows a Gatekeeper block and Windows shows SmartScreen on first launch.",
+      "Desktop builds are unsigned and do not auto-update. macOS shows a Gatekeeper block and Windows shows SmartScreen on first launch. [Corrected 2026-09-28, in 3.0.1: on macOS this was not an ordinary Gatekeeper block. The build was signed only by the linker, so a downloaded copy failed signature verification and macOS reported it as damaged, offering no Open Anyway \u2014 clearing the download flag with the Terminal command on the download page was the only way to open it. The same was true of every macOS build since 1.0.1.]",
       "Two research pipelines still exist in the backend. The product has one, and research recorded by the earlier one stays readable.",
       "Follow-up chat scoped to a single report is available on research recorded as a session and not on a run. Project chat, which cites every approved report in a project, covers both.",
       "Cancelling a run still does not interrupt research already in flight \u2014 it runs to its next checkpoint, and the tokens spent there are recorded because they were really spent.",
