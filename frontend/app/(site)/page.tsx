@@ -4,8 +4,9 @@ import { redirect } from "next/navigation";
 
 import { JsonLd } from "@/components/site/JsonLd";
 import { isDesktop } from "@/lib/desktop";
+import { FEATURES, isNew } from "@/lib/features";
 import { absoluteUrl, isPagesBuild, pageUrls } from "@/lib/pages-build";
-import { latestRelease } from "@/lib/releases";
+import { REPOSITORY_URL, latestRelease, releaseAnchor } from "@/lib/releases";
 
 /**
  * Landing page and app entry point (docs/07 "Components").
@@ -52,7 +53,7 @@ function landingSchema() {
       "offline, with no AI and no network.",
     url: absoluteUrl("/"),
     downloadUrl: absoluteUrl("/download"),
-    codeRepository: "https://github.com/adityamhaske/Multi-Agent-Research-Assistant",
+    codeRepository: REPOSITORY_URL,
     applicationCategory: "ProductivityApplication",
     operatingSystem: "Windows, macOS, Linux, Web",
     softwareVersion: latestRelease()?.version,
@@ -87,7 +88,7 @@ const CLAIMS = [
   },
   {
     title: "You approve the plan before it spends",
-    body: "The run pauses after the planner. Edit the subtopics, pick the report structure, drop what you did not ask for — all before a single search costs anything.",
+    body: "The run pauses after the planner and shows the research areas it chose. Drop what you did not ask for and it is never researched — all before a single search costs anything.",
   },
   {
     title: "Your corpus never has to leave",
@@ -99,11 +100,11 @@ const CLAIMS = [
 // `step.gate` is a type error on the four steps that omit it.
 const PIPELINE: { name: string; note: string; gate?: boolean }[] = [
   { name: "Planner", note: "decomposes the question" },
-  { name: "Design gate", note: "you edit the plan", gate: true },
+  { name: "Design gate", note: "you choose what gets researched", gate: true },
   { name: "Executor ⇄ Critic", note: "gathers and grades evidence" },
   { name: "Synthesizer", note: "writes the cited draft" },
   { name: "Review gate", note: "you approve the draft", gate: true },
-  { name: "Finalizer", note: "report + verifiable export" },
+  { name: "Artifact", note: "frozen when you approve, verifiable offline" },
 ];
 
 export default async function Home() {
@@ -120,6 +121,8 @@ export default async function Home() {
       redirect("/research");
     }
   }
+
+  const latest = latestRelease();
 
   return (
     <>
@@ -180,6 +183,23 @@ export default async function Home() {
               </Link>
             )}
           </div>
+
+          {/* The newest release's own headline, read from `lib/releases.ts` rather than
+              written here, so this line moves with each tag and cannot outlive it. */}
+          {latest && (
+            <p className="mt-8 border-l-2 border-accent pl-3 text-sm leading-relaxed text-text-secondary">
+              <span className="mr-2 font-mono text-[0.6875rem] uppercase tracking-widest text-accent">
+                New in {latest.version}
+              </span>
+              {latest.headline}{" "}
+              <Link
+                href={`/releases#${releaseAnchor(latest.version)}`}
+                className="whitespace-nowrap font-mono text-xs text-accent transition-opacity hover:opacity-80"
+              >
+                What changed →
+              </Link>
+            </p>
+          )}
         </section>
 
         <section aria-labelledby="claims-heading" className="mt-16">
@@ -201,6 +221,47 @@ export default async function Home() {
               </div>
             ))}
           </div>
+        </section>
+
+        <section aria-labelledby="features-heading" className="mt-16">
+          <h2
+            id="features-heading"
+            className="font-serif text-2xl font-bold tracking-tight text-text-primary"
+          >
+            What it does
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">
+            Everything here ships in {latest ? latest.version : "the current release"}.
+            Where a feature has a limit that decides whether it applies to you, its
+            description says so.
+          </p>
+          {/* Ruled rather than boxed: the three claims above are the argument, and this is
+              the inventory — a second wall of cards would give both the same voice. */}
+          <ul className="mt-6 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((feature) => (
+              <li key={feature.title} className="flex flex-col border-t border-border pt-4">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <h3 className="font-serif text-base font-bold text-text-primary">
+                    {feature.title}
+                  </h3>
+                  {isNew(feature) && (
+                    <span className="border border-accent px-1.5 py-0.5 font-mono text-[0.625rem] uppercase tracking-widest text-accent">
+                      New in {feature.since}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-text-secondary">
+                  {feature.body}
+                </p>
+                <Link
+                  href={feature.href}
+                  className="mt-3 inline-flex font-mono text-xs text-accent transition-opacity hover:opacity-80"
+                >
+                  Read more →
+                </Link>
+              </li>
+            ))}
+          </ul>
         </section>
 
         <section aria-labelledby="pipeline-heading" className="mt-16">
@@ -248,9 +309,9 @@ export default async function Home() {
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">
             Every report exports as a{" "}
             <code className="font-mono text-xs">.bundle.json</code> carrying its
-            evidence, its sources, the models actually dialled, and the approval
-            chain — hashed so that editing the report after a human approved it
-            breaks the chain. A standalone verifier checks the whole thing with no
+            evidence, its sources, the models actually dialled, the instructions each
+            agent ran with, and the approval chain — hashed so that editing the report
+            after a human approved it breaks the chain. A standalone verifier checks the whole thing with no
             AI, no network, and no account. Your reviewer does not have to trust
             this tool, or us.
           </p>

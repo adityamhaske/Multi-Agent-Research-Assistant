@@ -14,6 +14,9 @@ research; a record you can interrogate is research.
   Question
      │
      ▼
+  Instructions ───────────────► the prompt each agent runs on, fixed when the run starts
+     │
+     ▼
   Research plan ──────────────► you approve or change it, before any search spends money
      │
      ▼
@@ -97,6 +100,17 @@ and `1` when any fails. It checks six things:
 | `approval_chain` | An approval exists, and its hash is the hash of *this* report |
 
 The verifier needs no network, no API key and no model. It reads one file.
+
+**A bundle also says which instructions produced it.** From 3.0.0, a bundle records every
+prompt the run used — its full text, its SHA-256, and whether you replaced it — and
+`bundle_integrity` fails if any of it was edited afterwards. When any agent ran on replaced
+instructions, the verifier prints a *CUSTOMISED AGENTS* banner above its verdict and lists
+them: every check can pass on a reconfigured run, and whoever reads the result should know
+that before reading what the agents concluded.
+([Agent instructions](../user-guide/38-agent-instructions.md))
+
+Those bundles are format version 2. A verifier from before 3.0.0 refuses them, so use the one
+from 3.0.0 or later, which verifies versions 1 and 2 alike.
 
 **What a passing verification does and does not mean.** It means the artifact is internally
 consistent and has not been altered since it was approved. It does **not** mean the research

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 
-import { RELEASES, latestRelease } from "@/lib/releases";
+import { RELEASES, REPOSITORY_URL, latestRelease } from "@/lib/releases";
 
 /**
  * Download and install (docs/17 §7).
@@ -17,8 +17,6 @@ import { RELEASES, latestRelease } from "@/lib/releases";
  * broken"; the same warning with a reason beside it reads as "this is unsigned", which is
  * the truth.
  */
-
-const REPO = "https://github.com/adityamhaske/Multi-Agent-Research-Assistant";
 
 // Desktop bundles started shipping in v1.0.1. Derived from `lib/releases.ts` so the
 // version lives in exactly one place: the releases page and this button cannot disagree
@@ -51,15 +49,15 @@ function assetUrl(os: OS, version: string): string | null {
     windows: `Research.Assistant_${version}_x64_en-US.msi`,
     linux: `Research.Assistant_${version}_amd64.AppImage`,
   };
-  return `${REPO}/releases/download/v${version}/${assetName[os]}`;
+  return `${REPOSITORY_URL}/releases/download/v${version}/${assetName[os]}`;
 }
 
 function linuxDebUrl(version: string): string {
-  return `${REPO}/releases/download/v${version}/Research.Assistant_${version}_amd64.deb`;
+  return `${REPOSITORY_URL}/releases/download/v${version}/Research.Assistant_${version}_amd64.deb`;
 }
 
 function sourceZipUrl(version: string): string {
-  return `${REPO}/archive/refs/tags/v${version}.zip`;
+  return `${REPOSITORY_URL}/archive/refs/tags/v${version}.zip`;
 }
 
 type OS = "macos" | "windows" | "linux" | "docker" | "unknown";
@@ -125,7 +123,7 @@ const PLATFORMS: Platform[] = [
     severity: "none",
     badgeLabel: "Containerized",
     steps: [
-      "Clone the repository with git clone https://github.com/adityamhaske/Multi-Agent-Research-Assistant.git or download the source .zip.",
+      `Clone the repository with git clone ${REPOSITORY_URL}.git or download the source .zip.`,
       "Run ./start.sh (or docker compose -f docker-compose.full.yml up --build).",
       "Open http://localhost:3031 — the entire stack runs isolated in containers with zero local dependencies.",
     ],

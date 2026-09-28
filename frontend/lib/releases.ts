@@ -13,9 +13,20 @@
  * people most likely to read this page are deciding whether to trust the thing, and a
  * changelog with no bad news is marketing.
  *
+ * **Summaries compress their lists; they never add to them.** The releases page shows
+ * `improvedSummary` and `knownSummary` first and folds the full lists away beneath them, so
+ * most readers see only the summary. A summary may leave items out — that is what the fold
+ * is for — but it may not say anything its list does not, and a `knownSummary` that
+ * softens a gap is the marketing the rule above exists to prevent. Two or three lines at
+ * the page's width; `releases.test.ts` bounds the length.
+ *
  * Keep `version` matching the git tag exactly (`v` prefix included) — the download page
  * and the README badge both point at assets named from it.
  */
+
+/** The repository every release is tagged in. One home: the download page builds its
+ *  installer URLs from it, and the releases page links each version's tag to it. */
+export const REPOSITORY_URL = "https://github.com/adityamhaske/Multi-Agent-Research-Assistant";
 
 export interface Release {
   version: string;
@@ -25,8 +36,12 @@ export interface Release {
   headline: string;
   /** What improved since the previous release, in user-visible terms. */
   improved: string[];
+  /** `improved` in two or three lines — see the summary rule above. */
+  improvedSummary: string;
   /** Known gaps shipped with this release. Empty only when there genuinely are none. */
   known: string[];
+  /** `known` in two or three lines; empty only when `known` is. */
+  knownSummary: string;
   /** True for work merged to main but not yet tagged. */
   unreleased?: boolean;
 }
@@ -48,6 +63,8 @@ export const RELEASES: Release[] = [
       "Stopping research holds wherever the stop lands. On the server, research stopped mid-run could reach the review gate anyway, or lose what it had spent; and on both hosts, research stopped just after it started could be left showing as running. Each case now keeps the stop, and the spend.",
       "Upgrading keeps everything. A desktop data directory written by the real 2.1.0 app \u2014 settings, projects, research on both pipelines, a run waiting at a review gate, and bundles already exported \u2014 was upgraded by the packaged 3.0.0 engine and checked: nothing lost, old bundles still verify, the waiting run can still be approved, and new research carries its instructions.",
     ],
+    improvedSummary:
+      "Each of the five research agents can follow your own instructions, while the checks that keep research honest cannot be rewritten. A run keeps the instructions it started with, and its verification bundle records them. Citation support, now graded by an independent judge, measured 96.4% on ten fixed questions.",
     known: [
       "Bundles from this release are format v2, and a verifier from before 3.0.0 refuses them. Check a bundle with the verifier from this release; it still verifies every earlier bundle unchanged.",
       "Research recorded before 3.0.0 still exports as a v1 bundle with no instructions recorded. Its prompts were never captured, and the bundle does not invent them.",
@@ -66,6 +83,8 @@ export const RELEASES: Release[] = [
       "Cancelling a run still does not interrupt research already in flight \u2014 it runs to its next checkpoint, and the tokens spent there are recorded because they were really spent.",
       "Claim verification is still not implemented, claim lineage across revisions is still not tracked, and contradiction detection is still source-level and unscored.",
     ],
+    knownSummary:
+      "Bundles from this release need a verifier from 3.0.0 or later. Custom instructions apply per account, are readable by anyone you share a bundle with, and do not reach research recorded as sessions. Google limits the default Gemini 2.5 models to accounts that have used them before, and the 96.4% rests on a single run.",
   },
   {
     version: "v2.1.0",
@@ -82,6 +101,8 @@ export const RELEASES: Release[] = [
       "A scripted demo run can no longer pass by doing nothing. Fake mode picked its behaviour by searching the system prompt for hand-typed fragments of its own prose, falling through to an empty result when nothing matched. Rewording any prompt would have routed every scripted test to that branch and left the suite green on a pipeline producing nothing.",
       "The readiness check\u2019s tests no longer depend on the machine they run on. Whether the settings page reported you as ready to research was asserted from a live probe of the developer\u2019s own computer, so the same commit passed or failed depending on whether Ollama happened to be running.",
     ],
+    improvedSummary:
+      "Airgapped corpus mode now holds on the server, not only on the desktop, and follow-up chat no longer loses your newest message past twenty turns. Retrieval quality is measured and published, documents are versioned, operators get Prometheus metrics, and database downgrades work.",
     known: [
       "Citation support is still measured at 90% on a single self-judged local-model run, and that measurement predates 2.0.0. Nothing in this release re-ran it, and it still needs re-running before the number is leaned on.",
       "Retrieval is dense-only. Hybrid retrieval was built and measured against the baseline above, and it did not beat it \u2014 the residual gap is equal-weight fusion of two retrievers of unequal reliability, not the quality of the candidates. It was rejected and reported rather than tuned until it looked better.",
@@ -93,6 +114,8 @@ export const RELEASES: Release[] = [
       "Cancelling a run still does not interrupt research already in flight \u2014 it runs to its next checkpoint, and the tokens spent there are recorded because they were really spent.",
       "Claim verification is still not implemented, claim lineage across revisions is still not tracked, and contradiction detection is still source-level and unscored.",
     ],
+    knownSummary:
+      "The 90% citation-support figure is still one self-judged local-model run from before 2.0.0. Retrieval is dense-only after hybrid retrieval failed to beat it, the share of primary sources is not measured, desktop builds are unsigned, and cancelling does not interrupt research in flight.",
   },
   {
     version: "v2.0.2",
@@ -107,6 +130,8 @@ export const RELEASES: Release[] = [
       "Stopping a run from the desktop now records why in the same place a provider error would — a client reading the failure reason from the run's event history found nothing there for a user-stopped run specifically, even though the reason was visible elsewhere on the same screen.",
       "The desktop app and the server now run the same code for every project, corpus, and research-session operation that does not depend on where a secret is stored — proved by the two literally resolving to one function, not by two implementations that currently happen to agree. A fix to one of these from here on reaches both hosts by construction.",
     ],
+    improvedSummary:
+      "The desktop app now runs the server\u2019s own code for projects, corpora and research sessions instead of a drifted copy. Desktop-only bugs are fixed too: a settings check that always 404\u2019d, a Local preset naming a model you may not have, a routing default echoing your own preference, and a session count stuck at zero.",
     known: [
       "Two research pipelines still exist in the backend. The product has one, and research recorded by the earlier one stays readable; consolidating them is not a patch.",
       "Follow-up chat scoped to a single report is available on research recorded as a session and not on a run. Project chat, which cites every approved report in a project, covers both.",
@@ -115,6 +140,8 @@ export const RELEASES: Release[] = [
       "Corpus-mode research still has no end-to-end test, because it requires a local embedder and the test environment has none.",
       "Citation support is still measured at 90% on a single self-judged local-model run, and that measurement predates 2.0.0. It needs re-running before the number is leaned on.",
     ],
+    knownSummary:
+      "Two research pipelines still exist, and follow-up chat scoped to one report works only on research recorded as a session. Cancelling does not interrupt research in flight, claims carry no per-claim verification, corpus mode has no end-to-end test, and the 90% citation figure needs re-running.",
   },
   {
     version: "v2.0.1",
@@ -138,6 +165,8 @@ export const RELEASES: Release[] = [
       "One way to start research. A second start form existed on the older pipeline, labelled \"legacy\" in its own banner and absent from the navigation; it is gone, along with the version vocabulary that ran through the interface, the API paths and the code.",
       "Research recorded before runs is still readable, chattable and exportable — listed as Sessions, rather than by a version number.",
     ],
+    improvedSummary:
+      "The desktop app can start research, project memory finally indexes approved reports and retrieval returns them, and several wrong measurements are corrected. Research depth now changes how much a run does, a turn\u2019s page reads happen at once, and there is one way to start research, with earlier work listed as Sessions.",
     known: [
       "Two research pipelines still exist in the backend. The product has one, and research recorded by the earlier one stays readable; consolidating them is not a patch.",
       "Follow-up chat scoped to a single report is available on research recorded as a session and not on a run. Project chat, which cites every approved report in a project, covers both.",
@@ -146,6 +175,8 @@ export const RELEASES: Release[] = [
       "Corpus-mode research still has no end-to-end test, because it requires a local embedder and the test environment has none.",
       "Citation support is still measured at 90% on a single self-judged local-model run, and that measurement predates 2.0.0. It needs re-running before the number is leaned on.",
     ],
+    knownSummary:
+      "Two research pipelines still exist, and follow-up chat scoped to one report works only on research recorded as a session. Cancelling does not interrupt research in flight, claims carry no per-claim verification, corpus mode has no end-to-end test, and the 90% citation figure needs re-running.",
   },
   {
     version: "v2.0.0",
@@ -171,6 +202,8 @@ export const RELEASES: Release[] = [
       "Stopping a run now sticks. Cancellation is durable state rather than an advisory event, and every writer that could move a run back out of it refuses to — a stopped run used to reappear minutes later awaiting approval. The tokens spent before the pipeline noticed are still recorded, because they were really spent.",
       "A run that used scripted models says so. Fake mode is selected automatically when no provider key is configured, and runs on it were recorded as real research: the bundle named models nothing had called, at a plausible cost, and the standalone verifier passed it without its demo banner.",
     ],
+    improvedSummary:
+      "A run becomes a structured record \u2014 evidence, sources, claims, conflicts and review decisions you can inspect \u2014 and approving it freezes an artifact a standalone verifier checks offline. A second human gate reviews the plan before any search spends money, reports are versioned, and a stopped run stays stopped.",
     known: [
       "No production database has been migrated. The tooling is validated against disposable copies — including one restored from real production data, which migrated 11 of 11 sessions with no fidelity mismatch — but running it on your own data is your decision and your backup.",
       "Two states are recorded as unimportable rather than repaired: evidence whose source URL was never recorded, and a plan approval for a run with no plan. Neither occurred in the restored-production run.",
@@ -183,6 +216,8 @@ export const RELEASES: Release[] = [
       "The run list returns the most recent runs up to a limit and is not paginated.",
       "Citation support is still measured at 90% on a single self-judged local-model run, and that measurement predates this work. It needs re-running before the number is leaned on.",
     ],
+    knownSummary:
+      "No production database has been migrated from the earlier pipeline; the tooling is validated on disposable copies, and history it cannot recover is recorded as absent. Project memory does not yet ingest runs, claims carry no per-claim verification, and cancelling does not interrupt research in flight.",
   },
   {
     version: "v1.0.2",
@@ -194,9 +229,13 @@ export const RELEASES: Release[] = [
       "The evaluation baseline was corrected to stop scoring a competitor against placeholder text.",
       "CI waits for the worker to be ready instead of sleeping, and a flaky end-to-end run now fails the gate rather than passing quietly on a retry.",
     ],
+    improvedSummary:
+      "Every run limit is opt-in, with 0 meaning unlimited, and a citation snippet must be text that was actually fetched. The evaluation baseline stopped scoring against placeholder text, and a flaky end-to-end run now fails CI instead of passing on a retry.",
     known: [
       "Cost caps remain inert on OpenRouter and custom providers, because the pricing catalog cannot price them. Cap spend at the provider.",
     ],
+    knownSummary:
+      "Cost caps do nothing on OpenRouter and custom providers, because the pricing catalog cannot price them.",
   },
   {
     version: "v1.0.1",
@@ -207,9 +246,13 @@ export const RELEASES: Release[] = [
       "The desktop bundle ships the sidecar it needs. The previous build produced a 5 MB app that passed CI, uploaded cleanly and died on first launch.",
       "Release assets are checksummed under the names they are actually served with, so verification succeeds instead of silently checking nothing.",
     ],
+    improvedSummary:
+      "The desktop installer now contains the engine it needs to start, and release checksums name the files as they are actually served.",
     known: [
       "Builds are unsigned. macOS and Windows will both warn on first launch; the download page explains the unblock steps before you download rather than leaving the OS to explain after.",
     ],
+    knownSummary:
+      "Builds are unsigned, so macOS and Windows warn on first launch.",
   },
   {
     version: "v1.0.0",
@@ -222,13 +265,31 @@ export const RELEASES: Release[] = [
       "Markdown, PDF and hash-verifiable bundle exports, with a standalone offline verifier.",
       "Self-hosting with Docker, bring-your-own-key, and local models through Ollama.",
     ],
+    improvedSummary:
+      "The first release: a planner, executor, critic and synthesizer pipeline with a durable human approval gate, citations that resolve to a source and a verbatim snippet, exports a standalone verifier checks offline, and self-hosting with your own keys or local models.",
     known: [
       "Project memory is Postgres-only, so the desktop build has no cross-report memory.",
     ],
+    knownSummary:
+      "Project memory needs Postgres, so the desktop build has no cross-report memory.",
   },
 ];
 
 /** The newest tagged release — what the download page should offer. */
 export function latestRelease(): Release | null {
   return RELEASES.find((r) => !r.unreleased) ?? null;
+}
+
+/**
+ * The fragment a version's entry answers to on the releases page — the tag itself, so a
+ * link reads `/releases#v3.0.0`. The page's own navigation and the landing page's "what
+ * changed" link both build it here rather than each assuming the other's spelling.
+ */
+export function releaseAnchor(version: string): string {
+  return version;
+}
+
+/** A tagged version's page on GitHub: its notes and every asset attached to the tag. */
+export function releaseTagUrl(version: string): string {
+  return `${REPOSITORY_URL}/releases/tag/${version}`;
 }

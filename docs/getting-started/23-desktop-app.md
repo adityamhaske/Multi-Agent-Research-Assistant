@@ -100,7 +100,8 @@ Search and embedding keys are presented as optional, because they are.
 ## What differs from the server build
 
 The desktop and server are two hosts over one engine. The pipeline, both human gates,
-citation resolution, and the exports are identical. These differ:
+citation resolution, [agent instructions](../user-guide/38-agent-instructions.md), and the
+exports are identical. These differ:
 
 | | Desktop | Server |
 |---|---|---|
@@ -109,10 +110,10 @@ citation resolution, and the exports are identical. These differ:
 | Keys | OS keychain | Encrypted column |
 | Corpus | One `corpus.sqlite` for the app | One file per project |
 | PDF export | The WebView's print-to-PDF | Server-side WeasyPrint |
-| Durable event log | Absent — the bundle records `trace_available: false` rather than an empty trace | `agent_logs` rows |
 | Project chat and project memory | **Absent by design** — project memory is pgvector-only | Available |
 
-Follow-up chat over a report works on both.
+Follow-up chat over one report works on both, for research recorded as a session; a run has
+no report-scoped chat yet on either host.
 
 ## Updates
 

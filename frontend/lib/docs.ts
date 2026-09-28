@@ -173,6 +173,7 @@ const NAV_ORDER: Record<string, string[]> = {
     "user-guide/citations",
     "user-guide/projects-and-memory",
     "user-guide/exports",
+    "user-guide/agent-instructions",
   ],
   architecture: [
     "architecture/system-architecture",

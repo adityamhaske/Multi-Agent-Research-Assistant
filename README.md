@@ -12,7 +12,7 @@
      (frontend/lib/releases.ts) — nothing here to bump when cutting a release. -->
 [![Download](https://img.shields.io/badge/Download-Desktop%20App-2563eb?style=for-the-badge)](https://adityamhaske.github.io/Multi-Agent-Research-Assistant/download/)
 
-macOS, Windows, and Linux desktop builds are on the [download page](https://adityamhaske.github.io/Multi-Agent-Research-Assistant/download/); see the [desktop installation guide](docs/getting-started/23-desktop-app.md) for per-platform setup notes.
+Apple Silicon macOS, Windows, and Linux desktop builds are on the [download page](https://adityamhaske.github.io/Multi-Agent-Research-Assistant/download/); see the [desktop installation guide](docs/getting-started/23-desktop-app.md) for per-platform setup notes.
 
 ---
 
@@ -33,11 +33,38 @@ python -m research_engine.verify_bundle research-abc12345.bundle.json
 Six checks — bundle integrity, report integrity, evidence integrity, citation resolution,
 claim/evidence linkage and the approval chain. Exit `0` when they all pass. A pass means the
 artifact is internally consistent and unaltered since approval; it does not mean the research
-is correct, which is a judgement no checker can make.
+is correct, which is a judgement no checker can make. A bundle also records the prompt every
+agent ran on, and the verifier names any agent whose instructions were replaced.
 
 Every claim carries an inline `[n]` citation that resolves to a real source with the
 verbatim supporting snippet. A citation that *doesn't* resolve renders as a visible ⚠
 "unverified" chip — the system surfaces its own failures instead of hiding them.
+
+## Features
+
+- **Verifiable citations** — every `[n]` resolves to a source and the verbatim snippet behind
+  it; one that does not renders a ⚠ chip instead of rendering clean.
+- **Two human gates** — review the plan before any search spends money, and the draft before
+  anything is final.
+- **A research record, not just a report** — evidence, sources, claims, claim → evidence
+  links and conflicting sources are records you can inspect, and reports are versioned.
+- **Offline verification** — approving freezes an artifact whose `.bundle.json` checks with
+  no network, no model and no account.
+- **Your instructions for each agent** — replace how the planner, executor, critic,
+  synthesizer and follow-up chat behave. The checks that keep research honest cannot be
+  rewritten, and every run records the instructions it ran on.
+  ([Agent instructions](docs/user-guide/38-agent-instructions.md))
+- **Any model, per agent** — Anthropic, Google, OpenAI, OpenRouter, any OpenAI-compatible
+  endpoint, or local models through Ollama, on your own keys.
+- **Your own documents** — a corpus per project, and airgapped corpus-only research that
+  makes no network calls.
+- **Project memory and chat** — project chat answers from the reports you approved and cites
+  them (self-hosted server).
+- **Desktop app or self-hosted** — Apple Silicon macOS, Windows and Linux builds with no
+  Docker, database or login to set up, or the full stack with one Docker command.
+- **Measured, with its caveats** — the 3.0.0 release run measured 96.4% citation support over
+  ten fixed questions, graded by a judge that is none of the models under test.
+  ([What was measured](docs/research/16-citation-fidelity-benchmark.md#8-what-has-actually-been-measured))
 
 ## How it works
 
@@ -46,28 +73,29 @@ The pipeline is a compiled [LangGraph](https://langchain-ai.github.io/langgraph/
 and retries.
 
 ```
-                              ┌────────────── rework (bounded) ──────────────┐
-                              ▼                                              │
-  Query → Planner → ⏸ DESIGN GATE → Executor ⇄ Critic → Synthesizer → ⏸ REVIEW GATE → Finalizer → Report
-                     (edit topics,    (tools)   (fail-   (cited draft)  (approve /              (+ chat,
-                      pick outline)             closed)                  send back)              export)
+                                                             ┌─── rework ────┐
+                                                             ▼               │
+  Query → Planner → ⏸ DESIGN GATE → Executor ⇄ Critic → Synthesizer → ⏸ REVIEW GATE → Artifact
+                     (drop tasks)    (tools)   (fail-     (cited        (approve /   (verifiable
+                                               closed)    draft)          rework)      export)
 ```
 
 - **Planner** decomposes the question into research tasks. Depth (`fast` / `balanced` /
   `comprehensive`) sets how many, and is therefore the main cost dial.
-- **Design gate** pauses *before* anything is searched, so you edit the subtopics and pick
-  the report outline while the run is still free. Drop a task and it is never researched;
-  reword one and that is what gets searched. This is the difference between "the agent
-  picked six queries" and "these are my six subtopics, in my review's structure".
+- **Design gate** pauses *before* anything is searched, so you see the research areas the
+  planner chose — and drop the ones you did not ask for — while the run is still free. A
+  dropped task is never researched. This is the difference between "the agent picked six
+  queries" and "these are the ones I asked for".
 - **Executor** runs real tool calls (`web_search`, `read_webpage`) and returns structured
   evidence.
 - **Critic** grades that evidence and **fails closed** — invalid or missing critic output
   counts as a failure, never a pass — sending weak tasks back within a bounded retry limit.
 - **Review gate** is a real `interrupt()` checkpoint, not a polling loop. State is durably
-  checkpointed and the worker exits; approval **resumes** rather than re-running research
-  you already paid for.
-- **Finalizer** produces the report. Every `[n]` is a chip you can hover for the source
-  title, domain, and the verbatim snippet supporting that claim.
+  checkpointed and the worker exits; a rework **resumes** at the synthesizer with the same
+  evidence rather than re-running research you already paid for.
+- **Approval** freezes the report, its evidence and your decision into a verifiable artifact.
+  Every `[n]` is a chip you can hover for the source title, domain, and the verbatim snippet
+  supporting that claim.
 
 ## Self-host — one command
 
@@ -203,7 +231,7 @@ or in this repository under [`docs/`](docs/00_INDEX.md).
 
 | | |
 | --- | --- |
-| **Using it** | [Running research](docs/user-guide/25-running-research.md) · [Review & approval](docs/user-guide/26-review-and-approval.md) · [Citations](docs/user-guide/27-citations.md) · [Projects & memory](docs/user-guide/28-projects-and-memory.md) · [Exports](docs/user-guide/29-exports.md) |
+| **Using it** | [Running research](docs/user-guide/25-running-research.md) · [Review & approval](docs/user-guide/26-review-and-approval.md) · [Citations](docs/user-guide/27-citations.md) · [Projects & memory](docs/user-guide/28-projects-and-memory.md) · [Exports](docs/user-guide/29-exports.md) · [Agent instructions](docs/user-guide/38-agent-instructions.md) |
 | **How it works** | [System architecture](docs/architecture/02-system-architecture.md) · [Agent architecture](docs/architecture/04-agent-architecture.md) · [Data model](docs/architecture/05-data-model.md) · [Local & self-hosted](docs/architecture/13-local-and-self-hosted.md) · [Security](docs/architecture/06-security.md) |
 | **Running it** | [Docker](docs/deployment/09-docker.md) · [Production](docs/deployment/30-production.md) · [Operations](docs/deployment/31-operations.md) |
 | **Changing it** | [Development](docs/developers/32-development.md) · [Testing & evaluation](docs/developers/08-testing-and-evaluation.md) · [Engineering guidelines](docs/developers/11-engineering-guidelines.md) · [Contributing](docs/developers/33-contributing.md) |
