@@ -155,9 +155,22 @@ A known issue on a fresh install: the demo is created as corpus-only research ag
 that is still empty, so it finds no evidence and ends as failed. Your own research is
 unaffected. See [Desktop app](23-desktop-app.md#first-run).
 
+**macOS says "“Research Assistant.app” is damaged and can't be opened"**
+The app is not damaged. Every macOS build from 1.0.1 to 3.0.0 was signed only by the linker,
+so a copy downloaded by a browser fails signature verification, and macOS reports that as
+damage — with no *Open Anyway* to click. Move the app to Applications and run, once:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Research Assistant.app"
+```
+
+That clears the download flag from the app and from the engine inside it, and the app opens.
+Reinstalling does not help: every fresh download carries the flag again. Builds from 3.0.1 are
+signed as a whole bundle and are never reported as damaged; the same command opens them.
+
 **macOS blocks the app, or Windows shows SmartScreen**
-The builds are unsigned. The unblock steps are in [Desktop app](23-desktop-app.md), and on the
-download page beside each installer.
+The builds are not signed with a publisher certificate. The unblock steps are in
+[Desktop app](23-desktop-app.md), and on the download page beside each installer.
 
 ## Development
 

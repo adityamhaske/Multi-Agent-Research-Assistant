@@ -396,6 +396,54 @@ jobs:
             exit 1
           fi
           echo "bundled sidecar copy confirms its own commit: $got"
+      - name: The app inside the published disk image has a valid signature
+        if: runner.os == 'macOS'
+        shell: bash
+        # Every macOS build from 1.0.1 to 3.0.0 shipped with only the signature the linker
+        # stamps on an arm64 executable: nothing signed the bundle, so its resources were
+        # unsealed and `codesign --verify` failed with "code has no resources but signature
+        # indicates they must be present". A copy downloaded by a browser carries the
+        # quarantine flag, and Gatekeeper reports a quarantined app whose signature fails
+        # verification as "damaged and can't be opened" — no Open Anyway, only the Trash.
+        # Every earlier check passed, because none of them looked at the signature, and
+        # none of them saw what a downloaded copy sees.
+        #
+        # `bundle.macOS.signingIdentity: "-"` in tauri.conf.json now ad-hoc signs the whole
+        # bundle before the image is built. This checks the image itself — the file users
+        # download — rather than the build directory, and asks Gatekeeper about a
+        # quarantined copy: a valid but un-notarized signature gets a policy verdict
+        # ("rejected", cleared by Open Anyway), while a broken one gets the damage message.
+        run: |
+          set -euo pipefail
+          dmg=$(find desktop/target/release/bundle/dmg -name '*.dmg' -print -quit)
+          if [ -z "$dmg" ]; then
+            echo "::error::no .dmg in the bundle output"
+            exit 1
+          fi
+          mnt=$(mktemp -d)
+          hdiutil attach -nobrowse -readonly -noverify -mountpoint "$mnt" "$dmg" >/dev/null
+          trap 'hdiutil detach -quiet "$mnt" || true' EXIT
+          app=$(find "$mnt" -maxdepth 1 -name '*.app' -print -quit)
+          if [ -z "$app" ]; then
+            echo "::error::no .app inside $dmg"
+            exit 1
+          fi
+          info=$(codesign -dv "$app" 2>&1 || true)
+          echo "$info" | grep -E 'flags=|Signature=|Sealed Resources' || true
+          if echo "$info" | grep -q 'linker-signed'; then
+            echo "::error::$(basename "$app") carries only the linker's signature — macOS reports a downloaded copy as damaged"
+            exit 1
+          fi
+          codesign --verify --deep --strict --verbose=2 "$app"
+          copy="$(mktemp -d)/$(basename "$app")"
+          ditto "$app" "$copy"
+          xattr -w com.apple.quarantine "0081;$(printf '%x' "$(date +%s)");Safari;" "$copy"
+          verdict=$(spctl --assess --type execute -vv "$copy" 2>&1 || true)
+          echo "Gatekeeper on a quarantined copy: $verdict"
+          if ! echo "$verdict" | grep -qE ': (rejected|accepted)$'; then
+            echo "::error::Gatekeeper does not reach a policy verdict — a downloaded copy would be reported as damaged"
+            exit 1
+          fi
       - name: Upload shell bundle
         uses: actions/upload-artifact@v7
         with:
@@ -466,7 +514,7 @@ jobs:
 
             | OS | What you will see | What to do |
             |---|---|---|
-            | macOS | "Apple could not verify this app is free of malware" | System Settings → Privacy & Security → **Open Anyway** |
+            | macOS | A block on first launch — the app is not signed with an Apple Developer ID or notarized | Drag the app to Applications, then run `xattr -dr com.apple.quarantine "/Applications/Research Assistant.app"` in Terminal once |
             | Windows | SmartScreen warning | **More info** → **Run anyway** |
             | Linux | AppImage is not executable | `chmod +x *.AppImage` (`.deb` needs nothing) |
 
