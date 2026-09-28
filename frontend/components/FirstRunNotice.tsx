@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { useReadiness } from "@/hooks/queries";
+import { isDesktop } from "@/lib/desktop";
 
 /**
  * Shown when the user has no way to run research yet (docs/17 §8a).
@@ -55,12 +56,19 @@ export function FirstRunNotice() {
         <Link href="/settings" className="btn btn-primary">
           Connect a model
         </Link>
-        {/* The demo is the honest alternative to "now go buy an API key" as a first
-            experience — it needs nothing, and it is stamped everywhere it goes. */}
-        <span className="font-mono text-xs text-text-muted">
-          or tick <span className="font-semibold">Demo run</span> under Options to see the
-          pipeline work with no key at all
-        </span>
+        {/* The keyless path this build actually has, never a control that does not exist.
+            A self-hosted stack has one: `./start.sh --fake` runs the real graph on scripted
+            models and fixture sources and stamps every run as a demo — and it is what
+            `start.sh` falls back to on its own when `.env` has no provider key. The desktop
+            app has no such switch, so on the desktop this offers nothing rather than a path
+            that is not there. */}
+        {!isDesktop && (
+          <span className="font-mono text-xs text-text-muted">
+            or, with no key at all, start the stack with{" "}
+            <code className="font-semibold">./start.sh --fake</code> — scripted models on
+            fixture sources, and every run is stamped as a demo
+          </span>
+        )}
       </div>
     </div>
   );
