@@ -12,6 +12,104 @@ deciding whether to trust the thing, and a changelog with no bad news is marketi
 
 ---
 
+## v3.0.0 — unreleased
+
+You can rewrite how each research agent behaves, and every artifact now records exactly
+which instructions produced it.
+
+**Added**
+
+- **Custom agent instructions.** Each of the five public roles — planner, executor, critic,
+  synthesizer and follow-up chat — can run on a user's own instructions instead of the
+  shipped prompt. Settings → Agents edits them one role at a time, starting from the prompt
+  that runs today, and resets any role independently. The limit is 2,500 characters per
+  role; an empty or whitespace-only body is rejected rather than read as a reset (`null` is
+  the reset).
+- **Protected purposes.** Five roles fan out across nine prompts, and eligibility is per
+  prompt, not per role. Citation verification, contradiction detection, report repair and
+  the project-chat refusal line always compose the shipped prompt, decided in one function
+  (`prompt_composition::system_prompt`) before any override is read.
+- **A run keeps the instructions it started with.** Overrides are resolved once, at start,
+  into `research_runs.effective_prompt_overrides`, so an edit made while a run waits at a
+  review gate applies to the next run and never to the half-written one.
+- **Bundle format v2.** Every run's bundle records each prompt the pipeline composed: its
+  full text, its SHA-256 and whether it was replaced, plus the run's
+  `prompt_overrides_status` (`NONE`, `APPLIED` or `UNUSABLE`). The provenance is inside the
+  bundle hash, so editing it breaks `bundle_integrity`. The standalone verifier accepts v1
+  and v2 and prints the provenance beside its verdict.
+- **Disclosure in the app.** A run's artifact panel names the roles that ran on replaced
+  instructions, and research recorded on the earlier pipeline says when it ignored
+  instructions it was configured with.
+- **Custom-spec evaluation.** `python -m evals.harness --candidate spec.json` runs the fixed
+  query set under the shipped prompts and under the candidate, against the same thresholds,
+  and reports both.
+
+**Changed**
+
+- **The citation judge is named, independent and disclosed.** The harness graded citation
+  support with `get_llm("critic")` — the pipeline's own critic — and recorded no judge. A
+  real-mode report eval now requires `--judge provider:model` and refuses, before any
+  query runs, a judge that is a pipeline route, the same model under another provider or
+  spelling, or a router alias. The result carries a `judge` block beside `models`, and each
+  claim verdict records the model the provider says answered. The release run,
+  `backend/evals/results/eval-2026-09-28-custom-custom.json`, is the first result graded this
+  way: every pipeline role on `custom:antigravity/gemini-2.5-flash`, judged by
+  `custom:kiro/claude-sonnet-4.5`, and every ruling records who served it (`kr` /
+  `claude-sonnet-4.5` / `single`). Under the shipped prompts it completed 10 of 10 and measured
+  citation support at 0.9638, clearing both thresholds. The planner-only candidate on the same
+  run completed 8 of 10 and measured 0.9389 — below both; its two incomplete queries were
+  provider outages, recorded as unmeasured.
+- **A release tag must name `VERSION`.** `scripts/sync_version.py --tag` runs in both
+  release workflows before anything is built, so a tag pushed ahead of its version bump
+  fails instead of publishing mislabelled installers and images.
+- **A refused preference gets the same 422 body on both hosts.** The desktop validated the
+  preferences object on its own, so a refused override came back located at
+  `["prompt_overrides"]` without the rejected `input`; it now raises the server's own
+  validation error, located from `body`, and the two bodies are identical (scope freeze
+  §7), pinned by `test_prompt_override_422_parity.py`. The message the UI shows is
+  unchanged.
+- **The packaged app is checked for what V3 ships.** The desktop workflow's frozen-app
+  smoke now asserts the bundle is v2 with provenance, that Settings → Agents' route answers,
+  and that a saved override reaches the next run's bundle as `APPLIED`.
+- **The v2.1.0 → V3 desktop upgrade is tested against a real v2.1.0 install.** A fixture
+  written by the v2.1.0 sidecar itself — preferences, a project, research on both pipelines,
+  a run waiting at a gate and its exported bundles — is upgraded on every CI run, and
+  `scripts/check_packaged_upgrade.py` repeats the journey against a packaged build.
+
+**Known**
+
+- Bundles from this release are format v2, and a verifier from before 3.0.0 refuses them.
+  The current verifier still verifies every v1 bundle unchanged.
+- Research recorded before 3.0.0 re-exports as v1: its prompts were never captured, and the
+  assembler does not invent them.
+- Sessions (the earlier pipeline) do not apply custom instructions; they record and show
+  that they ignored them.
+- Customization is per account. There is no per-run override and no user-defined agent.
+- Custom instructions are written into the bundle in full, so anyone a bundle is shared
+  with can read them.
+- The default routing is Google's Gemini 2.5 models — `gemini-2.5-pro` for the planner and
+  synthesizer, `gemini-2.5-flash` for the executor, critic and chat — and Google now limits
+  each 2.5 model to accounts that have used it before (its deprecations page, read
+  2026-09-27). On a key from an account that has not, the first call to that model is
+  refused — the maintainer's key got 404 "no longer available to new users" from
+  `gemini-2.5-pro` while `gemini-2.5-flash` still answered. Choose other models in
+  Settings → Models.
+- On a fresh desktop install the first-launch demo fails: `sessions.corpus_mode` is created
+  with the text default `'false'`, which reads back as true on SQLite, so the demo runs as
+  corpus-only against an empty corpus. Present in 2.1.0 as well; user research is
+  unaffected.
+- Citation support rests on one run: ten fixed questions on one model routing, judged by a
+  model rather than a person. It measures whether a claim matches the evidence it cites, not
+  whether the claim is true. Cost was not measured: `custom:` routes carry no price.
+- The share of evidence from primary sources is not measured, and deliberately not
+  estimated.
+- Retrieval is dense-only. Desktop builds are unsigned and do not auto-update. Two research
+  pipelines still exist in the backend. Report-scoped follow-up chat exists only on
+  sessions. Cancelling a run does not interrupt work in flight. Claim verification and
+  claim lineage are not implemented.
+
+---
+
 ## v2.1.0 — 2026-09-19
 
 Two claims the product makes about itself turned out not to hold, and the things that
@@ -100,6 +198,12 @@ would have caught them did not exist.
   review, and their rubrics were written without a human opening a cited paper. A rubric
   naming the wrong study would penalize a *correct* answer, so the set grades nothing until
   a domain reader checks it.
+  - **Corrected 2026-09-27, in 3.0.0:** this overstated it. The repository's own records
+    (`backend/evals/queries_scholarly_rubric.json`) show three of the six surviving
+    questions carry citation-check records dated 2026-08-16 — two `verified`, one
+    `verified_with_caveat` — each stating that the works it names were looked up against the
+    published record. The other three are `unverified`. The records do not say who performed
+    the checks.
 - Desktop builds are unsigned and do not auto-update.
 - Two research pipelines still exist in the backend. The product has one, and research
   recorded by the earlier one stays readable; consolidating the two is not a patch.

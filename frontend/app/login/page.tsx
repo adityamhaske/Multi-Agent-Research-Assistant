@@ -322,16 +322,17 @@ export default function LoginPage() {
                     <tr>
                       <td className="py-2 pr-4 font-medium text-text-primary">Citation Support Fidelity</td>
                       <td className="py-2 px-4">≥ 95.0% Snippet-Claim Match</td>
-                      {/* 90%, not 95.2%. The 95.2% here came from eval-2026-08-03 under
-                          metrics v2, and metrics.py's own changelog states v2 is not
-                          comparable to v3/v4 — the claim denominator changed twice. The
-                          number below is the latest committed real-model run
-                          (eval-2026-08-13-ollama-run7.json, metrics v3), which records
-                          citation_support_ok: false. It MISSES the standard beside it, so
-                          it is not rendered in success green: this product's whole claim
-                          is that it shows its own misses. */}
-                      <td className="py-2 pl-4 text-warning font-semibold">
-                        90% — 2026-08-13, metrics v3
+                      {/* The latest committed real-model run, and the first graded by an
+                          independent judge rather than the pipeline's own critic:
+                          eval-2026-09-28-custom-custom.json (metrics v4, shipped prompts),
+                          which records citation_support_ok: true. Earlier numbers are not
+                          comparable with it — the 95.2% of eval-2026-08-03 is metrics v2,
+                          whose claim denominator has changed twice since, and the 90% of
+                          eval-2026-08-13-ollama-run7 was self-judged. Green because it meets
+                          the standard beside it; a miss is rendered as a miss, because this
+                          product's whole claim is that it shows its own. */}
+                      <td className="py-2 pl-4 text-success font-semibold">
+                        96.4% — 2026-09-28, metrics v4
                       </td>
                     </tr>
                     <tr>

@@ -260,7 +260,9 @@ function RunHeader({ graph, live }: { graph: RunGraph; live: boolean }) {
           <p className="mb-2 font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-wider text-text-muted">
             Evidence Chain Overview
           </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {/* A <dl>: each figure is a dt/dd pair grouped in a div, the pattern ReviewPanel
+              uses. The pairs were once loose in a plain div, which is not valid HTML. */}
+          <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <div className="border border-border bg-bg-surface p-2.5">
               <dt className="text-[length:var(--text-micro)] uppercase tracking-wider text-text-muted">
                 Claims
@@ -324,7 +326,7 @@ function RunHeader({ graph, live }: { graph: RunGraph; live: boolean }) {
                 </span>
               </dd>
             </div>
-          </div>
+          </dl>
         </div>
       )}
     </header>

@@ -64,6 +64,9 @@ logs/
 data/
 *.sqlite
 *.sqlite-*
+# The one exception: a real v2.1.0 install's databases, kept as the upgrade fixture
+# (scripts/make_upgrade_fixture.py). Every other SQLite file is a runtime artifact.
+!backend/tests/fixtures/upgrade/*/*.sqlite
 # Redis snapshot, written into the working directory by a locally started redis-server.
 *.rdb
 

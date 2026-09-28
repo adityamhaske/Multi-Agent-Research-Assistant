@@ -72,15 +72,22 @@ interface Platform {
   steps: string[];
   severity: "high" | "low" | "none";
   badgeLabel?: string;
+  /** Which machines the artifact runs on, when that is narrower than the OS name says. */
+  requirement?: string;
   note?: string;
 }
 
 const PLATFORMS: Platform[] = [
   {
     key: "macos",
-    label: "macOS",
+    // The only macOS build is `…_aarch64.dmg` (desktop.yml builds on macos-latest, which is
+    // arm64), and a browser cannot tell an Intel Mac from an Apple Silicon one — Safari
+    // reports "Intel Mac OS X" on both — so the card has to say it, not the detector.
+    label: "macOS — Apple Silicon (M1+)",
     artifact: ".dmg",
     severity: "high",
+    requirement:
+      "Apple Silicon Macs only (M1 or later). There is no Intel build: on an Intel Mac, run the Docker / Localhost version below instead.",
     steps: [
       "Open the .dmg and drag the app to Applications.",
       "Double-click it. macOS refuses to open it and says it cannot verify the developer.",
@@ -203,6 +210,12 @@ function PlatformCard({
             labelOverride={platform.badgeLabel}
           />
         </div>
+
+        {platform.requirement && (
+          <p className="mt-2 text-sm font-medium leading-relaxed text-text-primary">
+            {platform.requirement}
+          </p>
+        )}
 
         <ol className="mt-3 flex list-decimal flex-col gap-1.5 pl-5 text-sm leading-relaxed text-text-secondary">
           {platform.steps.map((step) => (
@@ -388,10 +401,12 @@ export default function DownloadPage() {
           All downloads &amp; checksums →
         </Link>
         {/* Measured on the arm64 build: an 81 MB .dmg that installs to 182 MB. Only
-              macOS has actually been built and launched, so only macOS gets a number. */}
+              macOS has actually been built and launched, so only macOS gets a number. The
+              architectures are the ones desktop.yml builds — arm64 macOS, x64 Windows,
+              x86-64 Linux — and nothing broader is claimed. */}
         <span className="font-mono text-xs text-text-muted">
-          ~80 MB download, ~180 MB installed (macOS) · runs on any laptop from
-          the last decade
+          ~80 MB download, ~180 MB installed (macOS) · desktop builds for Apple Silicon
+          Macs and 64-bit (x86-64) Windows and Linux
         </span>
       </div>
 

@@ -136,7 +136,7 @@ from app.services import (
 )
 from app.services.chat_history import recent_turns
 from app.services.delegation import delegates_to
-from app.services.error_responses import install_error_handlers
+from app.services.error_responses import body_validation_error, install_error_handlers
 from app.services.event_stream import sse_frames
 from app.services.preferences import merge_preferences
 from app.services.run_config import (
@@ -1145,13 +1145,9 @@ def create_sidecar_app(
             try:
                 validated = UserPreferences.model_validate(body["preferences"])
             except ValidationError as e:
-                # `include_context=False` matters: pydantic puts the live `ValueError` in
-                # each error's `ctx`, and FastAPI cannot serialise that — the response would
-                # fail to render and the client would see a 500 instead of the refusal.
-                raise HTTPException(
-                    status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    e.errors(include_url=False, include_context=False, include_input=False),
-                ) from e
+                # The server's own 422, not a lookalike (scope freeze §7): FastAPI's default
+                # handler renders it, as it renders the server's.
+                raise body_validation_error(e, at=("preferences",)) from e
             user.preferences = merge_preferences(
                 user.preferences, validated.model_dump(exclude_unset=True)
             )

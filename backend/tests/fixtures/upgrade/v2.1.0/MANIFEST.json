@@ -1,0 +1,64 @@
+{
+  "generated_by": "scripts/make_upgrade_fixture.py",
+  "generated_at": "2026-09-27T15:43:28+00:00",
+  "launched_as": "source checkout of the v2.1.0 tag",
+  "sidecar": {
+    "version": "2.1.0",
+    "git_sha": "4580ac06e7e5ef214b55fcad580e4a40b3689f30"
+  },
+  "demo_session_id": "1e750791-f09e-4b99-812b-a1fe4b9c0c8d",
+  "demo_session_status": "FAILED",
+  "session_completed_id": "0e5fb77b-5112-435c-8089-0044bcc75eb7",
+  "project_id": "a3842f50-c9cd-4322-a636-4e66aa386bd6",
+  "run_completed_id": "78bdf60c-76ed-4eaf-891e-b424b29b95da",
+  "run_awaiting_review_id": "b4c7a5ad-45a2-4237-9622-a5e31f29472b",
+  "preferences": {
+    "retrieval_k": 6,
+    "density": "compact"
+  },
+  "row_counts": {
+    "cache.sqlite": {
+      "search_cache": 0
+    },
+    "checkpoints.sqlite": {
+      "checkpoints": 31,
+      "writes": 211
+    },
+    "corpus.sqlite": {
+      "corpus_chunks": 0,
+      "corpus_documents": 0,
+      "corpus_meta": 1
+    },
+    "desktop.sqlite": {
+      "agent_logs": 70,
+      "audit_events": 4,
+      "audit_log": 1,
+      "chat_messages": 0,
+      "chat_threads": 0,
+      "claim_annotations": 0,
+      "claim_evidence_links": 20,
+      "claims": 16,
+      "contradictions": 0,
+      "evidence": 8,
+      "projects": 2,
+      "refresh_tokens": 0,
+      "research_artifacts": 1,
+      "research_plans": 2,
+      "research_runs": 2,
+      "reviews": 3,
+      "revisions": 2,
+      "sessions": 2,
+      "sources": 4,
+      "users": 1
+    }
+  },
+  "files": {
+    "cache.sqlite": "5c34bd1195575cd9611c65f2f4d97601523e5d05fe187d9591e90091d467bb6c",
+    "checkpoints.sqlite": "617288cd95f7862ca1a3fe9a23ed97ffaf4ad922cbefd2ae8582cd9644a82738",
+    "corpus.sqlite": "21ac64320583d5978a7a7dc7a2889f32a77ff86821ed4d7d3ea5ca7925c813b3",
+    "demo_seeded.json": "d6906e858397894dd4c3d2bcfc89a2ed162df43e6c70922988ca5ca8b50fdc22",
+    "desktop.sqlite": "e57820cc50f39c6dfe689ec197811369a6bd45bb380ba4515eb8d83e5a9a5cd9",
+    "run-completed.bundle.json": "74620220b8a72580bb02d7dec9c1b9e5e672db192a9a271a35112e97282d5c73",
+    "session-completed.bundle.json": "4cc5ad0859cca0d224a11a461acbf4773fe2ba052cb6215a1b37801cf69e90e9"
+  }
+}

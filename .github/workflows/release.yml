@@ -47,6 +47,12 @@ jobs:
         platform: [linux/amd64, linux/arm64]
     steps:
       - uses: actions/checkout@v7
+      - name: The tag names VERSION
+        # Before anything is pushed. `desktop.yml` runs the same guard, and both publish to
+        # one GitHub Release: either alone would still let the other ship artifacts
+        # labelled with a version the tag does not name.
+        if: startsWith(github.ref, 'refs/tags/')
+        run: python3 scripts/sync_version.py --tag "$GITHUB_REF_NAME"
       - name: Derive image name and artifact-safe platform name
         # `github.repository` preserves the repo's capitalisation, but Docker refs must be
         # lowercase — pushing with it raw fails on "must be lowercase". metadata-action

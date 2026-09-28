@@ -107,7 +107,8 @@ must be `http(s)`; they render in an `<img>`.
 leaves the others alone, and `{"planner": null}` resets that role to its shipped prompt. Keys
 are the five roles only; a value must be non-empty text of at most 2,500 characters. An empty
 or whitespace-only string is refused rather than read as a reset. Both hosts validate with the
-same model, so a refusal is a `422` carrying the same message on either.
+same model and answer a refusal with an identical `422` body — FastAPI's own validation error,
+each entry located from `body` (for example `["body", "preferences", "prompt_overrides"]`).
 
 ### `POST /auth/me/password`
 

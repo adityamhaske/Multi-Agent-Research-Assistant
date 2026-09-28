@@ -80,9 +80,10 @@ format:
 	cd backend && . .venv/bin/activate && ruff format app/ research_engine/ tests/ evals/ && ruff check --fix app/ research_engine/ tests/ evals/
 
 ## ─── Evals (docs/08 §5) ─────────────────────────────────────────────────────────
-# Fake mode by default (deterministic, no keys). Real: LLM_MODE=real GOOGLE_API_KEY=… make eval
+# Fake mode by default (deterministic, no keys). Real mode needs an independent judge (RG-5):
+#   LLM_MODE=real make eval EVAL_ARGS="--judge anthropic:claude-sonnet-4-6"
 eval:
-	cd backend && . .venv/bin/activate && python -m evals.harness
+	cd backend && . .venv/bin/activate && python -m evals.harness $(EVAL_ARGS)
 
 help:
 	@grep -E '^[a-zA-Z_-]+:' Makefile | grep -v '.PHONY' | sed 's/:.*//' | sort | column

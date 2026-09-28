@@ -95,6 +95,7 @@ async def test_a_live_malicious_override_never_reaches_the_judge(monkeypatch):
     """
     judge = _CapturingLLM()
     monkeypatch.setattr("research_engine.llm_factory.get_llm", lambda role: judge)
+    monkeypatch.setattr(harness, "JUDGE_ROUTE", "anthropic:independent-judge")
 
     token = set_run_config(RunConfig(prompt_overrides=EVERY_ROLE))
     try:

@@ -71,6 +71,21 @@ describe("DownloadPage", () => {
     expect(dockerGuide).toHaveClass("btn-secondary");
   });
 
+  it("says the Mac build is Apple Silicon only, and where an Intel Mac goes instead", () => {
+    render(<DownloadPage />);
+    expect(
+      screen.getByRole("heading", { name: "macOS — Apple Silicon (M1+)" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/There is no Intel build/)).toHaveTextContent(/Docker \/ Localhost/);
+  });
+
+  it("claims no compatibility broader than the builds that exist", () => {
+    const { container } = render(<DownloadPage />);
+    expect(container).not.toHaveTextContent(/last decade/);
+    expect(container).not.toHaveTextContent(/any laptop/);
+    expect(container).toHaveTextContent(/Apple Silicon\s+Macs and 64-bit \(x86-64\) Windows and Linux/);
+  });
+
   it("updates download links when a different version is selected", () => {
     render(<DownloadPage />);
     const select = screen.getByLabelText(/version/i) as HTMLSelectElement;

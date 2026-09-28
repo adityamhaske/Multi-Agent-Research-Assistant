@@ -214,7 +214,46 @@ The project's own evaluation harness — a different thing from the benchmark ab
 this pipeline alone with no comparison — has been run against real models several times, and
 those results are committed under `backend/evals/results/`.
 
-The most recent real-model run, `eval-2026-08-13-ollama-run7.json`, 10 queries:
+The most recent real-model run is the V3.0.0 release run,
+`eval-2026-09-28-custom-custom.json`, and it is the first graded by an independent judge.
+10 queries, shipped prompts:
+
+| Metric | Result |
+|---|---|
+| Reports completed | 10 / 10 |
+| Citation support rate | 0.9638 |
+| Citation resolution rate | 1.0 |
+| Uncited claims | 2.8 per report (mean) |
+| Latency | 82 s per report (mean) |
+| Cost | Not measured — `custom:` routes carry no price, so the file's $0.00 is not a cost |
+
+How it was run, because the number means nothing without it:
+
+- **System under test:** every pipeline role on Gemini 2.5 Flash
+  (`custom:antigravity/gemini-2.5-flash`) through a local OmniRoute router, one research task
+  at a time (`method.limits.max_parallel_tasks = 1`). Search was Tavily.
+- **Judge:** Claude Sonnet 4.5 (`custom:kiro/claude-sonnet-4.5`) through the same router — a
+  different vendor from every model under test. Each of its 214 rulings records the router's
+  own answer to who served it: provider `kr`, model `claude-sonnet-4.5`, strategy `single`.
+
+**Stated plainly, because these caveats are the point of the page:**
+
+- It **clears both release thresholds**: support 0.9638 against 0.95, completion 1.0 against
+  0.90. The lowest single query scored 0.9333.
+- The judge is independent of the pipeline, but it is a model, not a human.
+- Support rate answers "is this claim supported by what we extracted from the source it
+  cites?", which is weaker than "is this claim true".
+- Ten queries is a small set, and one model routing is one data point. Quality tracks the
+  models a user routes at; this says nothing about a weaker one.
+
+The same file holds a custom-spec comparison: the same ten queries under a planner-only
+candidate (`backend/evals/candidates/v3-release-planner.json`). It completed 8 of 10 and
+measured 0.9389 support over those 8 — below both thresholds, and reported rather than
+refused. Its two incomplete queries were provider outages, not candidate output: the router
+answered `502` "Provider returned empty content" for the pipeline model until the client gave
+up, and the harness recorded both as incomplete and their support as unmeasured.
+
+The previous real-model run, `eval-2026-08-13-ollama-run7.json`, 10 queries:
 
 | Metric | Result |
 |---|---|
@@ -225,17 +264,15 @@ The most recent real-model run, `eval-2026-08-13-ollama-run7.json`, 10 queries:
 | Latency | 514 s per report (mean) |
 | Cost | $0.00 — local models |
 
-**Stated plainly, because these caveats are the point of the page:**
-
 - It **misses the 0.95 release threshold**.
 - It is **self-judged**: the grader was the same local model that wrote the report — not a
   human, and not an independent model. That violates principle 2 of the methodology above,
-  which is exactly why this is not presented as a benchmark result.
-- Support rate answers "is this claim supported by what we extracted from the source it
-  cites?", which is weaker than "is this claim true".
-- Ten queries is a small set.
+  and it was the harness's behaviour until V3: every run before the release run is
+  self-judged.
 
-Treat it as a regression signal, not a benchmark. A hosted-model run on the same set
+Treat the older runs as regression signals, not benchmarks, and do not compare them with the
+release run: they were self-judged, on other routings, and some under earlier metric
+definitions. A hosted-model run on the same set
 (`eval-2026-08-03.json`) recorded 0.9517 support and 0.9618 resolution across 10/10
 completions, and `eval-2026-08-13-gemini.json` recorded **0 completions with every metric
 `null`** — a run where the provider failed, preserved as evidence rather than deleted, and

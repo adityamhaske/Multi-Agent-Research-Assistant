@@ -32,6 +32,14 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: backend/requirements.txt
+      # A tag publishes what this job builds, and the installers are named from
+      # `tauri.conf.json`, not from the tag. Checked before anything is built, so a tag pushed
+      # ahead of its version bump fails here rather than releasing installers labelled with
+      # the previous version. `release.yml` runs the same guard for the images.
+      - name: The tag names VERSION
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: python scripts/sync_version.py --tag "$GITHUB_REF_NAME"
       - name: Install dependencies
         working-directory: backend
         run: pip install -r requirements.txt pyinstaller
@@ -169,8 +177,77 @@ jobs:
           assert b["demo"] is True, "a scripted run must be stamped as a demo"
           print("approval chain:", actions, "| evidence:", len(b["evidence"]))
           CHECK
-          kill "$SIDECAR_PID" || true
           echo "packaged-app research journey verified on $RUNNER_OS"
+      - name: Smoke — V3's release invariants hold in the frozen app
+        # What V3 ships to users that the ASGI tests cannot vouch for, checked in the binary
+        # itself (scope freeze §9, §12): the bundle format every run now emits, the one route
+        # Settings → Agents reads, and a saved customisation reaching the next run's bundle.
+        # The run above was uncustomised, so it must be v2 with provenance and nothing
+        # replaced; the run here is customised, so it must say exactly what was replaced.
+        working-directory: backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          B="http://127.0.0.1:$PORT/api/v1"
+          H="Authorization: Bearer $TOKEN"
+          api() { curl -sf -H "$H" -H 'Content-Type: application/json' "$@"; }
+
+          python - <<'CHECK'
+          import json
+          b = json.load(open("ci.bundle.json"))
+          assert b["bundle_version"] == 2, f"a V3 run emitted bundle v{b['bundle_version']}"
+          assert b["prompt_overrides_status"] == "NONE", b["prompt_overrides_status"]
+          assert b["prompt_provenance"], "a V3 run recorded no prompt provenance"
+          replaced = [r["purpose"] for r in b["prompt_provenance"] if r["overridden"]]
+          assert not replaced, f"an uncustomised run claims replaced prompts: {replaced}"
+          print("uncustomised run: v2, NONE,", len(b["prompt_provenance"]), "purposes recorded")
+          CHECK
+
+          api "$B/models/prompt-defaults" -o prompt-defaults.json
+          python - <<'CHECK'
+          import json
+          d = json.load(open("prompt-defaults.json"))
+          roles = [r["role"] for r in d["roles"]]
+          assert roles == ["planner", "executor", "critic", "synthesizer", "chat"], roles
+          assert d["max_chars"] == 2500, d["max_chars"]
+          assert all(r["default_prompt"].strip() for r in d["roles"]), "an empty shipped prompt"
+          print("prompt-defaults: five roles, limit", d["max_chars"])
+          CHECK
+
+          api -X PATCH "$B/auth/me" \
+            -d '{"preferences":{"prompt_overrides":{"planner":"Plan exactly three research tasks."}}}' > /dev/null
+          PID_JSON=$(api -X POST -d '{"name":"CI customised"}' "$B/projects")
+          PROJECT=$(python -c "import json,sys;print(json.loads(sys.argv[1])['id'])" "$PID_JSON")
+          RUN_JSON=$(api -X POST "$B/runs" -d "{\"project_id\":\"$PROJECT\",\"question\":\"What are the leading approaches to long-term memory in LLM agents?\",\"depth\":\"fast\",\"skip_plan_gate\":false,\"dispatch\":true}")
+          RUN=$(python -c "import json,sys;print(json.loads(sys.argv[1])['run_id'])" "$RUN_JSON")
+          await_status() {
+            for _ in $(seq 1 180); do
+              s=$(api "$B/runs/$RUN" | python -c "import json,sys;print(json.load(sys.stdin)['run']['status'])")
+              [ "$s" = "$1" ] && return 0
+              case "$s" in FAILED|CANCELLED) echo "::error::run ended $s while waiting for $1"; return 1;; esac
+              sleep 1
+            done
+            echo "::error::run never reached $1 (last: $s)"; return 1
+          }
+          await_status AWAITING_PLAN
+          api -X POST -d '{"decision":"APPROVED"}' "$B/runs/$RUN/plan-review" > /dev/null
+          await_status AWAITING_REVIEW
+          api -X POST -d '{"decision":"APPROVED"}' "$B/runs/$RUN/report-review" > /dev/null
+          curl -sf -H "$H" "$B/runs/$RUN/bundle.json" -o ci-customised.bundle.json
+
+          python -m research_engine.verify_bundle ci-customised.bundle.json
+          python - <<'CHECK'
+          import json
+          b = json.load(open("ci-customised.bundle.json"))
+          assert b["bundle_version"] == 2, b["bundle_version"]
+          assert b["prompt_overrides_status"] == "APPLIED", b["prompt_overrides_status"]
+          replaced = [r for r in b["prompt_provenance"] if r["overridden"]]
+          assert [r["purpose"] for r in replaced] == ["planner.main"], replaced
+          assert "Plan exactly three research tasks." in replaced[0]["effective_prompt"]
+          print("customised run: v2, APPLIED, replaced", [r["purpose"] for r in replaced])
+          CHECK
+          kill "$SIDECAR_PID" || true
+          echo "V3 release invariants verified in the frozen app on $RUNNER_OS"
       - name: Upload sidecar bundle
         uses: actions/upload-artifact@v7
         with:
@@ -398,3 +475,7 @@ jobs:
             ```
             sha256sum -c SHA256SUMS --ignore-missing
             ```
+
+            **Research bundles from v3.0.0 onward are format v2, and a verifier from before
+            v3.0.0 refuses them.** Check a bundle with the `verify_bundle` shipped in this
+            release; it still verifies every earlier (v1) bundle, unchanged.

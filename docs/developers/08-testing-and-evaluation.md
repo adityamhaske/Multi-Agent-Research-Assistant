@@ -122,7 +122,7 @@ records per-report metrics to a dated JSON file, so report quality is diffable o
 
 ```bash
 make eval                                   # fake mode: deterministic, free, no keys
-LLM_MODE=real GOOGLE_API_KEY=… make eval    # real models
+LLM_MODE=real make eval EVAL_ARGS="--judge anthropic:claude-sonnet-4-6"   # real models
 ```
 
 Mode is read from the *real* environment before `.env` is loaded, and `.env` supplies keys
@@ -212,11 +212,59 @@ The result file stores an unmeasured value as `null`; the console prints it as
 
 **The rule has two homes** — the harness and the benchmark — and they must change together.
 
+### The judge
+
+Citation support is graded by the model `--judge` names, and a real-mode report eval refuses
+to start without one. It is refused, before a single query runs, if it is:
+
+- a route the pipeline itself runs, or the same model reached another way
+  (`openrouter:google/gemini-2.5-flash` is `google:gemini-2.5-flash`);
+- a router alias (`auto/*`), which can resolve to a different model on every call;
+- set while any pipeline role is on a router alias, since then nothing can be shown to be
+  independent of it.
+
+Judging never falls back to the pipeline's own critic. That was the harness's behaviour until
+V3, which is why the runs recorded before it are self-judged.
+
+The result file names the judge in a `judge` block beside `models`, never inside it:
+`models` is the system under evaluation, and `judge` is what graded it. The block holds:
+
+- the judge's route;
+- the routes it was checked against;
+- for the baseline and any candidate, how many claims it ruled on, how many it never
+  reached, and which model the provider reported answering;
+- whether it answered at all.
+
+Each claim verdict also records the model that served it. That name is read from the
+provider's response, never copied from the route: a judge that answered as something else,
+or did not disclose what answered, shows it. A scripted run calls no judge and writes no
+`judge` block.
+
+### The release run
+
+RG-5 is this harness on the fixed query set with a named judge and the committed candidate,
+nothing more. The pipeline runs one research task at a time: a hosted route that throttles
+bursts (Antigravity via OmniRoute returned empty responses after a burst of parallel calls in
+the preflight) would otherwise fail queries for reasons that have nothing to do with quality.
+
+```bash
+cd backend
+LLM_MODE=real MAX_PARALLEL_TASKS=1 \
+  MODEL_PLANNER=custom:antigravity/gemini-2.5-flash MODEL_EXECUTOR=custom:antigravity/gemini-2.5-flash \
+  MODEL_CRITIC=custom:antigravity/gemini-2.5-flash MODEL_SYNTHESIZER=custom:antigravity/gemini-2.5-flash \
+  MODEL_CHAT=custom:antigravity/gemini-2.5-flash \
+  python -m evals.harness --judge custom:kiro/claude-sonnet-4.5 \
+    --candidate evals/candidates/v3-release-planner.json
+```
+
+Parallelism changes wall-clock, not what is measured, and the result records it: `method.limits`
+holds every execution limit the run used, so a result can be reproduced from its own file.
+
 ### Release criteria
 
 Citation support ≥ 0.95 and completion ≥ 0.90 on the fixed set. Both are inclusive — a run at
-exactly the threshold meets it — and both are fixed: nothing a user configures changes them. The most recent real-model
-run does not clear the first; see
+exactly the threshold meets it — and both are fixed: nothing a user configures changes them. The V3.0.0
+release run clears both under an independent judge; see
 [Citation-fidelity benchmark](../research/16-citation-fidelity-benchmark.md) for what has
 actually been measured, and under what caveats.
 

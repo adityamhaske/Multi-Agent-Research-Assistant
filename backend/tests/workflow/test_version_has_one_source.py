@@ -88,6 +88,69 @@ def test_the_checker_actually_detects_drift(tmp_path, monkeypatch):
     assert "9.9.9" in result.stderr
 
 
+# ── The tag the release workflows build from ─────────────────────────────────────
+
+
+def _version() -> str:
+    return (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+
+
+def test_a_tag_naming_version_may_be_released():
+    """What `desktop.yml` and `release.yml` run before building anything a tag publishes."""
+    result = _sync("--tag", f"v{_version()}")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize(
+    "tag",
+    [
+        "v9.9.9",  # the bump never merged: installers would ship labelled as the old version
+        "{v}",  # no `v`: not the shape either workflow triggers on
+        "v{short}",  # a prefix of the version is not the version
+        "v{v}-rc1",  # a pre-release must say so in VERSION, or its artifacts claim the final
+    ],
+)
+def test_a_tag_that_does_not_name_version_is_refused(tag):
+    version = _version()
+    tag = tag.format(v=version, short=version.rsplit(".", 1)[0])
+    result = _sync("--tag", tag)
+    assert result.returncode == 1
+    assert "does not name VERSION" in result.stderr
+
+
+def test_a_matching_tag_on_a_drifted_tree_is_refused(tmp_path):
+    """The tag agreeing with `VERSION` is not enough when a derived file does not."""
+    import shutil
+
+    sandbox = tmp_path / "repo"
+    (sandbox / "backend" / "app").mkdir(parents=True)
+    (sandbox / "desktop").mkdir(parents=True)
+    (sandbox / "frontend" / "lib").mkdir(parents=True)
+    (sandbox / "scripts").mkdir(parents=True)
+    shutil.copy(ROOT / "scripts" / "sync_version.py", sandbox / "scripts" / "sync_version.py")
+    (sandbox / "VERSION").write_text("3.0.0\n")
+    (sandbox / "backend" / "app" / "main.py").write_text('APP_VERSION = "3.0.0"\n')
+    (sandbox / "desktop" / "tauri.conf.json").write_text('{"version": "2.1.0"}\n')
+    (sandbox / "desktop" / "Cargo.toml").write_text('version = "3.0.0"\n')
+    (sandbox / "frontend" / "lib" / "releases.ts").write_text('  version: "v3.0.0",\n')
+
+    result = subprocess.run(
+        [sys.executable, str(sandbox / "scripts" / "sync_version.py"), "--tag", "v3.0.0"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert "tauri.conf.json: 2.1.0 != 3.0.0" in result.stderr
+
+
+def test_checking_a_tag_never_writes():
+    """`--tag` runs in the release workflows; a guard that could rewrite files is not one."""
+    result = _sync("--tag", f"v{_version()}", "--write")
+    assert result.returncode == 2
+    assert "not allowed with" in result.stderr
+
+
 def test_no_module_hard_codes_a_version_the_script_does_not_know_about():
     """A sixth constant would drift silently, which is how the first five did."""
     import re

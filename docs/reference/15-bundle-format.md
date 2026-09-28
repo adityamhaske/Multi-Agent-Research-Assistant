@@ -110,6 +110,15 @@ A version 1 bundle from a current producer may still carry the version 2 fields,
 (§2). A version 1 bundle carrying a non-empty `prompt_provenance` or
 `prompt_overrides_status` fails verification.
 
+**Which version a run produces.** A run that V3 executes records the prompts it composes as
+it runs, so its bundle is version 2 whether or not anything was customised. A run whose
+research was executed by an earlier release recorded nothing, and stays version 1 when a
+current build exports it — including one that was waiting at a review gate when the app was
+upgraded and was approved afterwards. Its prompts are unrecoverable, and a version 2 bundle
+for it could only be invented. So a version 1 bundle is no evidence that a customised prompt
+was applied, and none that one was not: it predates the record. The current verifier checks
+version 1 bundles exactly as it always has.
+
 ## Design constraints
 
 ### 1. Hashing

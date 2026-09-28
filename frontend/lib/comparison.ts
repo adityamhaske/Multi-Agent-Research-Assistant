@@ -302,6 +302,6 @@ export const LOSSES: string[] = [
   "Setup is a real barrier. NotebookLM is a URL; this is Docker or a desktop app plus API keys.",
   "No audio overviews, no mobile app, no collaboration. NotebookLM's polish is far ahead.",
   "Small and new — no ecosystem, no team features, one maintainer's budget.",
-  "The headline metric is interim: citation support is 90%, measured once on a local model. One cited sentence in ten did not hold up. It is published rather than hidden, but it deserves re-measuring before it is leaned on.",
+  "The headline metric rests on one run: citation support is 96.4% across ten fixed questions, graded by an independent model rather than the pipeline's own. Ten questions on one model routing is a small sample, and support means a claim matches the evidence it cites, not that the claim is true.",
   "Quality tracks the models you route it at. Point it at a weak local model and you get weak research — the verification machinery will report that honestly rather than paper over it.",
 ];
