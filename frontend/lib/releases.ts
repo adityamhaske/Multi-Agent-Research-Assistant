@@ -33,6 +33,41 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "v3.0.0",
+    date: "2026-09-27",
+    headline:
+      "You can rewrite how each research agent behaves, and every artifact now records exactly which instructions produced it.",
+    improved: [
+      "Each of the five agents \u2014 planner, executor, critic, synthesizer and follow-up chat \u2014 can follow your own instructions instead of the shipped ones. Settings \u2192 Agents shows which agents are customized, starts every editor from the prompt that runs today, and resets any agent to the shipped prompt on its own. Instructions are limited to 2,500 characters per agent, and an empty box is never mistaken for a reset.",
+      "The checks that keep research honest cannot be rewritten. Citation verification, contradiction detection, report repair and project chat\u2019s refusal line always run on the shipped prompts, whatever an agent is told \u2014 enforced in one place, before any saved instruction is read.",
+      "A run keeps the instructions it started with. Editing an agent while a run waits at a review gate changes the next run, not the half-finished one, so a report is never written under two sets of instructions.",
+      "Verification bundles record the instructions behind the research. A run\u2019s bundle now carries, for every prompt the pipeline used, its full text, its SHA-256 and whether it was replaced \u2014 and editing any of it after the fact fails the bundle\u2019s integrity check. The standalone verifier prints which agents ran on replaced instructions, so a clean pass no longer hides that.",
+      "The app says when your instructions did and did not apply. A run\u2019s artifact names every agent that ran on replaced instructions, and research recorded on the earlier pipeline \u2014 which does not use them \u2014 says so rather than implying it did.",
+      "Customized instructions can be measured before you trust them. The evaluation harness runs a candidate against the same fixed questions and the same thresholds as the shipped prompts, and reports both side by side; a candidate that scores worse is reported, not refused.",
+      "Citation support is graded by an independent judge that the result names. The evaluation used to grade the pipeline\u2019s citations with the pipeline\u2019s own critic model and recorded no judge at all. A real-model evaluation now refuses to start without a judge that is none of the models under test, and the result records which model actually answered each ruling. This release\u2019s own run \u2014 Gemini 2.5 Flash running every agent, Claude Sonnet 4.5 judging \u2014 measured citation support at 96.4% over the ten fixed questions, clearing the 95% threshold.",
+      "Upgrading keeps everything. A desktop data directory written by the real 2.1.0 app \u2014 settings, projects, research on both pipelines, a run waiting at a review gate, and bundles already exported \u2014 was upgraded by the packaged 3.0.0 engine and checked: nothing lost, old bundles still verify, the waiting run can still be approved, and new research carries its instructions.",
+    ],
+    known: [
+      "Bundles from this release are format v2, and a verifier from before 3.0.0 refuses them. Check a bundle with the verifier from this release; it still verifies every earlier bundle unchanged.",
+      "Research recorded before 3.0.0 still exports as a v1 bundle with no instructions recorded. Its prompts were never captured, and the bundle does not invent them.",
+      "Research recorded on the earlier pipeline (Sessions) does not apply customized instructions, and says so.",
+      "Customization is per account and applies to every run you start; there is no per-run override, and you cannot add agents of your own.",
+      "Customized instructions are written into the verification bundle in full, so anyone you share a bundle with can read them.",
+      "The default model routing is Google\u2019s Gemini 2.5 models \u2014 2.5 Pro for the planner and synthesizer, 2.5 Flash for the executor, critic and chat \u2014 and Google now limits each 2.5 model to accounts that have used it before. On a key from an account that has not, the first call to that model is refused. Choose other models in Settings \u2192 Models.",
+      "On a fresh desktop install, the demo report the app prepares on first launch fails: it is treated as corpus-only research against an empty corpus, so it finds no evidence. Your own research is unaffected.",
+      "Citation support rests on one run: ten fixed questions on one model routing. It measures whether each claim matches the evidence it cites, not whether the claim is true.",
+      "The share of evidence coming from primary sources is not measured, and is deliberately not estimated. The source URL on a piece of evidence is written by the model, so an invented link would score as a primary source with full confidence.",
+      "Three questions of the scholarly evaluation set carry citation-check records and three are unverified; the set is not yet used to grade anything.",
+      "Retrieval is dense-only; hybrid retrieval was measured against the baseline and did not beat it.",
+      "Desktop builds are unsigned and do not auto-update. macOS shows a Gatekeeper block and Windows shows SmartScreen on first launch.",
+      "Two research pipelines still exist in the backend. The product has one, and research recorded by the earlier one stays readable.",
+      "Follow-up chat scoped to a single report is available on research recorded as a session and not on a run. Project chat, which cites every approved report in a project, covers both.",
+      "Cancelling a run still does not interrupt research already in flight \u2014 it runs to its next checkpoint, and the tokens spent there are recorded because they were really spent.",
+      "Claim verification is still not implemented, claim lineage across revisions is still not tracked, and contradiction detection is still source-level and unscored.",
+    ],
+    unreleased: true,
+  },
+  {
     version: "v2.1.0",
     date: "2026-09-19",
     headline:
@@ -51,7 +86,7 @@ export const RELEASES: Release[] = [
       "Citation support is still measured at 90% on a single self-judged local-model run, and that measurement predates 2.0.0. Nothing in this release re-ran it, and it still needs re-running before the number is leaned on.",
       "Retrieval is dense-only. Hybrid retrieval was built and measured against the baseline above, and it did not beat it \u2014 the residual gap is equal-weight fusion of two retrievers of unequal reliability, not the quality of the candidates. It was rejected and reported rather than tuned until it looked better.",
       "The share of evidence coming from primary sources is not measured, and is deliberately not estimated. The source URL on a piece of evidence is written by the model, so a plausible-looking but invented link would score as a primary source with full confidence. A fakeable metric on a verifiability product is worse than none.",
-      "The scholarly evaluation set is drafted but unverified. Six of twelve questions survived review, and their rubrics were written without a human opening a cited paper. Until a domain reader checks them, a rubric naming the wrong study would penalize a correct answer, so the set grades nothing.",
+      "The scholarly evaluation set is drafted but unverified. Six of twelve questions survived review, and their rubrics were written without a human opening a cited paper. Until a domain reader checks them, a rubric naming the wrong study would penalize a correct answer, so the set grades nothing. [Corrected 2026-09-27, in 3.0.0: this overstated it. The repository\u2019s own records show three of the six surviving questions carry citation-check records dated 2026-08-16 \u2014 two verified, one verified with a caveat \u2014 each stating that the works it names were looked up against the published record. The other three are unverified. The records do not say who performed the checks.]",
       "Desktop builds are unsigned and do not auto-update. macOS shows a Gatekeeper block and Windows shows SmartScreen on first launch, and a new version means downloading the installer again.",
       "Two research pipelines still exist in the backend. The product has one, and research recorded by the earlier one stays readable; consolidating them is not a patch.",
       "Follow-up chat scoped to a single report is available on research recorded as a session and not on a run. Project chat, which cites every approved report in a project, covers both.",

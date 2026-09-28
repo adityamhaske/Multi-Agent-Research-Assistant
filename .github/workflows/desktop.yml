@@ -475,3 +475,7 @@ jobs:
             ```
             sha256sum -c SHA256SUMS --ignore-missing
             ```
+
+            **Research bundles from v3.0.0 onward are format v2, and a verifier from before
+            v3.0.0 refuses them.** Check a bundle with the `verify_bundle` shipped in this
+            release; it still verifies every earlier (v1) bundle, unchanged.
