@@ -33,7 +33,7 @@ talks to the same-origin `/api` proxy.
 
 ## Running research
 
-**A session sits on `PENDING` forever**
+**A run sits on `PENDING` forever**
 The worker is not consuming. Check it is running and can reach the broker:
 
 ```bash
@@ -45,9 +45,9 @@ docker compose -f docker-compose.full.yml exec worker \
 A worker that answers a ping may still be importing LangGraph and the provider clients,
 which takes noticeably longer on the first task than on the second.
 
-**A session sits on `RUNNING` and nothing changes**
-The worker crashed mid-run. The Redis session lock has a TTL longer than the task timeout,
-so it expires and the session becomes resumable from its last checkpoint. If a budget or
+**A run sits on `RUNNING` and nothing changes**
+The worker crashed mid-run. The Redis lock on the run has a TTL longer than the task timeout,
+so it expires and the run becomes resumable from its last checkpoint. If a budget or
 wall-clock limit was crossed, it self-fails with the reason instead.
 
 **The live feed stays on "Waiting for the pipeline to start…"**
@@ -76,6 +76,22 @@ Either the app is in `LLM_MODE=fake` — check for the demo banner and the `⚠ 
 exports — or the model is too small for the structured-evidence step. See
 [Local LLM setup](22-local-llm.md#6-which-models-actually-work).
 
+**The first call to a Gemini model is refused**
+The default routing is Google's Gemini 2.5 models, and Google now serves each 2.5 model only to
+accounts that have used it before. On a key from an account that has not, the first call to that
+model is refused — the key is fine, the model is not available to it. Route the agents to other
+models in Settings → Models.
+
+**A run ignored the agent instructions I just saved**
+A run keeps the instructions it started with, so saving while it waits at a gate changes your
+next run, not that one. Research recorded as a session never applies them. The run's Artifact
+tab, and its bundle, record which instructions it actually ran on. See
+[Agent instructions](../user-guide/38-agent-instructions.md).
+
+**Saving an agent's instructions is refused**
+Instructions must be non-empty and at most 2,500 characters. An empty box is not a reset —
+use **Reset to default** on the agent's card to go back to the shipped prompt.
+
 **Cost shows `$0.00` on a run that definitely cost money**
 The route is `openrouter` or `custom`. Their prices are not in the catalog, so estimated
 cost is always zero and `MAX_COST_PER_SESSION_USD` never fires. Cap spend at the provider.
@@ -88,8 +104,14 @@ sources table, so it renders as a visible failure rather than as a clean citatio
 [Citations](../user-guide/27-citations.md).
 
 **History shows *Not measured* for citation resolution**
-The session made no citable claims, or predates the column. It is deliberately not shown
-as `0.0`, which would mean the opposite — that every marker failed.
+The rate is measured when a report is approved, so an unapproved run has none yet. Otherwise
+the report made no citable claims, or predates the column. It is deliberately not shown as
+`0.0`, which would mean the opposite — that every marker failed.
+
+**The verifier says `Unsupported bundle_version 2`**
+The bundle is from 3.0.0 or later and the verifier is older. Version 2 bundles record the
+prompts each agent ran on, and a verifier from before 3.0.0 cannot read them. Run the verifier
+from 3.0.0 or later; it verifies version 1 bundles unchanged.
 
 **`[3, 11, 18]` renders as plain text rather than as chips**
 Only single `[n]` markers become interactive chips today. Grouped markers still resolve in
@@ -125,6 +147,17 @@ Ollama.
 `GET /projects/{id}/memory/status` reports `pending_reports` (approved but not indexed) and
 `stale_models` (chunks written by an embedding model that is no longer configured). Those
 are the two ways memory goes quietly incomplete, and both are surfaced rather than inferred.
+
+## Desktop app
+
+**The demo report fails on first launch**
+A known issue on a fresh install: the demo is created as corpus-only research against a corpus
+that is still empty, so it finds no evidence and ends as failed. Your own research is
+unaffected. See [Desktop app](23-desktop-app.md#first-run).
+
+**macOS blocks the app, or Windows shows SmartScreen**
+The builds are unsigned. The unblock steps are in [Desktop app](23-desktop-app.md), and on the
+download page beside each installer.
 
 ## Development
 

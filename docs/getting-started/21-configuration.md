@@ -63,9 +63,20 @@ citation markers, and they are not the same job.
 | `custom` | `CUSTOM_API_KEY`, `CUSTOM_BASE_URL` | Any OpenAI-compatible endpoint. Also unpriced. |
 | `ollama` | — | Keyless. See [Local LLM setup](22-local-llm.md). |
 
-Routing resolves most-specific-first: **the session's snapshot → the user's saved
-preference → the deployment's `MODEL_*`.** A session snapshots what it actually ran, so a
-resumed run keeps its models and a finished report stays attributable to whatever wrote it.
+Routing resolves most-specific-first: **the run's snapshot → the user's saved preference →
+the deployment's `MODEL_*`.** A run snapshots what it actually ran, so a resumed run keeps its
+models and a finished report stays attributable to whatever wrote it.
+
+Google now serves each Gemini 2.5 model only to accounts that have used it before, so on a key
+from an account that has not, the default routing's first call to that model is refused.
+Route those roles elsewhere — in Settings → Models, or with the `MODEL_*` variables above.
+
+## Agent instructions
+
+*Which* model a role uses is configured here; *how* each agent behaves is not an environment
+variable at all. Each user replaces an agent's instructions in **Settings → Agents**, and every
+run records the ones it ran on. There is no deployment-wide override. See
+[Agent instructions](../user-guide/38-agent-instructions.md).
 
 ## Search
 

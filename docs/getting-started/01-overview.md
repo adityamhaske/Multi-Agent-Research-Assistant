@@ -54,10 +54,12 @@ researched. That is the difference between "the agent picked six queries" and "t
 six subtopics, in my structure".
 
 **3. Verification is measured, and unmeasured is not zero.**
-`citation_resolution_rate` is recorded per session and shown on every row of history —
-including a *Not measured* band, because "made no citable claims" and "every marker is
-broken" are opposite findings. The same rule runs through the evaluation harness: it
-returns `None` where it could not measure, and refuses to print a number it did not take.
+`citation_resolution_rate` is recorded for every approved report and shown on every row of
+history — including a *Not measured* band, because "made no citable claims" and "every marker
+is broken" are opposite findings. The same rule runs through the evaluation harness: it
+returns `None` where it could not measure, and refuses to print a number it did not take. Its
+citation-support grade comes from a judge that is none of the models under test, and the
+result names the model that actually answered each ruling.
 
 ## What it does today
 
@@ -65,21 +67,25 @@ returns `None` where it could not measure, and refuses to print a number it did 
 |---|---|
 | Multi-agent pipeline (planner → executor ⇄ critic → synthesizer → finalizer) | Built |
 | Two human gates: research design, then draft approval | Built |
+| A structured research record: plan, evidence, sources, claims, claim → evidence links, contradictions, versioned reports, review decisions | Built |
+| Your own instructions for any of the five agents, with four checks that cannot be rewritten, recorded in each run and its bundle | Built (3.0.0) |
 | Web retrieval with a fallback chain (Tavily → Brave → DuckDuckGo) and caching | Built |
 | Per-claim citations with verbatim snippets and a ⚠ chip for unresolved markers | Built |
 | Contradiction detection between sources, surfaced not auto-resolved | Built |
-| Follow-up chat over a finished report, scoped to report / corpus / web / everything | Built |
+| Follow-up chat over a finished report, scoped to report / corpus / web / everything | Built for research recorded as a session; not yet on a run |
 | Projects, and chat over the approved research in a project | Built (server only) |
 | Uploaded document corpus, and an airgapped corpus-only mode with no network calls | Built |
 | Exports: Markdown, PDF, and a hash-verifiable `.bundle.json` with an offline verifier | Built |
+| An evaluation harness graded by an independent judge, with published results | Built |
 | Bring-your-own-key for Google, Anthropic, OpenAI, OpenRouter, and any OpenAI-compatible endpoint | Built |
 | Local models through Ollama, including fully local embeddings | Built |
-| Desktop app (macOS, Windows, Linux) with a bundled engine and SQLite | Built, unsigned |
+| Desktop app (Apple Silicon macOS, x64 Windows, x86-64 Linux) with a bundled engine and SQLite | Built, unsigned |
 | Keyless demo mode with scripted models and fixture sources | Built |
 
 Details: [Running research](../user-guide/25-running-research.md) ·
 [Citations](../user-guide/27-citations.md) ·
-[Projects and memory](../user-guide/28-projects-and-memory.md)
+[Projects and memory](../user-guide/28-projects-and-memory.md) ·
+[Agent instructions](../user-guide/38-agent-instructions.md)
 
 ## What is deliberately out of scope
 
@@ -111,7 +117,19 @@ Saying no is what keeps the parts above honest.
   catalog. Cap spend at the provider. See [Configuration](21-configuration.md).
 - **Small local models fail the structured-evidence step.** 14B is the working floor for
   research; anything runs chat. See [Local LLM setup](22-local-llm.md).
-- **Desktop builds are unsigned**, so macOS and Windows both warn on first launch.
+- **Citation support rests on one run.** The 3.0.0 release run measured 96.4% over ten fixed
+  questions on one model routing, graded by an independent model. It measures whether each
+  claim matches the evidence it cites, not whether the claim is true.
+  ([What was measured](../research/16-citation-fidelity-benchmark.md#8-what-has-actually-been-measured))
+- **Google limits the default models.** The default routing is Gemini 2.5, and Google now
+  serves each 2.5 model only to accounts that have used it before; on a key from an account
+  that has not, the first call to that model is refused. Choose other models in Settings →
+  Models.
+- **Custom agent instructions are not private from a bundle's readers.** A run's bundle
+  carries them in full. See [Agent instructions](../user-guide/38-agent-instructions.md).
+- **Desktop builds are unsigned**, so macOS and Windows both warn on first launch. The macOS
+  build is for Apple Silicon only, and the demo it prepares on first launch fails on a fresh
+  install — see [Desktop app](23-desktop-app.md#first-run).
 
 ## Where to go next
 
@@ -119,6 +137,7 @@ Saying no is what keeps the parts above honest.
 |---|---|
 | Run it | [Quick start](20-quick-start.md) |
 | Configure a model or provider | [Configuration](21-configuration.md) |
+| Change how an agent behaves | [Agent instructions](../user-guide/38-agent-instructions.md) |
 | Run it with no API key or cost | [Local LLM setup](22-local-llm.md) |
 | Understand the pipeline | [Agent architecture](../architecture/04-agent-architecture.md) |
 | Understand the deployment | [System architecture](../architecture/02-system-architecture.md) |

@@ -1,32 +1,40 @@
 # Exports
 
-Three formats. The bundle requires the session to be `COMPLETED` and refuses otherwise.
+Three formats.
 
 | Format | Endpoint | Contains |
 |---|---|---|
-| **Markdown** | `GET /research/{id}/export.md` | The report as written, plus a model-attribution block |
-| **PDF** | `GET /research/{id}/export.pdf` | The report typeset, with citations as superscripts, a numbered sources list, and model attribution |
-| **Bundle** | `GET /research/{id}/export.bundle.json` | Everything needed to verify the report offline |
+| **Markdown** | `GET /runs/{id}/export.md` | The report as written, plus a model-attribution block |
+| **PDF** | `GET /runs/{id}/export.pdf` | The report typeset, with citations as superscripts, a numbered sources list, and model attribution |
+| **Bundle** | `GET /runs/{id}/bundle.json` | Everything needed to verify the report offline |
 
 ## Getting one
 
-Open a completed report. The three buttons sit beside its heading — **.md**, **PDF**, and
-**.bundle.json** — and each downloads the file directly. There is no separate export screen.
+**Markdown and PDF** are on the run's **Report** tab, beside **Copy**, for whichever revision
+you are reading — before approval too.
 
-Below the metrics row, **Verify this report independently** expands to the exact command for
-checking a bundle, so the instruction is where the file is.
+**The verification bundle** is on the **Artifact** tab, which exists once a person has
+approved the report at the review gate: approving is what freezes it. The tab shows the
+verifier's own checks, names any agent that ran on
+[replaced instructions](38-agent-instructions.md), and offers all three downloads, with the
+bundle first — Markdown and PDF are the report alone, readable but not checkable. **Verify it
+yourself** expands to the exact command for checking the bundle, so the instruction is where
+the file is.
 
-All three work on the self-hosted server. On the desktop app, `.md` and `.bundle.json` work
-the same way; **PDF** is the app's own Print → Save as PDF rather than a server render (see
-below).
+All three work on the self-hosted server. On the desktop app, Markdown and the bundle work the
+same way; **PDF** is the app's own Print → Save as PDF rather than a server render, and the PDF
+button says so (see below).
+
+Research recorded as a session, on the earlier pipeline, keeps its own export routes under
+`/research/{id}/` — see the [API reference](../reference/34-api.md).
 
 ## Markdown
 
 The report text, unchanged, with a trailing block recording **which model produced which
-part** — the per-role routing the session actually ran with, not the routing currently
+part** — the per-role routing the run actually ran with, not the routing currently
 configured.
 
-Filename: `research-<first 8 chars of session id>.md`.
+Filename: `research-<first 8 chars of run id>.md`.
 
 ## PDF
 
@@ -43,14 +51,16 @@ uses the WebView's own print-to-PDF instead.
 
 ## Research bundle
 
-The interesting one. A `.bundle.json` is a self-contained, auditable record of the session —
-a bill of materials for a research report:
+The interesting one. A `.bundle.json` is a self-contained, auditable record of the run — a
+bill of materials for a research report:
 
 - the **report** and its SHA-256;
 - every **claim** with the citation indices it carries;
 - every **evidence snippet** with a content hash and the source it came from;
 - the **sources** table, and any **contradictions** surfaced;
 - the **models** that ran, the **cost**, the **token counts**, the elapsed time;
+- the **prompts** the run used — each one's full text, its SHA-256, and whether you had
+  replaced it — and whether your custom instructions were applied (from 3.0.0);
 - the full **approval chain** — every approve or rework, its feedback, the hash of the draft
   it applied to, and when;
 - the **agent trace**, and a `trace_available` flag distinguishing "the host has no durable
@@ -70,7 +80,16 @@ approval-chain integrity.
 
 The load-bearing one is the last: at least one `approved` entry's `draft_hash` must match
 the report's own hash, which proves the approval was given for *this* report rather than an
-earlier draft or a different session.
+earlier draft or a different run.
+
+A bundle whose agents ran on replaced instructions verifies like any other — its hashes are
+real hashes of what really ran — so the verifier prints a *CUSTOMISED AGENTS* banner above the
+verdict and lists the replaced prompts. The prompts' text is in the bundle in full, so anyone
+you share it with can read your instructions.
+
+**Bundles from 3.0.0 on are format version 2.** A verifier from before 3.0.0 refuses them;
+the one from 3.0.0 or later verifies versions 1 and 2 alike. Research recorded before 3.0.0
+still exports as version 1, with no prompts recorded.
 
 Full specification: [Research bundle format](../reference/15-bundle-format.md).
 

@@ -53,6 +53,7 @@ docs/
 | [Citations and verification](user-guide/27-citations.md) | What is checked, by what, and what is not |
 | [Projects and memory](user-guide/28-projects-and-memory.md) | Projects, the corpus, approved-only memory, isolation |
 | [Exports](user-guide/29-exports.md) | Markdown, PDF, and the verifiable bundle |
+| [Agent instructions](user-guide/38-agent-instructions.md) | Replacing an agent's instructions, what stays protected, and what the record shows |
 
 ## Architecture
 

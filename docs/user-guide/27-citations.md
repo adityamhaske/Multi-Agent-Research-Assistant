@@ -44,9 +44,8 @@ Today only **single** `[n]` markers become interactive chips. Grouped markers li
 
 ## Citation resolution rate
 
-Every completed report records what fraction of its in-text markers resolve to a real
-source. It is shown on the session and on every row of history, and history can filter on
-it.
+Every approved report records what fraction of its in-text markers resolve to a real
+source. It is shown on the run and on every row of history, and history can filter on it.
 
 **`Not measured` is a distinct state from `0%`.** A report that made no citable claims, and
 a report where every marker is broken, are opposite findings; storing them as one number
@@ -78,6 +77,21 @@ the precise failure this product exists to prevent.
 sides are quoted from snippets the detector was shown, and any pair whose source URL was not
 in the evidence is dropped. The pairs appear in the report and the count appears at the
 review gate. Nothing picks a winner.
+
+## How often a citation actually supports its claim
+
+Resolution says a marker points at real evidence. Whether that evidence supports the sentence
+is a separate question, and the product does not answer it at runtime (below). The
+[evaluation harness](../developers/08-testing-and-evaluation.md) answers it offline, with an
+independent model as judge — one that is none of the models under test, named in the result
+along with the model that actually answered each ruling.
+
+The 3.0.0 release run measured **96.4% citation support** over ten fixed questions, with
+Gemini 2.5 Flash running every agent and Claude Sonnet 4.5 judging, against a 95% threshold.
+That is one run on one model routing: quality tracks the models you route to, and support
+means "the snippet backs the sentence", not "the sentence is true". The method, the other runs
+and every caveat are in
+[what has actually been measured](../research/16-citation-fidelity-benchmark.md#8-what-has-actually-been-measured).
 
 ## What is *not* checked
 

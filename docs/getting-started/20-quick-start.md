@@ -74,9 +74,9 @@ by default and should be turned on for anything public
 3. **Submit.** You land on the run workspace and the live feed starts. Events stream over
    SSE and are also written durably; a dropped stream reconnects with `Last-Event-ID` and
    the backend replays what was missed, so a refresh or a late-joining tab loses nothing.
-4. **Review the plan.** The run pauses at the design gate before anything is searched. Edit
-   the subtopics, drop tasks you did not ask for, pick a report outline, then approve.
-   Approving a plan spends money; it does not create an artifact.
+4. **Review the plan.** The run pauses at the design gate before anything is searched.
+   Uncheck any research area you did not ask for, then approve. Approving a plan spends
+   money; it does not create an artifact.
    ([Review and approval](../user-guide/26-review-and-approval.md))
 5. **Watch the pipeline.** Executor and critic work through the tasks; the critic sends weak
    evidence back within a bounded retry limit.
@@ -93,6 +93,10 @@ by default and should be turned on for anything public
 8. **Take the artifact.** Approving the report freezes a `ResearchArtifact`. The **Artifact**
    tab shows the verifier's own checks and offers the `.bundle.json`. Reports also export as
    `.md` and `.pdf`. ([Exports](../user-guide/29-exports.md))
+
+Once you have seen a run through, **Settings → Agents** changes how each agent behaves on your
+next one — and every run records the instructions it ran on.
+([Agent instructions](../user-guide/38-agent-instructions.md))
 
 ## 5. Verify the artifact yourself
 

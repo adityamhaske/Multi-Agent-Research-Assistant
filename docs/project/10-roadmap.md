@@ -18,6 +18,9 @@ Shipped and in use:
   unresolved markers, and a recorded resolution rate that distinguishes *not measured* from
   zero.
 - **Research bundles** — a hash-verifiable export with a standalone offline verifier.
+- **Agent instructions** — each user can replace the instructions of any of the five agents;
+  citation verification, contradiction detection, report repair and project chat stay on
+  their shipped prompts, and every run and its bundle record the instructions it ran on.
 - **Projects, corpus, and project memory** — only human-approved research enters memory;
   isolation is a SQL predicate.
 - **Airgapped corpus mode** — research over your own documents with zero network calls.
@@ -25,7 +28,8 @@ Shipped and in use:
   endpoint, encrypted at rest and isolated per run.
 - **Local models** through Ollama, including local embeddings.
 - **Self-hosting** with Docker Compose, and a documented $0/month single-host deployment.
-- **Desktop app** for macOS, Windows, and Linux, with a bundled engine and SQLite.
+- **Desktop app** for Apple Silicon macOS, Windows, and Linux, with a bundled engine and
+  SQLite.
 - **An independently judged evaluation** — citation support is graded by a named judge that
   is none of the models under test. The V3.0.0 release run measured 0.9638 on the fixed
   ten-query set, clearing the 0.95 threshold
