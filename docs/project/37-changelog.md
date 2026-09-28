@@ -12,7 +12,7 @@ deciding whether to trust the thing, and a changelog with no bad news is marketi
 
 ---
 
-## v3.0.1 — unreleased
+## v3.0.1 — 2026-09-28
 
 The macOS app opens. Every Mac download before this one was reported as damaged.
 
