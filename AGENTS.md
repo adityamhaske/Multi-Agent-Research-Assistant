@@ -280,7 +280,14 @@ hop that was broken; it now drives the host builders and asserts the retrieved s
 **A cancelled run stays cancelled** (issue #54) — durable state
 (`sessions.cancelled_at`/`research_runs.cancelled_at`), and all three outcome writers
 refuse to move a cancelled row out of its terminal state: `pipeline_runner::_persist_outcome`,
-`sidecar::_apply_outcome`, `run_execution::persist_outcome`. Change all three.
+`sidecar::_apply_outcome`, `run_execution::persist_outcome`. Change all three. **They decide
+on the row, not on an object:** the server's workers load the row once and hold it for the
+whole run (`expire_on_commit=False`), so `_execute` and `execute_run` re-read the stop before
+handing it over. A guard handed the start-of-run object sees "not cancelled" after a mid-run
+stop — and every test that handed it an already-cancelled row stayed green while the server
+let stopped sessions reach the review gate. **The start write is guarded too:** both session
+drivers set RUNNING through `app/session_lifecycle.py::mark_running`, whose UPDATE is
+conditional on `cancelled_at`; a plain assignment overwrote a stop made before the driver ran.
 `tests/workflow/test_cancellation_is_authoritative.py` pins the ordered t0→t1→t2 race. **The run
 itself still does not stop** — nothing interrupts the Celery task or the sidecar's
 `asyncio.Task`, so it spends tokens to its next checkpoint, and that spend is recorded, not

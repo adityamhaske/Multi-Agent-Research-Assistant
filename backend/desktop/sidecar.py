@@ -1360,11 +1360,11 @@ def create_sidecar_app(
             # corrected below, once the config it describes has been built.
             row_demo = bool(session.demo)
             is_demo = is_scripted(row_demo=row_demo, host_is_scripted=bool(app.state.fake))
-            # RUNNING is the driver's to set, exactly as `pipeline_runner._execute` does.
-            # The route creates the row PENDING and hands it over; without this the desktop
-            # left a session showing "Pending" for the whole of its run while the server
-            # showed "Running" for the same request.
-            session.status = SessionStatus.RUNNING
+            # RUNNING is the driver's to set, as the server's is — unless the user stopped
+            # the session after the route handed it over (`app/session_lifecycle.py`).
+            from app.session_lifecycle import mark_running
+
+            await mark_running(db, session.id)
             # Loaded before the commit because the flag below is written in the same
             # transaction as RUNNING, and reused for the preference read further down.
             local_user = await db.get(User, sidecar["user_id"])
