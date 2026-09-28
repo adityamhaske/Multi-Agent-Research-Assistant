@@ -40,7 +40,10 @@ describe("an unreleased version on the releases page", () => {
   it("is listed as untagged in the index, and is not the latest", () => {
     render(<ReleasesPage />);
     const nav = screen.getByRole("navigation", { name: "Versions" });
-    const link = within(nav).getByRole("link", { name: new RegExp(PENDING.replace(/\./g, "\\.")) });
+    const link = within(nav)
+      .getAllByRole("link")
+      .find((a) => a.getAttribute("href") === `#${PENDING}`);
+    if (!link) throw new Error(`no index link for ${PENDING}`);
     expect(link).toHaveTextContent(/not yet tagged/i);
     expect(link).not.toHaveTextContent(/latest/i);
   });

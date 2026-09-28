@@ -98,7 +98,7 @@ describe("ReleasesPage", () => {
     render(<ReleasesPage />);
     for (const release of RELEASES.filter((r) => !r.unreleased)) {
       const link = within(entry(release.version)).getByRole("link", {
-        name: new RegExp(`${release.version.replace(/\./g, "\\.")} on github`, "i"),
+        name: `${release.version} on GitHub ↗`,
       });
       expect(link).toHaveAttribute("href", releaseTagUrl(release.version));
     }
