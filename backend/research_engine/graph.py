@@ -877,7 +877,10 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
         dispatch: list[tuple[dict, bool]] = []
         for call in pending_calls:
             url = (call.get("args") or {}).get("url")
-            if call["name"] == "read_webpage" and url:
+            # Model-authored and not yet validated: a list, number or object here is the
+            # tool's schema to reject as an observation the model can correct, and a
+            # normalising `.strip()` on it would fail the whole node instead.
+            if call["name"] == "read_webpage" and isinstance(url, str) and url.strip():
                 norm = _norm_url(url)
                 dispatch.append((call, norm in seen_before))
                 seen_before.add(norm)
