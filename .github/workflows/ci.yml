@@ -202,6 +202,12 @@ jobs:
       # stops running the moment the app stops importing.
       - name: VERSION agrees with every derived constant
         run: python scripts/sync_version.py
+      - name: Release-content invariants hold (RELEASE.md, the audit's `ci` stage)
+        # The part of the release audit that needs nothing but the checkout: every version a
+        # user can read is a reviewed one, measurements name their evidence, every guard a
+        # past release incident added to a workflow is still there, the deploy path pulls a
+        # released image. Per commit, because each of these went stale between releases.
+        run: python scripts/release_audit.py --stage ci
 
   golden-e2e:
     runs-on: ubuntu-latest
@@ -414,11 +420,15 @@ jobs:
             echo "No usable base ref; skipping (first push or shallow history)."
             exit 0
           fi
-          modified=$(git diff --name-only --diff-filter=M "$base" HEAD -- backend/evals/results/)
+          # Release-audit output is the same kind of evidence (RELEASE.md, "Reading the
+          # audit"): what the audit measured about a published release. The record.md beside
+          # it is a working document and stays editable; only the measurements are frozen.
+          modified=$(git diff --name-only --diff-filter=M "$base" HEAD -- \
+            backend/evals/results/ 'release-audit/*/*.json')
           if [ -n "$modified" ]; then
-            echo "::error::Committed eval results were modified. They are write-once:"
+            echo "::error::Committed evidence was modified. It is write-once:"
             echo "$modified"
             echo "Commit a new file under a new name instead of overwriting a measurement."
             exit 1
           fi
-          echo "No committed eval result was modified."
+          echo "No committed eval result or release-audit measurement was modified."

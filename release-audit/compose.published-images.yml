@@ -1,0 +1,32 @@
+# Run the *published* release images on the full-stack topology (RELEASE.md, Phase 10).
+#
+#   RELEASE_TAG=X.Y.Z FRONTEND_PORT=3041 LLM_MODE=fake \
+#     docker compose -p release-check -f docker-compose.full.yml \
+#       -f release-audit/compose.published-images.yml up -d --no-build
+#
+# `docker-compose.full.yml` builds from the working tree, which tests the source, not the
+# release. This swaps each built service for the image the release pushed, so what runs is
+# byte-for-byte what `docker pull` hands a self-hoster.
+#
+# **The volumes are renamed on purpose.** The full stack pins explicit volume names
+# (`mara_full_*`), which a project name does not change — without these overrides a release
+# check would run the new release's migrations against your real development database.
+# Tear down with the same flags plus `down -v`.
+services:
+  api:
+    image: ghcr.io/adityamhaske/multi-agent-research-assistant-api:${RELEASE_TAG:?set RELEASE_TAG to the version under test}
+    pull_policy: always
+  worker:
+    image: ghcr.io/adityamhaske/multi-agent-research-assistant-worker:${RELEASE_TAG:?set RELEASE_TAG}
+    pull_policy: always
+  frontend:
+    image: ghcr.io/adityamhaske/multi-agent-research-assistant-frontend:${RELEASE_TAG:?set RELEASE_TAG}
+    pull_policy: always
+
+volumes:
+  postgres_data:
+    name: release_check_postgres_data
+  redis_data:
+    name: release_check_redis_data
+  corpus_data:
+    name: release_check_corpus_data
