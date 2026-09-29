@@ -125,15 +125,15 @@ DOMAIN=research.yourdomain.com ./deploy/oracle-bootstrap.sh
 
 ### Which image tag
 
-The stack pulls prebuilt images from GHCR. Multi-arch `edge` images are **already
-published and public**, so the bootstrap defaults to `IMAGE_TAG=edge` and works as-is.
+The stack pulls prebuilt multi-arch images from GHCR. The bootstrap defaults to
+`IMAGE_TAG=latest`, which only a `v*.*.*` release tag moves, so a fresh deploy runs the
+newest release. To upgrade on your own schedule instead, pin an exact version in
+`deploy/.env` — `IMAGE_TAG=` the release number without its `v` — and change it when you
+choose to.
 
-`latest` is deliberately *not* moved by manual builds — only a `v*.*.*` tag sets it — so
-it does not exist yet and pulling it would fail with `manifest unknown`. Once you tag a
-release, switch `IMAGE_TAG=latest` in `deploy/.env`.
-
-To republish `edge` after merging changes: Actions → **Release** → *Run workflow* → tag
-`edge`.
+`edge` is whatever a manual run of the **Release** workflow last built (Actions → Release →
+*Run workflow*), from whichever branch it was pointed at. It is for trying unreleased work,
+never a default: it is not moved by releases, so it goes stale silently.
 
 ---
 

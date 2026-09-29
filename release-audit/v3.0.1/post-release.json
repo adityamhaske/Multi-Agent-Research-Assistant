@@ -1,0 +1,851 @@
+{
+  "tool": "scripts/release_audit.py",
+  "version": "3.0.1",
+  "tag": "v3.0.1",
+  "stage": "post-release",
+  "offline": false,
+  "download": true,
+  "docker": true,
+  "commit": "d53d6457df1d5b7666fad529f5433616e78bce6a",
+  "previous": "v3.0.0",
+  "generated_at": "2026-09-29T12:28:14+00:00",
+  "seconds": 915.9,
+  "verdict": "STOP",
+  "counts": {
+    "PASS": 56,
+    "FAIL": 3,
+    "WARN": 3,
+    "SKIP": 0,
+    "UNAVAILABLE": 0
+  },
+  "notes": [],
+  "results": [
+    {
+      "id": "A0.01",
+      "phase": 0,
+      "group": "repository",
+      "title": "The release record exists and names this version",
+      "stop": true,
+      "status": "PASS",
+      "detail": "release-audit/v3.0.1/record.md",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A1.01",
+      "phase": 1,
+      "group": "repository",
+      "title": "VERSION names the version being released",
+      "stop": true,
+      "status": "PASS",
+      "detail": "3.0.1",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A1.02",
+      "phase": 1,
+      "group": "repository",
+      "title": "Every derived version constant agrees with VERSION (sync_version.py)",
+      "stop": true,
+      "status": "PASS",
+      "detail": "4 derived files agree",
+      "evidence": {
+        "files": [
+          "backend/app/main.py",
+          "desktop/tauri.conf.json",
+          "desktop/Cargo.toml",
+          "frontend/lib/releases.ts"
+        ]
+      },
+      "seconds": 0.02
+    },
+    {
+      "id": "A1.03",
+      "phase": 1,
+      "group": "repository",
+      "title": "desktop/Cargo.lock pins the crate at VERSION",
+      "stop": true,
+      "status": "PASS",
+      "detail": "3.0.1",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A1.04",
+      "phase": 1,
+      "group": "repository",
+      "title": "releases.ts is newest-first, one entry per version, each dated",
+      "stop": true,
+      "status": "PASS",
+      "detail": "9 entries, newest v3.0.1",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A1.05",
+      "phase": 1,
+      "group": "repository",
+      "title": "This release's entry has a headline, improvements, and its known gaps",
+      "stop": true,
+      "status": "PASS",
+      "detail": "4 improved, 16 known",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A1.06",
+      "phase": 1,
+      "group": "repository",
+      "title": "The download state of this release's entry is right for the stage",
+      "stop": true,
+      "status": "PASS",
+      "detail": "offered, dated 2026-09-28",
+      "evidence": {},
+      "seconds": 0.03
+    },
+    {
+      "id": "A1.07",
+      "phase": 1,
+      "group": "repository",
+      "title": "The changelog carries this release, with its known gaps",
+      "stop": true,
+      "status": "PASS",
+      "detail": "v3.0.1 \u2014 2026-09-28",
+      "evidence": {},
+      "seconds": 0.01
+    },
+    {
+      "id": "A1.08",
+      "phase": 1,
+      "group": "repository",
+      "title": "Nothing reads the private package versions (they are not version carriers)",
+      "stop": true,
+      "status": "PASS",
+      "detail": "no reader; both package.json private",
+      "evidence": {},
+      "seconds": 0.34
+    },
+    {
+      "id": "A1.09",
+      "phase": 1,
+      "group": "repository",
+      "title": "Every version named in user-facing text is a reviewed, intended reference",
+      "stop": true,
+      "status": "PASS",
+      "detail": "44 references, all reviewed",
+      "evidence": {},
+      "seconds": 0.32
+    },
+    {
+      "id": "A1.10",
+      "phase": 1,
+      "group": "repository",
+      "title": "No user-facing text names a version newer than this release",
+      "stop": true,
+      "status": "PASS",
+      "detail": "none",
+      "evidence": {},
+      "seconds": 0.31
+    },
+    {
+      "id": "A1.12",
+      "phase": 1,
+      "group": "repository",
+      "title": "The tag is in the state this stage needs",
+      "stop": true,
+      "status": "PASS",
+      "detail": "v3.0.1 \u2192 d53d6457d (annotated)",
+      "evidence": {
+        "commit": "d53d6457df1d5b7666fad529f5433616e78bce6a"
+      },
+      "seconds": 0.49
+    },
+    {
+      "id": "A1.13",
+      "phase": 1,
+      "group": "repository",
+      "title": "The tagged tree is on main and says this version everywhere",
+      "stop": true,
+      "status": "PASS",
+      "detail": "d53d6457d on main, consistent, tagged unreleased",
+      "evidence": {},
+      "seconds": 0.23
+    },
+    {
+      "id": "A1.14",
+      "phase": 1,
+      "group": "repository",
+      "title": "Every published measurement matches a committed evaluation result",
+      "stop": true,
+      "status": "PASS",
+      "detail": "11 claims, each backed",
+      "evidence": {
+        "backed_by": [
+          "eval-2026-07-31.json",
+          "eval-2026-08-03.json",
+          "eval-2026-08-12.json",
+          "eval-2026-08-13-ollama-run7.json",
+          "eval-2026-09-28-custom-custom.json"
+        ]
+      },
+      "seconds": 0.06
+    },
+    {
+      "id": "A2.01",
+      "phase": 2,
+      "group": "repository",
+      "title": "Every PR merged since the previous release is accounted for in the record",
+      "stop": true,
+      "status": "PASS",
+      "detail": "3 PRs since v3.0.0, all accounted for",
+      "evidence": {
+        "prs": [
+          "166",
+          "167",
+          "168"
+        ]
+      },
+      "seconds": 0.04
+    },
+    {
+      "id": "A2.02",
+      "phase": 2,
+      "group": "repository",
+      "title": "Features marked \"new in\" name a released version",
+      "stop": true,
+      "status": "PASS",
+      "detail": "all released",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A2.03",
+      "phase": 2,
+      "group": "repository",
+      "title": "A release that changes what runs produce carries an evaluation or a waiver",
+      "stop": true,
+      "status": "PASS",
+      "detail": "no quality-affecting path changed since v3.0.0",
+      "evidence": {},
+      "seconds": 0.04
+    },
+    {
+      "id": "A3.01",
+      "phase": 3,
+      "group": "workflows",
+      "title": "CI on the release commit passed every required job, the E2E journeys included",
+      "stop": true,
+      "status": "PASS",
+      "detail": "https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/runs/36481603358",
+      "evidence": {
+        "run": "https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/runs/36481603358",
+        "commit": "d53d6457df1d5b7666fad529f5433616e78bce6a"
+      },
+      "seconds": 1.4
+    },
+    {
+      "id": "A3.02",
+      "phase": 3,
+      "group": "workflows",
+      "title": "Desktop and Pages on the release commit passed",
+      "stop": true,
+      "status": "PASS",
+      "detail": "https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/runs/36481603443",
+      "evidence": {
+        "desktop_run": "https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/runs/36481603443"
+      },
+      "seconds": 1.53
+    },
+    {
+      "id": "A3.03",
+      "phase": 3,
+      "group": "workflows",
+      "title": "main still requires every release-critical check (the ruleset)",
+      "stop": true,
+      "status": "PASS",
+      "detail": "11 checks required",
+      "evidence": {
+        "required": [
+          "Eval results are write-once",
+          "One version, everywhere",
+          "Shell (macos-latest)",
+          "Shell (ubuntu-latest)",
+          "Shell (windows-latest)",
+          "Sidecar (macos-latest)",
+          "Sidecar (ubuntu-latest)",
+          "Sidecar (windows-latest)",
+          "backend",
+          "frontend",
+          "golden-e2e"
+        ]
+      },
+      "seconds": 0.68
+    },
+    {
+      "id": "A6.01",
+      "phase": 6,
+      "group": "workflows",
+      "title": "The tag's Desktop run passed every job, publishing included",
+      "stop": true,
+      "status": "PASS",
+      "detail": "https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/runs/36481725608",
+      "evidence": {
+        "run": "https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/runs/36481725608",
+        "started": "2026-09-28T20:47:54Z"
+      },
+      "seconds": 1.67
+    },
+    {
+      "id": "A6.02",
+      "phase": 6,
+      "group": "workflows",
+      "title": "Every packaged-app guard ran and passed on the tag's installers",
+      "stop": true,
+      "status": "WARN",
+      "detail": "3 guard(s) not in this tag's workflow: ['Shell (ubuntu-latest) \u203a The installed .deb carries a working engine that reports this commit', 'Shell (ubuntu-latest) \u203a The AppImage carries a working engine that reports this commit', 'Shell (windows-latest) \u203a The installed .msi carries a working engine that reports this commit']",
+      "evidence": {},
+      "seconds": 2.69
+    },
+    {
+      "id": "A6.03",
+      "phase": 6,
+      "group": "workflows",
+      "title": "Every workflow guard a past release incident put in place is still there",
+      "stop": true,
+      "status": "PASS",
+      "detail": "26 guards present",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A6.04",
+      "phase": 6,
+      "group": "workflows",
+      "title": "The Tauri bundle config ships the engine and signs the whole macOS bundle",
+      "stop": true,
+      "status": "PASS",
+      "detail": "engine bundled, macOS bundle signed",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A10.01",
+      "phase": 10,
+      "group": "images",
+      "title": "api, worker and frontend are published at X.Y.Z and X.Y for amd64 and arm64",
+      "stop": true,
+      "status": "PASS",
+      "detail": "6 tags, both architectures",
+      "evidence": {
+        "digests": {
+          "api:3.0.1": "sha256:d70c12a40dafc3143863cb20e1e6e27f86763fcbe0078d5bbd16f32b5c69584a",
+          "api:3.0": "sha256:d70c12a40dafc3143863cb20e1e6e27f86763fcbe0078d5bbd16f32b5c69584a",
+          "worker:3.0.1": "sha256:8ebbc49bd2c103611b3613da6fc44a3265d9fed9d9fbaf66fd792701a7dcb826",
+          "worker:3.0": "sha256:8ebbc49bd2c103611b3613da6fc44a3265d9fed9d9fbaf66fd792701a7dcb826",
+          "frontend:3.0.1": "sha256:79fb4c3d29f81585ba32e3d528c0744f0d937ff4fe438413582bcfa458afe3a6",
+          "frontend:3.0": "sha256:79fb4c3d29f81585ba32e3d528c0744f0d937ff4fe438413582bcfa458afe3a6"
+        }
+      },
+      "seconds": 0.74
+    },
+    {
+      "id": "A10.02",
+      "phase": 10,
+      "group": "images",
+      "title": "`latest` is this release",
+      "stop": true,
+      "status": "PASS",
+      "detail": "latest = 3.0.1",
+      "evidence": {},
+      "seconds": 1.72
+    },
+    {
+      "id": "A10.03",
+      "phase": 10,
+      "group": "images",
+      "title": "Every published image was built from the tagged commit (provenance)",
+      "stop": true,
+      "status": "PASS",
+      "detail": "all 6 built from d53d6457d",
+      "evidence": {
+        "revisions": {
+          "api linux/amd64": "d53d6457df1d5b7666fad529f5433616e78bce6a",
+          "api linux/arm64": "d53d6457df1d5b7666fad529f5433616e78bce6a",
+          "worker linux/arm64": "d53d6457df1d5b7666fad529f5433616e78bce6a",
+          "worker linux/amd64": "d53d6457df1d5b7666fad529f5433616e78bce6a",
+          "frontend linux/amd64": "d53d6457df1d5b7666fad529f5433616e78bce6a",
+          "frontend linux/arm64": "d53d6457df1d5b7666fad529f5433616e78bce6a"
+        }
+      },
+      "seconds": 5.21
+    },
+    {
+      "id": "A10.04",
+      "phase": 10,
+      "group": "images",
+      "title": "The documented deploy path pulls a released image, not a stale moving tag",
+      "stop": true,
+      "status": "PASS",
+      "detail": "deploy defaults: {'deploy/oracle-bootstrap.sh': 'latest', 'deploy/docker-compose.demo.yml': 'latest'}",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A10.05",
+      "phase": 10,
+      "group": "images",
+      "title": "A running api image reports the tagged commit and version",
+      "stop": true,
+      "status": "FAIL",
+      "detail": "/api/v1/version reports git_sha=unknown, not d53d6457d \u2014 the image was not stamped",
+      "evidence": {
+        "build": {
+          "version": "unknown",
+          "git_sha": "unknown",
+          "dirty": true,
+          "contract_version": "unknown",
+          "built_at": "unknown",
+          "app_version": "3.0.1"
+        }
+      },
+      "seconds": 1.35
+    },
+    {
+      "id": "A11.01",
+      "phase": 11,
+      "group": "github_release",
+      "title": "The GitHub Release exists, is public, and is marked the way the tag says",
+      "stop": true,
+      "status": "PASS",
+      "detail": "https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/tag/v3.0.1",
+      "evidence": {
+        "url": "https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/tag/v3.0.1",
+        "published_at": "2026-09-28T20:51:48Z"
+      },
+      "seconds": 0.34
+    },
+    {
+      "id": "A11.02",
+      "phase": 11,
+      "group": "github_release",
+      "title": "GitHub's \"latest release\" is this one (the in-app update check reads it)",
+      "stop": true,
+      "status": "PASS",
+      "detail": "v3.0.1",
+      "evidence": {},
+      "seconds": 0.43
+    },
+    {
+      "id": "A11.03",
+      "phase": 11,
+      "group": "github_release",
+      "title": "Exactly the four installers and SHA256SUMS, named as served, not undersized",
+      "stop": true,
+      "status": "PASS",
+      "detail": "4 installers + SHA256SUMS",
+      "evidence": {
+        "assets": {
+          "Research.Assistant_3.0.1_aarch64.dmg": {
+            "size": 73696505,
+            "digest": "sha256:8b8630811df99c0dc65505aedf859aa662ec945df60fa6bec23673ae271a243c"
+          },
+          "Research.Assistant_3.0.1_amd64.AppImage": {
+            "size": 182180344,
+            "digest": "sha256:95cdeb1b8d26cd16f856ade7a42fd37ff70ca6d13534640da4af346526286e06"
+          },
+          "Research.Assistant_3.0.1_amd64.deb": {
+            "size": 127438158,
+            "digest": "sha256:6cd4e70acbbed060cce36289130df4ae65a2772c88c5ae3aa4f519112af2c2fa"
+          },
+          "Research.Assistant_3.0.1_x64_en-US.msi": {
+            "size": 78913771,
+            "digest": "sha256:254daa181c11008b9a4192cac5b973911c8d6dff7e8a98ace1aedd4a02de98d1"
+          },
+          "SHA256SUMS": {
+            "size": 415,
+            "digest": "sha256:54fb783d4703eb7a3d2de11a5cdeb1fa4883f02a1203296e87bccfcb922e00de"
+          }
+        }
+      },
+      "seconds": 0.0
+    },
+    {
+      "id": "A11.04",
+      "phase": 11,
+      "group": "github_release",
+      "title": "Every asset was uploaded by the tag's own Desktop run",
+      "stop": true,
+      "status": "PASS",
+      "detail": "all uploaded during https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/runs/36481725608",
+      "evidence": {},
+      "seconds": 0.02
+    },
+    {
+      "id": "A11.05",
+      "phase": 11,
+      "group": "github_release",
+      "title": "SHA256SUMS lists every installer, and every hash is what GitHub stored",
+      "stop": true,
+      "status": "PASS",
+      "detail": "4 hashes match",
+      "evidence": {
+        "sums": {
+          "Research.Assistant_3.0.1_aarch64.dmg": "8b8630811df99c0dc65505aedf859aa662ec945df60fa6bec23673ae271a243c",
+          "Research.Assistant_3.0.1_amd64.AppImage": "95cdeb1b8d26cd16f856ade7a42fd37ff70ca6d13534640da4af346526286e06",
+          "Research.Assistant_3.0.1_amd64.deb": "6cd4e70acbbed060cce36289130df4ae65a2772c88c5ae3aa4f519112af2c2fa",
+          "Research.Assistant_3.0.1_x64_en-US.msi": "254daa181c11008b9a4192cac5b973911c8d6dff7e8a98ace1aedd4a02de98d1"
+        }
+      },
+      "seconds": 0.38
+    },
+    {
+      "id": "A11.06",
+      "phase": 11,
+      "group": "github_release",
+      "title": "Every installer, downloaded, hashes to its SHA256SUMS line",
+      "stop": true,
+      "status": "PASS",
+      "detail": "4 downloads verified",
+      "evidence": {
+        "hashed": {
+          "Research.Assistant_3.0.1_aarch64.dmg": "8b8630811df99c0dc65505aedf859aa662ec945df60fa6bec23673ae271a243c",
+          "Research.Assistant_3.0.1_amd64.AppImage": "95cdeb1b8d26cd16f856ade7a42fd37ff70ca6d13534640da4af346526286e06",
+          "Research.Assistant_3.0.1_amd64.deb": "6cd4e70acbbed060cce36289130df4ae65a2772c88c5ae3aa4f519112af2c2fa",
+          "Research.Assistant_3.0.1_x64_en-US.msi": "254daa181c11008b9a4192cac5b973911c8d6dff7e8a98ace1aedd4a02de98d1"
+        }
+      },
+      "seconds": 913.61
+    },
+    {
+      "id": "A11.07",
+      "phase": 11,
+      "group": "github_release",
+      "title": "The release notes carry both workflows' sections and the right pull tags",
+      "stop": true,
+      "status": "PASS",
+      "detail": "images, installers, first launch, checksums",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A11.08",
+      "phase": 11,
+      "group": "github_release",
+      "title": "The tag's source archive downloads",
+      "stop": true,
+      "status": "PASS",
+      "detail": "https://github.com/adityamhaske/Multi-Agent-Research-Assistant/archive/refs/tags/v3.0.1.zip",
+      "evidence": {},
+      "seconds": 3.02
+    },
+    {
+      "id": "A11.09",
+      "phase": 11,
+      "group": "github_release",
+      "title": "The Release workflow on the tag built, stitched and published every image",
+      "stop": true,
+      "status": "PASS",
+      "detail": "https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/runs/36481725467",
+      "evidence": {
+        "run": "https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/runs/36481725467"
+      },
+      "seconds": 2.66
+    },
+    {
+      "id": "A12.01",
+      "phase": 12,
+      "group": "site",
+      "title": "Every relative link in docs/ and the README resolves",
+      "stop": true,
+      "status": "PASS",
+      "detail": "all resolve",
+      "evidence": {
+        "broken": []
+      },
+      "seconds": 0.01
+    },
+    {
+      "id": "A12.02",
+      "phase": 12,
+      "group": "site",
+      "title": "Every surface gives the same macOS first-launch command",
+      "stop": true,
+      "status": "PASS",
+      "detail": "4 surfaces agree",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A13.01",
+      "phase": 13,
+      "group": "site",
+      "title": "The README's pipeline diagram shows both human gates",
+      "stop": true,
+      "status": "PASS",
+      "detail": "design and review gates",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A13.02",
+      "phase": 13,
+      "group": "site",
+      "title": "Every absolute link in the README answers",
+      "stop": true,
+      "status": "PASS",
+      "detail": "10 links answer",
+      "evidence": {},
+      "seconds": 1.09
+    },
+    {
+      "id": "A14.01",
+      "phase": 14,
+      "group": "site",
+      "title": "The live landing page presents this release as current",
+      "stop": true,
+      "status": "PASS",
+      "detail": "New in v3.0.1; softwareVersion v3.0.1",
+      "evidence": {},
+      "seconds": 0.77
+    },
+    {
+      "id": "A14.02",
+      "phase": 14,
+      "group": "site",
+      "title": "Every internal link on the five public pages answers, assets included",
+      "stop": true,
+      "status": "PASS",
+      "detail": "56 internal URLs answer",
+      "evidence": {
+        "checked": 56
+      },
+      "seconds": 8.25
+    },
+    {
+      "id": "A14.03",
+      "phase": 14,
+      "group": "site",
+      "title": "robots.txt allows crawling and the sitemap names this site",
+      "stop": true,
+      "status": "PASS",
+      "detail": "crawlable",
+      "evidence": {},
+      "seconds": 2.22
+    },
+    {
+      "id": "A15.01",
+      "phase": 15,
+      "group": "site",
+      "title": "The live download page offers exactly this release's installers",
+      "stop": true,
+      "status": "PASS",
+      "detail": "4 installers of v3.0.1",
+      "evidence": {},
+      "seconds": 0.64
+    },
+    {
+      "id": "A15.02",
+      "phase": 15,
+      "group": "site",
+      "title": "Every version the download page offers has all its files",
+      "stop": true,
+      "status": "PASS",
+      "detail": "8 versions, 40 files answer",
+      "evidence": {
+        "offered": [
+          "3.0.1",
+          "3.0.0",
+          "2.1.0",
+          "2.0.2",
+          "2.0.1",
+          "2.0.0",
+          "1.0.2",
+          "1.0.1"
+        ],
+        "broken": []
+      },
+      "seconds": 10.05
+    },
+    {
+      "id": "A15.03",
+      "phase": 15,
+      "group": "site",
+      "title": "The download page builds the same file names the release publishes",
+      "stop": true,
+      "status": "PASS",
+      "detail": "names agree",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A16.01",
+      "phase": 16,
+      "group": "site",
+      "title": "The live releases page leads with this release and links its tag",
+      "stop": true,
+      "status": "PASS",
+      "detail": "v3.0.1 first",
+      "evidence": {},
+      "seconds": 4.98
+    },
+    {
+      "id": "A16.02",
+      "phase": 16,
+      "group": "site",
+      "title": "The releases page and GitHub list the same releases",
+      "stop": true,
+      "status": "PASS",
+      "detail": "9 releases agree",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A16.03",
+      "phase": 16,
+      "group": "site",
+      "title": "Each release's date on the site is the day its tag was cut",
+      "stop": false,
+      "status": "WARN",
+      "detail": "historical: v1.0.2: site 2026-08-15, tag 2026-08-16; v1.0.0: site 2026-08-14, tag 2026-08-13",
+      "evidence": {},
+      "seconds": 0.15
+    },
+    {
+      "id": "A17.01",
+      "phase": 17,
+      "group": "site",
+      "title": "GitHub Pages last deployed origin/main, successfully",
+      "stop": true,
+      "status": "PASS",
+      "detail": "21e2147c0 deployed 2026-09-28T21:18:27Z",
+      "evidence": {
+        "deployed": "21e2147c02c0db2f56eedaec571b77ff3146fbe7",
+        "main": "21e2147c02c0db2f56eedaec571b77ff3146fbe7",
+        "created_at": "2026-09-28T21:18:27Z"
+      },
+      "seconds": 4.25
+    },
+    {
+      "id": "A17.02",
+      "phase": 17,
+      "group": "site",
+      "title": "The live site's build stamp names the deployed commit and this version",
+      "stop": true,
+      "status": "WARN",
+      "detail": "no /build.json on the live site \u2014 built before pages.yml published one; A17.01's deployment record is the only evidence of what is served",
+      "evidence": {},
+      "seconds": 1.92
+    },
+    {
+      "id": "A18.01",
+      "phase": 18,
+      "group": "security",
+      "title": "No secret-shaped string is tracked in the repository",
+      "stop": true,
+      "status": "PASS",
+      "detail": "none",
+      "evidence": {},
+      "seconds": 0.68
+    },
+    {
+      "id": "A18.02",
+      "phase": 18,
+      "group": "security",
+      "title": "No environment file other than .env.example is tracked",
+      "stop": true,
+      "status": "PASS",
+      "detail": "only .env.example",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A18.03",
+      "phase": 18,
+      "group": "security",
+      "title": "The desktop WebView can reach only its own engine",
+      "stop": true,
+      "status": "PASS",
+      "detail": "ipc: http://ipc.localhost http://127.0.0.1:*",
+      "evidence": {},
+      "seconds": 0.01
+    },
+    {
+      "id": "A18.04",
+      "phase": 18,
+      "group": "security",
+      "title": "In the full stack only the frontend publishes a port",
+      "stop": true,
+      "status": "PASS",
+      "detail": "frontend only",
+      "evidence": {},
+      "seconds": 0.02
+    },
+    {
+      "id": "A18.05",
+      "phase": 18,
+      "group": "security",
+      "title": "No open code-scanning alert, no open high or critical dependency alert",
+      "stop": true,
+      "status": "PASS",
+      "detail": "0 code-scanning, 0 dependency alerts open (none high/critical)",
+      "evidence": {},
+      "seconds": 0.75
+    },
+    {
+      "id": "A19.01",
+      "phase": 19,
+      "group": "upgrade",
+      "title": "The migration chain has exactly one head",
+      "stop": true,
+      "status": "PASS",
+      "detail": "29 revisions, head 0027_run_prompt_provenance",
+      "evidence": {},
+      "seconds": 0.0
+    },
+    {
+      "id": "A19.02",
+      "phase": 19,
+      "group": "upgrade",
+      "title": "Schema and bundle-format changes since the previous release are declared",
+      "stop": false,
+      "status": "PASS",
+      "detail": "no schema, model or bundle-format change since v3.0.0",
+      "evidence": {
+        "migrations": [],
+        "models": [],
+        "bundle_format": []
+      },
+      "seconds": 0.08
+    },
+    {
+      "id": "A21.01",
+      "phase": 21,
+      "group": "upgrade",
+      "title": "The record accounts for every manual check and is signed off",
+      "stop": true,
+      "status": "FAIL",
+      "detail": "FAIL: M4.02, M15.01; not signed off",
+      "evidence": {
+        "counts": {
+          "FAIL": 2,
+          "N/A": 12,
+          "NOT RUN": 26,
+          "PASS": 41
+        }
+      },
+      "seconds": 0.0
+    },
+    {
+      "id": "A22.01",
+      "phase": 22,
+      "group": "upgrade",
+      "title": "The release record is on main",
+      "stop": true,
+      "status": "FAIL",
+      "detail": "release-audit/v3.0.1/record.md is not on origin/main",
+      "evidence": {},
+      "seconds": 0.01
+    }
+  ]
+}

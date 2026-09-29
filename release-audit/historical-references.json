@@ -1,0 +1,225 @@
+{
+  "about": "Every line of user-facing text that names a version, reviewed. A1.09 fails on a line that names a version and is not here, and on an entry whose line no longer exists — an edit to a reviewed line asks for a fresh review. Keyed on the line's text (whitespace-normalised), not its number. The changelog and frontend/lib/releases.ts are version histories by design and are not scanned. See RELEASE.md, Phase 1.",
+  "references": [
+    {
+      "path": ".github/workflows/desktop.yml",
+      "text": "# Every macOS build from 1.0.1 to 3.0.0 shipped with only the signature the linker",
+      "reason": "workflow comment recording the incident its guard exists for"
+    },
+    {
+      "path": ".github/workflows/desktop.yml",
+      "text": "# productName (\"Research Assistant_1.0.1_aarch64.dmg\"), and GitHub rewrites the",
+      "reason": "workflow comment recording the incident its guard exists for (the space-in-name SHA256SUMS bug)"
+    },
+    {
+      "path": ".github/workflows/desktop.yml",
+      "text": "# Pre-release for anything carrying a suffix (v1.0.0-rc1, -beta). Unsigned",
+      "reason": "example of a suffixed tag in a comment"
+    },
+    {
+      "path": ".github/workflows/desktop.yml",
+      "text": "**Research bundles from v3.0.0 onward are format v2, and a verifier from before",
+      "reason": "bundle format v2 began at 3.0.0 — permanently true, and what a verifier user needs to know; appended to every release body"
+    },
+    {
+      "path": ".github/workflows/desktop.yml",
+      "text": "v3.0.0 refuses them.** Check a bundle with the `verify_bundle` shipped in this",
+      "reason": "bundle format v2 began at 3.0.0 — permanently true, and what a verifier user needs to know; appended to every release body"
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "text": "# cut a public 1.0.0 first; an untested build must never become `latest`.",
+      "reason": "comment explaining why manual image builds never move `latest`"
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "text": "# Through 3.0.1 nothing here ran `stamp_build.py`, so every published api/worker image",
+      "reason": "workflow comment recording the incident its guard exists for (unstamped images)"
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "text": "# is `2.0.1` while `github.ref_name` is `v2.0.1`. These lines get copy-pasted into",
+      "reason": "workflow comment recording the incident its guard exists for (the `:v` pull-tag bug)"
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "text": "# finished second replaced the other's text — which is why v2.0.0 shipped with",
+      "reason": "workflow comment recording the incident its guard exists for (release bodies overwriting each other)"
+    },
+    {
+      "path": "README.md",
+      "text": "- **Measured, with its caveats** — the 3.0.0 release run measured 96.4% citation support over",
+      "reason": "names which release run produced the measurement (eval-2026-09-28-custom-custom.json); re-review when a newer release run is committed"
+    },
+    {
+      "path": "docs/developers/08-testing-and-evaluation.md",
+      "text": "exactly the threshold meets it — and both are fixed: nothing a user configures changes them. The V3.0.0",
+      "reason": "names which release run produced the measurement (eval-2026-09-28-custom-custom.json); re-review when a newer release run is committed"
+    },
+    {
+      "path": "docs/getting-started/01-overview.md",
+      "text": "| Your own instructions for any of the five agents, with four checks that cannot be rewritten, recorded in each run and its bundle | Built (3.0.0) |",
+      "reason": "status table: the release that built the feature"
+    },
+    {
+      "path": "docs/getting-started/01-overview.md",
+      "text": "- **Citation support rests on one run.** The 3.0.0 release run measured 96.4% over ten fixed",
+      "reason": "names which release run produced the measurement (eval-2026-09-28-custom-custom.json); re-review when a newer release run is committed"
+    },
+    {
+      "path": "docs/getting-started/19-research-record.md",
+      "text": "**A bundle also says which instructions produced it.** From 3.0.0, a bundle records every",
+      "reason": "bundle format v2 began at 3.0.0 — permanently true, and what a verifier user needs to know"
+    },
+    {
+      "path": "docs/getting-started/19-research-record.md",
+      "text": "Those bundles are format version 2. A verifier from before 3.0.0 refuses them, so use the one",
+      "reason": "bundle format v2 began at 3.0.0 — permanently true, and what a verifier user needs to know"
+    },
+    {
+      "path": "docs/getting-started/19-research-record.md",
+      "text": "from 3.0.0 or later, which verifies versions 1 and 2 alike.",
+      "reason": "bundle format v2 began at 3.0.0 — permanently true, and what a verifier user needs to know"
+    },
+    {
+      "path": "docs/getting-started/23-desktop-app.md",
+      "text": "**Every macOS build from 1.0.1 to 3.0.0 is reported as \"damaged and can't be opened\".** Those",
+      "reason": "the macOS 'damaged' range (1.0.1-3.0.0) and its 3.0.1 fix — permanently true, and why the unquarantine step exists"
+    },
+    {
+      "path": "docs/getting-started/23-desktop-app.md",
+      "text": "the only way to open them. From 3.0.1 the whole bundle is signed, CI refuses a disk image",
+      "reason": "the macOS 'damaged' range (1.0.1-3.0.0) and its 3.0.1 fix — permanently true, and why the unquarantine step exists"
+    },
+    {
+      "path": "docs/getting-started/24-troubleshooting.md",
+      "text": "The bundle is from 3.0.0 or later and the verifier is older. Version 2 bundles record the",
+      "reason": "bundle format v2 began at 3.0.0 — permanently true, and what a verifier user needs to know"
+    },
+    {
+      "path": "docs/getting-started/24-troubleshooting.md",
+      "text": "prompts each agent ran on, and a verifier from before 3.0.0 cannot read them. Run the verifier",
+      "reason": "bundle format v2 began at 3.0.0 — permanently true, and what a verifier user needs to know"
+    },
+    {
+      "path": "docs/getting-started/24-troubleshooting.md",
+      "text": "from 3.0.0 or later; it verifies version 1 bundles unchanged.",
+      "reason": "bundle format v2 began at 3.0.0 — permanently true, and what a verifier user needs to know"
+    },
+    {
+      "path": "docs/getting-started/24-troubleshooting.md",
+      "text": "The app is not damaged. Every macOS build from 1.0.1 to 3.0.0 was signed only by the linker,",
+      "reason": "the macOS 'damaged' range (1.0.1-3.0.0) and its 3.0.1 fix — permanently true, and why the unquarantine step exists"
+    },
+    {
+      "path": "docs/getting-started/24-troubleshooting.md",
+      "text": "Reinstalling does not help: every fresh download carries the flag again. Builds from 3.0.1 are",
+      "reason": "the macOS 'damaged' range (1.0.1-3.0.0) and its 3.0.1 fix — permanently true, and why the unquarantine step exists"
+    },
+    {
+      "path": "docs/project/10-roadmap.md",
+      "text": "is none of the models under test. The V3.0.0 release run measured 0.9638 on the fixed",
+      "reason": "names which release run produced the measurement (eval-2026-09-28-custom-custom.json); re-review when a newer release run is committed"
+    },
+    {
+      "path": "docs/research/16-citation-fidelity-benchmark.md",
+      "text": "The most recent real-model run is the V3.0.0 release run,",
+      "reason": "names which release run produced the measurement (eval-2026-09-28-custom-custom.json); re-review when a newer release run is committed"
+    },
+    {
+      "path": "docs/user-guide/25-running-research.md",
+      "text": "on both the server and the desktop app; 3.0.0 closed the cases where it did not.",
+      "reason": "historical: the release that closed the cancellation gaps (issue #54)"
+    },
+    {
+      "path": "docs/user-guide/27-citations.md",
+      "text": "The 3.0.0 release run measured **96.4% citation support** over ten fixed questions, with",
+      "reason": "names which release run produced the measurement (eval-2026-09-28-custom-custom.json); re-review when a newer release run is committed"
+    },
+    {
+      "path": "docs/user-guide/29-exports.md",
+      "text": "replaced it — and whether your custom instructions were applied (from 3.0.0);",
+      "reason": "bundle format v2 began at 3.0.0 — permanently true, and what a verifier user needs to know"
+    },
+    {
+      "path": "docs/user-guide/29-exports.md",
+      "text": "**Bundles from 3.0.0 on are format version 2.** A verifier from before 3.0.0 refuses them;",
+      "reason": "bundle format v2 began at 3.0.0 — permanently true, and what a verifier user needs to know"
+    },
+    {
+      "path": "docs/user-guide/29-exports.md",
+      "text": "the one from 3.0.0 or later verifies versions 1 and 2 alike. Research recorded before 3.0.0",
+      "reason": "bundle format v2 began at 3.0.0 — permanently true, and what a verifier user needs to know"
+    },
+    {
+      "path": "docs/user-guide/38-agent-instructions.md",
+      "text": "3.0.0 you can replace them with your own — to change how the planner breaks a question down,",
+      "reason": "historical: the release that introduced agent instructions"
+    },
+    {
+      "path": "docs/user-guide/38-agent-instructions.md",
+      "text": "Bundles from 3.0.0 on are format version 2, which is what records the prompts. A verifier from",
+      "reason": "bundle format v2 began at 3.0.0 — permanently true, and what a verifier user needs to know"
+    },
+    {
+      "path": "docs/user-guide/38-agent-instructions.md",
+      "text": "before 3.0.0 knows only version 1 and refuses them, so check a bundle with the verifier from",
+      "reason": "bundle format v2 began at 3.0.0 — permanently true, and what a verifier user needs to know"
+    },
+    {
+      "path": "docs/user-guide/38-agent-instructions.md",
+      "text": "3.0.0 or later — it verifies both versions. Research recorded before 3.0.0 still exports as a",
+      "reason": "bundle format v2 began at 3.0.0 — permanently true, and what a verifier user needs to know"
+    },
+    {
+      "path": "docs/user-guide/38-agent-instructions.md",
+      "text": "- Research recorded before 3.0.0 has no instructions recorded, and never will.",
+      "reason": "bundle format v2 began at 3.0.0 — permanently true, and what a verifier user needs to know"
+    },
+    {
+      "path": "frontend/app/(site)/download/page.tsx",
+      "text": "// Desktop bundles started shipping in v1.0.1. Derived from `lib/releases.ts` so the",
+      "reason": "code comment: the first release with desktop installers"
+    },
+    {
+      "path": "frontend/app/(site)/download/page.tsx",
+      "text": "(r) => !r.unreleased && r.version !== \"v1.0.0\",",
+      "reason": "code: v1.0.0 has no desktop installers, so the page never offers it"
+    },
+    {
+      "path": "frontend/app/(site)/download/page.tsx",
+      "text": "(latestRelease()?.version ?? \"v2.0.2\").replace(/^v/, \"\");",
+      "reason": "code: fallback reached only if releases.ts had no released desktop entry — unreachable today, but a stale literal (reported in release-audit/v3.0.1/record.md)"
+    },
+    {
+      "path": "frontend/app/(site)/download/page.tsx",
+      "text": "* The bundler names files after productName (\"Research Assistant_1.0.2_…\") and GitHub",
+      "reason": "code comment: an example of the bundler's file naming"
+    },
+    {
+      "path": "frontend/app/(site)/download/page.tsx",
+      "text": "* Every macOS build from 1.0.1 to 3.0.0 was signed only by the linker, so a downloaded copy",
+      "reason": "the macOS 'damaged' range (1.0.1-3.0.0) and its 3.0.1 fix — permanently true, and why the unquarantine step exists (code comment)"
+    },
+    {
+      "path": "frontend/app/(site)/download/page.tsx",
+      "text": "note: 'The app is not signed with an Apple Developer ID or notarized — Apple charges $99/year for that, and this project does not pay it yet — so macOS blocks it until you say otherwise. Versions up to 3.0.0 go further: macOS calls them \"damaged and can\\'t be opened\", because their signature was incomplete, and the command above is the only way to open them.',",
+      "reason": "the macOS 'damaged' range (1.0.1-3.0.0) and its 3.0.1 fix — permanently true, and why the unquarantine step exists (the download card's note)"
+    },
+    {
+      "path": "frontend/components/session/ReportView.tsx",
+      "text": "* It has existed as an endpoint since v1.0.0 and had no control anywhere in the app: the",
+      "reason": "code comment: how long the endpoint existed without a control"
+    },
+    {
+      "path": "frontend/lib/features.ts",
+      "text": "since: \"v3.0.0\",",
+      "reason": "the release that introduced the feature (A2.02 checks it is released)"
+    },
+    {
+      "path": "frontend/lib/features.ts",
+      "text": "since: \"v3.0.0\",",
+      "reason": "the release that introduced the feature (A2.02 checks it is released)"
+    }
+  ]
+}

@@ -124,6 +124,18 @@ jobs:
           NEXT_PUBLIC_SITE_URL: ${{ steps.site.outputs.site_url }}
         run: npm run build:pages
 
+      - name: Stamp the export with what it was built from
+        # GitHub's deployment record says which commit a workflow *deployed*; this says which
+        # build the CDN is actually *serving*, read back from the live site by the release
+        # audit (RELEASE.md, A17.02). Before it existed, nothing on the site could say whether
+        # the page a visitor saw was built from the release commit or from a week earlier.
+        run: |
+          printf '{"commit":"%s","version":"%s","built_at":"%s","run":"%s"}\n' \
+            "$GITHUB_SHA" "$(tr -d '[:space:]' < VERSION)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            > /tmp/pages/frontend/out/build.json
+          cat /tmp/pages/frontend/out/build.json
+
       - name: Tell GitHub Pages the custom domain
         # Pages reads this file from the published artifact; without it a custom domain
         # serves the wrong site or none. Written from the same single source that decided

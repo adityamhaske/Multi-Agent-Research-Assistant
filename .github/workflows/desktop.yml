@@ -444,6 +444,71 @@ jobs:
             echo "::error::Gatekeeper does not reach a policy verdict — a downloaded copy would be reported as damaged"
             exit 1
           fi
+      # The three steps below are the Linux and Windows halves of the two macOS steps above.
+      # Until they existed, "Linux and Windows passed CI" meant the installers *compiled*: the
+      # engine was smoke-tested as raw PyInstaller output in the sidecar job, and the size
+      # check only proved something large was packed. Nothing had ever installed a .deb or
+      # an .msi, or unpacked an AppImage, and run what came out. Each now does exactly that
+      # and drives the engine it finds through both gates to an approved, exported run
+      # (`scripts/check_packaged_sidecar.py`, the same checker a person runs against a
+      # published installer in RELEASE.md). The desktop UI itself needs a display and is
+      # still checked by hand.
+      - name: The installed .deb carries a working engine that reports this commit
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          deb=$(find desktop/target/release/bundle/deb -name '*.deb' -print -quit)
+          if [ -z "$deb" ]; then echo "::error::no .deb in the bundle output"; exit 1; fi
+          pkg=$(dpkg-deb -f "$deb" Package)
+          # dpkg, not apt: the build step already installed every runtime library the
+          # package depends on, and a missing one should fail here by name.
+          sudo dpkg -i "$deb"
+          bin=$(dpkg -L "$pkg" | grep '/research-sidecar$' | head -1)
+          if [ -z "$bin" ]; then echo "::error::the installed $pkg has no research-sidecar"; exit 1; fi
+          python3 scripts/check_packaged_sidecar.py --bin "$bin" \
+            --expect-sha "$GITHUB_SHA" --expect-version "$(tr -d '[:space:]' < VERSION)" --journey
+          sudo dpkg -r "$pkg"
+          if [ -e "$bin" ]; then echo "::error::removing $pkg left $bin behind"; exit 1; fi
+      - name: The AppImage carries a working engine that reports this commit
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          img=$(find "$PWD/desktop/target/release/bundle/appimage" -name '*.AppImage' -print -quit)
+          if [ -z "$img" ]; then echo "::error::no .AppImage in the bundle output"; exit 1; fi
+          chmod +x "$img"
+          # The AppImage runtime unpacks itself without FUSE, which a runner does not have.
+          work=$(mktemp -d)
+          (cd "$work" && "$img" --appimage-extract > /dev/null)
+          python3 scripts/check_packaged_sidecar.py --search "$work/squashfs-root" \
+            --expect-sha "$GITHUB_SHA" --expect-version "$(tr -d '[:space:]' < VERSION)" --journey
+      - name: The installed .msi carries a working engine that reports this commit
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msi = Get-ChildItem desktop/target/release/bundle/msi -Filter *.msi | Select-Object -First 1
+          if (-not $msi) { throw "no .msi in the bundle output" }
+          $log = Join-Path $env:RUNNER_TEMP 'msi-install.log'
+          # A real per-machine install, silent, as a user's double-click would do it.
+          $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
+            '/i', "`"$($msi.FullName)`"", '/qn', '/norestart', '/l*v', "`"$log`"")
+          if ($p.ExitCode -ne 0) { Get-Content $log -Tail 80; throw "msiexec /i exited $($p.ExitCode)" }
+          $roots = @((Join-Path $env:ProgramFiles 'Research Assistant'), $env:ProgramFiles,
+                     (Join-Path $env:LOCALAPPDATA 'Programs'))
+          $sidecar = $roots | Where-Object { Test-Path $_ } | ForEach-Object {
+            Get-ChildItem -Path $_ -Recurse -Filter research-sidecar.exe -ErrorAction SilentlyContinue
+          } | Select-Object -First 1
+          if (-not $sidecar) { Get-Content $log -Tail 80; throw "the installed app has no research-sidecar.exe" }
+          Write-Host "installed engine: $($sidecar.FullName)"
+          python scripts/check_packaged_sidecar.py --bin $sidecar.FullName `
+            --expect-sha $env:GITHUB_SHA --expect-version (Get-Content VERSION).Trim() --journey
+          if ($LASTEXITCODE -ne 0) { throw "the installed engine failed its check" }
+          $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
+            '/x', "`"$($msi.FullName)`"", '/qn', '/norestart')
+          if ($p.ExitCode -ne 0) { throw "msiexec /x exited $($p.ExitCode)" }
+          if (Test-Path $sidecar.FullName) { throw "uninstalling left $($sidecar.FullName) behind" }
       - name: Upload shell bundle
         uses: actions/upload-artifact@v7
         with:

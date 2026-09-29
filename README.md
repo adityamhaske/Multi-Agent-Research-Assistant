@@ -217,7 +217,8 @@ Single host plus a TLS reverse proxy in front of the frontend
 Tagging `vX.Y.Z` triggers [`release.yml`](.github/workflows/release.yml), which builds
 multi-arch (`amd64` + `arm64`) api/worker/frontend images to GHCR and cuts a GitHub
 Release; [`desktop.yml`](.github/workflows/desktop.yml) builds and attaches the desktop
-bundles.
+bundles. Every release follows [`RELEASE.md`](RELEASE.md), and its evidence is kept in
+[`release-audit/`](release-audit/README.md).
 
 ## Documentation
 

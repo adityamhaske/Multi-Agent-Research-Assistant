@@ -501,6 +501,28 @@ re-run away — the first is an outage, the second is a number to fix.
 
 ## A release is not finished until the website says so
 
+**[`RELEASE.md`](RELEASE.md) is the release process** — phases, STOP conditions, the manual
+platform checks, and the record each release leaves in `release-audit/vX.Y.Z/`. Its
+machine-checkable half is `scripts/release_audit.py` (checks in `scripts/release_checks/`, one
+module per area, run concurrently); its `ci` stage runs on every commit in the `One version,
+everywhere` job. Four traps it exists for, each of which shipped:
+
+- **A release has two stages.** The tag makes the GitHub Release public at once, but the site
+  must not offer the version until its installers are verified — the entry lands
+  `unreleased: true` and a separate flip PR clears it.
+- **Every artifact must be able to say which commit built it.** The desktop engine is stamped
+  in `desktop.yml`; the server images were not stamped until `release.yml`'s `stamp` job, so
+  every image through 3.0.1 answered `/api/v1/version` with `unknown`. A new artifact type
+  needs a stamp *and* a step that asks the published artifact.
+- **"CI compiled it" is not "CI ran it".** Until the installer steps in `desktop.yml`, no
+  `.deb`, AppImage or `.msi` had ever been installed and launched by CI.
+  `scripts/check_packaged_sidecar.py` is the one checker for all of them, and for a person
+  checking a published installer.
+- **A version a user can read is a claim.** Every line of user-facing text naming a version
+  is reviewed in `release-audit/historical-references.json` (A1.09); an edit to such a line
+  fails CI until it is re-reviewed. Describe a range ("from 3.0.0 on") rather than "the
+  latest", which goes stale by itself.
+
 The public site (`frontend/app/(site)/`, GitHub Pages) is **generated from the app** — the
 docs it renders are `docs/`, the comparison is `lib/comparison.ts` — so it cannot drift
 about *how the product works*. Two things are hand-written and go stale silently:
