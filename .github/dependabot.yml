@@ -8,11 +8,14 @@
 # The filtering below is deliberately different per ecosystem, because the same bump has
 # very different consequences in each:
 #
-#   pip   every requirement in `backend/requirements.txt` is a `>=` floor — **zero** exact
-#         pins, no lockfile, no constraints file. `pip install -r requirements.txt` therefore
-#         already resolves to the newest compatible release at build time, so a PR raising
-#         `langchain-core>=1.6.1` to `>=1.6.2` changes nothing about what actually gets
+#   pip   every requirement in `backend/requirements.txt` is a `>=` floor, so
+#         `pip install -r requirements.txt` resolves to the newest compatible release at
+#         build time, and a PR raising a floor within a major changes nothing about what gets
 #         installed — it re-documents a minimum. Only a **major** floor is a real decision.
+#         The exception is `backend/constraints.txt`: the provider SDKs and their HTTP stack
+#         are pinned exactly, because a transitive float there once changed how every
+#         provider call is retried. Those do not move until someone moves the pin
+#         (backend/AGENTS.md, "Provider SDKs are pinned").
 #
 #   npm   `frontend/package-lock.json` pins exactly, so a bump here genuinely changes what
 #         ships. Minors are worth seeing; patches are not worth one PR each.
@@ -38,9 +41,13 @@ updates:
       interval: "monthly"
     open-pull-requests-limit: 5
     ignore:
-      # Not "these are unimportant" — with `>=` floors and no lockfile these updates are
-      # already in effect before the PR exists. Raising the floor only records a decision
-      # nobody made. A major is different: it is the one that can break the build.
+      # Not "these are unimportant" — with `>=` floors these updates are already in effect
+      # before the PR exists. Raising the floor only records a decision nobody made. A major
+      # is different: it is the one that can break the build. For the pins in
+      # constraints.txt the reasoning inverts — their minors and patches do NOT arrive on
+      # their own — and they stay out of this queue anyway, deliberately: moving one is a
+      # reviewed change against its changelog, and pip-audit plus security updates (which
+      # this rule does not suppress) are what say one is due.
       - dependency-name: "*"
         update-types:
           - "version-update:semver-patch"

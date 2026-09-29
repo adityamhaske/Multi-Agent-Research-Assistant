@@ -1,0 +1,37 @@
+# Exact versions for the provider SDKs and the HTTP stack beneath them.
+#
+# Applied to every install through the `-c constraints.txt` line in requirements.txt, so
+# the server image, CI, pip-audit and the desktop sidecar build all resolve this set —
+# no build path has to remember a flag.
+#
+# Why these and not a lock of everything: these are the packages whose upgrades change
+# how a provider call *behaves* — what is retried, what is raised, how connections are
+# pooled and verified — and they arrived as transitive floats. openai 2.x → 3.x came in
+# with no diff in this repository, only langchain-openai widening its own range, and
+# narrowed which transport errors the SDK retries: a latent cross-event-loop bug in the
+# worker that 2.x had been retrying away (sending the request twice) became a failed run
+# (backend/AGENTS.md, "One event loop per worker process"). All are pure Python, so one
+# pin resolves identically on Linux, macOS and Windows.
+#
+# Upgrading is a reviewed change: backend/AGENTS.md, "Provider SDKs are pinned".
+
+# Provider SDKs
+openai==3.21.0
+anthropic==1.9.0
+google-genai==2.25.0
+
+# LangChain integrations over them
+langchain-core==1.6.6
+langchain-openai==1.6.6
+langchain-anthropic==1.7.5
+langchain-google-genai==4.4.0
+
+# Transport: httpx/httpcore under google-genai and langchain-core, httpx2/httpcore2 under
+# openai and anthropic. truststore decides TLS verification for httpx2.
+httpx==0.28.1
+httpcore==1.0.9
+httpx2==2.13.1
+httpcore2==2.13.1
+truststore==0.10.4
+anyio==4.15.1
+h11==0.16.0

@@ -62,6 +62,37 @@ plan approval with `RuntimeError: Event loop is closed`. openai 2.x had retried 
 nothing. `tests/workflow/test_worker_event_loop.py` makes real keep-alive HTTP calls across
 the task boundary and forbids a per-task loop anywhere in `app/workers/`.
 
+## Provider SDKs are pinned
+
+`constraints.txt` pins the provider SDKs, their LangChain integrations and the HTTP stack
+beneath them to exact versions. `requirements.txt` applies it with a `-c` line, so every
+install that reads requirements gets the same set with no flag of its own: the image, both
+CI jobs, `pip-audit` and the desktop sidecar build. These packages decide what a provider
+call retries, raises, pools and verifies. openai 2.x → 3.x arrived as a transitive float
+with no diff here, and turned the loop bug above from silently retried into failed runs.
+
+`tests/task/test_dependency_constraints.py` requires exact pins for the governed set, and
+requires `requirements.txt` floors to admit them. **It also fails when the running
+environment is not on the pinned versions.** A stale venv is how that bug hid locally, so
+reinstall rather than skip the test.
+
+**Upgrading is a reviewed change:**
+
+1. See what floating would pick: `sed '/^-c /d' requirements.txt | uv pip compile -`. Use
+   this, not `--upgrade-package`, which cannot move a package past an exact constraint.
+2. Edit the pin, then run `uv pip compile requirements.txt`, which applies the constraints.
+   It either resolves or names the governed package that has to move with it. Move that one
+   in the same change.
+3. Read the SDK's changelog for retry, error-type, timeout and connection-pool changes, and
+   say in the PR what changed.
+4. Reinstall, then run the suite. `tests/workflow/test_worker_event_loop.py` is the one that
+   makes real keep-alive HTTP calls through each SDK across a task boundary.
+
+**Two signals mean it is time to move a pin.** `pip-audit` flags a pinned version, since
+pins no longer float to a patched release. Or a build fails to resolve naming a governed
+package, meaning an unpinned dependency such as langgraph now needs a newer one. Both are
+loud by design; neither is a reason to loosen a pin to a range.
+
 ## A node's fan-out never outlives the node
 
 Graph nodes fan out with `research_engine.concurrency.gather_or_cancel`, not
