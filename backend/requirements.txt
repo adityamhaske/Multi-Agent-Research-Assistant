@@ -1,3 +1,7 @@
+# Exact versions for the provider SDKs and their HTTP stack, applied to every install that
+# reads this file — Dockerfile, CI, pip-audit, the desktop sidecar build (constraints.txt).
+-c constraints.txt
+
 # API
 fastapi>=0.141.1,<1.0
 uvicorn[standard]>=0.52.4

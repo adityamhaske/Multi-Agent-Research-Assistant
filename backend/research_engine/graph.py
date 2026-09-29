@@ -33,6 +33,7 @@ from langgraph.types import interrupt
 from pydantic import BaseModel, Field, model_validator
 
 from research_engine import claims, contradictions, outlines, prompts
+from research_engine.concurrency import gather_or_cancel
 from research_engine.events import emit
 from research_engine.llm_factory import (
     estimate_cost,
@@ -876,7 +877,10 @@ async def _research_one(state: AgentState, task: dict, guard: _BudgetGuard) -> d
         dispatch: list[tuple[dict, bool]] = []
         for call in pending_calls:
             url = (call.get("args") or {}).get("url")
-            if call["name"] == "read_webpage" and url:
+            # Model-authored and not yet validated: a list, number or object here is the
+            # tool's schema to reject as an observation the model can correct, and a
+            # normalising `.strip()` on it would fail the whole node instead.
+            if call["name"] == "read_webpage" and isinstance(url, str) and url.strip():
                 norm = _norm_url(url)
                 dispatch.append((call, norm in seen_before))
                 seen_before.add(norm)
@@ -1040,9 +1044,11 @@ async def executor_node(state: AgentState) -> dict:
                 return {"evidence": [], "cost": 0.0, "in": 0, "out": 0, "sources": 0}
             return await _research_one(state, task, guard)
 
-    # gather preserves argument order regardless of completion order, which is what keeps
-    # the merge below deterministic.
-    results = await asyncio.gather(*(bounded(t) for t in pending))
+    # Results come back in argument order regardless of completion order, which is what
+    # keeps the merge below deterministic. Not `asyncio.gather`: a task that raises must not
+    # leave its siblings researching — and writing through the host's session — after the
+    # node has failed (research_engine/concurrency.py).
+    results = await gather_or_cancel(*(bounded(t) for t in pending))
 
     fresh = {_task_key(t): r["evidence"] for t, r in zip(pending, results, strict=True)}
     previous = state.get("evidence") or []
@@ -1132,7 +1138,7 @@ async def critic_node(state: AgentState) -> dict:
         async with semaphore:
             return await _criticize_one(state, task)
 
-    results = await asyncio.gather(*(bounded(t) for t in pending))
+    results = await gather_or_cancel(*(bounded(t) for t in pending))
 
     verdicts = dict(state.get("verdicts") or {})
     retries = dict(state.get("retries") or {})

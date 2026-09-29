@@ -422,8 +422,8 @@ async def test_the_desktop_driver_binds_inside_its_own_task(tmp_path, monkeypatc
 def test_the_run_tasks_bind_a_run_and_not_a_session(monkeypatch):
     """The three run tasks are where the collapse actually shipped.
 
-    Synchronous, because a Celery task is: it calls `asyncio.run` itself, which refuses to
-    nest inside a running loop."""
+    Synchronous, because a Celery task is: it drives its own coroutine on the worker loop
+    (`app.workers.event_loop.run`), which refuses to nest inside a running loop."""
     from app import run_execution
     from app.workers import tasks
 
@@ -446,7 +446,7 @@ def test_the_run_tasks_bind_a_run_and_not_a_session(monkeypatch):
 def test_the_session_tasks_still_bind_a_session(monkeypatch):
     """The other half of the split: sessions keep the semantics they had.
 
-    The pipeline itself is replaced rather than `asyncio.run`, which is shared global
+    The pipeline itself is replaced rather than the worker loop, which is shared process
     machinery this test has no business reaching into."""
     from app.workers import pipeline_runner, tasks
 
