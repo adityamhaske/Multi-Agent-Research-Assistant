@@ -30,7 +30,36 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  stamp:
+    # The backend images carry the commit that built them, as the desktop engine does.
+    # Through 3.0.1 nothing here ran `stamp_build.py`, so every published api/worker image
+    # answered `/api/v1/version` with `unknown` — honest, but it meant no self-hosted
+    # deployment could say which commit it was running, and nothing noticed, because the
+    # images were only ever checked for existing. Stamped once, here, so every
+    # architecture of both images carries the same stamp.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies
+        # `stamp_build.py` hashes the API contract, which means importing the app.
+        run: pip install -r backend/requirements.txt
+      - name: Stamp the build with this commit
+        run: python scripts/stamp_build.py
+      - name: Upload the stamp
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-stamp
+          path: backend/research_engine/_build.py
+          if-no-files-found: error
+          retention-days: 1
+
   build:
+    needs: stamp
     # One job per (image, platform). arm64 builds on GitHub's ARM runners — free for
     # public repos — rather than under QEMU emulation, which turns a a few-minute
     # Python/Node build into a ~30-minute one.
@@ -61,6 +90,13 @@ jobs:
         run: |
           echo "IMAGE_BASE=${REGISTRY}/${GITHUB_REPOSITORY,,}-${{ matrix.image.name }}" >> "$GITHUB_ENV"
           echo "PLATFORM_PAIR=${{ matrix.platform }}" | tr '/' '-' >> "$GITHUB_ENV"
+      - name: Fetch the build stamp
+        # `backend/.dockerignore` does not exclude it, so `COPY . /app` carries it into both
+        # backend images. The frontend context never reads it.
+        uses: actions/download-artifact@v8
+        with:
+          name: build-stamp
+          path: backend/research_engine/
       - uses: docker/setup-buildx-action@v4
       - name: Log in to GHCR
         uses: docker/login-action@v4
@@ -84,6 +120,22 @@ jobs:
           # two architectures continually evict each other's layers.
           cache-from: type=gha,scope=${{ matrix.image.name }}-${{ env.PLATFORM_PAIR }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}-${{ env.PLATFORM_PAIR }}
+      - name: The pushed image reports the commit that built it
+        # The image, not the build directory: pulled back by the digest just pushed and asked
+        # the question a maintainer asks a running deployment. Each architecture on its own
+        # runner, so arm64 is checked natively rather than assumed from amd64.
+        if: matrix.image.name != 'frontend'
+        env:
+          REF: ${{ env.IMAGE_BASE }}@${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          got=$(docker run --rm --entrypoint python "$REF" -c \
+            "from research_engine.build_info import build_info; print(build_info().git_sha)")
+          if [ "$got" != "$GITHUB_SHA" ]; then
+            echo "::error::$REF reports git_sha=$got, this build is $GITHUB_SHA"
+            exit 1
+          fi
+          echo "$REF confirms its own commit: $got"
       - name: Export digest
         run: |
           mkdir -p /tmp/digests
