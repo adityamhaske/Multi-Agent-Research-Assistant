@@ -6,7 +6,7 @@
 # Multi-stage, pinned base, non-root runtime user, HEALTHCHECK, no secrets baked in.
 
 # ── Base: runtime libs shared by both targets ─────────────────────────────────────
-FROM python:3.11-slim-bookworm AS base
+FROM python:3.14-slim-bookworm AS base
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
