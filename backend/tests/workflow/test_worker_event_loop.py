@@ -222,6 +222,9 @@ def keepalive_provider():
 
         def do_POST(self):
             self.rfile.read(int(self.headers.get("Content-Length") or 0))
+            # Counted on arrival, before responding: counted after, the client could read the
+            # reply and the test assert on the count while this thread had not yet appended.
+            requests.append(self.path)
             if self.path.endswith("/chat/completions"):
                 body = _OPENAI_BODY
             elif self.path.endswith("/messages"):
@@ -234,7 +237,6 @@ def keepalive_provider():
             self.send_header("Content-Length", str(len(raw)))
             self.end_headers()
             self.wfile.write(raw)
-            requests.append(self.path)
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     server.daemon_threads = True
