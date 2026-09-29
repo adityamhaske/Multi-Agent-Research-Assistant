@@ -57,10 +57,12 @@ def test_clear_run_context_stops_identity_leaking(capturing_logs):
     assert "session_id" not in rendered
 
 
-def test_correlation_id_propagates_into_asyncio_runs(capturing_logs):
-    """The engine runs under asyncio.run in the worker; asyncio copies the current
-    context, so logs from inside the coroutine must carry the bound identity."""
-    import asyncio
+def test_correlation_id_propagates_onto_the_worker_loop(capturing_logs):
+    """The engine runs on the worker's per-process loop, not a loop per task. That loop is
+    an `asyncio.Runner`, which reuses one context for every call unless handed a fresh one —
+    so logs from inside the coroutine carry the identity bound just before only because
+    `event_loop.run` copies it per task."""
+    from app.workers import event_loop
 
     clear_run_context()
     bind_session_context("sess-async")
@@ -68,7 +70,10 @@ def test_correlation_id_propagates_into_asyncio_runs(capturing_logs):
     async def inner():
         structlog.get_logger().warning("executor_budget_stop")
 
-    asyncio.run(inner())
+    try:
+        event_loop.run(inner())
+    finally:
+        event_loop.shutdown()
 
     rendered = json.loads(capturing_logs.logger.calls[0].args[0])
     assert rendered["correlation_id"] == "sess-async"

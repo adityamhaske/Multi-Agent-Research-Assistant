@@ -28,7 +28,8 @@ def configure_logging(*, json_output: bool) -> None:
 
     `merge_contextvars` is the point of this module: context bound at a boundary
     (API trigger, Celery task entry) rides along every log emitted in that context,
-    including the engine running under `asyncio.run` in the worker.
+    including the engine on the worker loop (`app.workers.event_loop.run`, which hands each
+    task a fresh copy of the caller's context).
     """
     renderer = (
         structlog.processors.JSONRenderer() if json_output else structlog.dev.ConsoleRenderer()

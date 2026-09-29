@@ -9,9 +9,14 @@ collector or no-op, so the graph runs with no DB/Redis.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
+
+import structlog
+
+logger = structlog.get_logger()
 
 Emitter = Callable[[str, dict], Awaitable[None]]
 
@@ -68,4 +73,31 @@ async def emit(
     data: dict | None = None,
 ) -> None:
     event = make_event(event_type, agent=agent, message=message, detail=detail, data=data)
-    await _emitter.get()(session_id, event)
+    await _write_through_cancellation(_emitter.get()(session_id, event))
+
+
+async def _write_through_cancellation(write: Awaitable[None]) -> None:
+    """Let a sink write already under way land before a cancellation takes effect.
+
+    A node's fan-out cancels the siblings of a failed task (`concurrency.gather_or_cancel`),
+    and a sibling is often inside `emit`. Cancelling there interrupts the host's commit
+    halfway — measured to leak the pooled connection on aiosqlite (desktop) and to drop it
+    on asyncpg — and leaves the event maybe-durable. A write takes milliseconds, so the
+    cancellation waits for it and is then honoured; no *new* write starts after it.
+    """
+    task = asyncio.ensure_future(write)
+    try:
+        await asyncio.shield(task)
+    except asyncio.CancelledError:
+        # A second cancellation during the wait is absorbed the same way; the write lands.
+        while not task.done():
+            try:
+                await asyncio.wait([task])
+            except asyncio.CancelledError:
+                pass
+        if not task.cancelled() and task.exception() is not None:
+            logger.warning(
+                "event_write_failed_during_cancellation",
+                error=f"{type(task.exception()).__name__}: {task.exception()}",
+            )
+        raise

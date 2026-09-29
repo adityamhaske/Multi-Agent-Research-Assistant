@@ -8,11 +8,10 @@ not idempotent); a crashed run is resumed from the LangGraph checkpoint explicit
 
 from __future__ import annotations
 
-import asyncio
-
 import structlog
 
 from app.logconfig import bind_research_run_context, bind_session_context, clear_run_context
+from app.workers import event_loop
 from app.workers.celery_app import celery_app
 
 logger = structlog.get_logger()
@@ -24,16 +23,16 @@ def run_agent_pipeline(session_id: str, user_id: str) -> None:
 
     # Clear first: workers are long-lived processes, and one run's identity must
     # never leak into the next task's logs. The bound correlation_id (= session_id)
-    # rides along every log this task and the engine emit under asyncio.run.
+    # rides along every log this task and the engine emit on the worker loop.
     clear_run_context()
     bind_session_context(session_id, user_id=user_id)
     logger.info("pipeline_task_started")
     try:
-        asyncio.run(run_pipeline(session_id, user_id))
+        event_loop.run(run_pipeline(session_id, user_id))
         logger.info("pipeline_task_finished")
     except Exception as exc:  # noqa: BLE001
         logger.error("pipeline_task_failed", error=str(exc), exc_info=True)
-        asyncio.run(_mark_failed(session_id, str(exc)))
+        event_loop.run(_mark_failed(session_id, str(exc)))
 
 
 @celery_app.task(name="resume_agent_pipeline")
@@ -46,11 +45,11 @@ def resume_agent_pipeline(
     bind_session_context(session_id, user_id=user_id, approved=approved)
     logger.info("resume_task_started")
     try:
-        asyncio.run(resume_pipeline(session_id, user_id, approved, feedback))
+        event_loop.run(resume_pipeline(session_id, user_id, approved, feedback))
         logger.info("resume_task_finished")
     except Exception as exc:  # noqa: BLE001
         logger.error("resume_task_failed", error=str(exc), exc_info=True)
-        asyncio.run(_mark_failed(session_id, str(exc)))
+        event_loop.run(_mark_failed(session_id, str(exc)))
 
 
 @celery_app.task(name="resume_plan_gate")
@@ -69,11 +68,11 @@ def resume_plan_gate(session_id: str, user_id: str, plan: dict) -> None:
     bind_session_context(session_id, user_id=user_id)
     logger.info("plan_resume_task_started", task_count=len((plan or {}).get("tasks") or []))
     try:
-        asyncio.run(resume_plan(session_id, user_id, plan))
+        event_loop.run(resume_plan(session_id, user_id, plan))
         logger.info("plan_resume_task_finished")
     except Exception as exc:  # noqa: BLE001
         logger.error("plan_resume_task_failed", error=str(exc), exc_info=True)
-        asyncio.run(_mark_failed(session_id, str(exc)))
+        event_loop.run(_mark_failed(session_id, str(exc)))
 
 
 async def _mark_failed(session_id: str, error: str) -> None:
@@ -121,11 +120,11 @@ def run_research_pipeline(run_id: str, user_id: str) -> None:
     bind_research_run_context(run_id, user_id=user_id)
     logger.info("run_pipeline_task_started")
     try:
-        asyncio.run(execute_run(run_id))
+        event_loop.run(execute_run(run_id))
         logger.info("run_pipeline_task_finished")
     except Exception as exc:  # noqa: BLE001
         logger.error("run_pipeline_task_failed", error=str(exc), exc_info=True)
-        asyncio.run(_mark_run_failed(run_id, str(exc)))
+        event_loop.run(_mark_run_failed(run_id, str(exc)))
 
 
 @celery_app.task(name="resume_research_pipeline")
@@ -138,11 +137,11 @@ def resume_research_pipeline(
     bind_research_run_context(run_id, user_id=user_id, approved=approved)
     logger.info("run_resume_task_started")
     try:
-        asyncio.run(execute_run(run_id, resume=(approved, feedback)))
+        event_loop.run(execute_run(run_id, resume=(approved, feedback)))
         logger.info("run_resume_task_finished")
     except Exception as exc:  # noqa: BLE001
         logger.error("run_resume_task_failed", error=str(exc), exc_info=True)
-        asyncio.run(_mark_run_failed(run_id, str(exc)))
+        event_loop.run(_mark_run_failed(run_id, str(exc)))
 
 
 @celery_app.task(name="resume_research_plan_gate")
@@ -153,11 +152,11 @@ def resume_research_plan_gate(run_id: str, user_id: str, plan: dict) -> None:
     bind_research_run_context(run_id, user_id=user_id)
     logger.info("run_plan_resume_task_started")
     try:
-        asyncio.run(execute_run(run_id, plan=plan))
+        event_loop.run(execute_run(run_id, plan=plan))
         logger.info("run_plan_resume_task_finished")
     except Exception as exc:  # noqa: BLE001
         logger.error("run_plan_resume_task_failed", error=str(exc), exc_info=True)
-        asyncio.run(_mark_run_failed(run_id, str(exc)))
+        event_loop.run(_mark_run_failed(run_id, str(exc)))
 
 
 async def _mark_run_failed(run_id: str, error: str) -> None:

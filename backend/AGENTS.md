@@ -50,12 +50,46 @@ never by broker redelivery or Celery auto-retry. Do not add `autoretry_for` /
 `retry_backoff` to tasks in `app/workers/tasks.py` — double execution would double-spend
 LLM budget (docs/architecture/02 §6).
 
+## One event loop per worker process
+
+A Celery task runs its coroutine through `app/workers/event_loop.run`, never a loop of its
+own. Provider SDKs cache their HTTP client process-wide (`langchain_openai` and
+`langchain_anthropic` keep one per base URL), and its pooled keep-alive connections belong
+to the loop that opened them. With a loop per task, the next task in the same prefork child
+met a connection from a closed loop: every gated run on an OpenAI-compatible route failed at
+plan approval with `RuntimeError: Event loop is closed`. openai 2.x had retried that away
+(sending the request twice), and anthropic still does, so a call that *succeeds* proves
+nothing. `tests/workflow/test_worker_event_loop.py` makes real keep-alive HTTP calls across
+the task boundary and forbids a per-task loop anywhere in `app/workers/`.
+
+## A node's fan-out never outlives the node
+
+Graph nodes fan out with `research_engine.concurrency.gather_or_cancel`, not
+`asyncio.gather`. `gather` returns the first failure while the siblings run on. Those
+siblings then call the model for a run that has already failed, and write events through a
+sink bound to the session the run driver is closing. SQLAlchemy's refusal of that close
+became the run's recorded failure reason in place of the provider error.
+
+**What it reports is the earliest failure, not the first argument's.** A failure often breaks
+state its siblings share, so a sibling fails as a consequence in the same turn of the loop.
+Argument order would record the consequence.
+
+**Cancellation waits for writes.** `emit` finishes a write already under way before a
+cancellation lands, because cancelling mid-commit leaks the aiosqlite connection. The worker
+loop depends on that too: on a soft time limit it cancels the task's own coroutine first
+(`event_loop._unwind`) so cancellation travels this path. Sweeping every task at once would
+cancel the shielded write directly.
+
+The regression, `tests/workflow/test_node_failure_is_not_masked.py`, needs Postgres: the
+masking reproduced 200/200 on asyncpg and 0/200 on aiosqlite.
+
 ## Logging and correlation
 
 Log with `structlog.get_logger()`, never `print`. Configuration lives in
 `app/logconfig.py` (installed by `app/main.py`, `app/workers/celery_app.py` and
 `desktop/sidecar.py`). Bind the identity at boundaries instead of threading an ID through
-signatures; engine logs inherit it via contextvars under `asyncio.run` and `create_task`.
+signatures; engine logs inherit it via contextvars — `app/workers/event_loop.run` hands each
+task a fresh copy of the caller's context, and `create_task` copies it again.
 
 **Two pipelines, two binders, and they are not interchangeable.**
 `bind_session_context(session_id)` is for a `sessions.id`; `bind_research_run_context(run_id)`
