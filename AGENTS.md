@@ -74,6 +74,12 @@ Has drifted twice: the local path once knew only Google/Anthropic/OpenAI keys (O
 unreachable, `custom:` silently fell through to `api.openai.com`), and once defaulted
 `enforce_ssrf_guards` to `True`, rejecting every local model server on a laptop.
 
+**`start.sh` is a third reader of the provider set**, and it had the same three-key drift:
+with only a `CUSTOM_API_KEY` (or an Ollama route) it exported `LLM_MODE=fake`, which
+outranks `.env`'s `LLM_MODE=real` under Compose, so every run answered any question with
+the scripted RAG-vs-fine-tuning demo. Its mode check mirrors `app/config.py::_validate_secrets`
+(keyed providers plus `_KEYLESS_PROVIDERS`) — change them together.
+
 **Local endpoints:** `research_engine.llm_factory.map_local_host()` is the single
 implementation that rewrites `localhost` → `host.docker.internal` inside a container. Use
 it — three copies of this logic existed once and two were wrong.

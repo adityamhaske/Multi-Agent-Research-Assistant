@@ -30,8 +30,11 @@ cd Multi-Agent-Research-Assistant
 the configuration, builds and starts all five services, waits until each reports healthy,
 and opens the app.
 
-If no provider key is found in `.env`, it warns and falls back to fake mode rather than
-starting something that cannot run.
+If `.env` has neither a provider key nor a `MODEL_*` route to a keyless provider
+(`ollama:` or `custom:`), it warns and falls back to fake mode rather than starting
+something that cannot run. Fake mode applies to the whole server: every run is then the
+scripted demo whatever you ask, and a key saved in the app's Settings goes unused until you
+restart with a key or route in `.env`.
 
 Other modes:
 

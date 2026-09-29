@@ -95,22 +95,30 @@ if [ "${#jwt}" -lt 32 ]; then
 fi
 ok "JWT secret present."
 
-# Decide the LLM mode. --fake always wins; otherwise require a key for real mode.
+# Decide the LLM mode. --fake always wins; otherwise fall back to fake only when a real run
+# would have nowhere to go. An exported LLM_MODE outranks the one in .env under Compose, so
+# a wrong "fake" here silently turns every run into the scripted demo whatever the question.
+# "Somewhere to go" mirrors app/config.py::_validate_secrets — a key for a keyed provider,
+# or a MODEL_* route to a keyless one (_KEYLESS_PROVIDERS) — keep the two in step.
 if [ -n "$FAKE" ]; then
   export LLM_MODE=fake
   ok "Mode: fake (deterministic fixtures, no API key needed)."
 else
-  has_key=""
-  for var in GOOGLE_API_KEY ANTHROPIC_API_KEY OPENAI_API_KEY; do
+  routable=""
+  for var in GOOGLE_API_KEY ANTHROPIC_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY CUSTOM_API_KEY; do
     val="$(grep -E "^${var}=" .env | head -1 | cut -d= -f2- || true)"
-    [ -n "$val" ] && has_key=1
+    [ -n "$val" ] && routable="$var"
   done
-  if [ -z "$has_key" ]; then
-    warn "No provider API key found in .env — falling back to fake mode."
-    warn "Add GOOGLE_API_KEY or ANTHROPIC_API_KEY to .env for real research."
+  if [ -z "$routable" ] && grep -qE "^MODEL_[A-Z]+=[\"']?(ollama|custom):" .env; then
+    routable="a keyless MODEL_* route"
+  fi
+  if [ -z "$routable" ]; then
+    warn "No provider key or local model route found in .env — falling back to fake mode."
+    warn "Every run will be the scripted demo, and keys saved in the app's Settings are unused."
+    warn "Add a provider key, or route MODEL_* to ollama:/custom:, in .env for real research."
     export LLM_MODE=fake
   else
-    ok "Mode: real (using the API key from .env)."
+    ok "Mode: real (found ${routable} in .env)."
   fi
 fi
 
