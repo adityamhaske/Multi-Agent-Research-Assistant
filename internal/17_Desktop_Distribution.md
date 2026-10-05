@@ -75,7 +75,8 @@ one branch, in all three run builders — see `AGENTS.md` on the three homes and
 | `.md` and `.pdf` export | `DEMO_STAMP_MD` prepended — a blockquoted "⚠ DEMO — NOT REAL RESEARCH" | `research_engine/bundle.py` |
 | The bundle | a `demo: bool` field beside the run's identity | `research_engine/bundle.py` |
 | The verifier's output | `VerifyResult.demo` → "!! DEMO BUNDLE … NOT REAL RESEARCH." | `research_engine/verify_bundle.py` |
-| Session view / history list | `DemoBadge` | `frontend/components/DemoBadge.tsx`, `SessionView.tsx` |
+| Run page / session view | `DemoNotice`: first on the page, in every state — "Demo run — no LLM research was performed. Your question was not sent to a model." | `frontend/components/DemoNotice.tsx`, `app/(app)/research/run/page.tsx`, `SessionView.tsx` |
+| Run and session lists | `DemoBadge` / the run card's badge | `frontend/components/DemoBadge.tsx`, `components/runs/RunCard.tsx` |
 | API responses | `demo` on the summary, not only the detail | `frontend/lib/types.ts` |
 
 Three of those carry a reason worth keeping:

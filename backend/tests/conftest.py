@@ -72,6 +72,22 @@ _DB_READY, _DB_REASON = _database_ready()
 
 requires_db = pytest.mark.skipif(not _DB_READY, reason=f"needs Postgres + pgvector: {_DB_REASON}")
 
+
+def _redis_ready() -> tuple[bool, str]:
+    """Whether REDIS_URL answers — the run driver takes its run lock and publishes there."""
+    try:
+        import redis
+
+        redis.Redis.from_url(os.environ["REDIS_URL"], socket_connect_timeout=3).ping()
+    except Exception as exc:  # noqa: BLE001
+        return False, f"no Redis at REDIS_URL ({type(exc).__name__})"
+    return True, ""
+
+
+_REDIS_READY, _REDIS_REASON = _redis_ready()
+
+requires_redis = pytest.mark.skipif(not _REDIS_READY, reason=f"needs Redis: {_REDIS_REASON}")
+
 # Every table a test can dirty. Truncating `users` cascades to projects, sessions and
 # their children, but chat threads hang off projects and memory off both — listing them
 # explicitly keeps the reset honest if a future FK stops cascading the way it does today.

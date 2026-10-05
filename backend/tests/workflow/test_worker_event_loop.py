@@ -149,6 +149,46 @@ def test_an_interrupted_task_unwinds_through_its_own_cleanup(monkeypatch):
     assert unwound == ["finally ran"]
 
 
+def test_a_second_thread_is_refused_rather_than_handed_the_loop():
+    """One loop per *process* is the model, because the provider clients it keeps valid are
+    per process. Celery's threads pool would put several loops on one process-wide client —
+    the original defect — or two threads on one loop, which is undefined. Refused by name."""
+    import threading
+
+    async def nothing():
+        return None
+
+    event_loop.run(nothing())
+    raised: list[BaseException] = []
+
+    def from_another_thread():
+        try:
+            event_loop.run(nothing())
+        except BaseException as exc:  # noqa: BLE001
+            raised.append(exc)
+
+    thread = threading.Thread(target=from_another_thread)
+    thread.start()
+    thread.join()
+
+    assert raised and isinstance(raised[0], RuntimeError), raised
+    assert "prefork" in str(raised[0])
+
+
+def test_a_worker_child_closes_its_loop_when_it_shuts_down():
+    from celery.signals import worker_process_shutdown
+
+    from app.workers import celery_app  # noqa: F401 - registers the receivers
+
+    async def current():
+        return asyncio.get_running_loop()
+
+    loop = event_loop.run(current())
+    worker_process_shutdown.send(sender=None, pid=0, exitcode=0)
+
+    assert loop.is_closed()
+
+
 def test_a_forked_child_does_not_reuse_its_parents_loop(monkeypatch):
     async def current():
         return asyncio.get_running_loop()
