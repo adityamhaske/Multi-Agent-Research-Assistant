@@ -27,6 +27,7 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import os
+import threading
 from collections.abc import Coroutine
 from typing import Any, TypeVar
 
@@ -34,22 +35,36 @@ _T = TypeVar("_T")
 
 _runner: asyncio.Runner | None = None
 _runner_pid: int | None = None
+_runner_thread: int | None = None
 
 
 def _process_runner() -> asyncio.Runner:
-    global _runner, _runner_pid
+    global _runner, _runner_pid, _runner_thread
     # A runner inherited through fork wraps the parent's selector; the child needs its own.
     if _runner is None or _runner_pid != os.getpid():
         # `loop_factory` keeps the runner from installing its loop as the thread's current
         # one — nothing here reads it, and a test process has its own loop management.
         _runner = asyncio.Runner(loop_factory=asyncio.new_event_loop)
         _runner_pid = os.getpid()
+        _runner_thread = threading.get_ident()
+    elif _runner_thread != threading.get_ident():
+        # The provider clients this loop keeps valid are per *process*, so a threaded pool
+        # cannot be served either way: one loop per thread puts several loops on one cached
+        # client — the defect above — and a shared loop driven from two threads is undefined.
+        raise RuntimeError(
+            "app.workers.event_loop.run was called from a second thread; one event loop per "
+            "worker process requires Celery's prefork (the default) or solo pool"
+        )
     return _runner
 
 
 def run(coro: Coroutine[Any, Any, _T]) -> _T:
     """Run one Celery task's coroutine to completion on this process's loop."""
-    runner = _process_runner()
+    try:
+        runner = _process_runner()
+    except RuntimeError:
+        coro.close()  # never started; closed so the refusal is the only thing reported
+        raise
     root: list[asyncio.Task] = []
 
     async def as_root() -> _T:
@@ -108,9 +123,14 @@ def _cancel_leftovers(loop: asyncio.AbstractEventLoop) -> None:
 
 
 def shutdown() -> None:
-    """Close this process's loop; the next `run` opens a new one."""
-    global _runner, _runner_pid
+    """Close this process's loop; the next `run` opens a new one.
+
+    Wired to Celery's `worker_process_shutdown` (`celery_app`), so a child's loop has a defined
+    end rather than being abandoned to interpreter exit.
+    """
+    global _runner, _runner_pid, _runner_thread
     if _runner is not None and _runner_pid == os.getpid():
         _runner.close()
     _runner = None
     _runner_pid = None
+    _runner_thread = None

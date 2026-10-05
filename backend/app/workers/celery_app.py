@@ -2,7 +2,7 @@
 
 import structlog
 from celery import Celery
-from celery.signals import worker_process_init
+from celery.signals import worker_process_init, worker_process_shutdown
 
 from app.config import settings
 from app.logconfig import configure_logging
@@ -77,3 +77,11 @@ def preload_pipeline_imports() -> None:
 def _preload_on_worker_boot(**_: object) -> None:
     """Per forked child: prefork copies-on-write, but each child imports on its own."""
     preload_pipeline_imports()
+
+
+@worker_process_shutdown.connect
+def _close_worker_loop(**_: object) -> None:
+    """The child's one event loop (`app.workers.event_loop`) ends with the child."""
+    from app.workers import event_loop
+
+    event_loop.shutdown()
