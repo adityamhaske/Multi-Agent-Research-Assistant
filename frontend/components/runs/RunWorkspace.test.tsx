@@ -1,8 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { RunGraph } from "@/lib/types";
+import type {
+  RunClaim,
+  RunClaimEvidenceLink,
+  RunEvidence,
+  RunGraph,
+  RunRevision,
+  RunSource,
+} from "@/lib/types";
 
 import { RunWorkspace } from "./RunWorkspace";
 
@@ -107,6 +114,7 @@ function graph(over: Partial<RunGraph> = {}): RunGraph {
         report_markdown: "# Findings\n\nGrounding raised accuracy [1].",
         report_hash: "b".repeat(64),
         evidence_watermark: 1,
+        cited_indices: [1],
         created_at: "2026-08-18T00:00:00Z",
       },
     ],
@@ -188,7 +196,7 @@ describe("RunWorkspace", () => {
     view(graph());
     fireEvent.click(screen.getByRole("tab", { name: /Sources/ }));
     expect(screen.getByText("Retrieved, not cited")).toBeInTheDocument();
-    expect(screen.getByText(/1 of 2 carry no citation number/)).toBeInTheDocument();
+    expect(screen.getByText(/1 of 2 are not referenced by the report/)).toBeInTheDocument();
   });
 
   it("names claims that resolved to no evidence instead of hiding them", () => {
@@ -329,6 +337,7 @@ describe("RunWorkspace", () => {
             report_markdown: "first draft",
             report_hash: "b".repeat(64),
             evidence_watermark: 1,
+            cited_indices: [],
             created_at: "2026-08-18T00:00:00Z",
           },
           {
@@ -337,6 +346,7 @@ describe("RunWorkspace", () => {
             report_markdown: "second draft",
             report_hash: "d".repeat(64),
             evidence_watermark: 1,
+            cited_indices: [],
             created_at: "2026-08-18T00:01:00Z",
           },
         ],
@@ -736,6 +746,7 @@ describe("the evidence chain", () => {
             report_markdown: "# Findings\n\nGrounding raised accuracy [1], unlike [9].",
             report_hash: "b".repeat(64),
             evidence_watermark: 1,
+            cited_indices: [1, 9],
             created_at: "2026-08-18T00:00:00Z",
           },
         ],
@@ -779,7 +790,87 @@ describe("the evidence chain", () => {
     view(graph());
     fireEvent.click(screen.getByRole("tab", { name: /Sources/ }));
     expect(screen.getByRole("heading", { name: /Cited sources \(1\)/ })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Retrieved, never cited \(1\)/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Retrieved, not cited \(1\)/ })).toBeInTheDocument();
+  });
+
+  it("counts citations and claims for the latest draft, not every draft a rework left behind", () => {
+    // A real run: the first draft cited the wrong company's page as [2], the reviewer asked
+    // for a rework, and the approved draft cites only [1] and [3]. Every source keeps the
+    // run's number, so reading "cited" off `citation_index` kept [2] "cited, backs 1 claim".
+    const s = (id: string, n: number, title: string): RunSource => ({
+      id,
+      url: `https://a.invalid/${id}`,
+      title,
+      kind: "WEB",
+      retrieval_status: "FETCHED",
+      citation_index: n,
+      corpus_document_id: null,
+    });
+    const e = (id: string, source_id: string, sequence: number): RunEvidence => ({
+      id,
+      source_id,
+      sequence,
+      task_id: "1",
+      snippet: `Snippet ${id}.`,
+      content_hash: "a".repeat(64),
+      key_fact: null,
+      provenance_state: "UNCHECKED",
+      attested_against: null,
+      attestation_run_at: null,
+    });
+    const r = (id: string, version: number, cited_indices: number[]): RunRevision => ({
+      id,
+      version,
+      report_markdown: `draft ${version}`,
+      report_hash: String(version).repeat(64),
+      evidence_watermark: 3,
+      cited_indices,
+      created_at: "2026-08-18T00:00:00Z",
+    });
+    const c = (id: string, revision_id: string, position: number): RunClaim => ({
+      id,
+      revision_id,
+      position,
+      text: `Claim ${id}.`,
+      extraction_method: "DERIVED_FROM_REPORT",
+      verification_state: "UNCHECKED",
+      verification_method: "NOT_RUN",
+      lineage_id: null,
+    });
+    const l = (id: string, claim_id: string, evidence_id: string): RunClaimEvidenceLink => ({
+      id,
+      claim_id,
+      evidence_id,
+      stance: "SUPPORTS",
+      origin: "CITATION_MARKER",
+    });
+    view(
+      graph({
+        sources: [s("s1", 1, "Vendor site"), s("s2", 2, "Wrong company"), s("s3", 3, "Job post")],
+        evidence: [e("e1", "s1", 1), e("e2", "s2", 2), e("e3", "s3", 3)],
+        revisions: [r("r1", 1, [1, 2]), r("r2", 2, [1, 3])],
+        claims: [c("c1", "r1", 0), c("c2", "r1", 1), c("c3", "r2", 0), c("c4", "r2", 1)],
+        claim_evidence_links: [
+          l("l1", "c1", "e1"),
+          l("l2", "c2", "e2"),
+          l("l3", "c3", "e1"),
+          l("l4", "c4", "e3"),
+        ],
+      }),
+    );
+
+    expect(screen.getByText("2 cited · 1 retrieved only")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Sources/ }));
+    expect(screen.getByRole("heading", { name: /Cited sources \(2\)/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Retrieved, not cited \(1\)/ })).toBeInTheDocument();
+
+    const dropped = screen.getByText("Wrong company").closest("li")!;
+    expect(within(dropped).getByText("backs no claim")).toBeInTheDocument();
+    expect(within(dropped).getByText("cited as [2] only by revision 1")).toBeInTheDocument();
+    // Revision 1's claim c1 also cited the vendor; only the approved draft's c3 counts.
+    const vendor = screen.getByText("Vendor site").closest("li")!;
+    expect(within(vendor).getByText("backs 1 claim")).toBeInTheDocument();
   });
 
   it("does not claim the detector ran when there is no record either way", () => {

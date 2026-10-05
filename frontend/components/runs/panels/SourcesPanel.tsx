@@ -7,15 +7,16 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { parseCorpusLocator } from "@/lib/corpusLocator";
 import type { RunEvidence, RunGraph, RunSource } from "@/lib/types";
 
-import { CitationChip } from "../primitives";
+import { CitationChip, runTotals } from "../primitives";
 
 /**
  * Everything the run retrieved.
  *
- * **Retrieved is not cited.** A source the report never referenced has no citation number
- * and is listed anyway, under its own heading — omitting it would overstate how much of the
- * retrieval made it into the report, and quietly numbering it would make a marker resolve
- * to a source the report never cited.
+ * **Retrieved is not cited.** A source the report does not reference is listed anyway,
+ * under its own heading — omitting it would overstate how much of the retrieval made it
+ * into the report. "The report" is the latest revision, and so is every claim count here: a
+ * source only a rejected draft cited is not cited by the report the reviewer is reading,
+ * even though it keeps the number that draft used.
  *
  * The two groups are headed rather than merely styled differently: a dashed border is not
  * a label, and the distinction is the point of the tab.
@@ -31,12 +32,17 @@ function domainOf(url: string): string {
 
 function SourceCard({
   source,
+  cited,
+  earlierCiters,
   evidence,
   claimCount,
   focused,
   onInspectEvidence,
 }: {
   source: RunSource;
+  cited: boolean;
+  /** Versions of earlier drafts that cited this source when the report does not. */
+  earlierCiters: number[];
   evidence: RunEvidence[];
   claimCount: number;
   focused: boolean;
@@ -56,7 +62,7 @@ function SourceCard({
   const corpus = parseCorpusLocator(source.url);
 
   const copyCitation = async () => {
-    const n = source.citation_index;
+    const n = cited ? source.citation_index : null;
     const cite = `${n === null ? "" : `[${n}] `}${source.title || source.url}${
       corpus ? "" : ` — ${source.url}`
     }`;
@@ -72,10 +78,10 @@ function SourceCard({
     <li
       ref={ref}
       className={`card ${focused ? "ring-1 ring-accent" : ""}`}
-      style={source.citation_index === null ? { borderStyle: "dashed" } : undefined}
+      style={cited ? undefined : { borderStyle: "dashed" }}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <CitationChip source={source} />
+        <CitationChip source={source} cited={cited} />
         {corpus ? (
           <span className="min-w-0 break-words text-sm font-medium text-text-primary">
             {source.title || "Uploaded document"}
@@ -109,6 +115,11 @@ function SourceCard({
             ? "backs no claim"
             : `backs ${claimCount} claim${claimCount === 1 ? "" : "s"}`}
         </span>
+        {earlierCiters.length > 0 && (
+          <span>
+            cited as [{source.citation_index}] only by revision {earlierCiters.join(", ")}
+          </span>
+        )}
       </div>
 
       <div className="mt-2 flex flex-wrap gap-3 text-xs">
@@ -146,10 +157,14 @@ export function SourcesPanel({
     return map;
   }, [graph.evidence]);
 
+  const totals = useMemo(() => runTotals(graph), [graph]);
+
   const claimsBySource = useMemo(() => {
     const evidenceToSource = new Map(graph.evidence.map((e) => [e.id, e.source_id]));
+    const latestClaims = new Set(totals.claims.map((c) => c.id));
     const map = new Map<string, Set<string>>();
     for (const link of graph.claim_evidence_links) {
+      if (!latestClaims.has(link.claim_id)) continue;
       const sourceId = evidenceToSource.get(link.evidence_id);
       if (!sourceId) continue;
       const set = map.get(sourceId) ?? new Set<string>();
@@ -157,7 +172,7 @@ export function SourcesPanel({
       map.set(sourceId, set);
     }
     return map;
-  }, [graph.evidence, graph.claim_evidence_links]);
+  }, [graph.evidence, graph.claim_evidence_links, totals.claims]);
 
   if (graph.sources.length === 0) {
     return (
@@ -168,15 +183,25 @@ export function SourcesPanel({
     );
   }
 
+  const { citedIds } = totals;
   const cited = graph.sources
-    .filter((s) => s.citation_index !== null)
+    .filter((s) => citedIds.has(s.id))
     .sort((a, b) => (a.citation_index ?? 0) - (b.citation_index ?? 0));
-  const uncited = graph.sources.filter((s) => s.citation_index === null);
+  const uncited = graph.sources.filter((s) => !citedIds.has(s.id));
+  const earlier = graph.revisions.slice(0, -1);
 
   const card = (s: RunSource) => (
     <SourceCard
       key={s.id}
       source={s}
+      cited={citedIds.has(s.id)}
+      earlierCiters={
+        citedIds.has(s.id) || s.citation_index === null
+          ? []
+          : earlier
+              .filter((r) => r.cited_indices.includes(s.citation_index as number))
+              .map((r) => r.version)
+      }
       evidence={evidenceBySource.get(s.id) ?? []}
       claimCount={claimsBySource.get(s.id)?.size ?? 0}
       focused={focus === s.id}
@@ -189,9 +214,9 @@ export function SourcesPanel({
       <p className="text-xs leading-relaxed text-text-secondary">
         Everything the run retrieved.{" "}
         <strong className="text-text-primary">Retrieved is not cited</strong>:{" "}
-        {uncited.length} of {graph.sources.length} carry no citation number because the report
-        does not reference them. They are listed anyway — omitting them would overstate how
-        much of the retrieval made it into the report.
+        {uncited.length} of {graph.sources.length} are not referenced by the report. They are
+        listed anyway — omitting them would overstate how much of the retrieval made it into
+        the report.
       </p>
 
       {cited.length > 0 && (
@@ -212,11 +237,10 @@ export function SourcesPanel({
             id="uncited-sources"
             className="font-mono text-[length:var(--text-micro)] font-semibold uppercase tracking-wider text-text-muted"
           >
-            Retrieved, never cited ({uncited.length})
+            Retrieved, not cited ({uncited.length})
           </h3>
           <p className="mt-1 text-xs text-text-secondary">
-            The run fetched these and the report does not reference them. They have no
-            citation number.
+            The run fetched these and the report does not reference them.
           </p>
           <ul className="mt-2 space-y-2">{uncited.map(card)}</ul>
         </section>

@@ -218,7 +218,13 @@ One aggregate rather than nine endpoints, because every view of a run needs a sl
 same graph and nine round trips would mean nine places to get the ownership predicate
 wrong. Nothing is flattened and no three-valued vocabulary is collapsed: a client must be
 able to tell `UNCHECKED` from `UNATTESTED`, and `citation_index: null` — retrieved but never
-cited — from a source the report used.
+cited — from a numbered source.
+
+A number is not a citation. The run numbers every source the synthesizer was shown and keeps
+those numbers across a rework, so whether a revision cites a source is that revision's
+`cited_indices` — the numbers its own body cites, ascending, with the reference list
+excluded — not whether the source has an index. Counting "cited" from `citation_index` keeps
+a source that only a rejected draft cited counted as cited on the approved run.
 
 ### `GET /runs/{id}/stream`
 
