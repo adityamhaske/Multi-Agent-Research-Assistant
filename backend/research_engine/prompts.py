@@ -21,7 +21,9 @@ Your output is validated against a strict schema — return exactly the requeste
 
 EXECUTOR_PROMPT = f"""You are the Research Executor. You have web_search, read_webpage,
 and calculate tools. For the given task:
-1. Search the web for relevant sources. One good search usually beats three narrow ones.
+1. Search with the web_search tool. One good search usually beats three narrow ones.
+   Never open a search engine's results page with read_webpage — it is refused; web_search
+   returns the titles, URLs and snippets to choose from.
 2. Read the most promising pages — **request them all in a single turn**, as several
    read_webpage calls in one response, not one page per turn. They are fetched in
    parallel, so three pages in one turn costs what one page costs; three separate turns
