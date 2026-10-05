@@ -182,7 +182,7 @@ loop (max 8 rounds):
 | Tool | Contract | Guards |
 |---|---|---|
 | `web_search(query, max_results?)` | Retriever chain Tavily → Brave → DuckDuckGo, first success wins, normalised to `{title, url, snippet}`. Omitting `max_results` falls back to the configured `retrieval_k` (default 5) | Redis cache, 24h TTL. Chain exhaustion returns an explicit error the executor must surface, never an empty list |
-| `read_webpage(url)` | Fetch and extract main text (≤ 8000 chars) plus title | **SSRF guard** on every hop: scheme and port allowlist, resolve-and-check every address, redirects re-validated (max 3), 2 MB body cap, 10s timeout, content-type must be `text/html` or `text/plain` |
+| `read_webpage(url)` | Fetch and extract main text (≤ 8000 chars) plus title. A search engine's **results page** (Google, Bing, DuckDuckGo, Yahoo, Brave, Ecosia, Qwant, Mojeek, Yandex, Baidu, Startpage) is not fetched: the observation is an error naming `web_search`, with no text to quote — `tools.is_search_results_page` is the one rule | **SSRF guard** on every hop: scheme and port allowlist, resolve-and-check every address, redirects re-validated (max 3), 2 MB body cap, 10s timeout, content-type must be `text/html` or `text/plain` |
 | `calculate(expression)` | AST-restricted arithmetic | Numbers and `+ - * / **` only |
 
 In corpus-only mode the fetch half changes: `read_webpage` resolves `corpus://` locations
