@@ -62,6 +62,18 @@ plan approval with `RuntimeError: Event loop is closed`. openai 2.x had retried 
 nothing. `tests/workflow/test_worker_event_loop.py` makes real keep-alive HTTP calls across
 the task boundary and forbids a per-task loop anywhere in `app/workers/`.
 
+**The worker must run the prefork (default) or solo pool.** The clients this loop keeps
+valid are per *process*. A threads pool would put several loops on one cached client — the
+same defect — so `event_loop.run` refuses a second thread by name rather than serving it.
+
+**`tests/workflow/test_worker_task_lifecycle.py` drives the production path in real mode**:
+the real Celery task bodies, `execute_run`, Postgres, Redis and the event sink, with the real
+factory's `ChatOpenAI` over keep-alive HTTP to `tests/fake_provider.py`. It covers five gated
+runs in one process, a provider failure followed by a healthy next run, and concurrent runs
+on one loop. Fake mode cannot stand in for it, because fake mode never builds a provider
+client. The fake provider's executor reads a page before quoting it, so real-mode citation
+verification passes honestly rather than being bypassed.
+
 ## Provider SDKs are pinned
 
 `constraints.txt` pins the provider SDKs, their LangChain integrations and the HTTP stack
