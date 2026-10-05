@@ -195,3 +195,119 @@ async def test_a_refusal_in_the_executor_loop_cannot_become_evidence(monkeypatch
     assert [e["snippet"] for e in out["evidence"]] == [""] * len(out["evidence"]), (
         "a quotation from a refused page survived verification"
     )
+
+
+async def test_after_a_refusal_the_model_searches_reads_a_real_page_and_its_quote_is_kept(
+    monkeypatch,
+):
+    """The recovery a live run showed: the model tried results pages, was refused, called
+    `web_search`, read a real page and quoted it. The refusal must cost only the turn — the
+    evidence path that follows is the ordinary one, and a verbatim quote from a page that was
+    really fetched survives verification with its own URL."""
+    search_url = SEARCH_RESULT_PAGES[5]  # html.duckduckgo.com, as in the live run
+    page_url = "https://petual.ai/about"
+    page_text = "Petual brings agentic AI to internal audit and SOX testing."
+    turns = [
+        AIMessage(
+            content="",
+            tool_calls=[{"name": "read_webpage", "args": {"url": search_url}, "id": "r1"}],
+        ),
+        AIMessage(
+            content="",
+            tool_calls=[{"name": "web_search", "args": {"query": "Petual AI"}, "id": "w1"}],
+        ),
+        AIMessage(
+            content="",
+            tool_calls=[{"name": "read_webpage", "args": {"url": page_url}, "id": "r2"}],
+        ),
+        AIMessage(
+            content="",
+            tool_calls=[
+                {
+                    "name": "submit_evidence",
+                    "args": {
+                        "evidence": [
+                            {
+                                "source_url": page_url,
+                                "source_title": "About Petual",
+                                "snippet": page_text,
+                                "key_fact": "Petual applies agentic AI to SOX testing.",
+                            }
+                        ]
+                    },
+                    "id": "s1",
+                }
+            ],
+        ),
+    ]
+
+    class _Scripted:
+        def bind_tools(self, *_args, **_kwargs):
+            return self
+
+        async def ainvoke(self, _messages):
+            return turns.pop(0) if turns else AIMessage(content="done", tool_calls=[])
+
+    class _Search:
+        async def ainvoke(self, args):
+            return [{"title": "Petual", "url": page_url, "snippet": "Petual — agentic AI."}]
+
+    monkeypatch.setattr(graph_mod, "get_llm", lambda role: _Scripted())
+    # Only search is stood in for; read_webpage is the real tool, fetching through a stub
+    # transport — so the refusal and the real read go down the shipped code path.
+    monkeypatch.setattr(
+        graph_mod, "_TOOLS_BY_NAME", {**graph_mod._TOOLS_BY_NAME, "web_search": _Search()}
+    )
+
+    class _Page(_OnePage):
+        async def get(self, url, headers=None):
+            import httpx
+
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/html"},
+                text=f"<html><title>About</title><body><p>{page_text}</p></body></html>",
+                request=httpx.Request("GET", url),
+            )
+
+    monkeypatch.setattr(tools.httpx, "AsyncClient", _Page)
+    monkeypatch.setattr(tools, "validate_url", lambda u: None)
+    events: list[dict] = []
+
+    async def collect(_sid, event):
+        events.append(event)
+
+    config = set_run_config(RunConfig(llm_mode="real", enforce_ssrf_guards=False))
+    emitter = set_emitter(collect)
+    try:
+        out = await graph_mod.executor_node(
+            {
+                "session_id": "recover-test",
+                "tasks": [{"id": 1, "query": "Explain software development at Petual"}],
+                "evidence": [],
+                "verdicts": {},
+                "retries": {},
+                "research_round": 0,
+                "cost_usd": 0.0,
+                "tokens_input": 0,
+                "tokens_output": 0,
+                "started_at": time.time(),
+            }
+        )
+    finally:
+        reset_emitter(emitter)
+        reset_run_config(config)
+
+    used = [
+        (e["detail"]["tool"], e["detail"]["args"].get("url"))
+        for e in events
+        if (e.get("detail") or {}).get("tool")
+    ]
+    assert used == [
+        ("read_webpage", search_url),
+        ("web_search", None),
+        ("read_webpage", page_url),
+    ], used
+    refusal = next(e for e in events if (e.get("detail") or {}).get("tool") == "read_webpage")
+    assert "web_search" in refusal["detail"]["observation"], "the search page was fetched"
+    assert [(e["source_url"], e["snippet"]) for e in out["evidence"]] == [(page_url, page_text)]
