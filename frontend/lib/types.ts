@@ -570,6 +570,12 @@ export interface RunRevision {
   report_hash: string;
   /** The last evidence sequence visible at synthesis. A threshold, not a count. */
   evidence_watermark: number;
+  /**
+   * The citation numbers this revision's own body cites, ascending. Whether a source is
+   * cited is read here, never off `citation_index`, which is the run's numbering and
+   * outlives the draft that used it.
+   */
+  cited_indices: number[];
   created_at: string;
 }
 

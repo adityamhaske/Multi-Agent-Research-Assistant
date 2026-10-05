@@ -366,6 +366,10 @@
             "render_fidelity": "EXACT"
           },
           "evidence_watermark": 4,
+          "cited_indices": [
+            1,
+            2
+          ],
           "created_at": "<timestamp>"
         }
       ],
@@ -677,54 +681,6 @@
           "provenance_state": "UNCHECKED",
           "attested_against": null,
           "attestation_run_at": null
-        },
-        {
-          "id": "<uuid>",
-          "source_id": "<uuid>",
-          "sequence": 5,
-          "task_id": "1",
-          "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
-          "content_hash": "<hash>",
-          "key_fact": "Parametric knowledge is hard to access precisely, and provenance and updates remain open problems.",
-          "provenance_state": "UNCHECKED",
-          "attested_against": null,
-          "attestation_run_at": null
-        },
-        {
-          "id": "<uuid>",
-          "source_id": "<uuid>",
-          "sequence": 6,
-          "task_id": "1",
-          "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
-          "content_hash": "<hash>",
-          "key_fact": "External-database knowledge improves accuracy and credibility and allows continuous updates.",
-          "provenance_state": "UNCHECKED",
-          "attested_against": null,
-          "attestation_run_at": null
-        },
-        {
-          "id": "<uuid>",
-          "source_id": "<uuid>",
-          "sequence": 7,
-          "task_id": "2",
-          "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
-          "content_hash": "<hash>",
-          "key_fact": "Parametric knowledge is hard to access precisely, and provenance and updates remain open problems.",
-          "provenance_state": "UNCHECKED",
-          "attested_against": null,
-          "attestation_run_at": null
-        },
-        {
-          "id": "<uuid>",
-          "source_id": "<uuid>",
-          "sequence": 8,
-          "task_id": "2",
-          "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
-          "content_hash": "<hash>",
-          "key_fact": "External-database knowledge improves accuracy and credibility and allows continuous updates.",
-          "provenance_state": "UNCHECKED",
-          "attested_against": null,
-          "attestation_run_at": null
         }
       ],
       "revisions": [
@@ -845,6 +801,10 @@
             "render_fidelity": "EXACT"
           },
           "evidence_watermark": 4,
+          "cited_indices": [
+            1,
+            2
+          ],
           "created_at": "<timestamp>"
         },
         {
@@ -963,7 +923,11 @@
             },
             "render_fidelity": "EXACT"
           },
-          "evidence_watermark": 8,
+          "evidence_watermark": 4,
+          "cited_indices": [
+            1,
+            2
+          ],
           "created_at": "<timestamp>"
         }
       ],
@@ -1436,54 +1400,6 @@
           "provenance_state": "UNCHECKED",
           "attested_against": null,
           "attestation_run_at": null
-        },
-        {
-          "id": "<uuid>",
-          "source_id": "<uuid>",
-          "sequence": 5,
-          "task_id": "1",
-          "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
-          "content_hash": "<hash>",
-          "key_fact": "Parametric knowledge is hard to access precisely, and provenance and updates remain open problems.",
-          "provenance_state": "UNCHECKED",
-          "attested_against": null,
-          "attestation_run_at": null
-        },
-        {
-          "id": "<uuid>",
-          "source_id": "<uuid>",
-          "sequence": 6,
-          "task_id": "1",
-          "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
-          "content_hash": "<hash>",
-          "key_fact": "External-database knowledge improves accuracy and credibility and allows continuous updates.",
-          "provenance_state": "UNCHECKED",
-          "attested_against": null,
-          "attestation_run_at": null
-        },
-        {
-          "id": "<uuid>",
-          "source_id": "<uuid>",
-          "sequence": 7,
-          "task_id": "2",
-          "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
-          "content_hash": "<hash>",
-          "key_fact": "Parametric knowledge is hard to access precisely, and provenance and updates remain open problems.",
-          "provenance_state": "UNCHECKED",
-          "attested_against": null,
-          "attestation_run_at": null
-        },
-        {
-          "id": "<uuid>",
-          "source_id": "<uuid>",
-          "sequence": 8,
-          "task_id": "2",
-          "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
-          "content_hash": "<hash>",
-          "key_fact": "External-database knowledge improves accuracy and credibility and allows continuous updates.",
-          "provenance_state": "UNCHECKED",
-          "attested_against": null,
-          "attestation_run_at": null
         }
       ],
       "revisions": [
@@ -1604,6 +1520,10 @@
             "render_fidelity": "EXACT"
           },
           "evidence_watermark": 4,
+          "cited_indices": [
+            1,
+            2
+          ],
           "created_at": "<timestamp>"
         },
         {
@@ -1722,7 +1642,11 @@
             },
             "render_fidelity": "EXACT"
           },
-          "evidence_watermark": 8,
+          "evidence_watermark": 4,
+          "cited_indices": [
+            1,
+            2
+          ],
           "created_at": "<timestamp>"
         }
       ],
@@ -2171,34 +2095,6 @@
       "demo": true,
       "elapsed_seconds": null,
       "evidence": [
-        {
-          "content_hash": "<hash>",
-          "key_fact": "Parametric knowledge is hard to access precisely, and provenance and updates remain open problems.",
-          "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
-          "source_title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
-          "source_url": "https://arxiv.org/abs/2005.11401"
-        },
-        {
-          "content_hash": "<hash>",
-          "key_fact": "External-database knowledge improves accuracy and credibility and allows continuous updates.",
-          "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
-          "source_title": "Retrieval-Augmented Generation for Large Language Models: A Survey",
-          "source_url": "https://arxiv.org/abs/2312.10997"
-        },
-        {
-          "content_hash": "<hash>",
-          "key_fact": "Parametric knowledge is hard to access precisely, and provenance and updates remain open problems.",
-          "snippet": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems.",
-          "source_title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
-          "source_url": "https://arxiv.org/abs/2005.11401"
-        },
-        {
-          "content_hash": "<hash>",
-          "key_fact": "External-database knowledge improves accuracy and credibility and allows continuous updates.",
-          "snippet": "Retrieval-Augmented Generation (RAG) has emerged as a promising solution by incorporating knowledge from external databases. This enhances the accuracy and credibility of the generation, particularly for knowledge-intensive tasks, and allows for continuous knowledge updates and integration of domain-specific information.",
-          "source_title": "Retrieval-Augmented Generation for Large Language Models: A Survey",
-          "source_url": "https://arxiv.org/abs/2312.10997"
-        },
         {
           "content_hash": "<hash>",
           "key_fact": "Parametric knowledge is hard to access precisely, and provenance and updates remain open problems.",

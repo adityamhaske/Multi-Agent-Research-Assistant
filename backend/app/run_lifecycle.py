@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
+from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -260,6 +261,16 @@ async def record_evidence(
     run. A source present in evidence but absent from that list is **retrieved but not
     cited**, and gets `citation_index = NULL` — the distinction S3 exists to hold. Evidence
     with an empty `source_url` has no identity and is refused rather than given one.
+
+    **Idempotent over what is already stored.** Rework resumes the graph at the synthesizer
+    with the evidence it already had, and the host persists the whole final state again, so
+    every item arrives a second time. Each incoming item is paired one-for-one with a stored
+    row carrying the same source, task, snippet and key fact, and reuses it — its id, so the
+    new revision's claims link the rows the last one linked, and its sequence, so the
+    watermark says nothing new was seen. Only the unpaired remainder is inserted.
+    One-for-one rather than "any match", so an item the executor genuinely returned twice
+    stays stored twice. A reused row keeps the provenance verdict it was written with:
+    snippets are verified in the executor, which a rework does not re-enter.
     """
     index_by_url: dict[str, int] = {}
     title_by_url: dict[str, str] = {}
@@ -277,11 +288,25 @@ async def record_evidence(
     evidence_by_quote: dict[tuple[uuid.UUID, str], list[uuid.UUID]] = {}
     watermark = 0
 
-    base = (
+    # Stored rows not yet paired with an incoming item, oldest first, keyed by identity.
+    unpaired: dict[tuple, list[tuple[uuid.UUID, int]]] = {}
+    for eid, source_id, task_id, digest, key_fact, sequence in (
         await db.execute(
-            select(func.coalesce(func.max(Evidence.sequence), 0)).where(Evidence.run_id == run.id)
+            select(
+                Evidence.id,
+                Evidence.source_id,
+                Evidence.task_id,
+                Evidence.content_hash,
+                Evidence.key_fact,
+                Evidence.sequence,
+            )
+            .where(Evidence.run_id == run.id)
+            .order_by(Evidence.sequence.asc(), Evidence.id.asc())
         )
-    ).scalar_one()
+    ).all():
+        unpaired.setdefault((source_id, task_id, digest, key_fact), []).append((eid, sequence))
+    base = max((seq for rows in unpaired.values() for _, seq in rows), default=0)
+    inserted = 0
 
     for offset, item in enumerate(evidence, start=1):
         if not isinstance(item, dict):
@@ -327,52 +352,58 @@ async def record_evidence(
         sources_by_url[norm] = source_id
 
         snippet = item.get("snippet") or ""
-        sequence = base + offset
-
-        # The graph's per-item verdict, read rather than re-derived — see
-        # `verify_evidence_snippets` for what sets each of these on the chunk dict.
-        # `snippet_unverified` means the check ran and blanked a fabricated quotation;
-        # `attestation_grade` means it ran and the snippet matched what a tool actually
-        # returned (as `FETCHED_BODY` or `SEARCH_SNIPPET` — `read_webpage` handles a
-        # `corpus://` URL the same as any other fetch). Neither present means the check
-        # never reached this item (fake mode, or nothing to check), which is exactly what
-        # UNCHECKED is for — a corpus item is not exempt from that absence.
-        grade = item.get("attestation_grade")
-        if url.startswith("corpus://") and grade:
-            grade = "CORPUS_DOCUMENT"
-
-        if item.get("snippet_unverified"):
-            provenance_state, attested_against, attestation_run_at = (
-                "UNATTESTED",
-                None,
-                datetime.now(UTC),
-            )
-        elif grade:
-            provenance_state, attested_against, attestation_run_at = (
-                "ATTESTED",
-                grade,
-                datetime.now(UTC),
-            )
+        task_id = str(item["task_id"]) if item.get("task_id") is not None else None
+        key_fact = item.get("key_fact") or None
+        stored = unpaired.get((source_id, task_id, content_hash(snippet), key_fact))
+        if stored:
+            eid, sequence = stored.pop(0)
         else:
-            provenance_state, attested_against, attestation_run_at = "UNCHECKED", None, None
+            inserted += 1
+            sequence = base + inserted
+            # The graph's per-item verdict, read rather than re-derived — see
+            # `verify_evidence_snippets` for what sets each of these on the chunk dict.
+            # `snippet_unverified` means the check ran and blanked a fabricated quotation;
+            # `attestation_grade` means it ran and the snippet matched what a tool actually
+            # returned (as `FETCHED_BODY` or `SEARCH_SNIPPET` — `read_webpage` handles a
+            # `corpus://` URL the same as any other fetch). Neither present means the check
+            # never reached this item (fake mode, or nothing to check), which is exactly what
+            # UNCHECKED is for — a corpus item is not exempt from that absence.
+            grade = item.get("attestation_grade")
+            if url.startswith("corpus://") and grade:
+                grade = "CORPUS_DOCUMENT"
 
-        eid = uuid.uuid4()
-        db.add(
-            Evidence(
-                id=eid,
-                run_id=run.id,
-                source_id=source_id,
-                sequence=sequence,
-                task_id=str(item["task_id"]) if item.get("task_id") is not None else None,
-                snippet=snippet,
-                content_hash=content_hash(snippet),
-                key_fact=item.get("key_fact") or None,
-                provenance_state=provenance_state,
-                attested_against=attested_against,
-                attestation_run_at=attestation_run_at,
+            if item.get("snippet_unverified"):
+                provenance_state, attested_against, attestation_run_at = (
+                    "UNATTESTED",
+                    None,
+                    datetime.now(UTC),
+                )
+            elif grade:
+                provenance_state, attested_against, attestation_run_at = (
+                    "ATTESTED",
+                    grade,
+                    datetime.now(UTC),
+                )
+            else:
+                provenance_state, attested_against, attestation_run_at = "UNCHECKED", None, None
+
+            eid = uuid.uuid4()
+            db.add(
+                Evidence(
+                    id=eid,
+                    run_id=run.id,
+                    source_id=source_id,
+                    sequence=sequence,
+                    task_id=task_id,
+                    snippet=snippet,
+                    content_hash=content_hash(snippet),
+                    key_fact=key_fact,
+                    provenance_state=provenance_state,
+                    attested_against=attested_against,
+                    attestation_run_at=attestation_run_at,
+                )
             )
-        )
-        watermark = sequence
+        watermark = max(watermark, sequence)
         idx = index_by_url.get(norm)
         if idx is not None and idx not in evidence_by_index:
             evidence_by_index[idx] = eid
@@ -558,6 +589,28 @@ async def record_contradictions(
             for row in (await db.execute(select(Source).where(Source.run_id == run.id))).scalars()
         }
 
+    # The pairs ride in the same state rework re-persists, so they are paired one-for-one
+    # with what is stored exactly as `record_evidence` pairs evidence. Reusing the stored
+    # row also keeps any review decision already made on it.
+    unpaired = Counter(
+        (
+            await db.execute(
+                select(
+                    Contradiction.source_a_id,
+                    Contradiction.source_b_id,
+                    Contradiction.quote_a,
+                    Contradiction.quote_b,
+                    Contradiction.summary_a,
+                    Contradiction.summary_b,
+                    Contradiction.nature,
+                ).where(
+                    Contradiction.run_id == run.id,
+                    Contradiction.detection_state != "DETECTOR_UNAVAILABLE",
+                )
+            )
+        ).all()
+    )
+
     written = 0
     for pair in pairs:
         if not isinstance(pair, dict):
@@ -578,7 +631,22 @@ async def record_contradictions(
         if ev_a is None or ev_b is None:
             ev_a = ev_b = None  # ck_contra_refine: half a resolved pair is not a pair
         detected = src_a is not None and src_b is not None and src_a != src_b
+        summary_a, summary_b = pair.get("claim_a") or None, pair.get("claim_b") or None
+        nature = pair.get("nature") or None
 
+        written += 1
+        key = (
+            src_a if detected else None,
+            src_b if detected else None,
+            quote_a,
+            quote_b,
+            summary_a,
+            summary_b,
+            nature,
+        )
+        if unpaired[key]:
+            unpaired[key] -= 1
+            continue
         db.add(
             Contradiction(
                 id=uuid.uuid4(),
@@ -589,16 +657,15 @@ async def record_contradictions(
                 evidence_b_id=ev_b if detected else None,
                 quote_a=quote_a,
                 quote_b=quote_b,
-                summary_a=pair.get("claim_a") or None,
-                summary_b=pair.get("claim_b") or None,
-                nature=pair.get("nature") or None,
+                summary_a=summary_a,
+                summary_b=summary_b,
+                nature=nature,
                 # The detector assigns no dimension, and neither does a run yet.
                 dimension="UNCLASSIFIED",
                 detection_state="DETECTED" if detected else "NOT_RUN",
                 review_state="UNREVIEWED",
             )
         )
-        written += 1
     await db.flush()
     return written
 

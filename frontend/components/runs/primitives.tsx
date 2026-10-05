@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 
 import { runStatusMeta } from "@/lib/runStatus";
-import type { RunClaim, RunEvidence, RunGraph, RunSource } from "@/lib/types";
+import type { RunClaim, RunEvidence, RunGraph, RunRevision, RunSource } from "@/lib/types";
 
 /**
  * Small shared pieces for the run workspace.
@@ -121,11 +121,18 @@ export function RunStatusBadge({ status }: { status: string }) {
   );
 }
 
-export function CitationChip({ source }: { source: RunSource }) {
-  if (source.citation_index === null) {
+export function CitationChip({
+  source,
+  cited = source.citation_index !== null,
+}: {
+  source: RunSource;
+  /** False for a source the run numbered but the report does not cite. */
+  cited?: boolean;
+}) {
+  if (!cited || source.citation_index === null) {
     return (
       <span
-        title="This source was retrieved but the report does not cite it. It has no citation number."
+        title="This source was retrieved but the report does not cite it."
         className="inline-flex items-center whitespace-nowrap border border-dashed border-border px-1.5 py-0.5 text-[length:var(--text-micro)] text-text-muted"
       >
         Retrieved, not cited
@@ -183,11 +190,35 @@ export function Stat({
   );
 }
 
-/** The counts that make the workflow legible at a glance. Derived, never stored. */
+/**
+ * The sources a revision's own body cites.
+ *
+ * Not `citation_index !== null`. That is the run's numbering: the synthesizer numbers every
+ * source it is shown and a rework keeps the numbers, so read that way a source only a
+ * rejected draft cited stays "cited" on the approved run. `cited_indices` comes from the
+ * revision's body, cut where its reference list begins — a list naming a source is not a
+ * citation of it.
+ */
+export function sourcesCitedBy(graph: RunGraph, revision: RunRevision | null): Set<string> {
+  const cited = new Set(revision?.cited_indices ?? []);
+  return new Set(
+    graph.sources
+      .filter((s) => s.citation_index !== null && cited.has(s.citation_index))
+      .map((s) => s.id),
+  );
+}
+
+/**
+ * The counts that make the workflow legible at a glance. Derived, never stored.
+ *
+ * Claim and citation counts describe the latest revision — the draft under review, or the
+ * one that was approved. Rows from earlier drafts stay in the graph for history, and
+ * counting them would describe a report nobody is reading.
+ */
 export function runTotals(graph: RunGraph) {
   const detected = graph.contradictions.filter((c) => c.detection_state === "DETECTED");
-  const cited = graph.sources.filter((s) => s.citation_index !== null);
   const latest = graph.revisions[graph.revisions.length - 1] ?? null;
+  const citedIds = sourcesCitedBy(graph, latest);
   const claims = latest ? graph.claims.filter((c) => c.revision_id === latest.id) : [];
   const linkedClaimIds = new Set(graph.claim_evidence_links.map((l) => l.claim_id));
   return {
@@ -195,8 +226,9 @@ export function runTotals(graph: RunGraph) {
     claims,
     evidence: graph.evidence.length,
     sources: graph.sources.length,
-    citedSources: cited.length,
-    uncitedSources: graph.sources.length - cited.length,
+    citedIds,
+    citedSources: citedIds.size,
+    uncitedSources: graph.sources.length - citedIds.size,
     contradictions: detected.length,
     /** Records the detector could not anchor. Not the same as "no conflicts found". */
     unanchoredContradictions: graph.contradictions.length - detected.length,

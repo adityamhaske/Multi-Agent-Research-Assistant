@@ -53,9 +53,12 @@ API unflattened, and shown in the interface.
 `UNCHECKED` means *nobody checked* — which is neither "verified" nor "failed". A system that
 rendered a tick there would be claiming a check it never ran.
 
-**Retrieved is not cited.** A source the report does not reference keeps no citation number.
-It still appears in the Sources view, because hiding it would overstate how much of the
-retrieval reached the report.
+**Retrieved is not cited.** A source counts as cited only when the report's own text
+references it. The run numbers every source the synthesizer was shown, and a rework keeps
+those numbers so an earlier draft still reads correctly — so a number alone says nothing, and
+a source only a rejected draft cited is not cited by the report you approve. A source the
+report does not reference still appears in the Sources view, under its own heading, because
+hiding it would overstate how much of the retrieval reached the report.
 
 **A citation marker is not evidence.** A `[3]` that resolves to nothing produces no link,
 and the Claims view says the claim resolved to no evidence rather than rendering prose that

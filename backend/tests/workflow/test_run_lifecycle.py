@@ -236,6 +236,74 @@ async def test_sources_keep_retrieved_and_cited_apart(db, owner):
     assert await _count(db, Source, run_id=run.id) == 3
 
 
+async def test_re_persisting_the_same_evidence_writes_no_second_copy(db, owner):
+    """Rework re-synthesizes over the evidence the run already has, and the host persists
+    the whole final state again. Appending it doubled every count the run page shows."""
+    run = await run_lifecycle.create_run(
+        db, owner_id=owner["user_id"], project_id=owner["project_id"], question=QUESTION
+    )
+    numbered, _ = _number_sources(EVIDENCE)
+    first = await run_lifecycle.record_evidence(
+        db, run, evidence=EVIDENCE, numbered_sources=numbered
+    )
+    await db.commit()
+    again = await run_lifecycle.record_evidence(
+        db, run, evidence=EVIDENCE, numbered_sources=numbered
+    )
+    await db.commit()
+
+    assert await _count(db, Evidence, run_id=run.id) == len(EVIDENCE)
+    assert again.watermark == first.watermark, "the second synthesis saw nothing new"
+    # Claims and contradictions resolve through these, so they must name the stored rows.
+    assert again.evidence_by_index == first.evidence_by_index
+    assert again.evidence_by_quote == first.evidence_by_quote
+
+
+async def test_evidence_a_later_outcome_adds_is_appended_after_what_was_stored(db, owner):
+    run = await run_lifecycle.create_run(
+        db, owner_id=owner["user_id"], project_id=owner["project_id"], question=QUESTION
+    )
+    first = await run_lifecycle.record_evidence(db, run, evidence=EVIDENCE[:2])
+    again = await run_lifecycle.record_evidence(db, run, evidence=EVIDENCE)
+    await db.commit()
+
+    rows = (
+        (await db.execute(select(Evidence).where(Evidence.run_id == run.id).order_by("sequence")))
+        .scalars()
+        .all()
+    )
+    assert [r.snippet for r in rows] == [e["snippet"] for e in EVIDENCE]
+    assert again.watermark == rows[-1].sequence > first.watermark
+
+
+async def test_an_item_the_executor_returned_twice_is_still_stored_twice(db, owner):
+    """Reuse pairs stored rows with incoming items one for one, so it never collapses a
+    repetition the engine genuinely produced — that would be a rewrite, not a dedupe."""
+    run = await run_lifecycle.create_run(
+        db, owner_id=owner["user_id"], project_id=owner["project_id"], question=QUESTION
+    )
+    twice = [EVIDENCE[0], dict(EVIDENCE[0])]
+    await run_lifecycle.record_evidence(db, run, evidence=twice)
+    await run_lifecycle.record_evidence(db, run, evidence=twice)
+    await db.commit()
+
+    assert await _count(db, Evidence, run_id=run.id) == 2
+
+
+async def test_re_persisting_the_same_contradictions_writes_no_second_copy(db, owner):
+    """The detector's pairs live in the same re-persisted state as the evidence."""
+    state = await drive_lifecycle(db, owner, approve=False)
+    run = state["run"]
+    numbered, _ = _number_sources(EVIDENCE)
+    again = await run_lifecycle.record_evidence(
+        db, run, evidence=EVIDENCE, numbered_sources=numbered
+    )
+    await run_lifecycle.record_contradictions(db, run, pairs=[CONTRADICTION], evidence_index=again)
+    await db.commit()
+
+    assert await _count(db, Contradiction, run_id=run.id) == 1
+
+
 async def test_evidence_with_no_graph_verdict_lands_unchecked(db, owner):
     """`EVIDENCE` above is a hand-built fixture, not something `verify_evidence_snippets`
     ever ran over — it carries no `attestation_grade`/`snippet_unverified`. Nothing here

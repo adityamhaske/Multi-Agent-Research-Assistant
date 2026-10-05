@@ -14,7 +14,9 @@ must be able to tell `UNCHECKED` from `UNATTESTED`, and collapsing them here to 
 bytes would put the product's central claim behind a translation layer.
 
 **`citation_index` is nullable and that is load-bearing.** A source with no index was
-retrieved and never cited. The UI must not number it.
+retrieved and never cited. The UI must not number it. The converse does not hold: the run
+numbers every source the synthesizer was shown, so whether a revision cites one is that
+revision's `cited_indices`, not this column.
 
 Actions are the two gates and the artifact. `POST /plan-review` and `POST /report-review` go
 through `app.run_lifecycle`, which goes through `app.authorization` — so the rule that only an
@@ -66,6 +68,7 @@ from app.services import model_routing
 from app.services.event_stream import sse_frames
 from app.services.sse import SSE_HEADERS
 from app.workers.dispatch import get_run_dispatcher
+from research_engine import citation_rate
 from research_engine.bundle import render_model_attribution_md, stamp_demo_md
 
 logger = structlog.get_logger()
@@ -284,6 +287,16 @@ async def project_run(db: AsyncSession, run: ResearchRun) -> dict:
                 # existing client — and the frontend's citation renderer — reads.
                 "report_document": r.report_document,
                 "evidence_watermark": r.evidence_watermark,
+                # What this revision cites (module docstring: not `citation_index`). Cut
+                # where the resolution rate cuts — a reference list naming a source is not
+                # a citation of it.
+                "cited_indices": sorted(
+                    set(
+                        citation_rate.cited_indices(
+                            citation_rate.body_before_sources(r.report_markdown)
+                        )
+                    )
+                ),
                 "created_at": r.created_at.isoformat(),
             }
             for r in revisions

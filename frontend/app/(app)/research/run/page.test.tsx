@@ -103,6 +103,7 @@ function graph(over: Partial<RunGraph> = {}): RunGraph {
         report_markdown: "# Findings\n\nGrounding raised accuracy [1].",
         report_hash: "b".repeat(64),
         evidence_watermark: 1,
+        cited_indices: [1],
         created_at: "2026-08-18T00:00:00Z",
       },
     ],
