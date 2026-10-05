@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback } from "react";
 
 import { useActiveProject } from "@/components/ActiveProject";
+import { DemoNotice } from "@/components/DemoNotice";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RunProgress } from "@/components/runs/RunProgress";
 import { CancelButton, RunWorkspace } from "@/components/runs/RunWorkspace";
@@ -172,6 +173,10 @@ function RunHeader({ graph, live }: { graph: RunGraph; live: boolean }) {
 
   return (
     <header className="card space-y-4">
+      {/* First, in every state and tab: the badge below marks a demo, but only a sentence
+          beside the report stops it reading as research on the question asked (docs/17 §6.2). */}
+      {graph.run.demo && <DemoNotice />}
+
       {/* 1. Context Eyebrow & Actions Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
         <div className="flex flex-wrap items-center gap-2">

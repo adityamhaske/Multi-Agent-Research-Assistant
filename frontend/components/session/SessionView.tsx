@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import toast from "react-hot-toast";
 
+import { DemoNotice } from "@/components/DemoNotice";
 import { RelativeTime } from "@/components/RelativeTime";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ApprovalGate } from "@/components/session/ApprovalGate";
@@ -89,32 +90,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       {/* Above the title, full width, in every state. A badge is enough in a list; it is
           not enough when someone is reading the report itself, which is the moment a demo
           can be mistaken for research (docs/17 §6.2). */}
-      {session.demo && (
-        <div
-          role="note"
-          className="border px-4 py-3"
-          style={{
-            borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
-            backgroundColor: "color-mix(in srgb, var(--warning) 8%, var(--bg-surface))",
-          }}
-        >
-          <p
-            className="font-mono text-xs font-semibold uppercase tracking-wider"
-            style={{ color: "var(--warning)" }}
-          >
-            ⚠ Demo — not real research
-          </p>
-          <p className="mt-1 text-sm leading-relaxed text-text-secondary">
-            Scripted models and fixture sources, so the pipeline can be shown without an API
-            key. The citations resolve and the gate works, but nothing here was researched.
-            Exports are stamped. Connect a model in{" "}
-            <Link href="/settings" className="text-accent hover:underline">
-              Settings
-            </Link>{" "}
-            to run this for real.
-          </p>
-        </div>
-      )}
+      {session.demo && <DemoNotice />}
 
       <OverridesNotAppliedNotice notApplied={session.prompt_overrides_not_applied} />
 

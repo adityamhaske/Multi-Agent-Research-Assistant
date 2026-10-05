@@ -155,3 +155,29 @@ describe("the run page's description lists", () => {
     }
   });
 });
+
+/**
+ * A demo run must never read as research on the question that was asked.
+ *
+ * The demo's report answers a fixed question whatever was typed, fully cited, so a reader who
+ * skims past a two-word badge reads an unrelated, confident answer as research on their own
+ * question — which is what happened: a question about one company came back as a report on
+ * retrieval-augmented generation. The badge stays; the page also says it in a sentence.
+ */
+describe("a demo run's page", () => {
+  it("says plainly that nothing was researched and the question never reached a model", () => {
+    current.graph = graph({ run: { ...graph().run, demo: true } });
+    render(<RunPage />);
+    const notice = screen.getByRole("note", { name: /demo run/i });
+    expect(notice).toHaveTextContent("Demo run — no LLM research was performed");
+    expect(notice).toHaveTextContent(
+      "Your question was not sent to a model. This report is a scripted demonstration",
+    );
+  });
+
+  it("is not shown on a run a model actually researched", () => {
+    current.graph = graph({ run: { ...graph().run, demo: false } });
+    render(<RunPage />);
+    expect(screen.queryByRole("note", { name: /demo run/i })).toBeNull();
+  });
+});
