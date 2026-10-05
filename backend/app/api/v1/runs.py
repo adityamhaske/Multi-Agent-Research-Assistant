@@ -698,6 +698,10 @@ async def _ingest_report_into_memory(db: AsyncSession, run, report_markdown: str
         # already state. Skipping quietly is correct there; warning on every approval
         # would report a decision as a gap.
         return
+    # Read before the step, not in its handler: the rollback below expires `run`, and
+    # reloading an attribute after it raises MissingGreenlet — which turned an embeddings
+    # provider being absent into a 500 on an approval that had already been committed.
+    run_id = str(run.id)
     try:
         from app import adapters
         from app.run_execution import provider_keys_for
@@ -705,10 +709,10 @@ async def _ingest_report_into_memory(db: AsyncSession, run, report_markdown: str
         embedder = await adapters.embeddings_for(await provider_keys_for(db, run.owner_id))
         result = await memory.ingest_run(db, run, report_markdown, embedder)
         if result.skipped:
-            logger.info("memory_ingest_skipped", run_id=str(run.id), reason=result.reason)
+            logger.info("memory_ingest_skipped", run_id=run_id, reason=result.reason)
     except Exception as e:  # noqa: BLE001 — see docstring: never fail a committed run
         await db.rollback()
-        logger.warning("memory_ingest_failed", run_id=str(run.id), error=str(e))
+        logger.warning("memory_ingest_failed", run_id=run_id, error=str(e))
 
 
 @router.get("/{run_id}/bundle.json")
