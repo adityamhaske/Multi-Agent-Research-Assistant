@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
+import { ResetToDefault } from "@/components/settings/ResetToDefault";
 import { ApiError } from "@/lib/api";
 import { apiValidationMessage, promptEditorState } from "@/lib/promptOverrides";
 import type { PromptDefault } from "@/lib/types";
@@ -14,8 +15,12 @@ import type { PromptDefault } from "@/lib/types";
  * It starts from what runs today — the user's override, else the shipped prompt with the
  * system-added untrusted-content instruction removed — and saves real text. Emptying the box
  * is deliberately not a way to reset: an empty prompt is refused, not read as a reset, so the
- * editor names the control to use instead of offering a Save that would fail. Reset lives on
- * the agent's card, beside the state it changes.
+ * editor names the control to use instead of offering a Save that would fail.
+ *
+ * Reset to default is here as well as on the card, beside the text it would replace, and
+ * means two things. For a customized agent it clears the override (`onReset`) — saving a
+ * copy of the shipped text would still be an override, and the run would record the agent
+ * as customized. For a shipped agent it only discards unsaved edits; nothing is sent.
  */
 export function RolePromptEditor({
   label,
@@ -25,6 +30,7 @@ export function RolePromptEditor({
   busy,
   onSave,
   onClose,
+  onReset,
 }: {
   label: string;
   shipped: PromptDefault;
@@ -33,6 +39,7 @@ export function RolePromptEditor({
   busy: boolean;
   onSave: (text: string) => Promise<void>;
   onClose: () => void;
+  onReset: () => void;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +76,18 @@ export function RolePromptEditor({
     }
   }
 
+  function resetToShipped() {
+    setError(null);
+    if (state.customised) {
+      onReset();
+      return;
+    }
+    setDraft(null);
+    box.current?.focus();
+  }
+
+  const atShipped = !state.customised && state.text === shipped.default_prompt;
+
   const describedBy = [counterId, state.dirty && state.blank ? hintId : null, error ? errorId : null]
     .filter(Boolean)
     .join(" ");
@@ -97,15 +116,18 @@ export function RolePromptEditor({
         }}
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span
-          id={counterId}
-          className={`font-mono text-[0.6875rem] tabular-nums ${
-            state.tooLong ? "text-danger" : "text-text-muted"
-          }`}
-        >
-          {state.length.toLocaleString()} / {maxChars.toLocaleString()} characters
-          {state.tooLong && " — over the limit"}
-        </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span
+            id={counterId}
+            className={`font-mono text-[0.6875rem] tabular-nums ${
+              state.tooLong ? "text-danger" : "text-text-muted"
+            }`}
+          >
+            {state.length.toLocaleString()} / {maxChars.toLocaleString()} characters
+            {state.tooLong && " — over the limit"}
+          </span>
+          <ResetToDefault isDefault={atShipped || busy} onReset={resetToShipped} />
+        </div>
         <div className="flex items-center gap-2">
           <button type="button" className="btn btn-ghost" disabled={busy} onClick={onClose}>
             Cancel

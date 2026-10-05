@@ -47,16 +47,18 @@ export function AgentsSection() {
     await updateProfile.mutateAsync({ preferences: { prompt_overrides: { [role]: text } } });
   };
 
-  async function reset(role: AgentRole) {
+  async function reset(role: AgentRole): Promise<boolean> {
     setResetError(null);
     try {
       await write(role, null);
       toast.success(`${ROLE_COPY[role].label} is back on the shipped prompt.`);
+      return true;
     } catch (err) {
       setResetError({
         role,
         message: err instanceof ApiError ? err.message : "Could not reach the server.",
       });
+      return false;
     }
   }
 
@@ -161,6 +163,11 @@ export function AgentsSection() {
                         busy={updateProfile.isPending}
                         onSave={(text) => write(role, text)}
                         onClose={() => setEditing(null)}
+                        onReset={async () => {
+                          // Closed only once the override is really gone; a refusal shows on
+                          // the card and leaves the editor, and its text, where they were.
+                          if (await reset(role)) setEditing(null);
+                        }}
                       />
                     </div>
                   )}

@@ -9,12 +9,13 @@ import { RolePromptEditor } from "./RolePromptEditor";
 
 /**
  * One agent's instruction editor (scope freeze §12): it starts from what runs today, saves
- * real text, and never turns an emptied box into a save. Resetting is the agent card's job —
- * `AgentsSection.test.tsx` covers it.
+ * real text, and never turns an emptied box into a save. Its reset is covered below; the
+ * card's own reset, and the editor's reaching the API, in `AgentsSection.test.tsx`.
  */
 
 type Save = (text: string) => Promise<void>;
 type Close = () => void;
+type Reset = () => void;
 
 const PLANNER: PromptDefault = {
   role: "planner",
@@ -32,12 +33,14 @@ function setUp({
   saved,
   onSave = vi.fn<Save>().mockResolvedValue(undefined),
   onClose = vi.fn<Close>(),
+  onReset = vi.fn<Reset>(),
   maxChars = 60,
 }: {
   shipped?: PromptDefault;
   saved?: string;
   onSave?: ReturnType<typeof vi.fn<Save>>;
   onClose?: ReturnType<typeof vi.fn<Close>>;
+  onReset?: ReturnType<typeof vi.fn<Reset>>;
   maxChars?: number;
 } = {}) {
   render(
@@ -49,10 +52,11 @@ function setUp({
       busy={false}
       onSave={onSave}
       onClose={onClose}
+      onReset={onReset}
     />,
   );
   const box = screen.getByRole("textbox", { name: "Instructions for Planner" });
-  return { box, onSave, onClose };
+  return { box, onSave, onClose, onReset };
 }
 
 describe("what the editor starts from", () => {
@@ -149,9 +153,29 @@ describe("saving", () => {
   });
 });
 
-describe("what it never offers", () => {
-  it("has no reset of its own — the card owns that", () => {
-    setUp({ saved: "Plan in three steps." });
-    expect(screen.queryByRole("button", { name: "Reset to default" })).not.toBeInTheDocument();
+describe("resetting to the shipped prompt from inside the editor", () => {
+  const reset = () => screen.queryByRole("button", { name: "Reset to default" });
+
+  it("offers nothing while the shipped text is untouched — there is nothing to go back to", () => {
+    setUp();
+    expect(reset()).toBeNull();
+  });
+
+  it("puts the shipped text back after an edit, without saving anything", async () => {
+    const { box, onSave, onReset } = setUp();
+    await userEvent.type(box, " Add a timeline task.");
+    await userEvent.click(reset()!);
+    expect(box).toHaveValue(PLANNER.default_prompt);
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onReset).not.toHaveBeenCalled();
+    expect(reset()).toBeNull();
+  });
+
+  it("on a customized agent, clears the override rather than saving a copy of the shipped text", async () => {
+    // A copy would still be an override — the run would record the agent as customized.
+    const { onSave, onReset } = setUp({ saved: "Plan in three steps." });
+    await userEvent.click(reset()!);
+    expect(onReset).toHaveBeenCalledOnce();
+    expect(onSave).not.toHaveBeenCalled();
   });
 });

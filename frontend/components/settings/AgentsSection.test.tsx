@@ -199,6 +199,24 @@ describe("editing", () => {
 });
 
 describe("resetting", () => {
+  it("shows one Reset to default per agent at a time — the card's yields to the editor's", async () => {
+    show({ critic: "Grade harshly." });
+    const critic = card("Critic");
+    expect(within(critic).getAllByRole("button", { name: "Reset to default" })).toHaveLength(1);
+    await userEvent.click(within(critic).getByRole("button", { name: "Edit instructions" }));
+    expect(within(critic).getAllByRole("button", { name: "Reset to default" })).toHaveLength(1);
+  });
+
+  it("can reset from inside an open editor, then closes it", async () => {
+    show({ critic: "Grade harshly." });
+    await userEvent.click(within(card("Critic")).getByRole("button", { name: "Edit instructions" }));
+    await userEvent.click(within(card("Critic")).getByRole("button", { name: "Reset to default" }));
+    expect(updateProfile.mutateAsync).toHaveBeenCalledWith({
+      preferences: { prompt_overrides: { critic: null } },
+    });
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
   it("sends null for that agent alone", async () => {
     show({ critic: "Grade harshly.", planner: "Plan in three steps." });
     await userEvent.click(within(card("Critic")).getByRole("button", { name: "Reset to default" }));
