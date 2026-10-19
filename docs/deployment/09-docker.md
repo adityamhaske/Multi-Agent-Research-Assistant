@@ -53,6 +53,14 @@ portably, including on Linux.
 Volumes are named distinctly from the dev compose file's, so the full stack can never
 collide with a dev database of a different Postgres major version.
 
+**A locally built image reports the commit it was built from, or `unknown`.** Settings →
+About and `GET /api/v1/version` read a build stamp. `./start.sh` reads the version, commit
+and whether the tree had uncommitted changes from git, and the `api` and `worker` images
+record them. A plain `docker compose … up --build` has no git to read, so those images
+answer `unknown`. Neither path reuses a stamp left in the checkout by an earlier build: the
+compose file builds with `BUILD_STAMP=local`, which discards it. Published images are
+stamped by the release workflow instead.
+
 **A fourth named volume, `mara_full_corpus_data`, holds per-project corpora** (docs/12
 M10) and is mounted at `/app/data` on **both** `api` and `worker`. It must be on both:
 they are separate containers with separate writable layers, so a document uploaded

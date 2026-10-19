@@ -122,6 +122,25 @@ else
   fi
 fi
 
+# What the backend images report at /api/v1/version. docker-compose.full.yml hands these to
+# backend/docker/stamp_image.py, which discards any research_engine/_build.py the checkout
+# holds — a leftover stamp once made a 3.0.2 image claim to be 2.1.0. Read from git here
+# because the build context has no .git; "dirty" means what scripts/stamp_build.py means by
+# it. Without a readable checkout all three stay empty and the images say "unknown".
+BUILD_VERSION=""; BUILD_GIT_SHA=""; BUILD_DIRTY=""
+if command -v git >/dev/null 2>&1 \
+  && sha="$(git rev-parse --verify --quiet HEAD 2>/dev/null)" \
+  && porcelain="$(git status --porcelain 2>/dev/null)"; then
+  BUILD_GIT_SHA="$sha"
+  BUILD_VERSION="$(tr -d '[:space:]' < VERSION 2>/dev/null || true)"
+  suffix=""
+  if [ -n "$porcelain" ]; then BUILD_DIRTY=true; suffix=" (with uncommitted changes)"; else BUILD_DIRTY=false; fi
+  ok "Build identity: ${BUILD_VERSION} at ${sha:0:9}${suffix}."
+else
+  warn "No readable git checkout here — the images will report their version and commit as unknown."
+fi
+export BUILD_VERSION BUILD_GIT_SHA BUILD_DIRTY
+
 # ── Port check ────────────────────────────────────────────────────────────────
 if lsof -nP -iTCP:"$FRONTEND_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
   # Ours already? Then this is just a restart.

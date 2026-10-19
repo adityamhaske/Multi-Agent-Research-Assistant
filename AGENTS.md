@@ -519,7 +519,11 @@ everywhere` job. Four traps it exists for, each of which shipped:
 - **Every artifact must be able to say which commit built it.** The desktop engine is stamped
   in `desktop.yml`; the server images were not stamped until `release.yml`'s `stamp` job, so
   every image through 3.0.1 answered `/api/v1/version` with `unknown`. A new artifact type
-  needs a stamp *and* a step that asks the published artifact.
+  needs a stamp *and* a step that asks the published artifact. **Git-ignored is not
+  Docker-ignored:** a leftover `_build.py` rode `COPY . /app` into every local image, which
+  then reported another build's version and commit. Never Docker-ignore it — `release.yml`
+  stamps the context and the images carry it that way — local builds discard it instead
+  (`BUILD_STAMP=local`, `backend/docker/stamp_image.py`).
 - **"CI compiled it" is not "CI ran it".** Until the installer steps in `desktop.yml`, no
   `.deb`, AppImage or `.msi` had ever been installed and launched by CI.
   `scripts/check_packaged_sidecar.py` is the one checker for all of them, and for a person

@@ -18,11 +18,38 @@
 #    explicitly — that is what hiddenimports below is for.
 
 import os
+import subprocess
+import sys
 
 from PyInstaller.utils.hooks import collect_submodules
 
 # SPECPATH is injected by PyInstaller: this file's directory (backend/desktop/).
 _BACKEND_ROOT = os.path.dirname(SPECPATH)
+
+# The bundle ships whatever `research_engine/_build.py` the checkout holds, and the file is
+# git-ignored, so a stamp left by an earlier build names another commit with nothing to show
+# it — a hand-run build would report that commit as its own. Refuse a stamp that no longer
+# describes this checkout. No stamp is allowed: the bundle answers `unknown`, which is true.
+# desktop.yml stamps immediately before this, and its frozen-SHA smoke step asks again.
+_STAMP = os.path.join(_BACKEND_ROOT, "research_engine", "_build.py")
+if os.path.exists(_STAMP):
+    _checked = subprocess.run(
+        [
+            sys.executable,
+            os.path.join(os.path.dirname(_BACKEND_ROOT), "scripts", "stamp_build.py"),
+            "--check",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if _checked.returncode != 0:
+        raise SystemExit(
+            "research-sidecar.spec: the build stamp does not describe this checkout ("
+            + (_checked.stderr.strip() or _checked.stdout.strip())
+            + "). Run `python scripts/stamp_build.py` first, or delete "
+            + _STAMP
+            + " for a bundle that reports `unknown`."
+        )
 
 hiddenimports = [
     # SQLite async driver for SQLAlchemy (create_async_engine sqlite+aiosqlite).
