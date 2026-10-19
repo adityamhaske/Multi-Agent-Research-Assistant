@@ -65,6 +65,8 @@ export const RELEASES: Release[] = [
       "A demo run says first, in full, that nothing was researched: your question was not sent to a model, the report is scripted and does not answer it, and if every run is a demo the server itself is in demo mode.",
       "Settings \u2192 Agents can reset an agent to the shipped prompt from inside its editor, or discard unsaved edits there, without closing the editor first.",
       "The published server images say which commit built them. /api/v1/version and Settings \u2192 About answered \u201cunknown\u201d on every self-hosted image through 3.0.1.",
+      "A server you build yourself reports its own version and commit. A leftover build stamp in a checkout was copied into every image built from it, so a 3.0.2 build could tell Settings \u2192 About it was 2.1.0; ./start.sh now stamps images from the checkout, and an image built any other way says unknown.",
+      "The server and the desktop app\u2019s engine run Python 3.14, the version every test now runs on. The server images had moved to 3.14 while every test still ran 3.11.",
       "The Oracle Cloud deploy script installs the latest release. It defaulted to a development build made before 1.0.",
       "The self-hosted web server runs Next.js 16.3.8, which fixes a high-severity server-side request forgery advisory in its image optimization, along with two medium and one low; sharp and source-map-js are updated past high-severity advisories of their own.",
     ],

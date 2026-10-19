@@ -50,10 +50,14 @@ bundle-format change (A19.02).
 | Oracle deploy defaults to `latest`, not a pre-1.0 `edge` build | #170 | `deploy/oracle-bootstrap.sh` | A10.04 | — | — | n/a | ✓ deploy/README.md | — | ✓ | — | Shipped |
 | Release process, audit, installed-installer CI steps, `/build.json` | #170 | `RELEASE.md`, `scripts/release_audit.py`, `desktop.yml`, `pages.yml` | `test_release_audit.py` | — | — | ✓ `.deb`/AppImage/`.msi` journeys in CI | ✓ RELEASE.md, release-audit/README.md, README | ✓ `/build.json` | ✓ changelog *Process* | — | Shipped (process) |
 | Refresh-token rotation and reuse detection tested | #170 | test only | `test_refresh_token_reuse.py` | — | — | — | — | — | — | — | Shipped (test) |
+| This release's preparation: version, notes, changelog, record, the release evaluation, and the A2.01/A2.03 audit fixes | #186 | `VERSION` and its carriers, `releases.ts`, the changelog, this record, `eval-2026-10-19-custom.json`, `release_checks/evaluate.py` | `test_release_audit.py` negative controls; release-entry tests | — | — | — | ✓ RELEASE.md incident rows | ✓ releases.ts (unreleased) | ✓ | — | Shipped (process) |
 | v3.0.1 offered for download (the previous release's flip) | #169 | `releases.ts` | `download/unreleased.test.tsx` | ✓ | — | — | — | ✓ | — | — | Shipped (process) |
 | Frontend dependency updates: Next.js 16.3.6, the frontend minor group, undici 8.11.2, brace-expansion 1.1.21 | #174, #175, #176, #182 | `frontend/package*.json` | CI on each PR | — | — | ✓ same frontend | — | — | ✓ changelog | — | Shipped |
 | Security updates past three high-severity advisories: Next.js 16.3.8, sharp 0.35.5, source-map-js 1.2.2 | #185, #184, #183 | `frontend/package*.json` | CI on each PR; merged during stage A (Finding 1), then lint, typecheck, tests and all three builds re-run on the release branch | — | — | ✓ same frontend | — | — | ✓ | — | Shipped |
-| Backend images on Python 3.14 (from 3.11) | #173 | `backend/Dockerfile` | Built and the full suite run inside the image (Finding 2); CI itself still tests 3.11 | — | — | n/a — the desktop engine is built on 3.11 | — | — | ✓ changelog | — | Shipped — CI-interpreter gap open (Finding 2) |
+| Backend images on Python 3.14 (from 3.11) | #173 | `backend/Dockerfile` | Built and the full suite run inside the image (Finding 2) | — | — | see #189 | — | — | ✓ changelog | — | Shipped |
+| CI, the release stamp job and the image on one Python, enforced (A10.06) | #187 | `ci.yml`, `release.yml` on 3.14; `release_checks` A10.06; Dependabot ignores backend-image Python minors | A10.06 negative controls in `test_release_audit.py` | — | — | — | ✓ RELEASE.md, AGENTS.md | — | ✓ changelog | — | Shipped |
+| The desktop engine frozen on 3.14, so every workflow's Python is the image's | #189 | `desktop.yml` on 3.14; A10.06's desktop exception removed | Sidecar ×3 and Shell ×3 green on 3.14 (the frozen engine, `.deb`, AppImage, `.msi` journeys) | — | — | ✓ packaged — stage B checks below | ✓ RELEASE.md, AGENTS.md | — | ✓ | — | PENDING — packaged checks (Extra checks) |
+| Every build reports its own identity or `unknown`, never a stale stamp's | #188 | `docker/stamp_image.py`, `BUILD_STAMP` in the Dockerfile and compose, `start.sh` exports the checkout's facts, `release.yml` keeps its own stamp, the sidecar spec refuses a stale one | `test_local_build_stamp.py`; real local builds | ✓ Settings → About | ✓ `/api/v1/version` | ✓ the spec refuses a stale stamp | ✓ docs/09, AGENTS.md, RELEASE.md | — | ✓ | — | PENDING — the `release.yml` path first runs on the tag (Extra checks) |
 
 Deferred (merged but not part of this release's story): none.
 
@@ -129,7 +133,7 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M1.02 | PASS | Search for stale references the scanner cannot see: images and screenshots with text in them, the… — `git grep` for 3.0.1/v3.0.1, `releases/download/`, `ghcr.io/…:<tag>`: every hit is incident history (RELEASE.md, AGENTS.md, a release.yml comment), a test fixture, or a URL template built from `releases.ts`; the OpenGraph image names no version |
 | M1.03 | PASS | Review every line A1.09 flags, one by one — A1.09 PASS — no new version mention in user-facing text; the new mentions are in `releases.ts` and the changelog (version histories by design), RELEASE.md and this record |
 | **Phase 2 — Feature Completeness** | | |
-| M2.01 | PASS | Fill the feature matrix in the record for every scope row: Implementation · Tests · UI · API · Desktop ·… — Matrix under Scope; one row PENDING on stage B (image stamping, first exercised by this tag), one shipped with an open gap (Finding 2, Python 3.14) |
+| M2.01 | PASS | Fill the feature matrix in the record for every scope row: Implementation · Tests · UI · API · Desktop ·… — Matrix under Scope, #187-#189 included. Two rows are PENDING on stage B: #188's `release.yml` stamp path and #189's packaged engine (Extra checks); the image-stamping row likewise |
 | M2.02 | PENDING | For every feature on both hosts, confirm the desktop really has it: the route exists and behaves… — Source evidence so far: #181's rework journey passes on both the server and desktop drivers; #180 is server-only by design (project memory is pgvector-only). The packaged-desktop and published-image exercise is stage B (Phases 7, 10) |
 | M2.03 | PASS | Read the `releases.ts` entry and the changelog entry against the matrix: `improved` states user-visible… — Read against the matrix: `improved` is user-visible effects only and includes the measured result; `known` carries 3.0.1's list plus the two new gaps; each summary compresses its list and adds nothing (A1.05 PASS; `releases.test.ts` bounds) |
 | M2.04 | PASS | If A2.03 fails: run the release evaluation (`docs/developers/08-testing-and-evaluation.md`, "The release… — A2.03 required it (graph.py, prompts.py, tools.py changed). Release run under an independent judge: completion 1.0, citation support 0.9693 over 190 judged claims — both above threshold. `eval-2026-10-19-custom.json`; details under Scope → Evaluation |
@@ -203,10 +207,10 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M18.04 | PENDING | Public surface: `/api/v1/version` is unauthenticated on the server by design; nothing else new is — evidence: |
 | **Phase 19 — Upgrade / Migration Verification** | | |
 | M19.01 | PENDING | Fresh install: an empty database migrates to head (CI), and a fresh desktop data directory starts (M6.02… — evidence: |
-| M19.02 | N/A | Server upgrade from the previous release: run the previous release's images (`RELEASE_TAG=PREV` with the… — A19.02 PASS: no migration, ORM model or bundle-format change since v3.0.1 |
-| M19.03 | N/A | Desktop upgrade from the previous release: install the previous release, create the same data, install… — As M19.02 |
-| M19.04 | N/A | Downgrade: CI's round-trip proves the schema reverses; record whether running the previous images against… — As M19.02 |
-| M19.05 | N/A | A bundle exported by the previous release verifies with this release's verifier, unchanged (`python -m… — Bundle format unchanged (v2); a bundle's content changes only in carrying no duplicated evidence. v1/v2 fixtures verify in CI (`test_bundle_v2_verifier.py`) |
+| M19.02 | PENDING | Server upgrade from the previous release: run the previous release's images (`RELEASE_TAG=PREV` with the… — Required since the server images move from Python 3.11 to 3.14 (#173): upgrade from the published 3.0.1 images on a populated database, waiting runs resumed on 3.14 — Extra checks |
+| M19.03 | PENDING | Desktop upgrade from the previous release: install the previous release, create the same data, install… — Required since the desktop engine moves to 3.14 (#189): an installed 3.0.1 upgraded to 3.0.2 with the same data, manual procedure — Extra checks |
+| M19.04 | PENDING | Downgrade: CI's round-trip proves the schema reverses; record whether running the previous images against… — Record whether 3.0.1's images run against a database 3.0.2 has touched (no migration; check, do not assume) — Extra checks |
+| M19.05 | PENDING | A bundle exported by the previous release verifies with this release's verifier, unchanged (`python -m… — A 3.0.1 bundle verified by 3.0.2's verifier, now on 3.14 — Extra checks |
 | **Phase 20 — Final End-to-End Production Smoke Test** | | |
 | M20.01 | PENDING | The web/self-hosted journey on the Phase 10 stack, **with a real provider at least once** (fake mode… — evidence: |
 | M20.02 | PENDING | The desktop journey on each platform (M7.08, M8.06, M9.01/M9.02), with a real provider or Ollama — evidence: |
@@ -255,8 +259,15 @@ Found while preparing stage A, separated by kind.
    worker lifecycle tests — the path #171 fixed — ran and passed, and no asyncio deprecation
    was raised. **Not checked:** the amd64 image (release.yml builds both), and the image
    running a real-provider journey (stage B, M20.01). **Gap:** the image and CI run different
-   interpreters, and nothing would notice the next drift. Either CI tests on the image's
-   Python or the image goes back to CI's; that is a follow-up, not part of this patch.
+   interpreters, and nothing would notice the next drift.
+
+   **Resolved in this release:**
+   - The release manager chose to move CI to the image's Python before the tag.
+   - #187 moves `ci.yml` and `release.yml`'s stamp job to 3.14, and adds A10.06, which fails a
+     commit that moves any workflow's Python alone.
+   - #189 freezes the desktop engine on 3.14 too, so A10.06 holds with no exception.
+   - The release evaluation ran on 3.11.15, before this change. The code it measured is
+     unchanged, and the interpreter isn't one of A2.03's quality paths.
 
 **Release-process defects (fixed in this PR)**
 
@@ -277,14 +288,73 @@ Found while preparing stage A, separated by kind.
    `/api/v1/version` with `version 2.1.0`, `git_sha 33f1916`, `built_at 2026-09-27` — a
    leftover from a September stamp — while `/health` and the code said 3.0.2. Published images
    are stamped fresh by `release.yml` (A10.05 checks the result), so this is a local-build
-   defect. Excluding the file from the image would break that stamping; the fix belongs in
-   how local builds stamp, and is a follow-up.
+   defect. Excluding the file from the image would break that stamping.
+
+   **Resolved in this release by #188:**
+   - The Dockerfile discards any stamp in its build context, unless `release.yml` passes
+     `BUILD_STAMP=context`.
+   - `start.sh` hands the image the checkout's own version, commit and dirty flag.
+   - The sidecar spec refuses a stamp that doesn't describe the checkout.
 
 **Carried over from the v3.0.1 record, still open**
 
 5. The download page's size note (~80 MB download, ~180 MB installed) against 3.0.1's
    measured 70.3 MiB and 146 MB; re-measure on 3.0.2's artifacts at M15.01.
 6. Two historical release dates disagree with their tags (A16.03 WARN): v1.0.0 and v1.0.2.
+
+## Extra checks this release needs (#173, #187, #188, #189)
+
+This release moves the server and the desktop engine from Python 3.11 to 3.14, and changes
+how every build stamps itself. That turns several rows a plain patch would mark `N/A` into
+required ones. Each line names the row it decides; none is satisfied by source evidence
+(M6.03).
+
+**Before the tag (stage A), on the final `main`:**
+
+- **E1.** Run `release.yml` by manual dispatch on the release commit. That builds images only,
+  tagged `edge`, never `latest`. It runs #188's `BUILD_STAMP=context` path and the 3.14 stamp
+  job once before the tag does. Its "the pushed image reports the commit that built it" step
+  must pass for api and worker on both architectures. It publishes `edge` images to GHCR, so
+  it needs the release manager's go-ahead.
+- **E2.** Run `./start.sh --rebuild` on a clean checkout. `/api/v1/version` must report
+  `3.0.2`, the checkout's commit and `dirty: false`. Then plant a stale `_build.py` in the
+  checkout and rebuild: the image must still report the checkout, not the plant. This is
+  #188's local path.
+- **E3.** Run `./start.sh --rebuild` against the existing local database, which 3.11 images
+  wrote. Migrations must apply on 3.14, a run left waiting at a gate before the switch must be
+  approvable, and its bundle must verify.
+
+**After the tag (stage B), on the published artifacts — rows that are no longer `N/A`:**
+
+- **M19.02:** server upgrade from the published 3.0.1 images (3.11) to 3.0.2 (3.14), on a
+  populated database: a project, a completed run, a run waiting at each gate, a session, a
+  stored BYOK key, preferences and custom agent instructions.
+  - The waiting runs' checkpoints were written by a 3.11 worker and must resume on a 3.14 one.
+  - The BYOK key must still decrypt.
+  - Old research must re-export, and its bundle must verify.
+- **M19.03:** desktop upgrade from an installed 3.0.1 (3.11 engine) to 3.0.2 (3.14 engine), with
+  the same data. `scripts/make_upgrade_fixture.py` only knows v2.1.0, so this is the manual
+  procedure, on macOS at least. Record which platforms ran it.
+- **M19.04:** record whether 3.0.1's images may run against a database 3.0.2 has touched. There
+  is no migration, so the expected answer is yes; check it, don't assume it.
+- **M19.05:** a bundle exported by 3.0.1 must verify with 3.0.2's verifier, which now runs on
+  3.14.
+- **M6.02, M7.06, M8.05, M9.01–M9.02:** run the packaged-engine checker with `--journey` on the
+  installed copy on each OS.
+  - It must report version `3.0.2` and the tag's SHA. This is the first published engine
+    stamped through #188's spec check.
+  - Compare the engine tree with 3.0.1's 138 MB. A 3.14 freeze is a different set of
+    libraries, and an undersized tree is a STOP.
+- **M7.03–M7.05:** re-check the macOS signature, the Gatekeeper verdict and the engine's flags,
+  on a bundle whose interpreter and dylibs all changed.
+- **M8.04, M8.08:** Windows launch and quit, with no orphaned `research-sidecar.exe` left
+  behind. The watchdog sits in the code where two Windows-only crashes once lived (#113), and
+  it now runs on a new interpreter.
+- **M18.03:** the secret scan over the new engine tree. Read every hit with `grep -ao`.
+- **M4.02, A10.05:** the published api **and** worker images must report the tag's commit.
+  This is the first tag through `BUILD_STAMP=context`.
+- **M10.03:** arm64 on this Mac, as before. With no amd64 host available, at least start
+  amd64 under emulation (`docker run --platform linux/amd64`).
 
 ## Known issues shipped with this release
 
@@ -298,8 +368,8 @@ on `openrouter` and `custom` routes. And the size note in Finding 5.
 |---|---|
 | A2.01 counted only merge commits; squash-merged PRs escaped the scope check | `merged_prs` (A2.01); `test_a_squash_merged_pr_is_in_scope_as_surely_as_a_merge_commit` |
 | A2.03 read the template's waiver placeholder as a waiver | `records_eval_waiver` (A2.03); `test_the_templates_waiver_placeholder_is_not_a_waiver` |
-| A dependency bump changed the server images' Python with nothing building the image | Not yet a check — Finding 2's follow-up |
-| A local image carried a stale build stamp and reported another version and commit | Not yet a check — Finding 7's follow-up |
+| A dependency bump changed the server images' Python with nothing building the image | A10.06 (#187, #189): every workflow's Python equals the image's |
+| A local image carried a stale build stamp and reported another version and commit | `test_local_build_stamp.py` (#188); the sidecar spec refuses a stale stamp |
 
 ## Release approval
 
