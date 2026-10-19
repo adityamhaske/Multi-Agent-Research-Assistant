@@ -50,8 +50,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-if sys.version_info < (3, 11):  # noqa: UP036 — the backend's floor; /usr/bin/python3 is older
-    sys.exit(f"release_audit.py needs Python 3.11+, this is {sys.version.split()[0]}")
+if sys.version_info < (3, 14):  # noqa: UP036 — the backend's floor; /usr/bin/python3 is older
+    sys.exit(f"release_audit.py needs Python 3.14+, this is {sys.version.split()[0]}")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 

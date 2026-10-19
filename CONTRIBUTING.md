@@ -11,7 +11,7 @@ Thanks for your interest in contributing! This guide will help you get started.
 
 ## Development Setup
 
-### Backend (Python 3.11+)
+### Backend (Python 3.14+)
 
 ```bash
 cd backend

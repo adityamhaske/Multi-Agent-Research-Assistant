@@ -39,7 +39,7 @@ class Project(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    sessions: Mapped[list["Session"]] = relationship(  # noqa: F821
+    sessions: Mapped[list[Session]] = relationship(  # noqa: F821
         "Session",
         back_populates="project",
         cascade="all, delete-orphan",
@@ -49,14 +49,14 @@ class Project(Base):
     # Memory follows the project it belongs to. The database enforces this too (0007's
     # ON DELETE CASCADE); "no orphan vectors after a delete" is a DoD item, so it is
     # guaranteed in both layers rather than trusted to either.
-    memory_chunks: Mapped[list["MemoryChunk"]] = relationship(  # noqa: F821
+    memory_chunks: Mapped[list[MemoryChunk]] = relationship(  # noqa: F821
         "MemoryChunk",
         back_populates="project",
         cascade="all, delete-orphan",
         passive_deletes=True,
         lazy="select",
     )
-    chat_threads: Mapped[list["ChatThread"]] = relationship(  # noqa: F821
+    chat_threads: Mapped[list[ChatThread]] = relationship(  # noqa: F821
         "ChatThread",
         back_populates="project",
         cascade="all, delete-orphan",

@@ -136,7 +136,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3031"
 
     @model_validator(mode="after")
-    def _validate_secrets(self) -> "Settings":
+    def _validate_secrets(self) -> Settings:
         secret = self.jwt_secret_key.strip()
         if len(secret) < 32 or secret.lower() in _PLACEHOLDER_SECRETS:
             raise ValueError(

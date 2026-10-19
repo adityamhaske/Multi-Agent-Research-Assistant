@@ -108,7 +108,7 @@ async def redis_event_stream(pubsub):
             continue
         try:
             payload = json.loads(message["data"])
-        except (json.JSONDecodeError, TypeError):
+        except json.JSONDecodeError, TypeError:
             continue
         yield payload.get("id"), payload
 

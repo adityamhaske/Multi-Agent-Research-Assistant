@@ -47,8 +47,8 @@ class ChatMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
-    session: Mapped["Session | None"] = relationship("Session", back_populates="chat_messages")  # noqa: F821
-    thread: Mapped["ChatThread | None"] = relationship("ChatThread", back_populates="messages")  # noqa: F821
+    session: Mapped[Session | None] = relationship("Session", back_populates="chat_messages")  # noqa: F821
+    thread: Mapped[ChatThread | None] = relationship("ChatThread", back_populates="messages")  # noqa: F821
 
     def __repr__(self) -> str:
         return f"<ChatMessage id={self.id} role={self.role}>"

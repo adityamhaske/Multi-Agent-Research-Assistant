@@ -39,8 +39,8 @@ class ChatThread(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    project: Mapped["Project"] = relationship("Project", back_populates="chat_threads")  # noqa: F821
-    messages: Mapped[list["ChatMessage"]] = relationship(  # noqa: F821
+    project: Mapped[Project] = relationship("Project", back_populates="chat_threads")  # noqa: F821
+    messages: Mapped[list[ChatMessage]] = relationship(  # noqa: F821
         "ChatMessage",
         back_populates="thread",
         cascade="all, delete-orphan",

@@ -115,7 +115,7 @@ def checkout_identity(root: Path) -> dict | None:
             "GIT_SHA": git("rev-parse", "HEAD"),
             "DIRTY": bool(git("status", "--porcelain")),
         }
-    except (OSError, subprocess.CalledProcessError):
+    except OSError, subprocess.CalledProcessError:
         return None
 
 

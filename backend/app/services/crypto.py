@@ -50,7 +50,7 @@ def decrypt(ciphertext: str) -> str | None:
     signing secret was rotated) so callers degrade instead of raising."""
     try:
         return _fernet().decrypt(ciphertext.encode("ascii")).decode("utf-8")
-    except (InvalidToken, ValueError, TypeError):
+    except InvalidToken, ValueError, TypeError:
         return None
 
 

@@ -48,7 +48,7 @@ backend/
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.14+
 - PostgreSQL 16 with `pgvector`
 - Redis 7
 

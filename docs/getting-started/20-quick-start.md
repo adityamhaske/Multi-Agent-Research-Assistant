@@ -8,7 +8,7 @@ From a clean clone to an approved, cited report. The Docker path needs one comma
 |---|---|
 | **Docker** with Compose v2 | The one-command path. Everything runs in containers; the only host port used is the frontend's. |
 | **A model** | Either a provider API key, or [Ollama](22-local-llm.md) running locally. Without one, use `--fake` below. |
-| Python 3.11+ and Node 22+ | Only for the native development path. |
+| Python 3.14+ and Node 22+ | Only for the native development path, and Python with `pydantic` for verifying a bundle (step 5). |
 
 A search API key is **not** required — the retriever chain falls back to keyless
 DuckDuckGo. See [Configuration](21-configuration.md) for what each optional key buys you.

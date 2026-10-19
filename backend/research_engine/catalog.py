@@ -261,7 +261,7 @@ def stale_entries(today: str, max_age_days: int = 120) -> list[tuple[str, str | 
             continue
         try:
             age = (now - parse(spec.verified_on)).days
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             out.append((spec.route, spec.verified_on))  # unparseable is not verified
             continue
         if age > max_age_days:

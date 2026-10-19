@@ -457,12 +457,17 @@ Dependabot base-image bump once moved the image to 3.14 while CI stayed on 3.11)
 bump is a desktop change: it waits for a PyInstaller release that supports the new
 interpreter, and for a launched build. If the engine cannot follow, name it in
 `scripts/release_checks/constants.py::PYTHON_EXCEPTIONS`, which pins it at exactly that
-version and fails once stale. **The 3.11 floor is still advertised and nothing runs on it**
-— the native development path (`docs/getting-started/20-quick-start.md`, `CONTRIBUTING.md`)
-and `research_engine`'s `requires-python` say 3.11+. Ruff's `target-version = "py311"`
-rejects newer *syntax*; nothing rejects a newer standard-library call, which passes CI and
-breaks only a from-source install on 3.11-3.13. Move the floor and the ruff target together,
-or neither.
+version and fails once stale. **The supported Python is the shipped one, and no other.**
+Every stated floor — `requires-python`, ruff's `target-version`, the version guards, the
+Makefile's venv, each `Python X.Y+` in the docs — is the image's Python, because it is the
+only one CI runs, and A10.06 reads them all (`PYTHON_FLOORS`). The 3.11 floor outlived its
+last CI job by a release: ruff's target rejects newer *syntax*, but nothing rejected a newer
+standard-library call. So a bump also moves the floor a contributor **and a third party
+running `verify_bundle`** is told, and takes whatever ruff's new target rewrites — py314
+turned `except (A, B):` into the unparenthesised form, a SyntaxError before 3.14. That is
+why `research_engine` refuses an older interpreter by name rather than failing to parse, and
+why `desktop.yml`'s `shell` job sets up the image's Python: `check_packaged_sidecar.py`
+imports the verifier, which the runner's own `python3` cannot run.
 
 Frontend CI also runs four bespoke greps (`.github/workflows/ci.yml`): no raw-HTML React
 escape hatches, no hardcoded hex colors, no hardcoded backend URLs, no web-storage access

@@ -23,7 +23,7 @@ build-backend = "setuptools.build_meta"
 name = "research-engine"
 version = "0.1.0"
 description = "Host-independent multi-agent research pipeline with per-claim citations"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 license = { text = "MIT" }
 
 dependencies = [

@@ -32,7 +32,7 @@ async def init_db() -> None:
     logger.info("db_init", message="Database tables created/verified")
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[AsyncSession]:
     """FastAPI dependency that provides an async DB session."""
     async with AsyncSessionLocal() as session:
         try:

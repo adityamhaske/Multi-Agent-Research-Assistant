@@ -139,7 +139,7 @@ class CriticVerdict(BaseModel):
         # run). Non-numeric input falls back to the neutral default.
         try:
             f = float(v)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return 0.5
         if f > 1.0:
             f = f / 100.0

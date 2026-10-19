@@ -87,7 +87,7 @@ async def ingest_document(
         # logical document instead would answer 201 to a request that meant "replace".
         metrics.observe_ingest("rejected")
         raise Unprocessable(f"No document with key {e.args[0]} in this corpus.") from e
-    except (Invalid, PayloadTooLarge):  # `clean_upload` refused it
+    except Invalid, PayloadTooLarge:  # `clean_upload` refused it
         metrics.observe_ingest("rejected")
         raise
     except ValueError as e:  # unsupported extension, unreadable document

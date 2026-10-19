@@ -8,9 +8,17 @@ import re
 import shutil
 import subprocess
 
-from .constants import AFTER_TAG, IMAGES, PLATFORMS, PYTHON_EXCEPTIONS, REQUIRED_PYTHON_JOBS
+from .constants import (
+    AFTER_TAG,
+    IMAGES,
+    PLATFORMS,
+    PROSE_PYTHON_FLOOR,
+    PYTHON_EXCEPTIONS,
+    PYTHON_FLOORS,
+    REQUIRED_PYTHON_JOBS,
+)
 from .core import Ctx, Outcome, Unavailable, check, fail, ok, parallel_map, skip, verdict
-from .evaluate import image_pythons, interpreter_drift, parse_version
+from .evaluate import floor_drift, image_pythons, interpreter_drift, parse_version
 
 
 def _index(ctx: Ctx, image: str, ref: str) -> tuple[dict | None, str | None]:
@@ -202,13 +210,14 @@ def image_identity(ctx: Ctx) -> Outcome:
 @check(
     "A10.06",
     10,
-    "The backend image runs the Python its tests, its stamp and the desktop engine ran on",
+    "The image, every CI job, the desktop engine and the advertised floor are one Python",
 )
 def image_python_is_ci_python(ctx: Ctx) -> Outcome:
     # #173, a Dependabot base-image bump, moved the server images from 3.11 to 3.14 while
     # every job that tests them stayed on 3.11 — and no CI job builds the image, so 3.0.2's
     # would have been the first 3.14 build anywhere. Per commit, so the bump's own PR is red.
-    # The desktop engine is held to the same interpreter, or the suite tests one host only.
+    # The desktop engine is held to the same interpreter, or the suite tests one host only;
+    # the stated floor is too, or the next bump leaves it on a Python nothing runs.
     dockerfile = ctx.read("backend/Dockerfile")
     workflows = {
         str(p.relative_to(ctx.root)): p.read_text(encoding="utf-8")
@@ -216,9 +225,26 @@ def image_python_is_ci_python(ctx: Ctx) -> Outcome:
     }
     problems = interpreter_drift(dockerfile, workflows, REQUIRED_PYTHON_JOBS, PYTHON_EXCEPTIONS)
     pythons = image_pythons(dockerfile)
+    if len(set(pythons)) == 1:
+        problems += floor_drift(
+            pythons[0], _floor_files(ctx), PYTHON_FLOORS, (PROSE_PYTHON_FLOOR,)
+        )
     named = ", ".join(f"{p} `{j}` at {v}" for (p, j), v in PYTHON_EXCEPTIONS.items())
     return verdict(
         problems,
-        f"Python {pythons[0] if pythons else '?'} in the image and every workflow job; "
-        f"named exception: {named or 'none'}",
+        f"Python {pythons[0] if pythons else '?'} in the image, every workflow job and every "
+        f"stated floor; named exception: {named or 'none'}",
     )
+
+
+def _floor_files(ctx: Ctx) -> dict[str, str | None]:
+    markdown = [
+        *ctx.root.glob("*.md"),
+        *ctx.root.glob("*/README.md"),
+        *(p for p in ctx.root.glob("docs/**/*.md") if not p.name.startswith("37-")),
+    ]
+    paths = {*PYTHON_FLOORS, *(p.relative_to(ctx.root).as_posix() for p in markdown)}
+    return {
+        rel: (ctx.root / rel).read_text(encoding="utf-8") if (ctx.root / rel).is_file() else None
+        for rel in sorted(paths)
+    }
