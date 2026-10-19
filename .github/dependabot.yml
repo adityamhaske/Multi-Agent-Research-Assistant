@@ -124,6 +124,12 @@ updates:
           - "*"
 
   # ── Base images: batched ───────────────────────────────────────────────────────────
+  # A Python bump to the backend image arrives red, by design. The image and every job that
+  # tests or stamps it run one interpreter (A10.06, in the required `One version,
+  # everywhere`), and Dependabot can edit only the Dockerfile — #173 moved the image to 3.14
+  # that way with CI left on 3.11. It is not ignored: a Python minor comes once a year, and
+  # the red PR is the notice that one exists. Land it by adding the matching
+  # `python-version` changes in `ci.yml` and `release.yml` to the same branch.
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:

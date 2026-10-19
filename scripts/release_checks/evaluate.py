@@ -227,6 +227,113 @@ def alembic_heads(revisions: dict[str, str | None]) -> list[str]:
     return sorted(r for r in revisions if r not in parents)
 
 
+def image_pythons(dockerfile: str) -> list[str]:
+    """The `X.Y` of every `FROM python:X.Y…` stage. A stage on `python:3-slim` or on a build
+    argument names none, and an empty list is what lets the caller fail on it."""
+    return re.findall(r"^\s*FROM\s+(?:--\S+\s+)*python:(\d+\.\d+)\b", dockerfile, re.M | re.I)
+
+
+# `python-version: "3.14"`, quoted or not, a patch allowed; anything else is unreadable.
+PYTHON_VERSION_RX = re.compile(
+    r"""\s*python-version:\s*["']?(\d+\.\d+)(?:\.\d+)?["']?\s*(?:#.*)?$"""
+)
+
+
+def setup_python_steps(workflow: str) -> list[tuple[str, str | None]]:
+    """(job, `X.Y`) for every `actions/setup-python` step in a workflow, in file order.
+
+    The version is None when the step does not state one literally — a `python-version-file`,
+    a matrix expression — because a value this cannot read is not a value that agrees.
+    Line-based rather than YAML: the `ci` stage runs with no dependencies installed.
+    """
+    lines = workflow.splitlines()
+    steps: list[tuple[str, str | None]] = []
+    job, in_jobs = "?", False
+    for i, line in enumerate(lines):
+        if re.match(r"\S", line):
+            in_jobs = bool(re.match(r"jobs:\s*$", line))
+        elif in_jobs and (m := re.match(r" {2}([\w-]+):\s*(?:#.*)?$", line)):
+            job = m[1]
+        if not re.match(r"\s*(?:-\s+)?uses:\s*actions/setup-python@", line):
+            continue
+        start = next((j for j in range(i, -1, -1) if re.match(r"\s*- ", lines[j])), i)
+        indent = len(lines[start]) - len(lines[start].lstrip())
+        end = next(
+            (
+                j
+                for j in range(start + 1, len(lines))
+                if lines[j].strip() and len(lines[j]) - len(lines[j].lstrip()) <= indent
+            ),
+            len(lines),
+        )
+        version = None
+        for body in lines[start:end]:
+            if m := PYTHON_VERSION_RX.match(body):
+                version = m[1]
+        steps.append((job, version))
+    return steps
+
+
+def interpreter_drift(
+    dockerfile: str,
+    workflows: dict[str, str],
+    required: dict[str, tuple[str, ...]],
+    exceptions: dict[tuple[str, str], str] | None = None,
+) -> list[str]:
+    """Every way the backend image and the workflows can disagree about Python, or fail to
+    say. `workflows` is every workflow, not a chosen few: a job nobody listed is compared
+    with the image, and only a named exception may differ — by exactly its named version."""
+    exceptions = exceptions or {}
+    images = sorted(set(image_pythons(dockerfile)))
+    if not images:
+        return [
+            "backend/Dockerfile: no stage is `FROM python:X.Y`, so the image's Python "
+            "cannot be read"
+        ]
+    if len(images) > 1:
+        return [f"backend/Dockerfile builds on more than one Python ({', '.join(images)})"]
+    image, problems = images[0], []
+    seen: set[tuple[str, str]] = set()
+    for path, text in workflows.items():
+        steps = setup_python_steps(text)
+        seen |= {(path, j) for j, _v in steps}
+        problems += [
+            f"{path}: job `{job}` no longer sets up Python with actions/setup-python, "
+            "so its interpreter cannot be compared with the image's"
+            for job in required.get(path, ())
+            if (path, job) not in seen
+        ]
+        for job, version in steps:
+            named = exceptions.get((path, job))
+            if version is None:
+                problems.append(
+                    f"{path}: job `{job}` sets up a Python this check cannot read — "
+                    'state it as python-version: "X.Y"'
+                )
+            elif named is not None and version != named:
+                problems.append(
+                    f"{path}: job `{job}` sets up Python {version}; its named exception is "
+                    f"{named} (PYTHON_EXCEPTIONS) — move the exception with it, or remove it "
+                    "once the job runs the image's Python"
+                )
+            elif named is None and version != image:
+                problems.append(
+                    f"{path}: job `{job}` sets up Python {version}; the image runs {image}"
+                )
+    for (path, job), named in exceptions.items():
+        if (path, job) not in seen:
+            problems.append(
+                f"{path}: job `{job}` is a named Python exception but sets up no Python — "
+                "remove the exception"
+            )
+        elif named == image:
+            problems.append(
+                f"{path}: job `{job}` is a named Python exception at the image's own "
+                f"{image} — remove the exception"
+            )
+    return problems
+
+
 SECRET_PATTERNS = (
     ("AWS access key", r"\bAKIA[0-9A-Z]{16}\b"),
     ("GitHub token", r"\bgh[pousr]_[A-Za-z0-9]{36,}\b"),

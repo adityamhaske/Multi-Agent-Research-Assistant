@@ -194,6 +194,7 @@ Every one is either an automated STOP check (exit code 1) or a manual row marked
 - A required CI job failed, was skipped, or passed only on a re-run nobody explained (A3.01, A3.02, M3.01).
 - `main` no longer requires one of the eleven release-critical checks (A3.03).
 - A committed eval result was modified, or a quality-affecting change ships with no new eval and no waiver (A2.03).
+- The backend image runs a different Python from the one CI tested it on (A10.06).
 
 **Versions**
 - Any version carrier disagrees with `VERSION`, including `Cargo.lock` (A1.01-A1.03).
@@ -504,6 +505,7 @@ Three images, two architectures each, pushed by digest and stitched into multi-a
 | A10.03 | Every image's provenance attestation records `vcs:revision` = the tag's commit, per architecture | published → post-release |
 | A10.04 | The documented deploy path (`deploy/oracle-bootstrap.sh`, `deploy/docker-compose.demo.yml`) defaults to `latest` or this version — never a moving tag like `edge` | all |
 | A10.05 | With `--docker`: the pulled `api` image reports `APP_VERSION` = `X.Y.Z` and `git_sha` = the tag's commit (the image is stamped) | published → post-release |
+| A10.06 | `backend/Dockerfile`'s `FROM python:X.Y` is the `python-version` of every `actions/setup-python` in every workflow, and `backend`, `golden-e2e` and `stamp` still set one up — the image runs the interpreter its tests and its stamp ran on. **One named exception:** `desktop.yml` `sidecar`, the desktop engine, is held at exactly 3.11 (`PYTHON_EXCEPTIONS` in `scripts/release_checks/constants.py`). PyInstaller bundles that interpreter, and moving it means a packaged build on three OSes. Nothing in the backend suite runs on 3.11; ruff's `py311` target and the packaged smoke journeys are its guards. Moving it, or leaving the exception stale, fails | all |
 
 - [ ] **M10.01** Run the published images on the full-stack topology, on their own volumes:
   - Verify: `RELEASE_TAG=X.Y.Z FRONTEND_PORT=3041 LLM_MODE=fake docker compose -p release-check -f docker-compose.full.yml -f release-audit/compose.published-images.yml up -d --no-build`
@@ -760,6 +762,7 @@ The release does not only test happy paths. Where each release-critical failure 
 | 1.0.1-3.0.0 | Every macOS build was only linker-signed; every download was "damaged", and the documented Open Anyway steps never worked | `signingIdentity: "-"` (A6.04), DMG signature step (A6.02), M7.03, M7.04, A12.02 |
 | ≤3.0.1 | The `.deb`, AppImage and `.msi` were never installed or launched by CI — only compiled | installer steps in `desktop.yml` (A6.02, A6.03) |
 | ≤3.0.1 | Every published api/worker image answered `/api/v1/version` with `unknown` — nothing stamped them | `release.yml` stamp job + image step (A6.03, A11.09), A10.05 |
+| 3.0.2 (caught in preparation) | #173, a Dependabot base-image bump, moved the server images to Python 3.14 while every job that tests them stayed on 3.11 — and nothing builds the image before a tag | CI on the image's Python; A10.06, per commit |
 | ≤3.0.1 | Nothing on the live site said which commit it was built from | `pages.yml` `build.json` (A6.03), A17.02 |
 | every | Features and fixes merged with no record of whether they were meant to ship | A0.01, A2.01, M2.01 |
 | 3.0.2 (caught in preparation) | A2.01 read only `Merge pull request #N`, so three squash-merged PRs (#179-#181) were outside the scope check | `merged_prs` reads both merge styles (A2.01) |

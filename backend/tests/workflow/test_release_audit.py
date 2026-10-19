@@ -24,8 +24,17 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from release_checks import REGISTRY  # noqa: E402
-from release_checks.constants import CHECKSUMS, FAIL, INSTALLERS, UNAVAILABLE, WARN  # noqa: E402
-from release_checks.core import Check, Outcome, Unavailable  # noqa: E402
+from release_checks.constants import (  # noqa: E402
+    CHECKSUMS,
+    FAIL,
+    INSTALLERS,
+    PASS,
+    PYTHON_EXCEPTIONS,
+    SERVER_PYTHON_JOBS,
+    UNAVAILABLE,
+    WARN,
+)
+from release_checks.core import Check, Ctx, Outcome, Unavailable  # noqa: E402
 from release_checks.evaluate import (  # noqa: E402
     alembic_heads,
     asset_problems,
@@ -34,6 +43,8 @@ from release_checks.evaluate import (  # noqa: E402
     changelog_heading,
     checksum_problems,
     entry_completeness,
+    image_pythons,
+    interpreter_drift,
     manual_ids,
     merged_prs,
     parse_record,
@@ -44,6 +55,7 @@ from release_checks.evaluate import (  # noqa: E402
     release_list_problems,
     review_references,
     secret_hits,
+    setup_python_steps,
     version_references,
 )
 
@@ -184,6 +196,203 @@ def test_an_unreviewed_line_an_edited_line_and_a_future_version_are_each_caught(
 def test_a_third_party_version_is_not_mistaken_for_a_future_release():
     refs = version_references({"README.md": "Built on Next.js 16.3.5."})
     assert review_references(refs, [], "3.0.1")[2] == []
+
+
+# ─── The server image and CI run one Python (A10.06) ───────────────────────────────────
+
+DOCKERFILE = (
+    "# syntax=docker/dockerfile:1\nFROM python:3.14-slim-bookworm AS base\nFROM base AS api\n"
+)
+WORKFLOW = """\
+name: CI
+on:
+  push:
+    branches: [main]
+jobs:
+  backend:
+    steps:
+      - uses: actions/checkout@v7
+      # uses: actions/setup-python@v7 — a comment, not a step
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+      - name: Tests
+        run: pytest
+  stamp:
+    steps:
+      - name: Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14.2'
+"""
+REQUIRED = {"ci.yml": ("backend", "stamp")}
+
+
+def test_steps_are_attributed_to_their_job_and_read_to_x_y():
+    assert setup_python_steps(WORKFLOW) == [("backend", "3.14"), ("stamp", "3.14")]
+    assert image_pythons(DOCKERFILE) == ["3.14"]
+
+
+def test_an_image_and_jobs_on_one_python_pass():
+    assert interpreter_drift(DOCKERFILE, {"ci.yml": WORKFLOW}, REQUIRED) == []
+
+
+def test_a_base_image_bump_the_jobs_did_not_follow_is_caught():
+    # #173: Dependabot moved the image from 3.11 to 3.14; every job stayed on 3.11.
+    behind = WORKFLOW.replace('"3.14"', '"3.11"').replace("'3.14.2'", "'3.11.15'")
+    problems = interpreter_drift(DOCKERFILE, {"ci.yml": behind}, REQUIRED)
+    assert problems == [
+        "ci.yml: job `backend` sets up Python 3.11; the image runs 3.14",
+        "ci.yml: job `stamp` sets up Python 3.11; the image runs 3.14",
+    ]
+
+
+def test_a_python_the_check_cannot_read_fails_rather_than_passes():
+    # Unreadable is not agreeing: each of these would otherwise be a silent pass.
+    from_file = WORKFLOW.replace('python-version: "3.14"', "python-version-file: .python-version")
+    matrix = WORKFLOW.replace('"3.14"', "${{ matrix.python }}")
+    for text in (from_file, matrix):
+        problems = interpreter_drift(DOCKERFILE, {"ci.yml": text}, REQUIRED)
+        assert any("job `backend`" in p and "cannot read" in p for p in problems), problems
+    for image in ("FROM python:3-slim AS base\n", "ARG V=3.14\nFROM python:${V}-slim\n"):
+        problems = interpreter_drift(image, {"ci.yml": WORKFLOW}, REQUIRED)
+        assert any("backend/Dockerfile" in p and "cannot be read" in p for p in problems)
+
+
+def test_a_required_job_that_stops_setting_up_python_is_caught():
+    # A job moved into a container, or onto the runner's default Python, has an interpreter
+    # this check cannot see — which must not read as one that agrees.
+    without = WORKFLOW.split("  stamp:")[0]
+    problems = interpreter_drift(DOCKERFILE, {"ci.yml": without}, REQUIRED)
+    assert problems == [
+        "ci.yml: job `stamp` no longer sets up Python with actions/setup-python, "
+        "so its interpreter cannot be compared with the image's"
+    ]
+
+
+def test_an_image_built_on_two_pythons_is_caught():
+    two = DOCKERFILE + "FROM python:3.11-slim AS tools\n"
+    assert any("more than one Python" in p for p in interpreter_drift(two, {}, {}))
+
+
+DESKTOP = """\
+jobs:
+  sidecar:
+    steps:
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+"""
+EXCEPT = {("desktop.yml", "sidecar"): "3.11"}
+
+
+def test_a_workflow_nobody_listed_is_compared_not_ignored():
+    # The desktop engine's 3.11 is only acceptable because it is named; unnamed, it is drift.
+    problems = interpreter_drift(DOCKERFILE, {"ci.yml": WORKFLOW, "desktop.yml": DESKTOP}, REQUIRED)
+    assert problems == ["desktop.yml: job `sidecar` sets up Python 3.11; the image runs 3.14"]
+
+
+def test_a_named_exception_is_held_at_exactly_its_version():
+    workflows = {"ci.yml": WORKFLOW, "desktop.yml": DESKTOP}
+    assert interpreter_drift(DOCKERFILE, workflows, REQUIRED, EXCEPT) == []
+    # Moving the excepted job without moving its exception is drift either way: to a third
+    # version, or to the image's (which leaves an exception that excepts nothing).
+    for moved in ("3.12", "3.14"):
+        workflows["desktop.yml"] = DESKTOP.replace('"3.11"', f'"{moved}"')
+        problems = interpreter_drift(DOCKERFILE, workflows, REQUIRED, EXCEPT)
+        assert problems == [
+            f"desktop.yml: job `sidecar` sets up Python {moved}; its named exception is 3.11 "
+            "(PYTHON_EXCEPTIONS) — move the exception with it, or remove it once the job "
+            "runs the image's Python"
+        ]
+
+
+def test_an_exception_that_no_longer_describes_a_job_fails():
+    stale = {("desktop.yml", "sidecar"): "3.11", ("desktop.yml", "gone"): "3.11"}
+    workflows = {"ci.yml": WORKFLOW, "desktop.yml": DESKTOP}
+    assert interpreter_drift(DOCKERFILE, workflows, REQUIRED, stale) == [
+        "desktop.yml: job `gone` is a named Python exception but sets up no Python — "
+        "remove the exception"
+    ]
+    redundant = {("desktop.yml", "sidecar"): "3.14"}
+    workflows["desktop.yml"] = DESKTOP.replace('"3.11"', '"3.14"')
+    assert interpreter_drift(DOCKERFILE, workflows, REQUIRED, redundant) == [
+        "desktop.yml: job `sidecar` is a named Python exception at the image's own 3.14 — "
+        "remove the exception"
+    ]
+
+
+def _python_check(root: Path) -> Outcome:
+    args = argparse.Namespace(
+        root=root,
+        version=V,
+        stage="ci",
+        offline=True,
+        download=False,
+        docker=False,
+        repo="o/r",
+        site="https://example.test",
+        previous=None,
+    )
+    a10_06 = next(c for c in REGISTRY if c.id == "A10.06")
+    return a10_06.fn(Ctx(args))
+
+
+def _copy_interpreter_files(dest: Path) -> None:
+    workflows = sorted((ROOT / ".github/workflows").glob("*.yml"))
+    for rel in ("backend/Dockerfile", *(str(w.relative_to(ROOT)) for w in workflows)):
+        (dest / rel).parent.mkdir(parents=True, exist_ok=True)
+        (dest / rel).write_text((ROOT / rel).read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def test_the_repository_runs_one_server_python(tmp_path):
+    # The real files, read by the registered check: the evaluator tests above prove the
+    # judgement, this proves the check reads the files that hold it.
+    _copy_interpreter_files(tmp_path)
+    outcome = _python_check(tmp_path)
+    assert outcome.status == PASS, outcome.detail
+
+
+def test_drift_planted_in_the_real_dockerfile_fails_the_real_check(tmp_path):
+    # The negative control: the incident replayed on this repository's own files — the
+    # image's Python moved and nothing else did.
+    _copy_interpreter_files(tmp_path)
+    dockerfile = tmp_path / "backend/Dockerfile"
+    image = image_pythons(dockerfile.read_text(encoding="utf-8"))[0]
+    major, minor = image.split(".")
+    bumped = f"{major}.{int(minor) + 1}"
+    dockerfile.write_text(
+        dockerfile.read_text(encoding="utf-8").replace(f"python:{image}", f"python:{bumped}"),
+        encoding="utf-8",
+    )
+    outcome = _python_check(tmp_path)
+    assert outcome.status == FAIL
+    for path, jobs in SERVER_PYTHON_JOBS.items():
+        for job in jobs:
+            assert f"{path}: job `{job}` sets up Python {image}; the image runs {bumped}" in (
+                outcome.detail
+            )
+
+
+def test_the_desktop_engine_moved_alone_fails_the_real_check(tmp_path):
+    # The named exception is a pin, not a blind spot: the desktop engine's Python changed
+    # with nothing else, and the check says which exception it broke.
+    _copy_interpreter_files(tmp_path)
+    for (path, job), version in PYTHON_EXCEPTIONS.items():
+        workflow = tmp_path / path
+        text = workflow.read_text(encoding="utf-8")
+        assert f'python-version: "{version}"' in text, f"{path} {job} is not at {version}"
+        workflow.write_text(
+            text.replace(f'python-version: "{version}"', 'python-version: "3.99"'),
+            encoding="utf-8",
+        )
+    outcome = _python_check(tmp_path)
+    assert outcome.status == FAIL
+    for (path, job), version in PYTHON_EXCEPTIONS.items():
+        assert f"{path}: job `{job}` sets up Python 3.99; its named exception is {version}" in (
+            outcome.detail
+        )
 
 
 # ─── Repository data ────────────────────────────────────────────────────────────────────

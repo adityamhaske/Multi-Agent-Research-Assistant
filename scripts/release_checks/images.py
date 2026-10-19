@@ -8,9 +8,9 @@ import re
 import shutil
 import subprocess
 
-from .constants import AFTER_TAG, IMAGES, PLATFORMS
+from .constants import AFTER_TAG, IMAGES, PLATFORMS, PYTHON_EXCEPTIONS, SERVER_PYTHON_JOBS
 from .core import Ctx, Outcome, Unavailable, check, fail, ok, parallel_map, skip, verdict
-from .evaluate import parse_version
+from .evaluate import image_pythons, interpreter_drift, parse_version
 
 
 def _index(ctx: Ctx, image: str, ref: str) -> tuple[dict | None, str | None]:
@@ -197,3 +197,23 @@ def image_identity(ctx: Ctx) -> Outcome:
             "— the image was not stamped"
         )
     return verdict(problems, f"{ctx.version} at {sha[:9]}", build=info)
+
+
+@check("A10.06", 10, "The backend image runs the Python its tests and its stamp ran on")
+def image_python_is_ci_python(ctx: Ctx) -> Outcome:
+    # #173, a Dependabot base-image bump, moved the server images from 3.11 to 3.14 while
+    # every job that tests them stayed on 3.11 — and no CI job builds the image, so 3.0.2's
+    # would have been the first 3.14 build anywhere. Per commit, so the bump's own PR is red.
+    dockerfile = ctx.read("backend/Dockerfile")
+    workflows = {
+        str(p.relative_to(ctx.root)): p.read_text(encoding="utf-8")
+        for p in sorted((ctx.root / ".github/workflows").glob("*.y*ml"))
+    }
+    problems = interpreter_drift(dockerfile, workflows, SERVER_PYTHON_JOBS, PYTHON_EXCEPTIONS)
+    pythons = image_pythons(dockerfile)
+    named = ", ".join(f"{p} `{j}` at {v}" for (p, j), v in PYTHON_EXCEPTIONS.items())
+    return verdict(
+        problems,
+        f"Python {pythons[0] if pythons else '?'} in the image and every workflow job; "
+        f"named exception: {named or 'none'}",
+    )
