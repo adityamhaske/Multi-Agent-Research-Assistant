@@ -449,15 +449,20 @@ cd frontend && npm run lint && npm run typecheck && npm test && npm run build
 Backend lint **includes `evals/`** and excludes `desktop/`, `alembic/`, and repo-root
 scripts. A lint-clean `app/` is not a green build.
 
-**The backend suite runs on the server image's Python, not the desktop engine's.** CI's
-`python-version` follows `backend/Dockerfile`, and release check A10.06 fails any commit
-that moves one without the other (a Dependabot base-image bump once moved the image to 3.14
-while CI stayed on 3.11). `desktop.yml` builds the engine on its own interpreter, 3.11 —
-the one named exception, pinned in `scripts/release_checks/constants.py::PYTHON_EXCEPTIONS`
-so it moves only on purpose. Two things guard that interpreter: ruff's `target-version = "py311"` rejects newer
-*syntax*, and the sidecar job's packaged smoke journeys run the engine. **A standard-library
-call newer than 3.11 passes the whole suite** and breaks only the desktop, so a green
-`backend` job says nothing about it.
+**The backend suite runs on the Python both hosts ship.** `backend/Dockerfile`'s
+`FROM python:X.Y` is the `python-version` of every `actions/setup-python` in every workflow,
+`desktop.yml`'s `sidecar` included — PyInstaller freezes that job's interpreter into the
+engine — and release check A10.06 fails any commit that moves one without the others (a
+Dependabot base-image bump once moved the image to 3.14 while CI stayed on 3.11). So a Python
+bump is a desktop change: it waits for a PyInstaller release that supports the new
+interpreter, and for a launched build. If the engine cannot follow, name it in
+`scripts/release_checks/constants.py::PYTHON_EXCEPTIONS`, which pins it at exactly that
+version and fails once stale. **The 3.11 floor is still advertised and nothing runs on it**
+— the native development path (`docs/getting-started/20-quick-start.md`, `CONTRIBUTING.md`)
+and `research_engine`'s `requires-python` say 3.11+. Ruff's `target-version = "py311"`
+rejects newer *syntax*; nothing rejects a newer standard-library call, which passes CI and
+breaks only a from-source install on 3.11-3.13. Move the floor and the ruff target together,
+or neither.
 
 Frontend CI also runs four bespoke greps (`.github/workflows/ci.yml`): no raw-HTML React
 escape hatches, no hardcoded hex colors, no hardcoded backend URLs, no web-storage access

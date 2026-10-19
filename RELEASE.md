@@ -194,7 +194,7 @@ Every one is either an automated STOP check (exit code 1) or a manual row marked
 - A required CI job failed, was skipped, or passed only on a re-run nobody explained (A3.01, A3.02, M3.01).
 - `main` no longer requires one of the eleven release-critical checks (A3.03).
 - A committed eval result was modified, or a quality-affecting change ships with no new eval and no waiver (A2.03).
-- The backend image runs a different Python from the one CI tested it on (A10.06).
+- The backend image or the desktop engine runs a different Python from the one CI tested it on (A10.06).
 
 **Versions**
 - Any version carrier disagrees with `VERSION`, including `Cargo.lock` (A1.01-A1.03).
@@ -505,7 +505,7 @@ Three images, two architectures each, pushed by digest and stitched into multi-a
 | A10.03 | Every image's provenance attestation records `vcs:revision` = the tag's commit, per architecture | published → post-release |
 | A10.04 | The documented deploy path (`deploy/oracle-bootstrap.sh`, `deploy/docker-compose.demo.yml`) defaults to `latest` or this version — never a moving tag like `edge` | all |
 | A10.05 | With `--docker`: the pulled `api` image reports `APP_VERSION` = `X.Y.Z` and `git_sha` = the tag's commit (the image is stamped) | published → post-release |
-| A10.06 | `backend/Dockerfile`'s `FROM python:X.Y` is the `python-version` of every `actions/setup-python` in every workflow, and `backend`, `golden-e2e` and `stamp` still set one up — the image runs the interpreter its tests and its stamp ran on. **One named exception:** `desktop.yml` `sidecar`, the desktop engine, is held at exactly 3.11 (`PYTHON_EXCEPTIONS` in `scripts/release_checks/constants.py`). PyInstaller bundles that interpreter, and moving it means a packaged build on three OSes. Nothing in the backend suite runs on 3.11; ruff's `py311` target and the packaged smoke journeys are its guards. Moving it, or leaving the exception stale, fails | all |
+| A10.06 | `backend/Dockerfile`'s `FROM python:X.Y` is the `python-version` of every `actions/setup-python` in every workflow, and `backend`, `golden-e2e`, `stamp` and `sidecar` still set one up — the image runs the interpreter its tests and its stamp ran on, and the desktop engine freezes that same interpreter, so the backend suite tests both hosts. A job that cannot follow the image (the desktop engine, until PyInstaller supports a new Python) is named in `PYTHON_EXCEPTIONS` (`scripts/release_checks/constants.py`) and held at exactly that version; there is none today. Moving a job alone, or leaving an exception stale, fails | all |
 
 - [ ] **M10.01** Run the published images on the full-stack topology, on their own volumes:
   - Verify: `RELEASE_TAG=X.Y.Z FRONTEND_PORT=3041 LLM_MODE=fake docker compose -p release-check -f docker-compose.full.yml -f release-audit/compose.published-images.yml up -d --no-build`

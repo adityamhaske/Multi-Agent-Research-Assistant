@@ -29,8 +29,7 @@ from release_checks.constants import (  # noqa: E402
     FAIL,
     INSTALLERS,
     PASS,
-    PYTHON_EXCEPTIONS,
-    SERVER_PYTHON_JOBS,
+    REQUIRED_PYTHON_JOBS,
     UNAVAILABLE,
     WARN,
 )
@@ -286,7 +285,7 @@ EXCEPT = {("desktop.yml", "sidecar"): "3.11"}
 
 
 def test_a_workflow_nobody_listed_is_compared_not_ignored():
-    # The desktop engine's 3.11 is only acceptable because it is named; unnamed, it is drift.
+    # A job in a workflow no map lists is still compared: unnamed, a 3.11 engine is drift.
     problems = interpreter_drift(DOCKERFILE, {"ci.yml": WORKFLOW, "desktop.yml": DESKTOP}, REQUIRED)
     assert problems == ["desktop.yml: job `sidecar` sets up Python 3.11; the image runs 3.14"]
 
@@ -344,7 +343,7 @@ def _copy_interpreter_files(dest: Path) -> None:
         (dest / rel).write_text((ROOT / rel).read_text(encoding="utf-8"), encoding="utf-8")
 
 
-def test_the_repository_runs_one_server_python(tmp_path):
+def test_the_repository_runs_one_python(tmp_path):
     # The real files, read by the registered check: the evaluator tests above prove the
     # judgement, this proves the check reads the files that hold it.
     _copy_interpreter_files(tmp_path)
@@ -366,31 +365,53 @@ def test_drift_planted_in_the_real_dockerfile_fails_the_real_check(tmp_path):
     )
     outcome = _python_check(tmp_path)
     assert outcome.status == FAIL
-    for path, jobs in SERVER_PYTHON_JOBS.items():
+    for path, jobs in REQUIRED_PYTHON_JOBS.items():
         for job in jobs:
             assert f"{path}: job `{job}` sets up Python {image}; the image runs {bumped}" in (
                 outcome.detail
             )
 
 
-def test_the_desktop_engine_moved_alone_fails_the_real_check(tmp_path):
-    # The named exception is a pin, not a blind spot: the desktop engine's Python changed
-    # with nothing else, and the check says which exception it broke.
+def _real_desktop_workflow(root: Path) -> tuple[Path, str, str]:
+    image = image_pythons((root / "backend/Dockerfile").read_text(encoding="utf-8"))[0]
+    desktop = root / ".github/workflows/desktop.yml"
+    text = desktop.read_text(encoding="utf-8")
+    assert setup_python_steps(text) == [("sidecar", image)]
+    return desktop, text, image
+
+
+def test_a_desktop_engine_left_behind_fails_the_real_check(tmp_path):
+    # The negative control for the other host: the image and the server's jobs agree, and
+    # only the interpreter PyInstaller freezes into the engine is planted back on the one
+    # it shipped before — what a PyInstaller that lags a new Python would invite.
     _copy_interpreter_files(tmp_path)
-    for (path, job), version in PYTHON_EXCEPTIONS.items():
-        workflow = tmp_path / path
-        text = workflow.read_text(encoding="utf-8")
-        assert f'python-version: "{version}"' in text, f"{path} {job} is not at {version}"
-        workflow.write_text(
-            text.replace(f'python-version: "{version}"', 'python-version: "3.99"'),
-            encoding="utf-8",
-        )
+    desktop, text, image = _real_desktop_workflow(tmp_path)
+    desktop.write_text(
+        text.replace(f'python-version: "{image}"', 'python-version: "3.11"'), encoding="utf-8"
+    )
     outcome = _python_check(tmp_path)
     assert outcome.status == FAIL
-    for (path, job), version in PYTHON_EXCEPTIONS.items():
-        assert f"{path}: job `{job}` sets up Python 3.99; its named exception is {version}" in (
-            outcome.detail
-        )
+    assert outcome.detail == (
+        f".github/workflows/desktop.yml: job `sidecar` sets up Python 3.11; the image runs {image}"
+    )
+
+
+def test_a_desktop_engine_on_the_runners_python_fails_the_real_check(tmp_path):
+    # Without the step, PyInstaller freezes whatever Python the runner image carries, and a
+    # scan of setup-python steps would find nothing to disagree with.
+    _copy_interpreter_files(tmp_path)
+    desktop, text, _image = _real_desktop_workflow(tmp_path)
+    assert text.count("uses: actions/setup-python@") == 1
+    desktop.write_text(
+        text.replace("uses: actions/setup-python@", "uses: example/not-setup-python@"),
+        encoding="utf-8",
+    )
+    outcome = _python_check(tmp_path)
+    assert outcome.status == FAIL
+    assert outcome.detail == (
+        ".github/workflows/desktop.yml: job `sidecar` no longer sets up Python with "
+        "actions/setup-python, so its interpreter cannot be compared with the image's"
+    )
 
 
 # ─── Repository data ────────────────────────────────────────────────────────────────────

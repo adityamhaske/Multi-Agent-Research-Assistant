@@ -8,7 +8,7 @@ import re
 import shutil
 import subprocess
 
-from .constants import AFTER_TAG, IMAGES, PLATFORMS, PYTHON_EXCEPTIONS, SERVER_PYTHON_JOBS
+from .constants import AFTER_TAG, IMAGES, PLATFORMS, PYTHON_EXCEPTIONS, REQUIRED_PYTHON_JOBS
 from .core import Ctx, Outcome, Unavailable, check, fail, ok, parallel_map, skip, verdict
 from .evaluate import image_pythons, interpreter_drift, parse_version
 
@@ -199,17 +199,22 @@ def image_identity(ctx: Ctx) -> Outcome:
     return verdict(problems, f"{ctx.version} at {sha[:9]}", build=info)
 
 
-@check("A10.06", 10, "The backend image runs the Python its tests and its stamp ran on")
+@check(
+    "A10.06",
+    10,
+    "The backend image runs the Python its tests, its stamp and the desktop engine ran on",
+)
 def image_python_is_ci_python(ctx: Ctx) -> Outcome:
     # #173, a Dependabot base-image bump, moved the server images from 3.11 to 3.14 while
     # every job that tests them stayed on 3.11 — and no CI job builds the image, so 3.0.2's
     # would have been the first 3.14 build anywhere. Per commit, so the bump's own PR is red.
+    # The desktop engine is held to the same interpreter, or the suite tests one host only.
     dockerfile = ctx.read("backend/Dockerfile")
     workflows = {
         str(p.relative_to(ctx.root)): p.read_text(encoding="utf-8")
         for p in sorted((ctx.root / ".github/workflows").glob("*.y*ml"))
     }
-    problems = interpreter_drift(dockerfile, workflows, SERVER_PYTHON_JOBS, PYTHON_EXCEPTIONS)
+    problems = interpreter_drift(dockerfile, workflows, REQUIRED_PYTHON_JOBS, PYTHON_EXCEPTIONS)
     pythons = image_pythons(dockerfile)
     named = ", ".join(f"{p} `{j}` at {v}" for (p, j), v in PYTHON_EXCEPTIONS.items())
     return verdict(
