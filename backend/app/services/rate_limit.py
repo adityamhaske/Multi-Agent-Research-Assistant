@@ -40,7 +40,9 @@ class RateLimit:
 # the default) in `app/dependencies.py`. Module constants are exactly what made the old
 # 5/hour cap unconfigurable and throttled the single-tenant operator paying their own bill.
 LOGIN_IP = RateLimit(20, 60)
-LOGIN_EMAIL = RateLimit(5, 900)  # 5 failures / 15 min → lockout window
+# 5 failures / 15 min → lockout window. Failures only: `auth.login` reads this counter with
+# `peek` and raises it with `check` on a wrong password, never on a success.
+LOGIN_EMAIL = RateLimit(5, 900)
 REGISTER_IP = RateLimit(5, 3600)
 
 
@@ -55,6 +57,16 @@ async def check(redis, key: str, rule: RateLimit) -> RateResult:
     """Increment `key` and report whether it is within `rule`. TTL guaranteed."""
     current, ttl = await redis.eval(_LUA, 1, key, rule.limit, rule.window_seconds)
     return RateResult(allowed=current <= rule.limit, current=int(current), ttl=int(ttl))
+
+
+async def peek(redis, key: str, rule: RateLimit) -> RateResult:
+    """Whether `key` is still under `rule`, without counting this call.
+
+    For a limit that counts outcomes rather than attempts: read before the outcome is
+    known, and `check` only the outcomes that count. `allowed` means one more may happen.
+    """
+    current = int(await redis.get(key) or 0)
+    return RateResult(allowed=current < rule.limit, current=current, ttl=int(await redis.ttl(key)))
 
 
 def key_research(user_id) -> str:

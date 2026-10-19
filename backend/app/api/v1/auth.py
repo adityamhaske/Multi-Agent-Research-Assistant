@@ -99,9 +99,11 @@ async def login(
 ):
     ip = get_client_ip(request)
     ip_rl = await rate_limit.check(redis, rate_limit.key_login_ip(ip), rate_limit.LOGIN_IP)
-    email_rl = await rate_limit.check(
-        redis, rate_limit.key_login_email(payload.email), rate_limit.LOGIN_EMAIL
-    )
+    # The account limit counts failures only (docs/06 §4), so it is read here and raised
+    # below. Counting every attempt locked out a person who simply signed in correctly a
+    # sixth time in fifteen minutes; five failures still lock even the right password.
+    email_key = rate_limit.key_login_email(payload.email)
+    email_rl = await rate_limit.peek(redis, email_key, rate_limit.LOGIN_EMAIL)
     if not ip_rl.allowed or not email_rl.allowed:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
@@ -110,6 +112,9 @@ async def login(
 
     user = (await db.execute(select(User).where(User.email == payload.email))).scalar_one_or_none()
     if not user or not verify_password(payload.password, user.hashed_pw):
+        # An unknown address counts exactly as a wrong password does, or the lock itself
+        # would reveal which addresses have accounts.
+        await rate_limit.check(redis, email_key, rate_limit.LOGIN_EMAIL)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password.")
     if not user.is_active:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Account is deactivated.")
