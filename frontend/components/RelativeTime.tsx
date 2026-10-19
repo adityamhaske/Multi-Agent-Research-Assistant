@@ -1,10 +1,8 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useMounted } from "@/hooks/useMounted";
 
 import { relativeTime } from "@/lib/format";
-
-const emptySubscribe = () => () => {};
 
 /**
  * Renders a relative timestamp ("2h ago"). Before mount it shows the tz-stable date
@@ -12,13 +10,9 @@ const emptySubscribe = () => () => {};
  * cause a hydration mismatch.
  */
 export function RelativeTime({ iso }: { iso: string }) {
-  const mounted = useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false,
-  );
+  const mounted = useMounted();
   return (
-    <time dateTime={iso} title={new Date(iso).toLocaleString()}>
+    <time dateTime={iso} title={mounted ? new Date(iso).toLocaleString() : undefined}>
       {mounted ? relativeTime(iso) : iso.slice(0, 10)}
     </time>
   );

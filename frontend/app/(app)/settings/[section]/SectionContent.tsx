@@ -1,6 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
+import { useMounted } from "@/hooks/useMounted";
 import Link from "next/link";
 import { useState, type JSX } from "react";
 import toast from "react-hot-toast";
@@ -184,8 +185,11 @@ function ResearchSection() {
 
 // ─── Appearance ──────────────────────────────────────────────────────────────────
 
-function AppearanceSection() {
+export function AppearanceSection() {
   const { resolvedTheme, setTheme } = useTheme();
+  // The theme lives in the browser, so the server cannot know which option is selected;
+  // none is, until mount, or the two renders disagree (React error 418).
+  const selected = useMounted() ? resolvedTheme : undefined;
 
   return (
     <Section title="Theme" description="Choose how the interface looks on this device.">
@@ -194,17 +198,17 @@ function AppearanceSection() {
         <button
           type="button"
           role="radio"
-          aria-checked={resolvedTheme === "light"}
+          aria-checked={selected === "light"}
           onClick={() => setTheme("light")}
           className={`group flex items-center justify-between p-4 border text-left transition-all ${
-            resolvedTheme === "light"
+            selected === "light"
               ? "border-accent bg-accent/5 ring-1 ring-accent/30 shadow-sm"
               : "border-border/80 bg-bg-surface hover:border-border hover:bg-bg-elevated/40"
           }`}
         >
           <div className="flex items-center gap-3.5">
             <div className={`p-2.5 border transition-colors ${
-              resolvedTheme === "light"
+              selected === "light"
                 ? "bg-accent/15 border-accent/30 text-accent"
                 : "bg-bg-elevated border-border text-text-muted group-hover:text-text-primary"
             }`}>
@@ -218,9 +222,9 @@ function AppearanceSection() {
             </div>
           </div>
           <div className={`h-5 w-5 border flex items-center justify-center transition-colors ${
-            resolvedTheme === "light" ? "border-accent bg-accent text-white" : "border-border"
+            selected === "light" ? "border-accent bg-accent text-white" : "border-border"
           }`}>
-            {resolvedTheme === "light" && (
+            {selected === "light" && (
               <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
@@ -232,17 +236,17 @@ function AppearanceSection() {
         <button
           type="button"
           role="radio"
-          aria-checked={resolvedTheme === "dark"}
+          aria-checked={selected === "dark"}
           onClick={() => setTheme("dark")}
           className={`group flex items-center justify-between p-4 border text-left transition-all ${
-            resolvedTheme === "dark"
+            selected === "dark"
               ? "border-accent bg-accent/5 ring-1 ring-accent/30 shadow-sm"
               : "border-border/80 bg-bg-surface hover:border-border hover:bg-bg-elevated/40"
           }`}
         >
           <div className="flex items-center gap-3.5">
             <div className={`p-2.5 border transition-colors ${
-              resolvedTheme === "dark"
+              selected === "dark"
                 ? "bg-accent/15 border-accent/30 text-accent"
                 : "bg-bg-elevated border-border text-text-muted group-hover:text-text-primary"
             }`}>
@@ -256,9 +260,9 @@ function AppearanceSection() {
             </div>
           </div>
           <div className={`h-5 w-5 border flex items-center justify-center transition-colors ${
-            resolvedTheme === "dark" ? "border-accent bg-accent text-white" : "border-border"
+            selected === "dark" ? "border-accent bg-accent text-white" : "border-border"
           }`}>
-            {resolvedTheme === "dark" && (
+            {selected === "dark" && (
               <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
