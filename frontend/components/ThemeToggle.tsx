@@ -1,18 +1,11 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useSyncExternalStore } from "react";
-
-const emptySubscribe = () => () => {};
+import { useMounted } from "@/hooks/useMounted";
 
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
-  // Hydration guard: false during SSR, true after mount — without a setState-in-effect.
-  const mounted = useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false,
-  );
+  const mounted = useMounted();
 
   if (!mounted) {
     return <div className="h-8 w-8" aria-hidden />;
