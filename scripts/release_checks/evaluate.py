@@ -275,10 +275,15 @@ def setup_python_steps(workflow: str) -> list[tuple[str, str | None]]:
 
 
 def interpreter_drift(
-    dockerfile: str, workflows: dict[str, str], required: dict[str, tuple[str, ...]]
+    dockerfile: str,
+    workflows: dict[str, str],
+    required: dict[str, tuple[str, ...]],
+    exceptions: dict[tuple[str, str], str] | None = None,
 ) -> list[str]:
-    """Every way the backend image and the workflows that test and stamp it can disagree
-    about Python, or fail to say."""
+    """Every way the backend image and the workflows can disagree about Python, or fail to
+    say. `workflows` is every workflow, not a chosen few: a job nobody listed is compared
+    with the image, and only a named exception may differ — by exactly its named version."""
+    exceptions = exceptions or {}
     images = sorted(set(image_pythons(dockerfile)))
     if not images:
         return [
@@ -288,24 +293,44 @@ def interpreter_drift(
     if len(images) > 1:
         return [f"backend/Dockerfile builds on more than one Python ({', '.join(images)})"]
     image, problems = images[0], []
+    seen: set[tuple[str, str]] = set()
     for path, text in workflows.items():
         steps = setup_python_steps(text)
+        seen |= {(path, j) for j, _v in steps}
         problems += [
             f"{path}: job `{job}` no longer sets up Python with actions/setup-python, "
             "so its interpreter cannot be compared with the image's"
             for job in required.get(path, ())
-            if job not in {j for j, _v in steps}
+            if (path, job) not in seen
         ]
         for job, version in steps:
+            named = exceptions.get((path, job))
             if version is None:
                 problems.append(
                     f"{path}: job `{job}` sets up a Python this check cannot read — "
                     'state it as python-version: "X.Y"'
                 )
-            elif version != image:
+            elif named is not None and version != named:
+                problems.append(
+                    f"{path}: job `{job}` sets up Python {version}; its named exception is "
+                    f"{named} (PYTHON_EXCEPTIONS) — move the exception with it, or remove it "
+                    "once the job runs the image's Python"
+                )
+            elif named is None and version != image:
                 problems.append(
                     f"{path}: job `{job}` sets up Python {version}; the image runs {image}"
                 )
+    for (path, job), named in exceptions.items():
+        if (path, job) not in seen:
+            problems.append(
+                f"{path}: job `{job}` is a named Python exception but sets up no Python — "
+                "remove the exception"
+            )
+        elif named == image:
+            problems.append(
+                f"{path}: job `{job}` is a named Python exception at the image's own "
+                f"{image} — remove the exception"
+            )
     return problems
 
 

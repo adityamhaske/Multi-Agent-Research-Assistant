@@ -25,13 +25,20 @@ SIZE_FLOOR_MB = {".dmg": 40, ".msi": 40, ".deb": 40, ".AppImage": 60}
 IMAGES = ("api", "worker", "frontend")
 PLATFORMS = ("linux/amd64", "linux/arm64")
 
-# The workflows whose every `actions/setup-python` must be the backend image's Python
-# (A10.06), and in each the jobs that run the server's code and so must keep setting one up.
-# desktop.yml is absent on purpose: PyInstaller bundles the desktop engine's own interpreter,
-# a separate decision with its own verification (a packaged build on three OSes).
+# A10.06: every `actions/setup-python` in `.github/workflows/` runs the backend image's
+# Python, except a job named in PYTHON_EXCEPTIONS, which runs exactly the version named
+# there. These jobs run the server's code and must keep setting one up, so that dropping
+# the step cannot hide the interpreter.
 SERVER_PYTHON_JOBS = {
     ".github/workflows/ci.yml": ("backend", "golden-e2e"),
     ".github/workflows/release.yml": ("stamp",),
+}
+# The desktop engine: PyInstaller bundles its own interpreter, and moving it means a
+# packaged build verified on three OSes, which is a decision of its own. Until then nothing
+# in the backend suite runs on it (AGENTS.md, "What CI actually enforces"). Pinned here so
+# it cannot drift by accident; an entry that stops describing a job fails as stale.
+PYTHON_EXCEPTIONS = {
+    (".github/workflows/desktop.yml", "sidecar"): "3.11",
 }
 
 # Required on `main` by ruleset (RG-12). A check dropped from this list is a check a merge

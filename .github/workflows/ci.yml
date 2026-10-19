@@ -44,8 +44,8 @@ jobs:
       - uses: actions/checkout@v7
       # The backend image's Python (`backend/Dockerfile`): no job builds the image before a
       # tag, so this job and golden-e2e are where the server's code meets its interpreter.
-      # Every setup-python here and in release.yml moves with the image; A10.06 fails the
-      # commit that moves one alone.
+      # Every setup-python in every workflow moves with the image, except the desktop
+      # engine's named exception; A10.06 fails the commit that moves one alone.
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
