@@ -61,6 +61,7 @@ from release_checks.evaluate import (  # noqa: E402
     parse_record,
     parse_releases_ts,
     parse_sha256sums,
+    push_paths,
     records_eval_waiver,
     release_body_problems,
     release_list_problems,
@@ -708,6 +709,42 @@ def test_a_frontend_image_bump_planted_in_the_real_files_fails_the_real_check(tm
         assert f"{path}: states a Node {image} floor; CI runs only the image's {bumped}" in (
             outcome.detail
         )
+
+
+# ─── A release commit that changes nothing the site is built from (A3.02) ─────────────
+
+PAGES_WORKFLOW = """\
+name: Pages
+on:
+  push:
+    branches: [main]
+    # Widened from `site/**`.
+    paths:
+      - "frontend/**"
+      - 'docs/**'
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+jobs:
+  build:
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          paths: not-the-filter
+"""
+
+
+def test_the_push_path_filter_is_read_and_nothing_else():
+    assert push_paths(PAGES_WORKFLOW) == ["frontend/**", "docs/**", ".github/workflows/pages.yml"]
+    assert push_paths("on:\n  push:\n    branches: [main]\n") == []
+
+
+def test_the_real_pages_filter_is_readable():
+    # A3.02 falls back to the last commit that changed these paths when the release commit
+    # has no Pages run — v3.0.2's final merge was record-only, so it had none. An empty
+    # list here would make that fallback find nothing and fail every such release.
+    paths = push_paths((ROOT / ".github/workflows/pages.yml").read_text(encoding="utf-8"))
+    assert "frontend/**" in paths and "docs/**" in paths, paths
 
 
 # ─── Repository data ────────────────────────────────────────────────────────────────────

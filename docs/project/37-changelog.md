@@ -88,6 +88,9 @@ describe the report you approved.
   `scripts/release_audit.py` and `release-audit/`. CI now installs the `.deb`, unpacks the
   AppImage and installs the `.msi`, and drives the engine inside each through a research
   journey; the site publishes `/build.json`.
+- **The release audit judges the site a release commit actually serves.** A3.02 used to
+  fail a release commit that changed nothing the site is built from, because `pages.yml`
+  is path-filtered and skips it; it now judges the Pages run of the last commit that did.
 - **A packaged-app check whose bundle verification did not run fails CI** (#194).
   `check_packaged_sidecar.py --require-verify` makes the standalone verifier's verdict on
   the journey's bundle part of the pass for the `.deb`, AppImage and `.msi`.

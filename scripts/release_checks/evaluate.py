@@ -261,6 +261,29 @@ def alembic_heads(revisions: dict[str, str | None]) -> list[str]:
     return sorted(r for r in revisions if r not in parents)
 
 
+def push_paths(workflow: str) -> list[str]:
+    """The `on: push: paths:` filter of a workflow, in file order; empty when it has none.
+
+    Line-based like `setup_steps`, and scoped to the trigger block: a `paths:` under a job's
+    `with:` is an input to some action, not the filter.
+    """
+    paths: list[str] = []
+    section, in_paths = None, False
+    for line in workflow.splitlines():
+        if re.match(r"\S", line):
+            section, in_paths = line.split(":")[0].strip(), False
+            continue
+        if section != "on":
+            continue
+        if re.match(r" {4}paths:\s*(?:#.*)?$", line):
+            in_paths = True
+        elif in_paths and (m := re.match(r"""\s{6}-\s*["']?([^"'#\s]+)["']?""", line)):
+            paths.append(m[1])
+        elif in_paths and line.strip() and not line.lstrip().startswith("#"):
+            in_paths = False
+    return paths
+
+
 @dataclass(frozen=True)
 class Runtime:
     """An interpreter an image ships, which every workflow job and every stated floor must

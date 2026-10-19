@@ -7,7 +7,18 @@ import json
 from collections.abc import Iterable
 
 from .constants import AFTER_TAG, REQUIRED_CHECKS
-from .core import Ctx, Outcome, Unavailable, check, fail, ok, parallel_map, verdict, warn
+from .core import (
+    Ctx,
+    Outcome,
+    Unavailable,
+    check,
+    fail,
+    ok,
+    parallel_map,
+    verdict,
+    warn,
+)
+from .evaluate import push_paths
 
 # Every release incident that has a guard in a workflow, and the guard. Deleting one is a
 # release-process regression even when every build stays green — which is the point: these
@@ -201,7 +212,9 @@ def job_problems(jobs: list[dict], required: Iterable[str]) -> list[str]:
     return problems
 
 
-def step_problems(jobs: list[dict], wanted: dict[str, Iterable[str]]) -> tuple[list, list]:
+def step_problems(
+    jobs: list[dict], wanted: dict[str, Iterable[str]]
+) -> tuple[list, list]:
     """(failed or skipped steps, steps absent from the run). Absent means the guard was not in
     that commit's workflow — reported, never counted as having passed."""
     problems, absent = [], []
@@ -242,7 +255,13 @@ def ci_green(ctx: Ctx) -> Outcome:
         ),
     )
     failed, absent = step_problems(
-        jobs, {"backend": ["Migration round-trip (populated database, both directions)", "Tests"]}
+        jobs,
+        {
+            "backend": [
+                "Migration round-trip (populated database, both directions)",
+                "Tests",
+            ]
+        },
     )
     problems += failed + [f"step absent: {a}" for a in absent]
     return verdict(problems, run["html_url"], run=run["html_url"], commit=sha)
@@ -259,15 +278,60 @@ def desktop_and_pages_green(ctx: Ctx) -> Outcome:
     sha = ctx.release_commit()
     run = ctx.run_for(sha, "Desktop", "push", "main")
     problems = job_problems(ctx.jobs(run), [c for c in REQUIRED_CHECKS if "(" in c])
+    pages, site_from = _pages_run_for(ctx, sha, problems)
+    if pages is not None and pages["conclusion"] != "success":
+        problems.append(f"Pages ({site_from[:9]}): {pages['conclusion']}")
+    return verdict(
+        problems,
+        run["html_url"],
+        desktop_run=run["html_url"],
+        pages_run=pages and pages["html_url"],
+        site_built_from=site_from,
+    )
+
+
+def _pages_run_for(ctx: Ctx, sha: str, problems: list[str]) -> tuple[dict | None, str]:
+    """The Pages run that built the site this release commit serves, and its commit.
+
+    pages.yml is path-filtered, so a release commit that changes nothing the site is built
+    from gets no Pages run at all — v3.0.2's final merge was record-only, and this check
+    used to fail it for that, on the belief that a release commit always changes
+    releases.ts. The site such a commit serves is the one its last site-changing ancestor
+    built: the latest first-parent commit touching the workflow's own `paths:` filter, which
+    is how GitHub decided to run it. That run is the one judged.
+    """
     try:
-        pages = ctx.run_for(sha, "Pages", "push", "main")
-        if pages["conclusion"] != "success":
-            problems.append(f"Pages: {pages['conclusion']}")
+        return ctx.run_for(sha, "Pages", "push", "main"), sha
     except Unavailable:
-        # pages.yml only runs when frontend/ or docs/ changed; a release commit always
-        # changes releases.ts, so its absence is itself worth a look.
-        problems.append("no Pages run on the release commit (did it not touch frontend/?)")
-    return verdict(problems, run["html_url"], desktop_run=run["html_url"])
+        pass
+    paths = push_paths(ctx.read(".github/workflows/pages.yml"))
+    if not paths:
+        problems.append(
+            "no Pages run on the release commit, and pages.yml names no paths filter"
+        )
+        return None, sha
+    built_from = ctx.git(
+        "log",
+        "--first-parent",
+        "-1",
+        "--format=%H",
+        sha,
+        "--",
+        *(f":(glob){p}" for p in paths),
+    ).strip()
+    if not built_from:
+        problems.append(
+            "no Pages run on the release commit, and no commit ever built the site"
+        )
+        return None, sha
+    try:
+        return ctx.run_for(built_from, "Pages", "push", "main"), built_from
+    except Unavailable:
+        problems.append(
+            f"no Pages run on the release commit, which changes nothing the site is built "
+            f"from, nor on {built_from[:9]}, the last commit that did"
+        )
+        return None, built_from
 
 
 @check(
@@ -279,9 +343,13 @@ def desktop_and_pages_green(ctx: Ctx) -> Outcome:
 )
 def ruleset(ctx: Ctx) -> Outcome:
     active = [
-        rs for rs in ctx.api(f"/repos/{ctx.repo}/rulesets") if rs.get("enforcement") == "active"
+        rs
+        for rs in ctx.api(f"/repos/{ctx.repo}/rulesets")
+        if rs.get("enforcement") == "active"
     ]
-    details = parallel_map(lambda rs: ctx.api(f"/repos/{ctx.repo}/rulesets/{rs['id']}"), active)
+    details = parallel_map(
+        lambda rs: ctx.api(f"/repos/{ctx.repo}/rulesets/{rs['id']}"), active
+    )
     contexts = {
         c["context"]
         for d in details
@@ -333,7 +401,11 @@ def desktop_tag_guards(ctx: Ctx) -> Outcome:
     return ok("all guards passed")
 
 
-@check("A6.03", 6, "Every workflow guard a past release incident put in place is still there")
+@check(
+    "A6.03",
+    6,
+    "Every workflow guard a past release incident put in place is still there",
+)
 def workflow_guards(ctx: Ctx) -> Outcome:
     missing = [
         f"{f}: `{needle}` ({why})"
@@ -346,7 +418,11 @@ def workflow_guards(ctx: Ctx) -> Outcome:
     )
 
 
-@check("A6.04", 6, "The Tauri bundle config ships the engine and signs the whole macOS bundle")
+@check(
+    "A6.04",
+    6,
+    "The Tauri bundle config ships the engine and signs the whole macOS bundle",
+)
 def tauri_config(ctx: Ctx) -> Outcome:
     bundle = json.loads(ctx.read("desktop/tauri.conf.json")).get("bundle", {})
     problems = []
@@ -355,7 +431,10 @@ def tauri_config(ctx: Ctx) -> Outcome:
             'bundle.macOS.signingIdentity is not "-" — a downloaded Mac build '
             "is reported as damaged"
         )
-    if bundle.get("resources", {}).get("../backend/dist/research-sidecar/") != "sidecar/":
+    if (
+        bundle.get("resources", {}).get("../backend/dist/research-sidecar/")
+        != "sidecar/"
+    ):
         problems.append("bundle.resources no longer copies the engine to sidecar/")
     if bundle.get("targets") != "all":
         problems.append(
