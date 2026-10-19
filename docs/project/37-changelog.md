@@ -12,6 +12,105 @@ deciding whether to trust the thing, and a changelog with no bad news is marketi
 
 ---
 
+## v3.0.2 — unreleased
+
+Research through your own model router runs for real, and a reworked report's counts
+describe the report you approved.
+
+**Fixed**
+
+- **Custom, OpenRouter and Ollama setups research for real** (#171, #177). `start.sh`
+  decided between real and demo mode from Google, Anthropic and OpenAI keys alone, and on
+  any other setup exported `LLM_MODE=fake`, which outranks `.env` under Compose, so every
+  question got the scripted demo report. Its check now mirrors
+  `app/config.py::_validate_secrets`: any keyed provider, or a `MODEL_*` route to a keyless
+  one. `tests/workflow/test_start_sh_mode.py` runs the script's real decision block against
+  fixture `.env` files.
+- **Approving a plan no longer fails the run** (#171, #177). `langchain_openai` and
+  `langchain_anthropic` cache their async HTTP client per process, and every Celery task
+  ran on a fresh event loop, so a plan-approval task landing in the same prefork child as
+  the start task met pooled connections from a closed loop. The worker now keeps one loop
+  per process (`app/workers/event_loop.py`), refuses a second thread, and closes the loop on
+  `worker_process_shutdown`. The error users saw — SQLAlchemy's `Method 'close()' can't be
+  called here` — was a second defect masking the first: `executor_node`'s `asyncio.gather`
+  left sibling tasks writing through the session the driver was closing.
+  `research_engine/concurrency.py::gather_or_cancel` cancels and waits out the siblings and
+  re-raises the earliest failure.
+- **The provider SDKs are pinned** (#171). `openai` 2.x → 3.x reached the server image with
+  no change in this repository. `backend/constraints.txt` pins the provider SDKs, their
+  LangChain integrations and the HTTP stack beneath them, and `requirements.txt` applies it
+  with `-c`.
+- **A non-string `read_webpage` url is an observation, not a crashed node** (#171).
+- **Search-engine results pages are refused** (#178). `read_webpage` refuses a results page
+  on Google, Bing, DuckDuckGo, Yahoo, Brave, Ecosia, Qwant, Mojeek, Baidu, Startpage or
+  Yandex before any fetch, with an observation that names `web_search`
+  (`tools.is_search_results_page`). Both tools' descriptions and the executor prompt's first
+  step name `web_search`. The shipped executor prompt changed, so its SHA-256 in run bundles
+  changes with it.
+- **A rework no longer duplicates evidence** (#181). Both hosts persist a run's whole final
+  state again after a rework, and `record_evidence` inserted every item a second time —
+  doubling the run's evidence, the revision's `evidence_watermark` and the bundle. Each
+  incoming item is now paired one-for-one with a stored row (same source, task, snippet and
+  key fact) and reuses it; `record_contradictions` pairs the same way.
+- **Cited counts describe the latest revision** (#181). Each revision in the run graph
+  carries `cited_indices`, the markers its body cites with the reference list excluded
+  ([API](../reference/34-api.md)). The run page's cited and uncited counts and "backs N
+  claims" count against the latest revision; a source only an earlier draft cited is listed
+  as retrieved, not cited. `Source.citation_index` is the run's numbering of every source the
+  synthesizer was shown, not a statement that a report cites it
+  ([the research record](../getting-started/19-research-record.md), corrected).
+- **An approval is not a 500 when filing into project memory fails** (#180).
+  `_ingest_report_into_memory` read `run.id` after its rollback had expired it, so a server
+  with no embeddings provider answered 500 for an approval it had recorded.
+- **A demo run says so first** (#177). `DemoNotice` leads the run page and the session
+  view in every state: the question was not sent to a model, and when every run is a demo
+  the server itself is in demo mode.
+- **Reset from inside the agent editor** (#179). Settings → Agents' editor offers *Reset to
+  default* when the agent is customized or has unsaved edits.
+- **The server images are stamped** (#170). `release.yml` stamps the api and worker images
+  with the commit that built them and checks that each pushed image reports it. Through
+  3.0.1 every image answered `/api/v1/version` with `unknown`.
+- **The Oracle Cloud deploy defaults to `latest`** (#170). It defaulted to `edge`, a
+  development build made on 2026-08-05, before 1.0.
+
+**Measured**
+
+- The executor prompt changed (#178), so this release was evaluated before shipping: the
+  ten fixed questions with every agent on `custom:antigravity/gemini-2.5-flash` and the
+  citation judge on `custom:kiro/claude-sonnet-4.5`, the routing and judge 3.0.0 was measured
+  on. All ten completed, and citation support measured 96.9% over 190 judged claims, none
+  unjudged (`backend/evals/results/eval-2026-10-19-custom.json`). 3.0.0 measured 96.4% the
+  same way; one run each is not evidence of a change in either direction.
+
+**Process**
+
+- **A mandatory release process** (#170): [`RELEASE.md`](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/blob/main/RELEASE.md),
+  `scripts/release_audit.py` and `release-audit/`. CI now installs the `.deb`, unpacks the
+  AppImage and installs the `.msi`, and drives the engine inside each through a research
+  journey; the site publishes `/build.json`.
+- **The server images run Python 3.14** (#173), up from 3.11. CI and the desktop engine
+  still run 3.11; the full backend suite was run inside the 3.14 image for this release.
+- **Security updates.** Next.js 16.3.8 fixes a high-severity server-side request forgery
+  advisory in Image Optimization, which the self-hosted standalone server leaves enabled,
+  plus two medium and one low advisory (#185); sharp 0.35.5 (#184) and source-map-js 1.2.2
+  (#183) are past high-severity advisories of their own.
+- Dependency updates: Next.js 16.3.6 and the frontend minor group, undici 8.11.2,
+  brace-expansion 1.1.21 (#174, #175, #176, #182).
+
+**Known**
+
+- Research saved before this release keeps its duplicated evidence rows after a rework. Its
+  snippet count stays doubled, and a run approved before 3.0.2 keeps the duplicates in its
+  frozen artifact and bundle; deleting them would make the live run disagree with what was
+  approved. Cited counts and "backs N claims" are computed when the page loads, so they are
+  correct on older runs too.
+- `MAX_COST_PER_SESSION_USD` does nothing on `openrouter` and `custom` routes:
+  `validate_pricing` skips them, so `estimate_cost` records `$0.00` whatever a run spent.
+  Cap spending at the provider.
+- Everything listed under 3.0.1's **Known** below still applies.
+
+---
+
 ## v3.0.1 — 2026-09-28
 
 The macOS app opens. Every Mac download before this one was reported as damaged.

@@ -94,7 +94,8 @@ jobs:
           echo "PLATFORM_PAIR=${{ matrix.platform }}" | tr '/' '-' >> "$GITHUB_ENV"
       - name: Fetch the build stamp
         # `backend/.dockerignore` does not exclude it, so `COPY . /app` carries it into both
-        # backend images. The frontend context never reads it.
+        # backend images, and `BUILD_STAMP=context` below keeps it there. The frontend
+        # context never reads it.
         uses: actions/download-artifact@v8
         with:
           name: build-stamp
@@ -114,6 +115,10 @@ jobs:
           file: ${{ matrix.image.file }}
           target: ${{ matrix.image.target }}
           platforms: ${{ matrix.platform }}
+          # The backend Dockerfile discards any build stamp in its context unless told to
+          # keep it — a stamp found in a context is usually a stale leftover. This one is
+          # the stamp job's, so keep it. The frontend Dockerfile declares no such argument.
+          build-args: BUILD_STAMP=context
           # Deliberately untagged. Each arch is pushed as a bare digest and the `manifest`
           # job stitches them into one multi-arch tag. If both arch jobs pushed the same
           # tag they would race, and the loser's architecture would vanish from the tag.
