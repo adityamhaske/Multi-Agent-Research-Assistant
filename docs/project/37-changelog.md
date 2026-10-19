@@ -111,8 +111,11 @@ describe the report you approved.
 - Dependency updates: Next.js 16.3.6 and the frontend minor group, undici 8.11.2,
   brace-expansion 1.1.21 (#174, #175, #176, #182); then Next.js and `eslint-config-next`
   16.4.2 and Playwright 1.64.1 (#191), and `numpy>=2.5.4` (#190).
-- **The frontend image runs Node 26** (#172), up from 25. CI, the desktop build and the
-  Pages build still use Node 22; the Node 26 image was built and run for this release.
+- **The frontend image, CI, the desktop and Pages builds all run Node 26** (#172, #196).
+  #172 moved the image from 25 while every job that builds the frontend ran 22; #196 moved
+  those jobs to 26 and made Node 26 the stated floor for developing the frontend (`engines`
+  in `frontend/package.json`, CONTRIBUTING, the guides). A10.07 fails any commit whose
+  workflows, `frontend/Dockerfile` or stated floors name different Nodes.
 
 **Known**
 

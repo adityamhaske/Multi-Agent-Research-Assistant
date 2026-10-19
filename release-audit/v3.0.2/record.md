@@ -55,7 +55,8 @@ bundle-format change (A19.02).
 | Python 3.14 is the stated floor everywhere — `requires-python`, ruff's target, the engine's import guard, the standalone verifier, the release audit — and A10.06 holds every floor to the image | #193 | `research_engine/__init__.py` guard, both `pyproject.toml`, 3.14 syntax (unquoted annotations, PEP 758 `except`), docs | `test_engine_python_floor.py`; A10.06 | — | — | ✓ same engine | ✓ docs/15, docs/20, docs/32, README, CONTRIBUTING | — | ✓ | ✓ the verifier needs 3.14 (Finding 8) | Shipped |
 | A packaged-app check whose bundle verification did not run fails CI | #194 | `check_packaged_sidecar.py --require-verify`; `desktop.yml` installs the verifier's one dependency | `test_packaged_checker_requires_verify.py` | — | — | ✓ `.deb`/AppImage/`.msi` journeys | ✓ RELEASE.md, AGENTS.md | — | ✓ changelog *Process* | — | Shipped (process) |
 | Next.js and `eslint-config-next` 16.4.2, Playwright 1.64.1 | #191 | `frontend/package*.json` | CI; lint, typecheck, 495 tests and all three builds — `build:pages` included, which CI does not run — on the PR's tree | — | — | ✓ same frontend | — | ✓ `build:pages` | ✓ changelog | — | Shipped |
-| Frontend image on Node 26 (from 25) | #172 | `frontend/Dockerfile` | CI does not build the image: built and run locally from the PR's tree (Finding 9) | — | — | n/a | — | — | ✓ changelog | — | Shipped — Node drift open (Finding 9) |
+| Frontend image on Node 26 (from 25) | #172 | `frontend/Dockerfile` | CI does not build the image: built and run locally from the PR's tree (Finding 9) | — | — | n/a | — | — | ✓ changelog | — | Shipped |
+| The frontend image, CI, the desktop and Pages builds, and every stated floor on Node 26, enforced (A10.07) | #196 | `setup-node` 26 in ci.yml (`frontend`, `golden-e2e`), desktop `shell`, pages `build`; `engines >=26`; docs floors; `Runtime` shared by A10.06 and A10.07 | 10 A10.07 tests (planted drift, unreadable versions, a lost `setup-node`, the real stale floors, a real-repo negative control); A10.06 tests unchanged and passing; on main's prior tree A10.07 fails naming every drift | — | — | ✓ desktop `shell` builds the static export on 26 | ✓ CONTRIBUTING, frontend/README, docs/20, docs/32, RELEASE.md, AGENTS.md | ✓ `build:pages` on 26 | ✓ changelog | — | Shipped |
 | `numpy>=2.5.4` | #190 | `backend/requirements.txt` | CI on 3.14 | — | — | ✓ the sidecar resolves the same set | — | — | ✓ changelog | — | Shipped |
 | v3.0.1 offered for download (the previous release's flip) | #169 | `releases.ts` | `download/unreleased.test.tsx` | ✓ | — | — | — | ✓ | — | — | Shipped (process) |
 | Frontend dependency updates: Next.js 16.3.6, the frontend minor group, undici 8.11.2, brace-expansion 1.1.21 | #174, #175, #176, #182 | `frontend/package*.json` | CI on each PR | — | — | ✓ same frontend | — | — | ✓ changelog | — | Shipped |
@@ -330,8 +331,17 @@ Found while preparing stage A, separated by kind.
      `node:26-bookworm-slim` (v26.12.0). The container comes up healthy.
    - `/`, `/login`, `/settings` and `/dashboard` answer exactly as the current Node 25 stack
      does (200, 200, 307, 404; `/dashboard` is not a route).
-   - **Gap:** nothing enforces that the image and CI agree on Node. The fix is the Node
-     counterpart of A10.06, a follow-up.
+   - **Resolved in this release by #196**, at the release manager's choice of Node 26
+     everywhere:
+     - ci.yml's `frontend` and `golden-e2e`, desktop's `shell` and pages' `build` set up
+       Node 26.
+     - `frontend/package.json` declares `engines >=26`, and every `Node N+` in the docs
+       says 26.
+     - A10.07 fails a commit that splits them again. It shares A10.06's implementation
+       through a `Runtime` descriptor.
+     - Checked on 2026-10-19 in `node:26-bookworm-slim` (v26.12.0): `npm ci` (no engine
+       warnings), lint, typecheck, 495/495 tests, and `build`, `build:desktop` and
+       `build:pages`.
 
 **Carried over from the v3.0.1 record, still open**
 
@@ -451,7 +461,7 @@ on `openrouter` and `custom` routes. And the size note in Finding 5.
 | A2.01 counted only merge commits; squash-merged PRs escaped the scope check | `merged_prs` (A2.01); `test_a_squash_merged_pr_is_in_scope_as_surely_as_a_merge_commit` |
 | A2.03 read the template's waiver placeholder as a waiver | `records_eval_waiver` (A2.03); `test_the_templates_waiver_placeholder_is_not_a_waiver` |
 | A dependency bump changed the server images' Python with nothing building the image | A10.06 (#187, #189): every workflow's Python equals the image's |
-| The frontend image's Node (25, then 26) differs from CI's (22), and nothing builds the image before a tag | Not yet a check — Finding 9's follow-up |
+| The frontend image's Node (25, then 26) differs from CI's (22), and nothing builds the image before a tag | A10.07 (#196): every workflow's Node and every stated floor equal the image's |
 | A local image carried a stale build stamp and reported another version and commit | `test_local_build_stamp.py` (#188); the sidecar spec refuses a stale stamp |
 
 ## Release approval
