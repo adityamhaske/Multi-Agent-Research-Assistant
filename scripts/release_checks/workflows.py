@@ -70,6 +70,11 @@ WORKFLOW_GUARDS = (
     ),
     (
         ".github/workflows/desktop.yml",
+        "--journey --require-verify",
+        "every Shell job logged the bundle verification NOT RUN, for want of pydantic, and passed",
+    ),
+    (
+        ".github/workflows/desktop.yml",
         'mv "$f" "${f// /.}"',
         "SHA256SUMS listed names with a space GitHub never serves (v1.0.1)",
     ),

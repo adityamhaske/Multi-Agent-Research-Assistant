@@ -277,6 +277,26 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
+      # That verifier's one third-party import: without it the checker can only report the
+      # verification NOT RUN, which `--require-verify` below turns into a failure. pydantic
+      # alone, under the specifier and constraints the backend resolves it with — the whole
+      # requirements file would check the verifier in the engine's environment rather than
+      # the one a third party verifying a bundle has. macOS runs no journey here.
+      - name: Install the bundle verifier's dependency
+        if: runner.os != 'macOS'
+        shell: bash
+        # pip's own bounds end a dead connection by name: 30s per read, 5 retries, so at most
+        # 3 minutes on any one request. The ceiling allows five requests to exhaust every
+        # retry, so pip's error is what surfaces, not "step timed out". A working install of
+        # these few small wheels takes seconds.
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          spec=$(sed -nE 's/^(pydantic)(\[[^]]*\])?([<>=!~][^#[:space:]]*).*/\1\3/p' backend/requirements.txt)
+          if [ -z "$spec" ]; then echo "::error::no pydantic requirement in backend/requirements.txt"; exit 1; fi
+          python -m pip install --disable-pip-version-check --timeout 30 --retries 5 \
+            -c backend/constraints.txt "$spec"
+          python -c "import sys, pydantic; print(sys.executable, 'pydantic', pydantic.VERSION)"
       - name: Fetch the sidecar built for this OS
         uses: actions/download-artifact@v8
         with:
@@ -460,8 +480,10 @@ jobs:
       # an .msi, or unpacked an AppImage, and run what came out. Each now does exactly that
       # and drives the engine it finds through both gates to an approved, exported run
       # (`scripts/check_packaged_sidecar.py`, the same checker a person runs against a
-      # published installer in RELEASE.md). The desktop UI itself needs a display and is
-      # still checked by hand.
+      # published installer in RELEASE.md). `--require-verify` makes the standalone
+      # verifier's verdict on that run's bundle part of the pass: a verifier that could not
+      # run fails the step rather than logging NOT RUN. The desktop UI itself needs a
+      # display and is still checked by hand.
       - name: The installed .deb carries a working engine that reports this commit
         if: runner.os == 'Linux'
         shell: bash
@@ -476,7 +498,8 @@ jobs:
           bin=$(dpkg -L "$pkg" | grep '/research-sidecar$' | head -1)
           if [ -z "$bin" ]; then echo "::error::the installed $pkg has no research-sidecar"; exit 1; fi
           python3 scripts/check_packaged_sidecar.py --bin "$bin" \
-            --expect-sha "$GITHUB_SHA" --expect-version "$(tr -d '[:space:]' < VERSION)" --journey
+            --expect-sha "$GITHUB_SHA" --expect-version "$(tr -d '[:space:]' < VERSION)" \
+            --journey --require-verify
           sudo dpkg -r "$pkg"
           if [ -e "$bin" ]; then echo "::error::removing $pkg left $bin behind"; exit 1; fi
       - name: The AppImage carries a working engine that reports this commit
@@ -491,7 +514,8 @@ jobs:
           work=$(mktemp -d)
           (cd "$work" && "$img" --appimage-extract > /dev/null)
           python3 scripts/check_packaged_sidecar.py --search "$work/squashfs-root" \
-            --expect-sha "$GITHUB_SHA" --expect-version "$(tr -d '[:space:]' < VERSION)" --journey
+            --expect-sha "$GITHUB_SHA" --expect-version "$(tr -d '[:space:]' < VERSION)" \
+            --journey --require-verify
       - name: The installed .msi carries a working engine that reports this commit
         if: runner.os == 'Windows'
         shell: pwsh
@@ -512,7 +536,8 @@ jobs:
           if (-not $sidecar) { Get-Content $log -Tail 80; throw "the installed app has no research-sidecar.exe" }
           Write-Host "installed engine: $($sidecar.FullName)"
           python scripts/check_packaged_sidecar.py --bin $sidecar.FullName `
-            --expect-sha $env:GITHUB_SHA --expect-version (Get-Content VERSION).Trim() --journey
+            --expect-sha $env:GITHUB_SHA --expect-version (Get-Content VERSION).Trim() `
+            --journey --require-verify
           if ($LASTEXITCODE -ne 0) { throw "the installed engine failed its check" }
           $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
             '/x', "`"$($msi.FullName)`"", '/qn', '/norestart')

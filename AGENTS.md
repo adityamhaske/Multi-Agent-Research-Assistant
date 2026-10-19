@@ -549,7 +549,10 @@ everywhere` job. Four traps it exists for, each of which shipped:
 - **"CI compiled it" is not "CI ran it".** Until the installer steps in `desktop.yml`, no
   `.deb`, AppImage or `.msi` had ever been installed and launched by CI.
   `scripts/check_packaged_sidecar.py` is the one checker for all of them, and for a person
-  checking a published installer.
+  checking a published installer. **A step that passed is not a check that ran:** its bundle
+  verification needs `pydantic`, which no Shell runner had, so every Shell job logged
+  `NOT RUN` and went green. Wherever the result is evidence, CI and RELEASE.md pass
+  `--require-verify`, which makes NOT RUN a failure.
 - **A version a user can read is a claim.** Every line of user-facing text naming a version
   is reviewed in `release-audit/historical-references.json` (A1.09); an edit to such a line
   fails CI until it is re-reviewed. Describe a range ("from 3.0.0 on") rather than "the

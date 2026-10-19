@@ -14,7 +14,7 @@ published (RELEASE.md, phases 6-9).
 
     # the engine inside an installed or extracted build, found by name under a directory
     python scripts/check_packaged_sidecar.py --search "/Applications/Research Assistant.app" \\
-        --expect-sha <tag commit> --expect-version 3.0.1 --journey
+        --expect-sha <tag commit> --expect-version 3.0.1 --journey --require-verify
 
     # or a binary you already located
     python scripts/check_packaged_sidecar.py --bin path/to/research-sidecar --expect-sha <sha>
@@ -27,7 +27,9 @@ make a broken bundle look healthy.
 
 Standard library only, so it runs on a CI image or a clean laptop with no project installed.
 The one optional import is the bundle verifier, which needs `pydantic`; when that is missing
-the verdict is reported as not run rather than as a pass.
+the verdict is reported as not run rather than as a pass. A check that did not run is still
+not a check that passed: `--require-verify`, which CI and RELEASE.md pass, makes it a
+failure. Every Shell job once logged NOT RUN and went green.
 """
 
 from __future__ import annotations
@@ -193,12 +195,17 @@ def await_status(engine: Engine, run_id: str, want: str, timeout: float = 240) -
     raise CheckFailed(f"run {run_id} never reached {want} (last: {last})")
 
 
-def verify_bundle(path: Path) -> str:
+def verify_bundle(path: Path, *, required: bool = False) -> str:
     """The standalone verifier's verdict, or an honest statement that it did not run."""
     sys.path.insert(0, str(ROOT / "backend"))
     try:
         from research_engine.verify_bundle import main as verify_main  # noqa: PLC0415
     except ImportError as exc:
+        if required:
+            raise CheckFailed(
+                f"--require-verify: the bundle verifier could not be imported here ({exc}); "
+                "its one third-party dependency is pydantic, from backend/requirements.txt"
+            ) from exc
         return f"NOT RUN — the verifier could not be imported here ({exc})"
     code = verify_main([str(path)])
     if code != 0:
@@ -206,7 +213,7 @@ def verify_bundle(path: Path) -> str:
     return "PASS"
 
 
-def journey(engine: Engine, scratch: Path) -> dict:
+def journey(engine: Engine, scratch: Path, *, require_verify: bool = False) -> dict:
     """Create → plan gate → report gate → export → bundle, as desktop.yml drives it."""
     project = engine.request("POST", "/projects", {"name": "Packaged-app check"})["id"]
     run = engine.request(
@@ -249,7 +256,7 @@ def journey(engine: Engine, scratch: Path) -> dict:
         "approval_chain": actions,
         "evidence": len(bundle["evidence"]),
         "bundle_version": bundle.get("bundle_version"),
-        "verify_bundle": verify_bundle(bundle_path),
+        "verify_bundle": verify_bundle(bundle_path, required=require_verify),
     }
 
 
@@ -262,9 +269,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--expect-version", help="the version the build must report")
     parser.add_argument("--min-tree-mb", type=float, default=DEFAULT_MIN_TREE_MB)
     parser.add_argument("--journey", action="store_true", help="also drive a research run")
+    parser.add_argument(
+        "--require-verify",
+        action="store_true",
+        help="fail, rather than report NOT RUN, when the bundle verifier cannot run here",
+    )
     parser.add_argument("--startup-timeout", type=float, default=180)
     parser.add_argument("--json", type=Path, help="write the evidence here")
     args = parser.parse_args(argv)
+    if args.require_verify and not args.journey:
+        parser.error("--require-verify needs --journey: without a run there is no bundle to verify")
 
     evidence: dict = {"checks": {}}
     engine: Engine | None = None
@@ -312,8 +326,9 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         if args.journey:
-            evidence["journey"] = journey(engine, scratch)
+            evidence["journey"] = journey(engine, scratch, require_verify=args.require_verify)
             evidence["checks"]["journey"] = "PASS"
+            evidence["checks"]["verify_bundle"] = evidence["journey"]["verify_bundle"]
         evidence["result"] = "PASS"
     except CheckFailed as exc:
         evidence["result"] = "FAIL"
