@@ -130,7 +130,7 @@ python scripts/release_audit.py --version X.Y.Z --post-release --download --dock
 | Tool | What it does |
 |---|---|
 | `scripts/release_audit.py` | The automated checks, by stage. `--list` prints the registry |
-| `scripts/check_packaged_sidecar.py` | Launches the engine inside an installed/mounted/extracted build with an isolated data directory, checks its token gate, version and git SHA, and with `--journey` drives a run through both gates to an exported, verified bundle. CI runs it on the `.deb`, AppImage and `.msi`; people run it on the published installers. The verification imports the repository's `verify_bundle`, so it needs the engine's Python 3.14+, and reports `NOT RUN` without `pydantic` installed |
+| `scripts/check_packaged_sidecar.py` | Launches the engine inside an installed/mounted/extracted build with an isolated data directory, checks its token gate, version and git SHA, and with `--journey` drives a run through both gates to an exported bundle and runs the standalone verifier on it. The verification imports the repository's `verify_bundle`, so it needs the engine's Python 3.14+ and `pydantic`; without `pydantic` it reports the verification `NOT RUN` and the check still passes, unless `--require-verify` is given, which makes that a failure. CI runs it with `--require-verify` on the `.deb`, AppImage and `.msi`; people run it the same way on the published installers (M6.02, M7.06, M8.05) |
 | `scripts/sync_version.py` | Derives the version carriers from `VERSION`; `--tag` is the release workflows' guard |
 | `scripts/check_packaged_upgrade.py`, `scripts/make_upgrade_fixture.py` | Upgrade a populated older desktop data directory with a packaged engine and record what happened (currently wired to the v2.1.0 fixture — see Phase 19) |
 | `release-audit/compose.published-images.yml` | Runs the **published** images on the full-stack topology, on separate volumes |
@@ -349,7 +349,7 @@ passed, that the checks are still required, and that nothing passed only by luck
 | Three builds | `npm run build`, `npm run build:desktop`, pages-copy `build:pages` | each target compiles its own branch of `next.config.ts` | `frontend` | yes |
 | Golden E2E | `cd frontend && npm run e2e` (Playwright: `golden`, `gates`, `run-journey`) | real browser through both gates, rework, dropped connection | `golden-e2e` | yes (A3.01) |
 | Packaged sidecar ×3 OS | `desktop.yml` sidecar smoke steps | the frozen engine: token gate, git SHA, journey, verifier, V3 invariants | `Sidecar (…)` | yes (A3.02, A6.02) |
-| Packaged installers | `desktop.yml` shell steps + `scripts/check_packaged_sidecar.py` | engine inside the `.app`, `.deb`, AppImage, `.msi`; DMG signature | `Shell (…)` | yes (A6.02) |
+| Packaged installers | `desktop.yml` shell steps + `scripts/check_packaged_sidecar.py --require-verify` | engine inside the `.app`, `.deb`, AppImage, `.msi`; the verifier's verdict on the `.deb`, AppImage and `.msi` journeys' bundles; DMG signature | `Shell (…)` | yes (A6.02) |
 | Image identity | `release.yml` "The pushed image reports the commit that built it" | stamped images, both arches | tag only | yes (A11.09, A10.05) |
 | Release audit (offline) | `python scripts/release_audit.py --stage ci` | this document's per-commit invariants | `One version, everywhere` | yes |
 | Release audit tests | `pytest tests/workflow/test_release_audit.py` | every historical failure planted and caught | `backend` | yes |
@@ -400,7 +400,7 @@ counts.
 | ID | Automated check | Stages |
 |---|---|---|
 | A6.01 | The tag's `Desktop` run passed every job, `Publish release` included | published → post-release |
-| A6.02 | Every packaged-app guard step ran and passed on the tag's run: the tag guard and stamp on all three OSes; frozen-engine SHA, journey and verifier on all three; the engine inside the `.app` reports the commit; the DMG's app is validly signed and Gatekeeper gives a policy verdict; the installed `.deb`, the AppImage and the installed `.msi` each run a journey and report the commit. A guard absent from the tag's workflow is a WARN the record must note | published → post-release |
+| A6.02 | Every packaged-app guard step ran and passed on the tag's run: the tag guard and stamp on all three OSes; frozen-engine SHA, journey and verifier on all three; the engine inside the `.app` reports the commit; the DMG's app is validly signed and Gatekeeper gives a policy verdict; the installed `.deb`, the AppImage and the installed `.msi` each run a journey whose bundle the verifier passes, and report the commit. A guard absent from the tag's workflow is a WARN the record must note | published → post-release |
 | A6.03 | Every workflow guard a past incident added is still in the workflows (the list is in `scripts/release_checks/workflows.py`) | all |
 | A6.04 | `tauri.conf.json` bundles the engine as `sidecar/`, signs the whole macOS bundle (`signingIdentity: "-"`), builds all targets | all |
 
@@ -408,8 +408,9 @@ counts.
   - Evidence: the table; SHA-256 values match `SHA256SUMS`.
   - STOP if: any cell is blank without a `NOT RUN` reason.
 - [ ] **M6.02** On every platform, run the packaged-engine checker against the **installed** copy of the **published** installer:
-  - Verify: `python scripts/check_packaged_sidecar.py --search <install dir> --expect-sha <tag commit> --expect-version X.Y.Z --journey`
-  - Expected: `"result": "PASS"`, `tree_mb` well above 60, `git_sha` the tag's commit.
+  - Needs: the tag's checkout, on Python 3.14+ with `pydantic` installed (the verifier's one third-party import; `pip install -r backend/requirements.txt` covers it).
+  - Verify: `python scripts/check_packaged_sidecar.py --search <install dir> --expect-sha <tag commit> --expect-version X.Y.Z --journey --require-verify`
+  - Expected: `"result": "PASS"`, `tree_mb` well above 60, `git_sha` the tag's commit, `"verify_bundle": "PASS"`. Without `--require-verify` a missing `pydantic` reads `NOT RUN` beside a `PASS` result — not evidence the bundle verifies.
   - Evidence: the JSON output (`--json`).
   - STOP if: FAIL on any platform.
 - [ ] **M6.03** Mark every desktop row in the record as *packaged* or *source*. A row satisfied only by source evidence is `NOT RUN`, not `PASS`.
@@ -441,8 +442,8 @@ downloaded copy is a Gatekeeper block that the documented command clears — nev
   - Expected: `Mach-O 64-bit executable arm64`; plain `flags=adhoc` (hardened runtime on the engine breaks library validation — AGENTS/memory trap).
   - STOP if: missing, wrong architecture, or `runtime` flag set.
 - [ ] **M7.06** The packaged engine identifies itself and completes the journey.
-  - Verify: `python3 scripts/check_packaged_sidecar.py --search <mounted app> --expect-sha <tag commit> --expect-version X.Y.Z --journey`.
-  - Expected: PASS.
+  - Verify: `python3 scripts/check_packaged_sidecar.py --search <mounted app> --expect-sha <tag commit> --expect-version X.Y.Z --journey --require-verify`, set up as M6.02 says.
+  - Expected: PASS, `"verify_bundle": "PASS"`.
   - STOP if: FAIL.
 - [ ] **M7.07** First launch as a user: drag to Applications; open it *without* the command and confirm the block is the unidentified-developer kind; run `xattr -dr com.apple.quarantine "/Applications/Research Assistant.app"`; open it.
   - Expected: the window opens; no "damaged" dialog at any point; the demo banner or onboarding appears; Settings → About shows `X.Y.Z` and the tag's short commit.
@@ -468,7 +469,7 @@ and a real user profile are only seen on a real machine.
   - STOP if: install fails or the version is wrong.
 - [ ] **M8.04** Launch: the window opens without a crash; Task Manager shows `research-sidecar.exe`; no firewall prompt (the engine binds 127.0.0.1 only).
   - STOP if: crash, blank window, or an inbound-firewall prompt.
-- [ ] **M8.05** `python scripts\check_packaged_sidecar.py --search "C:\Program Files\Research Assistant" --expect-sha <tag commit> --expect-version X.Y.Z --journey` passes.
+- [ ] **M8.05** `python scripts\check_packaged_sidecar.py --search "C:\Program Files\Research Assistant" --expect-sha <tag commit> --expect-version X.Y.Z --journey --require-verify` passes, set up as M6.02 says.
   - STOP if: FAIL.
 - [ ] **M8.06** The Phase 20 desktop journey on Windows (M20.02), from a user whose profile path has a space; exports save where the dialog says.
 - [ ] **M8.07** Local storage: data under `%USERPROFILE%\.research-engine`; provider keys in Windows Credential Manager, not in a file.
@@ -727,6 +728,7 @@ The release does not only test happy paths. Where each release-critical failure 
 | SSRF, untrusted fetches | `tests/security/test_ssrf_guard.py` |
 | Missing or undersized engine in a bundle | `desktop.yml` size floors; A11.03 installer floors; `check_packaged_sidecar.py --min-tree-mb` |
 | Engine crash / missing server config in the bundle | `tests/workflow/test_desktop_runs_without_server_env.py`, `test_sidecar_startup.py`; packaged journeys (A6.02) |
+| A bundle verification that could not run, reported as passing | `tests/workflow/test_packaged_checker_requires_verify.py` (`pydantic` made unimportable, `--require-verify` on: the checker fails and names why); A6.03 |
 | Invalid or tampered bundle | `tests/workflow/test_bundle_v2_verifier.py`, `test_bundle_export_routes.py`; M20.03 |
 | Wrong checksum, space in a name, missing or extra asset | `tests/workflow/test_release_audit.py` (planted); A11.03, A11.05, A11.06 |
 | Stale artifact (not from the tag's run) | A11.04; A10.03 (image provenance) |
@@ -763,6 +765,7 @@ The release does not only test happy paths. Where each release-critical failure 
 | ≤3.0.1 | The `.deb`, AppImage and `.msi` were never installed or launched by CI — only compiled | installer steps in `desktop.yml` (A6.02, A6.03) |
 | ≤3.0.1 | Every published api/worker image answered `/api/v1/version` with `unknown` — nothing stamped them | `release.yml` stamp job + image step (A6.03, A11.09), A10.05 |
 | 3.0.2 (caught in preparation) | #173, a Dependabot base-image bump, moved the server images to Python 3.14 while every job that tests them stayed on 3.11 — and nothing builds the image before a tag | CI on the image's Python; A10.06, per commit |
+| 3.0.2 (caught in preparation) | The installed-`.deb`, AppImage and `.msi` journeys logged `"verify_bundle": "NOT RUN"` (no `pydantic` on the runner) and passed, while this document said the checker proved a verified bundle | `pydantic` installed in the Shell job; `--require-verify` on all three calls (A6.03) and in M6.02, M7.06, M8.05; `tests/workflow/test_packaged_checker_requires_verify.py` |
 | ≤3.0.1 | Nothing on the live site said which commit it was built from | `pages.yml` `build.json` (A6.03), A17.02 |
 | 3.0.2 | A local image of the 3.0.2 tree answered `/api/v1/version` with 2.1.0 and a September commit: a leftover, git-ignored `_build.py` rode `COPY . /app` into every image `./start.sh` built (release-audit/v3.0.2 Finding 7). Not Docker-ignored on purpose — the published images carry their stamp the same way | The Dockerfile discards a context's stamp unless `release.yml` passes `BUILD_STAMP=context` (A6.03), and restamps from `start.sh` reading git; `research-sidecar.spec` runs `stamp_build.py --check`; a source run's `build_info()` reports `unknown` when the checkout contradicts the stamp; `tests/workflow/test_local_build_stamp.py` |
 | every | Features and fixes merged with no record of whether they were meant to ship | A0.01, A2.01, M2.01 |
