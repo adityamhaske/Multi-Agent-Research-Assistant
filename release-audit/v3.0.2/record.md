@@ -60,6 +60,7 @@ bundle-format change (A19.02).
 | `numpy>=2.5.4` | #190 | `backend/requirements.txt` | CI on 3.14 | — | — | ✓ the sidecar resolves the same set | — | — | ✓ changelog | — | Shipped |
 | Record updates: #192-#196 scoped, E1-E3 results, Findings 8 and 9 | #195 | this record, changelog, `releases.ts` | `--stage ci`; release-entry tests | — | — | — | — | ✓ releases.ts (unreleased) | ✓ | — | Shipped (process) |
 | Scoping the record PRs themselves, after the first pre-tag run failed A2.01 on #195 | #197 | this record | the pre-tag audit's A2.01 | — | — | — | — | — | — | — | Shipped (process) |
+| A3.02 judges the site a release commit serves when the path filter gives it no Pages run (Finding 10) | #198 | `release_checks/workflows.py` `_pages_run_for`, `evaluate.push_paths` | 2 tests; the fixed check passes on `dedfbb0` via f51800f's Pages run | — | — | — | ✓ RELEASE.md | — | ✓ changelog | — | Shipped (process) |
 | v3.0.1 offered for download (the previous release's flip) | #169 | `releases.ts` | `download/unreleased.test.tsx` | ✓ | — | — | — | ✓ | — | — | Shipped (process) |
 | Frontend dependency updates: Next.js 16.3.6, the frontend minor group, undici 8.11.2, brace-expansion 1.1.21 | #174, #175, #176, #182 | `frontend/package*.json` | CI on each PR | — | — | ✓ same frontend | — | — | ✓ changelog | — | Shipped |
 | Security updates past three high-severity advisories: Next.js 16.3.8, sharp 0.35.5, source-map-js 1.2.2 | #185, #184, #183 | `frontend/package*.json` | CI on each PR; merged during stage A (Finding 1), then lint, typecheck, tests and all three builds re-run on the release branch | — | — | ✓ same frontend | — | — | ✓ | — | Shipped |
@@ -345,7 +346,7 @@ Found while preparing stage A, separated by kind.
        warnings), lint, typecheck, 495/495 tests, and `build`, `build:desktop` and
        `build:pages`.
 
-10. **A3.02 failed a release commit that changed nothing the site is built from.** The first
+10. **A3.02 failed a release commit that changed nothing the site is built from (#198).** The first
     pre-tag run on `dedfbb0` (the merge of #197, which touched only this record) found no
     Pages run on it, because `pages.yml` runs only when `frontend/`, `docs/` or itself
     changes. The check assumed every release commit changes `releases.ts`. The site
