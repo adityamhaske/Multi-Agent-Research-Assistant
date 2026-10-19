@@ -160,7 +160,7 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M4.01 | PASS | If `backend/app/api/` changed since the previous release, `docs/reference/34-api.md` and `35-sse.md`… — `backend/app/api` changed in `runs.py` only: #180 (no shape change) and #181's additive `cited_indices` on each revision, documented in docs/34; the sidecar serves the same projection. Contract hash re-checked on the stage B stack |
 | M4.02 | PASS | On the published images (Phase 10 stack), probe the boundaries: an unauthenticated `GET /api/v1/projects`… — Published 3.0.2 images: unauthenticated GET /projects 401; wrong password and unknown user both 401 with the identical body (no enumeration); /health {"version":"3.0.2"}; /health/ready 200; /api/v1/version git_sha 0a9de70ee90485531120856fce7f5dde4041c0aa, dirty false (A10.05) |
 | **Phase 5 — Frontend Verification** | | |
-| M5.01 | FAIL | On the Phase 10 stack, open dashboard, a project, a finished run (report, evidence, citations), Settings… — Dashboard (/project), a finished run (report, evidence, citations, artifact), Settings (Models, About) in light and dark: About shows 3.0.2 and 0a9de70ee. Failed requests: only the five pre-login session probes (401, deliberate). But an uncaught React #418 hydration error fires on a page load — reproduced on the published 3.0.1 frontend too, before any theme change, so pre-existing, not a 3.0.2 regression (Finding 12). For the release manager: ACCEPTED as a known issue, or block |
+| M5.01 | ACCEPTED | On the Phase 10 stack, open dashboard, a project, a finished run (report, evidence, citations), Settings… — Dashboard (/project), a finished run (report, evidence, citations, artifact), Settings (Models, About) in light and dark: About shows 3.0.2 and 0a9de70ee; failed requests only the five deliberate pre-login session probes. One uncaught React error 418 (hydration) on every full load of /settings/appearance — present in 3.0.1 too, so pre-existing (Finding 12). Accepted for 3.0.2 by the release manager on 2026-10-19, documented in releases.ts known and the changelog; fixed on main by #201 (f60b28a) for the next release |
 | M5.02 | NOT RUN | Keyboard-only pass over the two gates: plan approval and report approval are reachable and operable… — Keyboard-only pass over the two gates not done in this session; the gates were operated via the API (M10.02, M20.01) and CI's gates.spec.ts |
 | **Phase 6 — Desktop Application Verification** | | |
 | M6.01 | PASS | Record the artifact table in the record for all four installers: file name · SHA-256 · OS · architecture ·… — Artifact table above; every blank carries its NOT RUN reason |
@@ -367,14 +367,16 @@ Found while preparing stage A, separated by kind.
     both counters *before* it verifies the password, so every attempt counts. A sixth login
     within 15 minutes, on a correct password, gets 429 — found when M19.02's sixth login of
     one test account was refused. Unchanged since M2 (`ad1db37`, July), so not a 3.0.2
-    regression; the fix (count failures only, or fix the comment and the docs) is a
-    follow-up.
+    regression; it ships in 3.0.2 and is in its known issues. **Fixed on main by #200**
+    (`0720cba`) for the next release: the account limit counts failures only.
 12. **An uncaught React #418 hydration error on page load.** Seen in the browser on the
     published 3.0.2 frontend, and on the published 3.0.1 frontend before any theme change, so
     it predates this release (the theme code is unchanged since v3.0.1; #191's Next.js
     16.4.2 is not the cause). React recovers by re-rendering on the client, but M5.01 asks for
-    no uncaught errors: M5.01 is FAIL, pending the release manager's decision to accept it as
-    a known issue for 3.0.2 or to block on a fix.
+    no uncaught errors. **Accepted for 3.0.2** by the release manager (M5.01 ACCEPTED) and
+    in its known issues. The cause, found afterwards: the theme picker rendered its selection
+    from next-themes' `resolvedTheme`, undefined on the server, so every full load of
+    /settings/appearance threw. **Fixed on main by #201** (`f60b28a`) for the next release.
 13. **The download page's size note, measured on 3.0.2:** ~80 MB download (actual 80.1 MB,
     fine) and ~180 MB installed (actual 152 MB, 15.6% under — just past M15.01's 15%). Carried
     from the v3.0.1 record's Finding 3; M15.01 is a stage C row.
@@ -486,9 +488,11 @@ required ones. Each line names the row it decides; none is satisfied by source e
 
 ## Known issues shipped with this release
 
-Everything in `frontend/lib/releases.ts` v3.0.2 `known` (18 items): 3.0.1's sixteen, carried,
-plus evidence duplicated by a rework before this release, and the spend limit doing nothing
-on `openrouter` and `custom` routes. And the size note in Finding 5.
+Everything in `frontend/lib/releases.ts` v3.0.2 `known` (21 items): 3.0.1's sixteen, carried;
+evidence duplicated by a rework before this release; the spend limit doing nothing on
+`openrouter` and `custom` routes; the verifier's Python 3.14 floor (Finding 8); and, accepted
+at sign-off review, the sign-in limit counting successes (Finding 11) and the Appearance
+page's hydration error (Finding 12). And the size note (Findings 5 and 13).
 
 ## Incidents found during this release, and the check each became (M22.06)
 

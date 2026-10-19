@@ -135,6 +135,12 @@ describe the report you approved.
 - Verifying a bundle with this release's verifier needs Python 3.14 or later; on 3.13 or
   earlier it refuses to start. The bundle format has not changed, so the verifier from
   3.0.1 still verifies 3.0.2 bundles on an older Python.
+- More than five successful sign-ins to one account within 15 minutes lock it for the rest
+  of the window: the per-account limit counts every attempt, not only failures as
+  docs/06 §4 states. Present since before 1.0; fixed on `main` for the next release (#200).
+- Every full load of Settings → Appearance logs React error 418 (a hydration mismatch) in
+  the browser console; the page recovers and works. Present in 3.0.1 too; fixed on `main`
+  for the next release (#201).
 - Everything listed under 3.0.1's **Known** below still applies.
 
 ---
