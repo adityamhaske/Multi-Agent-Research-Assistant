@@ -51,6 +51,13 @@ bundle-format change (A19.02).
 | Release process, audit, installed-installer CI steps, `/build.json` | #170 | `RELEASE.md`, `scripts/release_audit.py`, `desktop.yml`, `pages.yml` | `test_release_audit.py` | — | — | ✓ `.deb`/AppImage/`.msi` journeys in CI | ✓ RELEASE.md, release-audit/README.md, README | ✓ `/build.json` | ✓ changelog *Process* | — | Shipped (process) |
 | Refresh-token rotation and reuse detection tested | #170 | test only | `test_refresh_token_reuse.py` | — | — | — | — | — | — | — | Shipped (test) |
 | This release's preparation: version, notes, changelog, record, the release evaluation, and the A2.01/A2.03 audit fixes | #186 | `VERSION` and its carriers, `releases.ts`, the changelog, this record, `eval-2026-10-19-custom.json`, `release_checks/evaluate.py` | `test_release_audit.py` negative controls; release-entry tests | — | — | — | ✓ RELEASE.md incident rows | ✓ releases.ts (unreleased) | ✓ | — | Shipped (process) |
+| Scope update: #187-#189 recorded, extra checks planned | #192 | this record, changelog, `releases.ts` | release-entry tests; `--stage ci` | — | — | — | — | ✓ releases.ts (unreleased) | ✓ | — | Shipped (process) |
+| Python 3.14 is the stated floor everywhere — `requires-python`, ruff's target, the engine's import guard, the standalone verifier, the release audit — and A10.06 holds every floor to the image | #193 | `research_engine/__init__.py` guard, both `pyproject.toml`, 3.14 syntax (unquoted annotations, PEP 758 `except`), docs | `test_engine_python_floor.py`; A10.06 | — | — | ✓ same engine | ✓ docs/15, docs/20, docs/32, README, CONTRIBUTING | — | ✓ | ✓ the verifier needs 3.14 (Finding 8) | Shipped |
+| A packaged-app check whose bundle verification did not run fails CI | #194 | `check_packaged_sidecar.py --require-verify`; `desktop.yml` installs the verifier's one dependency | `test_packaged_checker_requires_verify.py` | — | — | ✓ `.deb`/AppImage/`.msi` journeys | ✓ RELEASE.md, AGENTS.md | — | ✓ changelog *Process* | — | Shipped (process) |
+| Next.js and `eslint-config-next` 16.4.2, Playwright 1.64.1 | #191 | `frontend/package*.json` | CI; lint, typecheck, 495 tests and all three builds — `build:pages` included, which CI does not run — on the PR's tree | — | — | ✓ same frontend | — | ✓ `build:pages` | ✓ changelog | — | Shipped |
+| Frontend image on Node 26 (from 25) | #172 | `frontend/Dockerfile` | CI does not build the image: built and run locally from the PR's tree (Finding 9) | — | — | n/a | — | — | ✓ changelog | — | Shipped |
+| The frontend image, CI, the desktop and Pages builds, and every stated floor on Node 26, enforced (A10.07) | #196 | `setup-node` 26 in ci.yml (`frontend`, `golden-e2e`), desktop `shell`, pages `build`; `engines >=26`; docs floors; `Runtime` shared by A10.06 and A10.07 | 10 A10.07 tests (planted drift, unreadable versions, a lost `setup-node`, the real stale floors, a real-repo negative control); A10.06 tests unchanged and passing; on main's prior tree A10.07 fails naming every drift | — | — | ✓ desktop `shell` builds the static export on 26 | ✓ CONTRIBUTING, frontend/README, docs/20, docs/32, RELEASE.md, AGENTS.md | ✓ `build:pages` on 26 | ✓ changelog | — | Shipped |
+| `numpy>=2.5.4` | #190 | `backend/requirements.txt` | CI on 3.14 | — | — | ✓ the sidecar resolves the same set | — | — | ✓ changelog | — | Shipped |
 | v3.0.1 offered for download (the previous release's flip) | #169 | `releases.ts` | `download/unreleased.test.tsx` | ✓ | — | — | — | ✓ | — | — | Shipped (process) |
 | Frontend dependency updates: Next.js 16.3.6, the frontend minor group, undici 8.11.2, brace-expansion 1.1.21 | #174, #175, #176, #182 | `frontend/package*.json` | CI on each PR | — | — | ✓ same frontend | — | — | ✓ changelog | — | Shipped |
 | Security updates past three high-severity advisories: Next.js 16.3.8, sharp 0.35.5, source-map-js 1.2.2 | #185, #184, #183 | `frontend/package*.json` | CI on each PR; merged during stage A (Finding 1), then lint, typecheck, tests and all three builds re-run on the release branch | — | — | ✓ same frontend | — | — | ✓ | — | Shipped |
@@ -116,6 +123,7 @@ Disposition of every WARN and UNAVAILABLE (M21.01):
 
 | Check | Result | Disposition |
 |---|---|---|
+| A19.02 (pre-tag) | WARN | #193 touched six ORM model files and `verify_bundle.py`. The model changes are annotation syntax only, with no schema change and no migration; the verifier's bundle format is unchanged (Finding 8). M19.02–M19.05 are required regardless, by the interpreter move, and are planned under Extra checks |
 
 ## Manual checks
 
@@ -296,6 +304,45 @@ Found while preparing stage A, separated by kind.
    - `start.sh` hands the image the checkout's own version, commit and dirty flag.
    - The sidecar spec refuses a stamp that doesn't describe the checkout.
 
+8. **#193 raised the Python needed to run the engine, and the bundle verifier, to 3.14.**
+   It was merged on 2026-10-19 by the release manager, after #187–#189.
+   - `research_engine/__init__.py` now refuses older interpreters. `verify_bundle.py` uses
+     3.14-only syntax (PEP 758 `except A, B:`), so it can't even be parsed on 3.13 or earlier.
+   - The **bundle format is unchanged** (still v2). The v3.0.1 verifier at `d53d645`, on
+     Python 3.11.15, verifies E3's 3.0.2 bundle **PASS 7/7**. So a third party on an older
+     Python has a working path: the previous release's verifier. That's why the version stays
+     patch (M0.03): no bundle is refused, only a newer interpreter is needed for the newest
+     verifier. The changelog and `releases.ts` both carry the floor and the workaround.
+   - E3's 3.11 verification ran on `2a560d2`'s verifier, before #193. On `3d5af71`, that same
+     interpreter is refused with `research_engine needs Python 3.14+`, which was checked
+     directly.
+   - A19.02 warns because #193 touched six ORM model files and `verify_bundle.py`. The
+     models changed only in annotation syntax (forward references unquoted, which 3.14's
+     deferred annotations allow); no column, constraint or table changed, and there is no
+     migration. `verify_bundle.py` changed its docstring and that one `except` line. The
+     upgrade rows A19.02 makes required (M19.02–M19.05) were already required by the
+     interpreter move and are planned under Extra checks.
+
+9. **The frontend image's Node is not the Node anything tests.** CI's `frontend` job, the
+   desktop build and the Pages build use Node 22 (`setup-node`). `frontend/Dockerfile` was
+   already on Node 25 before this release, and #172 moves it to 26. No job builds that image
+   before a tag, so it's the frontend twin of Finding 2.
+   - Checked for this release on 2026-10-19: #172's tree builds the `runtime` target on
+     `node:26-bookworm-slim` (v26.12.0). The container comes up healthy.
+   - `/`, `/login`, `/settings` and `/dashboard` answer exactly as the current Node 25 stack
+     does (200, 200, 307, 404; `/dashboard` is not a route).
+   - **Resolved in this release by #196**, at the release manager's choice of Node 26
+     everywhere:
+     - ci.yml's `frontend` and `golden-e2e`, desktop's `shell` and pages' `build` set up
+       Node 26.
+     - `frontend/package.json` declares `engines >=26`, and every `Node N+` in the docs
+       says 26.
+     - A10.07 fails a commit that splits them again. It shares A10.06's implementation
+       through a `Runtime` descriptor.
+     - Checked on 2026-10-19 in `node:26-bookworm-slim` (v26.12.0): `npm ci` (no engine
+       warnings), lint, typecheck, 495/495 tests, and `build`, `build:desktop` and
+       `build:pages`.
+
 **Carried over from the v3.0.1 record, still open**
 
 5. The download page's size note (~80 MB download, ~180 MB installed) against 3.0.1's
@@ -323,6 +370,51 @@ required ones. Each line names the row it decides; none is satisfied by source e
 - **E3.** Run `./start.sh --rebuild` against the existing local database, which 3.11 images
   wrote. Migrations must apply on 3.14, a run left waiting at a gate before the switch must be
   approvable, and its bundle must verify.
+
+**Stage A results:**
+- **E1 — PASS.** I dispatched `release.yml` on `main` at `2a560d2` (the merge of #192) with
+  `tag=edge`: [run 39261742738](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/runs/39261742738),
+  2026-10-19.
+  - The run passed: the stamp job on 3.14, all six image builds, and all three manifests.
+    `release` was skipped, so no GitHub Release was created and `latest` didn't move.
+  - "The pushed image reports the commit that built it" passed for api and worker, on both
+    amd64 and arm64.
+  - Checked independently by pulling and running `:edge`:
+    - The api image on arm64 reports Python 3.14.8, `version 3.0.2`, `git_sha 2a560d2…`,
+      `dirty False`.
+    - The worker image on amd64 (under emulation, `platform.machine() == x86_64`) reports
+      the same, so the amd64 image starts. That's the M10.03 amd64 gap, partly closed.
+- **E2: PASS.** Run on 2026-10-19 on clean `main` at `2a560d2`, Apple Silicon.
+
+  | Build | Stale stamp planted (2.1.0, `33f1916`) | `/api/v1/version` |
+  |---|---|---|
+  | `./start.sh --rebuild` | no | `3.0.2`, `2a560d2…`, `dirty false` |
+  | `./start.sh --rebuild` | yes | `3.0.2`, `2a560d2…`, `dirty false`, on both the api and worker containers |
+  | hand-run `docker build --target api` | yes | `unknown` in every field, `dirty true` |
+
+  A local build reports `contract_version: unknown`, because only `release.yml` hashes the
+  contract. It's honest, not stale. The planted file was removed afterwards.
+- **E3: PASS.** Run on 2026-10-19 against the release manager's local database. Its runs were
+  written by 3.11 images up to 2026-10-05; the stack was rebuilt on 3.14 at `2a560d2`.
+  - **Migrations:** the database is at head (`0027_run_prompt_provenance`). 3.0.2 adds no
+    migration, so `alembic upgrade head` on 3.14 was a no-op.
+  - **Checkpoints:** there are 13 runs waiting at the report gate, created 2026-08-19 to
+    2026-10-05 by 3.11 workers. On 3.14, all 13 checkpoints decode `READ` through
+    `checkpoint_read.read_checkpoint`, each with its evidence and draft present. The graph
+    places every one at `hitl_gate`, so they can still be resumed. This was read-only.
+  - **Approval doesn't resume a checkpoint.** It records the review and freezes the artifact
+    from the tables (`runs.submit_report_review`). Only a rework resumes the graph, so M19.02
+    must exercise a rework as well as an approval.
+  - **Approval:** run `e4c2f880` (created 2026-10-05, owned by the throwaway account
+    `e2e-ee3ea2e9@example.com`) was approved by calling `runs.submit_report_review` as its
+    owner inside the 3.14 api container. Review `955b3c21`, artifact `de9749e2`, status
+    `COMPLETED`.
+  - **Bundle:** served by `runs.get_bundle` (113,859 bytes, sha256 `41e349e0…`), it verifies
+    **PASS 7/7** with `python -m research_engine.verify_bundle` on 3.14 (in the image) and on
+    3.11.15 (this Mac).
+  - No run belonging to the release manager was approved.
+  - The 3.11 verification ran before #193. On the release tree the 3.0.2 verifier needs
+    3.14, and the v3.0.1 verifier on 3.11 verifies this bundle too (Finding 8).
 
 **After the tag (stage B), on the published artifacts — rows that are no longer `N/A`:**
 
@@ -369,6 +461,7 @@ on `openrouter` and `custom` routes. And the size note in Finding 5.
 | A2.01 counted only merge commits; squash-merged PRs escaped the scope check | `merged_prs` (A2.01); `test_a_squash_merged_pr_is_in_scope_as_surely_as_a_merge_commit` |
 | A2.03 read the template's waiver placeholder as a waiver | `records_eval_waiver` (A2.03); `test_the_templates_waiver_placeholder_is_not_a_waiver` |
 | A dependency bump changed the server images' Python with nothing building the image | A10.06 (#187, #189): every workflow's Python equals the image's |
+| The frontend image's Node (25, then 26) differs from CI's (22), and nothing builds the image before a tag | A10.07 (#196): every workflow's Node and every stated floor equal the image's |
 | A local image carried a stale build stamp and reported another version and commit | `test_local_build_stamp.py` (#188); the sidecar spec refuses a stale stamp |
 
 ## Release approval

@@ -68,13 +68,14 @@ export const RELEASES: Release[] = [
       "A server you build yourself reports its own version and commit. A leftover build stamp in a checkout was copied into every image built from it, so a 3.0.2 build could tell Settings \u2192 About it was 2.1.0; ./start.sh now stamps images from the checkout, and an image built any other way says unknown.",
       "The server and the desktop app\u2019s engine run Python 3.14, the version every test now runs on. The server images had moved to 3.14 while every test still ran 3.11.",
       "The Oracle Cloud deploy script installs the latest release. It defaulted to a development build made before 1.0.",
-      "The self-hosted web server runs Next.js 16.3.8, which fixes a high-severity server-side request forgery advisory in its image optimization, along with two medium and one low; sharp and source-map-js are updated past high-severity advisories of their own.",
+      "The self-hosted web server runs Next.js 16.4.2, past a high-severity server-side request forgery advisory in its image optimization (fixed in 16.3.8), along with two medium and one low; sharp and source-map-js are updated past high-severity advisories of their own.",
     ],
     improvedSummary:
       "Research through Custom, OpenRouter and Ollama setups runs for real instead of returning the demo, and no longer fails at plan approval. A reworked report no longer doubles its evidence, and its cited counts describe the draft you approved. Citation support measured 96.9% on ten fixed questions.",
     known: [
       "Research saved before this release keeps its doubled evidence after a rework: its snippet count stays doubled, and a run approved before 3.0.2 keeps the duplicates in its verification bundle. Cited counts and \u201cbacks N claims\u201d are corrected on older runs too, because the page works them out when it loads.",
       "The spend limit (MAX_COST_PER_SESSION_USD) does nothing on OpenRouter and Custom routes. Their prices are not known, so a run\u2019s cost is recorded as $0.00 whatever it spent. Cap spending at the provider.",
+      "Verifying a bundle with this release\u2019s verifier needs Python 3.14 or later; on an older Python it refuses to start. The bundle format has not changed, so the verifier from 3.0.1 still verifies 3.0.2 bundles on an older Python.",
       "Bundles from this release are format v2, and a verifier from before 3.0.0 refuses them. Check a bundle with the verifier from this release; it still verifies every earlier bundle unchanged.",
       "Research recorded before 3.0.0 still exports as a v1 bundle with no instructions recorded. Its prompts were never captured, and the bundle does not invent them.",
       "Research recorded on the earlier pipeline (Sessions) does not apply customized instructions, and says so.",
@@ -93,7 +94,7 @@ export const RELEASES: Release[] = [
       "Claim verification is still not implemented, claim lineage across revisions is still not tracked, and contradiction detection is still source-level and unscored.",
     ],
     knownSummary:
-      "Research saved before this release keeps its doubled evidence after a rework, and the spend limit does nothing on OpenRouter and Custom routes. macOS still blocks the first launch until you run one Terminal command, and citation support rests on a single run.",
+      "Research saved before this release keeps its doubled evidence after a rework, and the spend limit does nothing on OpenRouter and Custom routes. This release\u2019s bundle verifier needs Python 3.14; on an older Python, 3.0.1\u2019s verifies the same bundles.",
   },
   {
     version: "v3.0.1",
