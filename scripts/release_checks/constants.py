@@ -27,19 +27,19 @@ PLATFORMS = ("linux/amd64", "linux/arm64")
 
 # A10.06: every `actions/setup-python` in `.github/workflows/` runs the backend image's
 # Python, except a job named in PYTHON_EXCEPTIONS, which runs exactly the version named
-# there. These jobs run the server's code and must keep setting one up, so that dropping
-# the step cannot hide the interpreter.
-SERVER_PYTHON_JOBS = {
+# there. These jobs must keep setting one up, so that dropping the step cannot hide the
+# interpreter: the ones that test or stamp the server, and desktop.yml's `sidecar`, whose
+# interpreter PyInstaller freezes into the desktop engine.
+REQUIRED_PYTHON_JOBS = {
     ".github/workflows/ci.yml": ("backend", "golden-e2e"),
     ".github/workflows/release.yml": ("stamp",),
+    ".github/workflows/desktop.yml": ("sidecar",),
 }
-# The desktop engine: PyInstaller bundles its own interpreter, and moving it means a
-# packaged build verified on three OSes, which is a decision of its own. Until then nothing
-# in the backend suite runs on it (AGENTS.md, "What CI actually enforces"). Pinned here so
-# it cannot drift by accident; an entry that stops describing a job fails as stale.
-PYTHON_EXCEPTIONS = {
-    (".github/workflows/desktop.yml", "sidecar"): "3.11",
-}
+# Empty: both hosts ship the image's Python, which is what makes the backend suite a test
+# of each (AGENTS.md, "What CI actually enforces"). An entry is for a job that cannot follow
+# the image yet — the desktop engine, until PyInstaller supports a new Python — and holds it
+# at exactly the version named; one that stops describing a job fails as stale.
+PYTHON_EXCEPTIONS: dict[tuple[str, str], str] = {}
 
 # Required on `main` by ruleset (RG-12). A check dropped from this list is a check a merge
 # no longer waits for.
