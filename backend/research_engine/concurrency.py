@@ -13,16 +13,13 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Iterable
-from typing import TypeVar
 
 import structlog
 
 logger = structlog.get_logger()
 
-_T = TypeVar("_T")
 
-
-async def gather_or_cancel(*aws: Awaitable[_T]) -> list[_T]:
+async def gather_or_cancel[T](*aws: Awaitable[T]) -> list[T]:
     """`asyncio.gather`, except a failure cancels the siblings and waits them out first.
 
     Results come back in argument order. When a child fails, every unfinished sibling is

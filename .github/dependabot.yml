@@ -131,7 +131,8 @@ updates:
   # a year, and the red PR is the notice that one exists. Land it by adding the matching
   # `python-version` changes in `ci.yml`, `release.yml` and `desktop.yml` to the same branch
   # — the last moves the interpreter PyInstaller freezes, so the PR waits for a PyInstaller
-  # release that supports it and for a launched build (AGENTS.md).
+  # release that supports it and for a launched build (AGENTS.md) — and by moving every
+  # stated floor A10.06 names, ruff's target included, with what that target then rewrites.
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:

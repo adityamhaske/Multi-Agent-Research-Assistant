@@ -49,7 +49,7 @@ class MemoryChunk(Base):
     embedding_model: Mapped[str] = mapped_column(String(120), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    project: Mapped["Project"] = relationship("Project", back_populates="memory_chunks")  # noqa: F821
+    project: Mapped[Project] = relationship("Project", back_populates="memory_chunks")  # noqa: F821
 
     def __repr__(self) -> str:
         return f"<MemoryChunk id={self.id} project={self.project_id} index={self.chunk_index}>"

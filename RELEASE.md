@@ -130,7 +130,7 @@ python scripts/release_audit.py --version X.Y.Z --post-release --download --dock
 | Tool | What it does |
 |---|---|
 | `scripts/release_audit.py` | The automated checks, by stage. `--list` prints the registry |
-| `scripts/check_packaged_sidecar.py` | Launches the engine inside an installed/mounted/extracted build with an isolated data directory, checks its token gate, version and git SHA, and with `--journey` drives a run through both gates to an exported, verified bundle. CI runs it on the `.deb`, AppImage and `.msi`; people run it on the published installers |
+| `scripts/check_packaged_sidecar.py` | Launches the engine inside an installed/mounted/extracted build with an isolated data directory, checks its token gate, version and git SHA, and with `--journey` drives a run through both gates to an exported, verified bundle. CI runs it on the `.deb`, AppImage and `.msi`; people run it on the published installers. The verification imports the repository's `verify_bundle`, so it needs the engine's Python 3.14+, and reports `NOT RUN` without `pydantic` installed |
 | `scripts/sync_version.py` | Derives the version carriers from `VERSION`; `--tag` is the release workflows' guard |
 | `scripts/check_packaged_upgrade.py`, `scripts/make_upgrade_fixture.py` | Upgrade a populated older desktop data directory with a packaged engine and record what happened (currently wired to the v2.1.0 fixture — see Phase 19) |
 | `release-audit/compose.published-images.yml` | Runs the **published** images on the full-stack topology, on separate volumes |
@@ -194,7 +194,7 @@ Every one is either an automated STOP check (exit code 1) or a manual row marked
 - A required CI job failed, was skipped, or passed only on a re-run nobody explained (A3.01, A3.02, M3.01).
 - `main` no longer requires one of the eleven release-critical checks (A3.03).
 - A committed eval result was modified, or a quality-affecting change ships with no new eval and no waiver (A2.03).
-- The backend image or the desktop engine runs a different Python from the one CI tested it on (A10.06).
+- The backend image or the desktop engine runs a different Python from the one CI tested it on, or a stated Python floor names another (A10.06).
 
 **Versions**
 - Any version carrier disagrees with `VERSION`, including `Cargo.lock` (A1.01-A1.03).
@@ -505,7 +505,7 @@ Three images, two architectures each, pushed by digest and stitched into multi-a
 | A10.03 | Every image's provenance attestation records `vcs:revision` = the tag's commit, per architecture | published → post-release |
 | A10.04 | The documented deploy path (`deploy/oracle-bootstrap.sh`, `deploy/docker-compose.demo.yml`) defaults to `latest` or this version — never a moving tag like `edge` | all |
 | A10.05 | With `--docker`: the pulled `api` image reports `APP_VERSION` = `X.Y.Z` and `git_sha` = the tag's commit (the image is stamped) | published → post-release |
-| A10.06 | `backend/Dockerfile`'s `FROM python:X.Y` is the `python-version` of every `actions/setup-python` in every workflow, and `backend`, `golden-e2e`, `stamp` and `sidecar` still set one up — the image runs the interpreter its tests and its stamp ran on, and the desktop engine freezes that same interpreter, so the backend suite tests both hosts. A job that cannot follow the image (the desktop engine, until PyInstaller supports a new Python) is named in `PYTHON_EXCEPTIONS` (`scripts/release_checks/constants.py`) and held at exactly that version; there is none today. Moving a job alone, or leaving an exception stale, fails | all |
+| A10.06 | `backend/Dockerfile`'s `FROM python:X.Y` is the `python-version` of every `actions/setup-python` in every workflow, and `backend`, `golden-e2e`, `stamp` and `sidecar` still set one up — the image runs the interpreter its tests and its stamp ran on, and the desktop engine freezes that same interpreter, so the backend suite tests both hosts. A job that cannot follow the image (the desktop engine, until PyInstaller supports a new Python) is named in `PYTHON_EXCEPTIONS` (`scripts/release_checks/constants.py`) and held at exactly that version; there is none today. Moving a job alone, or leaving an exception stale, fails. The same Python is every stated floor (`PYTHON_FLOORS`): `requires-python`, ruff's `target-version`, the version guards, the Makefile's venv, and every `Python X.Y+` in the published and top-level Markdown — so a base-image bump fails until the floor a contributor or a bundle verifier is told moves with it | all |
 
 - [ ] **M10.01** Run the published images on the full-stack topology, on their own volumes:
   - Verify: `RELEASE_TAG=X.Y.Z FRONTEND_PORT=3041 LLM_MODE=fake docker compose -p release-check -f docker-compose.full.yml -f release-audit/compose.published-images.yml up -d --no-build`

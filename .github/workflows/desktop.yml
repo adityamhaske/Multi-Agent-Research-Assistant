@@ -271,6 +271,12 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v7
+      # `check_packaged_sidecar.py` imports the repository's `verify_bundle` to check the
+      # bundle the packaged engine exports, and the engine refuses any Python but the image's
+      # — which the runner's own `python3` is not. A10.06 holds this job to the image's.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
       - name: Fetch the sidecar built for this OS
         uses: actions/download-artifact@v8
         with:

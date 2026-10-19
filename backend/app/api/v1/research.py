@@ -211,7 +211,7 @@ async def stream_events(
     last_event_id = request.headers.get("last-event-id")
     after_id = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
 
-    async def gen() -> AsyncGenerator[str, None]:
+    async def gen() -> AsyncGenerator[str]:
         from app import adapters
 
         channel = f"session:{session_id}:events"

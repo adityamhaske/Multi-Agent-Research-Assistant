@@ -179,7 +179,7 @@ bind on them at all.
 
 | Layer | Technology | Why |
 |---|---|---|
-| Language | Python 3.11+ | Async maturity, typing, ecosystem |
+| Language | Python 3.14+ | Async maturity, typing, ecosystem |
 | API | FastAPI | Async-native, Pydantic v2, OpenAPI out of the box |
 | **Agent orchestration** | **LangGraph** | Real `StateGraph`, conditional edges, `interrupt()` for human gates, and Postgres checkpointing. The load-bearing choice: checkpoint-resume is what makes the gate correct rather than a polling loop |
 | Checkpointer | `langgraph-checkpoint-postgres` | Durable graph state in the database already running; resume survives worker restarts |

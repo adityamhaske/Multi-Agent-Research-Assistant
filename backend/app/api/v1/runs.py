@@ -837,7 +837,7 @@ async def stream_run(
     last_event_id = request.headers.get("last-event-id")
     after_id = int(last_event_id) if last_event_id and last_event_id.isdigit() else 0
 
-    async def gen() -> AsyncGenerator[str, None]:
+    async def gen() -> AsyncGenerator[str]:
         # Deferred, like the two other uses of `adapters` in this module: it reaches
         # `app.config` and `app.db.redis`, and the desktop imports this file at request
         # time. Module scope here would put the server's data plane in the desktop's

@@ -15,6 +15,8 @@ script does not have is a promise nothing keeps.
 from __future__ import annotations
 
 import argparse
+import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,8 +29,11 @@ from release_checks import REGISTRY  # noqa: E402
 from release_checks.constants import (  # noqa: E402
     CHECKSUMS,
     FAIL,
+    GUARD_PYTHON_FLOOR,
     INSTALLERS,
     PASS,
+    PROSE_PYTHON_FLOOR,
+    PYTHON_FLOORS,
     REQUIRED_PYTHON_JOBS,
     UNAVAILABLE,
     WARN,
@@ -42,6 +47,7 @@ from release_checks.evaluate import (  # noqa: E402
     changelog_heading,
     checksum_problems,
     entry_completeness,
+    floor_drift,
     image_pythons,
     interpreter_drift,
     manual_ids,
@@ -320,6 +326,52 @@ def test_an_exception_that_no_longer_describes_a_job_fails():
     ]
 
 
+FLOORS = {
+    "pyproject.toml": (r'^target-version = "py(3)(\d+)"',),
+    "README.md": (PROSE_PYTHON_FLOOR,),
+}
+STATED = {
+    "pyproject.toml": '[tool.ruff]\ntarget-version = "py314"\n',
+    "README.md": "## Prerequisites\n\n- Python 3.14+\n- Node 22+\n",
+    "docs/other.md": "Nothing here states a floor; Python 3.14 is named without one.\n",
+}
+
+
+def test_a_floor_at_the_images_python_passes():
+    assert floor_drift("3.14", STATED, FLOORS, (PROSE_PYTHON_FLOOR,)) == []
+
+
+def test_a_floor_a_bump_left_behind_is_caught():
+    # After #173 the image and CI ran 3.14 and every stated floor still said 3.11: a promise
+    # about an interpreter no job ran.
+    behind = {
+        path: text.replace("314", "311").replace("3.14", "3.11") for path, text in STATED.items()
+    }
+    assert floor_drift("3.14", behind, FLOORS, (PROSE_PYTHON_FLOOR,)) == [
+        "pyproject.toml: states a Python 3.11 floor; CI runs only the image's 3.14",
+        "README.md: states a Python 3.11 floor; CI runs only the image's 3.14",
+    ]
+
+
+def test_a_floor_the_check_cannot_read_fails_rather_than_drops_out():
+    reworded = {**STATED, "README.md": "## Prerequisites\n\n- A recent Python\n"}
+    assert floor_drift("3.14", reworded, FLOORS) == [
+        f"README.md: no line states the Python floor in the form this check reads "
+        f"(`{PROSE_PYTHON_FLOOR}`)"
+    ]
+    gone = {**STATED, "pyproject.toml": None}
+    assert floor_drift("3.14", gone, FLOORS) == [
+        "pyproject.toml is missing, so the Python floor it states cannot be read"
+    ]
+
+
+def test_a_floor_stated_in_a_document_nobody_listed_is_compared():
+    new = {**STATED, "docs/other.md": "Running from source needs Python 3.12+.\n"}
+    assert floor_drift("3.14", new, FLOORS, (PROSE_PYTHON_FLOOR,)) == [
+        "docs/other.md: states a Python 3.12 floor; CI runs only the image's 3.14"
+    ]
+
+
 def _python_check(root: Path) -> Outcome:
     args = argparse.Namespace(
         root=root,
@@ -338,7 +390,11 @@ def _python_check(root: Path) -> Outcome:
 
 def _copy_interpreter_files(dest: Path) -> None:
     workflows = sorted((ROOT / ".github/workflows").glob("*.yml"))
-    for rel in ("backend/Dockerfile", *(str(w.relative_to(ROOT)) for w in workflows)):
+    for rel in (
+        "backend/Dockerfile",
+        *(str(w.relative_to(ROOT)) for w in workflows),
+        *PYTHON_FLOORS,
+    ):
         (dest / rel).parent.mkdir(parents=True, exist_ok=True)
         (dest / rel).write_text((ROOT / rel).read_text(encoding="utf-8"), encoding="utf-8")
 
@@ -349,6 +405,23 @@ def test_the_repository_runs_one_python(tmp_path):
     _copy_interpreter_files(tmp_path)
     outcome = _python_check(tmp_path)
     assert outcome.status == PASS, outcome.detail
+
+
+def test_every_stated_floor_in_the_repository_is_one_the_check_reads():
+    # A floor dropped from PYTHON_FLOORS stops being compared, and nothing else would notice:
+    # the prose form is scanned everywhere, but a version guard or a packaging field is only
+    # read where the map points.
+    tracked = subprocess.run(
+        ["git", "ls-files", "*.py", "*.toml"], cwd=ROOT, capture_output=True, text=True, check=True
+    ).stdout.split()
+    forms = (GUARD_PYTHON_FLOOR, r"^requires-python\s*=", r"^target-version\s*=")
+    stating = {
+        rel
+        for rel in tracked
+        if any(re.search(rx, (ROOT / rel).read_text(encoding="utf-8"), re.M) for rx in forms)
+    }
+    assert stating, "found no stated floor at all — the scan is broken, not the repository"
+    assert stating - set(PYTHON_FLOORS) == set()
 
 
 def test_drift_planted_in_the_real_dockerfile_fails_the_real_check(tmp_path):
@@ -370,14 +443,33 @@ def test_drift_planted_in_the_real_dockerfile_fails_the_real_check(tmp_path):
             assert f"{path}: job `{job}` sets up Python {image}; the image runs {bumped}" in (
                 outcome.detail
             )
+    # The floor is the image's Python too, so the bump's PR names every place still stating
+    # the old one rather than leaving them on an interpreter nothing will run.
+    for path in PYTHON_FLOORS:
+        assert f"{path}: states a Python {image} floor; CI runs only the image's {bumped}" in (
+            outcome.detail
+        )
 
 
 def _real_desktop_workflow(root: Path) -> tuple[Path, str, str]:
     image = image_pythons((root / "backend/Dockerfile").read_text(encoding="utf-8"))[0]
     desktop = root / ".github/workflows/desktop.yml"
     text = desktop.read_text(encoding="utf-8")
-    assert setup_python_steps(text) == [("sidecar", image)]
+    assert setup_python_steps(text) == [("sidecar", image), ("shell", image)]
     return desktop, text, image
+
+
+def _in_job(workflow: str, job: str, old: str, new: str) -> str:
+    """`workflow` with `old` replaced inside `job` alone, where it must occur exactly once."""
+    lines = workflow.splitlines(keepends=True)
+    start = lines.index(f"  {job}:\n")
+    end = next(
+        (i for i in range(start + 1, len(lines)) if re.match(r"  [\w-]+:\s*$", lines[i])),
+        len(lines),
+    )
+    body = "".join(lines[start:end])
+    assert body.count(old) == 1, (job, old)
+    return "".join(lines[:start]) + body.replace(old, new) + "".join(lines[end:])
 
 
 def test_a_desktop_engine_left_behind_fails_the_real_check(tmp_path):
@@ -387,7 +479,8 @@ def test_a_desktop_engine_left_behind_fails_the_real_check(tmp_path):
     _copy_interpreter_files(tmp_path)
     desktop, text, image = _real_desktop_workflow(tmp_path)
     desktop.write_text(
-        text.replace(f'python-version: "{image}"', 'python-version: "3.11"'), encoding="utf-8"
+        _in_job(text, "sidecar", f'python-version: "{image}"', 'python-version: "3.11"'),
+        encoding="utf-8",
     )
     outcome = _python_check(tmp_path)
     assert outcome.status == FAIL
@@ -396,21 +489,49 @@ def test_a_desktop_engine_left_behind_fails_the_real_check(tmp_path):
     )
 
 
-def test_a_desktop_engine_on_the_runners_python_fails_the_real_check(tmp_path):
+def test_a_desktop_job_on_the_runners_python_fails_the_real_check(tmp_path):
     # Without the step, PyInstaller freezes whatever Python the runner image carries, and a
-    # scan of setup-python steps would find nothing to disagree with.
+    # scan of setup-python steps would find nothing to disagree with. The shell job is held
+    # the same way: it imports the repository's bundle verifier, which that Python cannot run.
+    for job in ("sidecar", "shell"):
+        _copy_interpreter_files(tmp_path)
+        desktop, text, _image = _real_desktop_workflow(tmp_path)
+        desktop.write_text(
+            _in_job(text, job, "uses: actions/setup-python@", "uses: example/not-setup-python@"),
+            encoding="utf-8",
+        )
+        outcome = _python_check(tmp_path)
+        assert outcome.status == FAIL
+        assert outcome.detail == (
+            f".github/workflows/desktop.yml: job `{job}` no longer sets up Python with "
+            "actions/setup-python, so its interpreter cannot be compared with the image's"
+        )
+
+
+def test_a_floor_left_on_311_fails_the_real_check(tmp_path):
+    # The negative control for the floor: the image and every job agree, and the lines that
+    # still said 3.11 after #173 are planted back — the ruff target, the quick start's
+    # prerequisite, and the same promise made in a document no map lists.
     _copy_interpreter_files(tmp_path)
-    desktop, text, _image = _real_desktop_workflow(tmp_path)
-    assert text.count("uses: actions/setup-python@") == 1
-    desktop.write_text(
-        text.replace("uses: actions/setup-python@", "uses: example/not-setup-python@"),
-        encoding="utf-8",
-    )
+    image = image_pythons((tmp_path / "backend/Dockerfile").read_text(encoding="utf-8"))[0]
+    for rel, old, new in (
+        ("backend/pyproject.toml", f'"py{image.replace(".", "")}"', '"py311"'),
+        ("docs/getting-started/20-quick-start.md", f"Python {image}+", "Python 3.11+"),
+    ):
+        path = tmp_path / rel
+        text = path.read_text(encoding="utf-8")
+        assert text.count(old) == 1, rel
+        path.write_text(text.replace(old, new), encoding="utf-8")
+    (tmp_path / "docs/new-guide.md").write_text("Needs Python 3.11+.\n", encoding="utf-8")
     outcome = _python_check(tmp_path)
     assert outcome.status == FAIL
-    assert outcome.detail == (
-        ".github/workflows/desktop.yml: job `sidecar` no longer sets up Python with "
-        "actions/setup-python, so its interpreter cannot be compared with the image's"
+    assert outcome.detail == "; ".join(
+        f"{rel}: states a Python 3.11 floor; CI runs only the image's {image}"
+        for rel in (
+            "backend/pyproject.toml",
+            "docs/getting-started/20-quick-start.md",
+            "docs/new-guide.md",
+        )
     )
 
 

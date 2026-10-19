@@ -29,9 +29,7 @@ import contextvars
 import os
 import threading
 from collections.abc import Coroutine
-from typing import Any, TypeVar
-
-_T = TypeVar("_T")
+from typing import Any
 
 _runner: asyncio.Runner | None = None
 _runner_pid: int | None = None
@@ -58,7 +56,7 @@ def _process_runner() -> asyncio.Runner:
     return _runner
 
 
-def run(coro: Coroutine[Any, Any, _T]) -> _T:
+def run[T](coro: Coroutine[Any, Any, T]) -> T:
     """Run one Celery task's coroutine to completion on this process's loop."""
     try:
         runner = _process_runner()
@@ -67,7 +65,7 @@ def run(coro: Coroutine[Any, Any, _T]) -> _T:
         raise
     root: list[asyncio.Task] = []
 
-    async def as_root() -> _T:
+    async def as_root() -> T:
         root.append(asyncio.current_task())
         return await coro
 

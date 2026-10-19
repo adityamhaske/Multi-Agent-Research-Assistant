@@ -155,13 +155,13 @@ class Session(Base):
 
     # Relationships. passive_deletes lets the DB-level ON DELETE CASCADE do the work
     # instead of the ORM loading every child row (docs/05 §5).
-    user: Mapped["User"] = relationship("User", back_populates="sessions")  # noqa: F821
-    project: Mapped["Project"] = relationship("Project", back_populates="sessions")  # noqa: F821
+    user: Mapped[User] = relationship("User", back_populates="sessions")  # noqa: F821
+    project: Mapped[Project] = relationship("Project", back_populates="sessions")  # noqa: F821
     # `agent_logs.session_id` is polymorphic across sessions and runs and carries no
     # foreign key, so the relationship states the join condition explicitly and cascades in
     # the ORM rather than relying on the database. `viewonly=False` with `delete-orphan` is
     # what keeps "delete this session removes its trace" true without an FK.
-    agent_logs: Mapped[list["AgentLog"]] = relationship(  # noqa: F821
+    agent_logs: Mapped[list[AgentLog]] = relationship(  # noqa: F821
         "AgentLog",
         primaryjoin="Session.id == foreign(AgentLog.session_id)",
         cascade="all, delete-orphan",
@@ -178,14 +178,14 @@ class Session(Base):
     # table is pgvector-backed and absent from the desktop's schema, so session deletion
     # answered 500 on every use of a control the desktop build renders. A cascade is a
     # promise that the table is there; on one host it is not.
-    memory_chunks: Mapped[list["MemoryChunk"]] = relationship(  # noqa: F821
+    memory_chunks: Mapped[list[MemoryChunk]] = relationship(  # noqa: F821
         "MemoryChunk",
         primaryjoin="Session.id == foreign(MemoryChunk.source_report_id)",
         viewonly=True,
         lazy="select",
         overlaps="project,memory_chunks",
     )
-    chat_messages: Mapped[list["ChatMessage"]] = relationship(  # noqa: F821
+    chat_messages: Mapped[list[ChatMessage]] = relationship(  # noqa: F821
         "ChatMessage",
         back_populates="session",
         cascade="all, delete-orphan",

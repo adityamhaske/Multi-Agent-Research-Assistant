@@ -334,6 +334,41 @@ def interpreter_drift(
     return problems
 
 
+def floor_drift(
+    image: str,
+    files: dict[str, str | None],
+    required: dict[str, tuple[str, ...]],
+    anywhere: tuple[str, ...] = (),
+) -> list[str]:
+    """Every stated Python floor that is not the image's Python, or can no longer be read.
+
+    `files` maps a path to its text, or None when it is gone. Each pattern captures (major,
+    minor). A pattern in `required` must match its file at least once, so a reworded line
+    fails instead of dropping out of the check; one in `anywhere` is compared wherever it
+    matches, so a floor stated in a new document is checked rather than missed.
+    """
+    problems = []
+    for path, text in files.items():
+        own = required.get(path, ())
+        if text is None:
+            if own:
+                problems.append(f"{path} is missing, so the Python floor it states cannot be read")
+            continue
+        for rx in dict.fromkeys((*own, *anywhere)):
+            stated = sorted({f"{m[1]}.{m[2]}" for m in re.finditer(rx, text, re.M)})
+            if not stated and rx in own:
+                problems.append(
+                    f"{path}: no line states the Python floor in the form this check reads "
+                    f"(`{rx}`)"
+                )
+            problems += [
+                f"{path}: states a Python {v} floor; CI runs only the image's {image}"
+                for v in stated
+                if v != image
+            ]
+    return problems
+
+
 SECRET_PATTERNS = (
     ("AWS access key", r"\bAKIA[0-9A-Z]{16}\b"),
     ("GitHub token", r"\bgh[pousr]_[A-Za-z0-9]{36,}\b"),

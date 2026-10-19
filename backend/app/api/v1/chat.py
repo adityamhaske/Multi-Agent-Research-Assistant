@@ -139,7 +139,7 @@ async def send_message(
             HumanMessage(content=m.content) if m.role == "user" else AIMessage(content=m.content)
         )
 
-    async def gen() -> AsyncGenerator[str, None]:
+    async def gen() -> AsyncGenerator[str]:
         keys_token = set_user_keys(user_keys)
         acc = ""
         try:

@@ -8,7 +8,7 @@ check, prints a human-readable report, and exits 0 (pass) or 1 (fail).
     python -m research_engine.verify_bundle path/to/bundle.json --format json
 
 The only import from the engine is the bundle schema (Pydantic models). Everything
-else is stdlib. A third party on a bare machine with Python + pydantic can run this.
+else is stdlib. A third party on a bare machine with Python 3.14+ and pydantic can run this.
 
 Checks:
   1. Schema validity
@@ -378,7 +378,7 @@ def _encodable(stream) -> bool:
     encoding = getattr(stream, "encoding", None) or "ascii"
     try:
         "".join(_ASCII_FALLBACK).encode(encoding)
-    except (UnicodeEncodeError, LookupError):
+    except UnicodeEncodeError, LookupError:
         return False
     return True
 

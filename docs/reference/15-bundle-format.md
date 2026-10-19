@@ -261,7 +261,9 @@ run that recorded its prompts but has no recorded status reads as `NONE`.
 
 ## Standalone verifier
 
-Ships with the engine. No model, no network, no database.
+Ships with the engine. No model, no network, no database. It needs Python 3.14+ and
+`pydantic` — the engine's floor, the one Python CI runs it on; an older interpreter is
+refused by name.
 
 ```bash
 python -m research_engine.verify_bundle path/to/research.bundle.json

@@ -59,7 +59,7 @@ class User(Base):
     # same convention `model_routing`'s NULL already uses.
     preferences: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
 
-    sessions: Mapped[list["Session"]] = relationship(  # noqa: F821
+    sessions: Mapped[list[Session]] = relationship(  # noqa: F821
         "Session",
         back_populates="user",
         cascade="all, delete-orphan",
