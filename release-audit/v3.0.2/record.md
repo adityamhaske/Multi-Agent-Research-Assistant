@@ -337,7 +337,35 @@ required ones. Each line names the row it decides; none is satisfied by source e
       `dirty False`.
     - The worker image on amd64 (under emulation, `platform.machine() == x86_64`) reports
       the same, so the amd64 image starts. That's the M10.03 amd64 gap, partly closed.
-- **E2, E3:** PENDING.
+- **E2: PASS.** Run on 2026-10-19 on clean `main` at `2a560d2`, Apple Silicon.
+
+  | Build | Stale stamp planted (2.1.0, `33f1916`) | `/api/v1/version` |
+  |---|---|---|
+  | `./start.sh --rebuild` | no | `3.0.2`, `2a560d2…`, `dirty false` |
+  | `./start.sh --rebuild` | yes | `3.0.2`, `2a560d2…`, `dirty false`, on both the api and worker containers |
+  | hand-run `docker build --target api` | yes | `unknown` in every field, `dirty true` |
+
+  A local build reports `contract_version: unknown`, because only `release.yml` hashes the
+  contract. It's honest, not stale. The planted file was removed afterwards.
+- **E3: PASS.** Run on 2026-10-19 against the release manager's local database. Its runs were
+  written by 3.11 images up to 2026-10-05; the stack was rebuilt on 3.14 at `2a560d2`.
+  - **Migrations:** the database is at head (`0027_run_prompt_provenance`). 3.0.2 adds no
+    migration, so `alembic upgrade head` on 3.14 was a no-op.
+  - **Checkpoints:** there are 13 runs waiting at the report gate, created 2026-08-19 to
+    2026-10-05 by 3.11 workers. On 3.14, all 13 checkpoints decode `READ` through
+    `checkpoint_read.read_checkpoint`, each with its evidence and draft present. The graph
+    places every one at `hitl_gate`, so they can still be resumed. This was read-only.
+  - **Approval doesn't resume a checkpoint.** It records the review and freezes the artifact
+    from the tables (`runs.submit_report_review`). Only a rework resumes the graph, so M19.02
+    must exercise a rework as well as an approval.
+  - **Approval:** run `e4c2f880` (created 2026-10-05, owned by the throwaway account
+    `e2e-ee3ea2e9@example.com`) was approved by calling `runs.submit_report_review` as its
+    owner inside the 3.14 api container. Review `955b3c21`, artifact `de9749e2`, status
+    `COMPLETED`.
+  - **Bundle:** served by `runs.get_bundle` (113,859 bytes, sha256 `41e349e0…`), it verifies
+    **PASS 7/7** with `python -m research_engine.verify_bundle` on 3.14 (in the image) and on
+    3.11.15 (this Mac).
+  - No run belonging to the release manager was approved.
 
 **After the tag (stage B), on the published artifacts — rows that are no longer `N/A`:**
 
