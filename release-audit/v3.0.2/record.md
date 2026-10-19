@@ -324,6 +324,21 @@ required ones. Each line names the row it decides; none is satisfied by source e
   wrote. Migrations must apply on 3.14, a run left waiting at a gate before the switch must be
   approvable, and its bundle must verify.
 
+**Stage A results:**
+- **E1 — PASS.** I dispatched `release.yml` on `main` at `2a560d2` (the merge of #192) with
+  `tag=edge`: [run 39261742738](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/actions/runs/39261742738),
+  2026-10-19.
+  - The run passed: the stamp job on 3.14, all six image builds, and all three manifests.
+    `release` was skipped, so no GitHub Release was created and `latest` didn't move.
+  - "The pushed image reports the commit that built it" passed for api and worker, on both
+    amd64 and arm64.
+  - Checked independently by pulling and running `:edge`:
+    - The api image on arm64 reports Python 3.14.8, `version 3.0.2`, `git_sha 2a560d2…`,
+      `dirty False`.
+    - The worker image on amd64 (under emulation, `platform.machine() == x86_64`) reports
+      the same, so the amd64 image starts. That's the M10.03 amd64 gap, partly closed.
+- **E2, E3:** PENDING.
+
 **After the tag (stage B), on the published artifacts — rows that are no longer `N/A`:**
 
 - **M19.02:** server upgrade from the published 3.0.1 images (3.11) to 3.0.2 (3.14), on a
