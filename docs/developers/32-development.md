@@ -4,7 +4,7 @@ Getting set up to change the code.
 
 ## Prerequisites
 
-Python 3.14+, Node 22+, and Docker (for Postgres and Redis).
+Python 3.14+, Node 26+, and Docker (for Postgres and Redis).
 
 ## Setup
 

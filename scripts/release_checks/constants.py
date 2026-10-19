@@ -65,6 +65,32 @@ PYTHON_FLOORS: dict[str, tuple[str, ...]] = {
     "backend/research_engine/verify_bundle.py": (PROSE_PYTHON_FLOOR,),
 }
 
+# A10.07: A10.06's rule for the other image. Every `actions/setup-node` runs the frontend
+# image's Node. These jobs must keep setting one up: `frontend` lints, tests and builds the
+# web target, `golden-e2e` builds the standalone server the image ships, desktop.yml's
+# `shell` builds the static export the app bundles, and pages.yml's `build` the public site.
+REQUIRED_NODE_JOBS = {
+    ".github/workflows/ci.yml": ("frontend", "golden-e2e"),
+    ".github/workflows/desktop.yml": ("shell",),
+    ".github/workflows/pages.yml": ("build",),
+}
+# Empty, and held to the same terms as PYTHON_EXCEPTIONS: a job that cannot follow the image
+# is named here at exactly its version, and an entry that stops describing a job fails.
+NODE_EXCEPTIONS: dict[tuple[str, str], str] = {}
+
+# Every stated Node floor is the image's Node too. Three documents once named three floors —
+# 18+, 20+ and 22+ — while the image ran 25 and vitest refused every one but 22, so a
+# contributor following CONTRIBUTING.md could not run the frontend's tests at all.
+PROSE_NODE_FLOOR = r"\bNode(?:\.js)? (\d+)\+"
+ENGINES_NODE_FLOOR = r'^\s*"node":\s*">=\s*(\d+)'
+NODE_FLOORS: dict[str, tuple[str, ...]] = {
+    "frontend/package.json": (ENGINES_NODE_FLOOR,),
+    "CONTRIBUTING.md": (PROSE_NODE_FLOOR,),
+    "frontend/README.md": (PROSE_NODE_FLOOR,),
+    "docs/getting-started/20-quick-start.md": (PROSE_NODE_FLOOR,),
+    "docs/developers/32-development.md": (PROSE_NODE_FLOOR,),
+}
+
 # Required on `main` by ruleset (RG-12). A check dropped from this list is a check a merge
 # no longer waits for.
 REQUIRED_CHECKS = (

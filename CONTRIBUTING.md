@@ -20,7 +20,7 @@ pip install -r requirements.txt
 pytest
 ```
 
-### Frontend (Node 18+)
+### Frontend (Node 26+)
 
 ```bash
 cd frontend
