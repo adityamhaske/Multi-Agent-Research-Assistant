@@ -24,7 +24,7 @@ Before building or developing, `scripts/prepare-session-routes.mjs` links the ap
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 26+
 - npm (or pnpm / yarn)
 - Backend API running on `http://localhost:8000` (or started via `./start.sh` / `make infra-up`)
 

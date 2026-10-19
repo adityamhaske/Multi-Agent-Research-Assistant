@@ -28,18 +28,23 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from release_checks import REGISTRY  # noqa: E402
 from release_checks.constants import (  # noqa: E402
     CHECKSUMS,
+    ENGINES_NODE_FLOOR,
     FAIL,
     GUARD_PYTHON_FLOOR,
     INSTALLERS,
+    NODE_FLOORS,
     PASS,
+    PROSE_NODE_FLOOR,
     PROSE_PYTHON_FLOOR,
     PYTHON_FLOORS,
+    REQUIRED_NODE_JOBS,
     REQUIRED_PYTHON_JOBS,
     UNAVAILABLE,
     WARN,
 )
 from release_checks.core import Check, Ctx, Outcome, Unavailable  # noqa: E402
 from release_checks.evaluate import (  # noqa: E402
+    NODE,
     alembic_heads,
     asset_problems,
     automated_ids,
@@ -49,6 +54,7 @@ from release_checks.evaluate import (  # noqa: E402
     entry_completeness,
     floor_drift,
     image_pythons,
+    image_versions,
     interpreter_drift,
     manual_ids,
     merged_prs,
@@ -59,8 +65,10 @@ from release_checks.evaluate import (  # noqa: E402
     release_body_problems,
     release_list_problems,
     review_references,
+    runtime_drift,
     secret_hits,
     setup_python_steps,
+    setup_steps,
     version_references,
 )
 
@@ -535,6 +543,171 @@ def test_a_floor_left_on_311_fails_the_real_check(tmp_path):
             "docs/new-guide.md",
         )
     )
+
+
+# ─── The frontend image and CI run one Node (A10.07) ───────────────────────────────────
+#
+# The same rule as A10.06, for the other image: `runtime_drift` and `floor_drift` are the one
+# implementation, and NODE is what they read. The Python tests above pin that the refactor
+# left A10.06 unchanged; these pin that Node is read the way Node is written.
+
+FRONTEND_DOCKERFILE = (
+    "# syntax=docker/dockerfile:1\nFROM node:26-bookworm-slim AS deps\n"
+    "FROM node:26-bookworm-slim AS builder\nFROM node:26-bookworm-slim AS runtime\n"
+)
+NODE_WORKFLOW = """\
+name: CI
+jobs:
+  frontend:
+    steps:
+      - uses: actions/checkout@v7
+      # uses: actions/setup-node@v7 — a comment, not a step
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+          cache: npm
+  golden-e2e:
+    steps:
+      - name: Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.x
+"""
+NODE_REQUIRED = {"ci.yml": ("frontend", "golden-e2e")}
+
+
+def test_node_steps_and_the_image_are_read_to_a_major():
+    assert setup_steps(NODE_WORKFLOW, NODE) == [("frontend", "26"), ("golden-e2e", "26")]
+    assert image_versions(FRONTEND_DOCKERFILE, NODE) == ["26", "26", "26"]
+
+
+def test_a_frontend_image_bump_ci_did_not_follow_is_caught():
+    # #172: Dependabot moved the image to Node 26 while every job that builds the frontend
+    # stayed on 22 — the frontend twin of #173, and nothing builds the image before a tag.
+    behind = NODE_WORKFLOW.replace('"26"', '"22"').replace("26.x", "22.x")
+    problems = runtime_drift(FRONTEND_DOCKERFILE, {"ci.yml": behind}, NODE_REQUIRED, runtime=NODE)
+    assert problems == [
+        "ci.yml: job `frontend` sets up Node 22; the image runs 26",
+        "ci.yml: job `golden-e2e` sets up Node 22; the image runs 26",
+    ]
+
+
+def test_a_node_the_check_cannot_read_fails_rather_than_passes():
+    # `lts/*` and a version file both resolve to *some* Node — just not one this can compare.
+    for unreadable in ('node-version: "lts/*"', "node-version-file: .nvmrc"):
+        text = NODE_WORKFLOW.replace('node-version: "26"', unreadable)
+        problems = runtime_drift(FRONTEND_DOCKERFILE, {"ci.yml": text}, NODE_REQUIRED, runtime=NODE)
+        assert problems == [
+            "ci.yml: job `frontend` sets up a Node this check cannot read — "
+            'state it as node-version: "N"'
+        ]
+    for image in ("FROM node:lts-slim AS deps\n", "ARG NODE=26\nFROM node:${NODE}-slim\n"):
+        problems = runtime_drift(image, {"ci.yml": NODE_WORKFLOW}, NODE_REQUIRED, runtime=NODE)
+        assert problems == [
+            "frontend/Dockerfile: no stage is `FROM node:N`, so the image's Node cannot be read"
+        ]
+
+
+def test_a_required_job_that_stops_setting_up_node_is_caught():
+    without = NODE_WORKFLOW.split("  golden-e2e:")[0]
+    problems = runtime_drift(FRONTEND_DOCKERFILE, {"ci.yml": without}, NODE_REQUIRED, runtime=NODE)
+    assert problems == [
+        "ci.yml: job `golden-e2e` no longer sets up Node with actions/setup-node, "
+        "so its interpreter cannot be compared with the image's"
+    ]
+
+
+def test_an_image_built_on_two_nodes_is_caught():
+    two = FRONTEND_DOCKERFILE.replace("node:26-bookworm-slim AS runtime", "node:25-slim AS runtime")
+    assert runtime_drift(two, {}, {}, runtime=NODE) == [
+        "frontend/Dockerfile builds on more than one Node (25, 26)"
+    ]
+
+
+NODE_FLOOR_MAP = {
+    "CONTRIBUTING.md": (PROSE_NODE_FLOOR,),
+    "frontend/package.json": (ENGINES_NODE_FLOOR,),
+}
+NODE_STATED = {
+    "CONTRIBUTING.md": "### Frontend (Node 26+)\n",
+    "frontend/README.md": "- Node.js 26+\n",
+    "frontend/package.json": '{\n  "engines": {\n    "node": ">=26"\n  }\n}\n',
+}
+
+
+def test_a_node_floor_at_the_images_node_passes():
+    assert floor_drift("26", NODE_STATED, NODE_FLOOR_MAP, (PROSE_NODE_FLOOR,), runtime=NODE) == []
+
+
+def test_the_node_floors_this_repository_stated_are_caught():
+    # Before A10.07 three documents named three floors — 18+, 20+ and 22+ — while the image
+    # ran 25, and vitest refuses 18, 20 and every odd release.
+    behind = {
+        "CONTRIBUTING.md": "### Frontend (Node 18+)\n",
+        "frontend/README.md": "- Node.js 20+\n",
+        "frontend/package.json": '{\n  "engines": {\n    "node": ">=22.12.0"\n  }\n}\n',
+    }
+    assert floor_drift("26", behind, NODE_FLOOR_MAP, (PROSE_NODE_FLOOR,), runtime=NODE) == [
+        "CONTRIBUTING.md: states a Node 18 floor; CI runs only the image's 26",
+        "frontend/README.md: states a Node 20 floor; CI runs only the image's 26",
+        "frontend/package.json: states a Node 22 floor; CI runs only the image's 26",
+    ]
+
+
+def _node_check(root: Path) -> Outcome:
+    args = argparse.Namespace(
+        root=root,
+        version=V,
+        stage="ci",
+        offline=True,
+        download=False,
+        docker=False,
+        repo="o/r",
+        site="https://example.test",
+        previous=None,
+    )
+    a10_07 = next(c for c in REGISTRY if c.id == "A10.07")
+    return a10_07.fn(Ctx(args))
+
+
+def _copy_node_files(dest: Path) -> None:
+    workflows = sorted((ROOT / ".github/workflows").glob("*.yml"))
+    for rel in (
+        "frontend/Dockerfile",
+        *(str(w.relative_to(ROOT)) for w in workflows),
+        *NODE_FLOORS,
+    ):
+        (dest / rel).parent.mkdir(parents=True, exist_ok=True)
+        (dest / rel).write_text((ROOT / rel).read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def test_the_repository_runs_one_node(tmp_path):
+    _copy_node_files(tmp_path)
+    outcome = _node_check(tmp_path)
+    assert outcome.status == PASS, outcome.detail
+
+
+def test_a_frontend_image_bump_planted_in_the_real_files_fails_the_real_check(tmp_path):
+    # The negative control: #172 replayed on this repository's own files.
+    _copy_node_files(tmp_path)
+    dockerfile = tmp_path / "frontend/Dockerfile"
+    image = image_versions(dockerfile.read_text(encoding="utf-8"), NODE)[0]
+    bumped = str(int(image) + 1)
+    dockerfile.write_text(
+        dockerfile.read_text(encoding="utf-8").replace(f"node:{image}-", f"node:{bumped}-"),
+        encoding="utf-8",
+    )
+    outcome = _node_check(tmp_path)
+    assert outcome.status == FAIL
+    for path, jobs in REQUIRED_NODE_JOBS.items():
+        for job in jobs:
+            assert f"{path}: job `{job}` sets up Node {image}; the image runs {bumped}" in (
+                outcome.detail
+            )
+    for path in NODE_FLOORS:
+        assert f"{path}: states a Node {image} floor; CI runs only the image's {bumped}" in (
+            outcome.detail
+        )
 
 
 # ─── Repository data ────────────────────────────────────────────────────────────────────

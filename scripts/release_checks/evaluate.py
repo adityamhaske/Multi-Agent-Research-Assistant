@@ -10,6 +10,7 @@ watch it be caught, without a release existing.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 from .constants import CHECKSUMS, IMAGES, INSTALLERS, MACOS_UNQUARANTINE, SIZE_FLOOR_MB
 
@@ -42,8 +43,12 @@ def parse_releases_ts(text: str) -> list[dict]:
                 "headline": bool(re.search(r"^\s*headline:\s*\S", chunk, re.M)),
                 "improved": _array_len(chunk, "improved"),
                 "known": _array_len(chunk, "known"),
-                "improvedSummary": bool(re.search(r'improvedSummary:\s*\n?\s*"[^"]+"', chunk)),
-                "knownSummary": bool(re.search(r'knownSummary:\s*\n?\s*"[^"]+"', chunk)),
+                "improvedSummary": bool(
+                    re.search(r'improvedSummary:\s*\n?\s*"[^"]+"', chunk)
+                ),
+                "knownSummary": bool(
+                    re.search(r'knownSummary:\s*\n?\s*"[^"]+"', chunk)
+                ),
             }
         )
     return entries
@@ -62,18 +67,24 @@ def release_list_problems(entries: list[dict]) -> list[str]:
     for e in entries:
         v = parse_version(e["version"])
         if not e["version"].startswith("v") or v is None:
-            problems.append(f"{e['version']!r} is not a v-prefixed version (it must match the tag)")
+            problems.append(
+                f"{e['version']!r} is not a v-prefixed version (it must match the tag)"
+            )
             continue
         if e["version"] in seen:
             problems.append(f"{e['version']} appears twice")
         seen.add(e["version"])
         if previous is not None and v >= previous:
-            problems.append(f"{e['version']} is listed after a lower version — newest first")
+            problems.append(
+                f"{e['version']} is listed after a lower version — newest first"
+            )
         previous = v
         if not e["date"] or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", e["date"]):
             problems.append(f"{e['version']} has no ISO date")
         elif previous_date and e["date"] > previous_date:
-            problems.append(f"{e['version']} is dated after the release listed above it")
+            problems.append(
+                f"{e['version']} is dated after the release listed above it"
+            )
         else:
             previous_date = e["date"]
     return problems
@@ -89,7 +100,9 @@ def entry_completeness(entry: dict) -> tuple[list[str], list[str]]:
     if not entry["improvedSummary"]:
         failures.append("no `improvedSummary`")
     if entry["known"] == 0:
-        warnings.append("`known` is empty — confirm in the record that nothing is known")
+        warnings.append(
+            "`known` is empty — confirm in the record that nothing is known"
+        )
     elif not entry["knownSummary"]:
         failures.append("`known` has items but no `knownSummary`")
     return failures, warnings
@@ -124,7 +137,12 @@ def version_references(files: dict[str, str]) -> list[dict]:
             found = [f"{m[1]}.{m[2]}.{m[3]}" for m in VERSION_RX.finditer(scrubbed)]
             if found:
                 refs.append(
-                    {"path": path, "line": number, "text": normalize_line(line), "versions": found}
+                    {
+                        "path": path,
+                        "line": number,
+                        "text": normalize_line(line),
+                        "versions": found,
+                    }
                 )
     return refs
 
@@ -140,11 +158,15 @@ def review_references(
     reviewed = {(a["path"], normalize_line(a["text"])) for a in allowlist}
     present = {(r["path"], r["text"]) for r in refs}
     unreviewed = [r for r in refs if (r["path"], r["text"]) not in reviewed]
-    stale = [a for a in allowlist if (a["path"], normalize_line(a["text"])) not in present]
+    stale = [
+        a for a in allowlist if (a["path"], normalize_line(a["text"])) not in present
+    ]
     cur = parse_version(current)
     future = []
     for r in refs:
-        newer = [v for v in r["versions"] if (pv := parse_version(v)) and cur and pv > cur]
+        newer = [
+            v for v in r["versions"] if (pv := parse_version(v)) and cur and pv > cur
+        ]
         # Only this product's version family: a third-party `16.3.5` is not a claim about us.
         newer = [v for v in newer if parse_version(v)[0] <= cur[0] + 1]
         if newer:
@@ -167,7 +189,9 @@ def asset_problems(assets: list[dict], version: str) -> list[str]:
     names = {a["name"] for a in assets}
     problems = [f"missing: {n}" for n in sorted(expected - names)]
     problems += [f"unexpected asset: {n}" for n in sorted(names - expected)]
-    problems += [f"asset name contains a space: {n!r}" for n in sorted(names) if " " in n]
+    problems += [
+        f"asset name contains a space: {n!r}" for n in sorted(names) if " " in n
+    ]
     for a in assets:
         suffix = next((s for s in SIZE_FLOOR_MB if a["name"].endswith(s)), None)
         if suffix and a["size"] < SIZE_FLOOR_MB[suffix] * 1024 * 1024:
@@ -178,7 +202,9 @@ def asset_problems(assets: list[dict], version: str) -> list[str]:
     return problems
 
 
-def checksum_problems(sums: dict[str, str], assets: list[dict], version: str) -> list[str]:
+def checksum_problems(
+    sums: dict[str, str], assets: list[dict], version: str
+) -> list[str]:
     """SHA256SUMS names exactly the installers, and each hash is what GitHub stored."""
     installers = {t.format(v=version) for t in INSTALLERS.values()}
     problems = [f"SHA256SUMS does not list {n}" for n in sorted(installers - set(sums))]
@@ -199,16 +225,24 @@ def checksum_problems(sums: dict[str, str], assets: list[dict], version: str) ->
 def release_body_problems(body: str, version: str) -> list[str]:
     problems = []
     if f"Desktop bundles for v{version}" not in body:
-        problems.append("the desktop workflow's appended section is missing — was it overwritten?")
+        problems.append(
+            "the desktop workflow's appended section is missing — was it overwritten?"
+        )
     if "Multi-arch container images" not in body:
-        problems.append("the release workflow's image section is missing — was it overwritten?")
+        problems.append(
+            "the release workflow's image section is missing — was it overwritten?"
+        )
     if re.search(rf":v{re.escape(version)}\b", body):
-        problems.append(f"an image is referenced as `:v{version}`; the pushed tag is `:{version}`")
+        problems.append(
+            f"an image is referenced as `:v{version}`; the pushed tag is `:{version}`"
+        )
     for image in IMAGES:
         if not re.search(rf"-{image}:{re.escape(version)}\b", body):
             problems.append(f"no `{image}:{version}` pull line")
     if MACOS_UNQUARANTINE not in body:
-        problems.append("the macOS first-launch command is missing or differs from the site's")
+        problems.append(
+            "the macOS first-launch command is missing or differs from the site's"
+        )
     if "SHA256SUMS" not in body:
         problems.append("no instruction to verify downloads against SHA256SUMS")
     return problems
@@ -227,26 +261,72 @@ def alembic_heads(revisions: dict[str, str | None]) -> list[str]:
     return sorted(r for r in revisions if r not in parents)
 
 
-def image_pythons(dockerfile: str) -> list[str]:
-    """The `X.Y` of every `FROM python:X.Y…` stage. A stage on `python:3-slim` or on a build
-    argument names none, and an empty list is what lets the caller fail on it."""
-    return re.findall(r"^\s*FROM\s+(?:--\S+\s+)*python:(\d+\.\d+)\b", dockerfile, re.M | re.I)
+@dataclass(frozen=True)
+class Runtime:
+    """An interpreter an image ships, which every workflow job and every stated floor must
+    name too (A10.06 for the backend's Python, A10.07 for the frontend's Node).
+
+    One description per runtime keeps the two checks one rule. They differ only in what they
+    read — which Dockerfile, which `setup-*` action, how a version is spelled — and #172 is
+    the reason: the frontend image drifted from CI's Node exactly as #173 had the backend's
+    Python, after a check existed for only one of them.
+    """
+
+    name: str
+    dockerfile: str
+    from_rx: str  # captures the version from a `FROM` line
+    from_form: str  # how that `FROM` is written, for a message
+    action: str  # the `uses:` that installs the runtime in a job
+    version_rx: str  # captures the version from that step's `with:` block
+    version_form: str  # how a readable version is written, for a message
+    exceptions: str  # the constant naming jobs allowed to differ
 
 
-# `python-version: "3.14"`, quoted or not, a patch allowed; anything else is unreadable.
-PYTHON_VERSION_RX = re.compile(
-    r"""\s*python-version:\s*["']?(\d+\.\d+)(?:\.\d+)?["']?\s*(?:#.*)?$"""
+PYTHON = Runtime(
+    name="Python",
+    dockerfile="backend/Dockerfile",
+    from_rx=r"^\s*FROM\s+(?:--\S+\s+)*python:(\d+\.\d+)\b",
+    from_form="python:X.Y",
+    action="actions/setup-python",
+    # `python-version: "3.14"`, quoted or not, a patch allowed; anything else is unreadable.
+    version_rx=r"""\s*python-version:\s*["']?(\d+\.\d+)(?:\.\d+)?["']?\s*(?:#.*)?$""",
+    version_form='python-version: "X.Y"',
+    exceptions="PYTHON_EXCEPTIONS",
+)
+NODE = Runtime(
+    name="Node",
+    dockerfile="frontend/Dockerfile",
+    # `node:26-bookworm-slim`: a major and nothing else. `node:lts`, or a build argument,
+    # names no version this can compare.
+    from_rx=r"^\s*FROM\s+(?:--\S+\s+)*node:(\d+)(?![\d.])",
+    from_form="node:N",
+    action="actions/setup-node",
+    # `node-version: "26"`, `26.x` or `26.1.0` all mean 26; `lts/*` and a version file do not
+    # say which, so they are unreadable rather than agreeing.
+    version_rx=r"""\s*node-version:\s*["']?(\d+)(?:\.(?:\d+|x))*["']?\s*(?:#.*)?$""",
+    version_form='node-version: "N"',
+    exceptions="NODE_EXCEPTIONS",
 )
 
 
-def setup_python_steps(workflow: str) -> list[tuple[str, str | None]]:
-    """(job, `X.Y`) for every `actions/setup-python` step in a workflow, in file order.
+def image_versions(dockerfile: str, runtime: Runtime) -> list[str]:
+    """The version of every stage built on `runtime`'s image. A stage on a tag that names
+    none (`python:3-slim`, `node:lts`) or on a build argument contributes nothing, and an
+    empty list is what lets the caller fail on it."""
+    return re.findall(runtime.from_rx, dockerfile, re.M | re.I)
 
-    The version is None when the step does not state one literally — a `python-version-file`,
-    a matrix expression — because a value this cannot read is not a value that agrees.
-    Line-based rather than YAML: the `ci` stage runs with no dependencies installed.
+
+def setup_steps(workflow: str, runtime: Runtime) -> list[tuple[str, str | None]]:
+    """(job, version) for every step installing `runtime` in a workflow, in file order.
+
+    The version is None when the step does not state one literally — a version file, a
+    matrix expression, an alias like `lts/*` — because a value this cannot read is not a
+    value that agrees. Line-based rather than YAML: the `ci` stage runs with no dependencies
+    installed.
     """
     lines = workflow.splitlines()
+    uses = re.compile(rf"\s*(?:-\s+)?uses:\s*{re.escape(runtime.action)}@")
+    version_rx = re.compile(runtime.version_rx)
     steps: list[tuple[str, str | None]] = []
     job, in_jobs = "?", False
     for i, line in enumerate(lines):
@@ -254,7 +334,7 @@ def setup_python_steps(workflow: str) -> list[tuple[str, str | None]]:
             in_jobs = bool(re.match(r"jobs:\s*$", line))
         elif in_jobs and (m := re.match(r" {2}([\w-]+):\s*(?:#.*)?$", line)):
             job = m[1]
-        if not re.match(r"\s*(?:-\s+)?uses:\s*actions/setup-python@", line):
+        if not uses.match(line):
             continue
         start = next((j for j in range(i, -1, -1) if re.match(r"\s*- ", lines[j])), i)
         indent = len(lines[start]) - len(lines[start].lstrip())
@@ -268,37 +348,42 @@ def setup_python_steps(workflow: str) -> list[tuple[str, str | None]]:
         )
         version = None
         for body in lines[start:end]:
-            if m := PYTHON_VERSION_RX.match(body):
+            if m := version_rx.match(body):
                 version = m[1]
         steps.append((job, version))
     return steps
 
 
-def interpreter_drift(
+def runtime_drift(
     dockerfile: str,
     workflows: dict[str, str],
     required: dict[str, tuple[str, ...]],
     exceptions: dict[tuple[str, str], str] | None = None,
+    *,
+    runtime: Runtime,
 ) -> list[str]:
-    """Every way the backend image and the workflows can disagree about Python, or fail to
-    say. `workflows` is every workflow, not a chosen few: a job nobody listed is compared
-    with the image, and only a named exception may differ — by exactly its named version."""
+    """Every way an image and the workflows can disagree about `runtime`, or fail to say.
+    `workflows` is every workflow, not a chosen few: a job nobody listed is compared with the
+    image, and only a named exception may differ — by exactly its named version."""
     exceptions = exceptions or {}
-    images = sorted(set(image_pythons(dockerfile)))
+    rt = runtime
+    images = sorted(set(image_versions(dockerfile, rt)))
     if not images:
         return [
-            "backend/Dockerfile: no stage is `FROM python:X.Y`, so the image's Python "
+            f"{rt.dockerfile}: no stage is `FROM {rt.from_form}`, so the image's {rt.name} "
             "cannot be read"
         ]
     if len(images) > 1:
-        return [f"backend/Dockerfile builds on more than one Python ({', '.join(images)})"]
+        return [
+            f"{rt.dockerfile} builds on more than one {rt.name} ({', '.join(images)})"
+        ]
     image, problems = images[0], []
     seen: set[tuple[str, str]] = set()
     for path, text in workflows.items():
-        steps = setup_python_steps(text)
+        steps = setup_steps(text, rt)
         seen |= {(path, j) for j, _v in steps}
         problems += [
-            f"{path}: job `{job}` no longer sets up Python with actions/setup-python, "
+            f"{path}: job `{job}` no longer sets up {rt.name} with {rt.action}, "
             "so its interpreter cannot be compared with the image's"
             for job in required.get(path, ())
             if (path, job) not in seen
@@ -307,31 +392,48 @@ def interpreter_drift(
             named = exceptions.get((path, job))
             if version is None:
                 problems.append(
-                    f"{path}: job `{job}` sets up a Python this check cannot read — "
-                    'state it as python-version: "X.Y"'
+                    f"{path}: job `{job}` sets up a {rt.name} this check cannot read — "
+                    f"state it as {rt.version_form}"
                 )
             elif named is not None and version != named:
                 problems.append(
-                    f"{path}: job `{job}` sets up Python {version}; its named exception is "
-                    f"{named} (PYTHON_EXCEPTIONS) — move the exception with it, or remove it "
-                    "once the job runs the image's Python"
+                    f"{path}: job `{job}` sets up {rt.name} {version}; its named exception is "
+                    f"{named} ({rt.exceptions}) — move the exception with it, or remove it "
+                    f"once the job runs the image's {rt.name}"
                 )
             elif named is None and version != image:
                 problems.append(
-                    f"{path}: job `{job}` sets up Python {version}; the image runs {image}"
+                    f"{path}: job `{job}` sets up {rt.name} {version}; the image runs {image}"
                 )
     for (path, job), named in exceptions.items():
         if (path, job) not in seen:
             problems.append(
-                f"{path}: job `{job}` is a named Python exception but sets up no Python — "
-                "remove the exception"
+                f"{path}: job `{job}` is a named {rt.name} exception but sets up no "
+                f"{rt.name} — remove the exception"
             )
         elif named == image:
             problems.append(
-                f"{path}: job `{job}` is a named Python exception at the image's own "
+                f"{path}: job `{job}` is a named {rt.name} exception at the image's own "
                 f"{image} — remove the exception"
             )
     return problems
+
+
+def image_pythons(dockerfile: str) -> list[str]:
+    return image_versions(dockerfile, PYTHON)
+
+
+def setup_python_steps(workflow: str) -> list[tuple[str, str | None]]:
+    return setup_steps(workflow, PYTHON)
+
+
+def interpreter_drift(
+    dockerfile: str,
+    workflows: dict[str, str],
+    required: dict[str, tuple[str, ...]],
+    exceptions: dict[tuple[str, str], str] | None = None,
+) -> list[str]:
+    return runtime_drift(dockerfile, workflows, required, exceptions, runtime=PYTHON)
 
 
 def floor_drift(
@@ -339,30 +441,35 @@ def floor_drift(
     files: dict[str, str | None],
     required: dict[str, tuple[str, ...]],
     anywhere: tuple[str, ...] = (),
+    *,
+    runtime: Runtime = PYTHON,
 ) -> list[str]:
-    """Every stated Python floor that is not the image's Python, or can no longer be read.
+    """Every stated `runtime` floor that is not the image's version, or can no longer be read.
 
-    `files` maps a path to its text, or None when it is gone. Each pattern captures (major,
-    minor). A pattern in `required` must match its file at least once, so a reworded line
+    `files` maps a path to its text, or None when it is gone. Each pattern captures the
+    version's parts — (major, minor) for Python, the major for Node — which are joined with
+    dots. A pattern in `required` must match its file at least once, so a reworded line
     fails instead of dropping out of the check; one in `anywhere` is compared wherever it
     matches, so a floor stated in a new document is checked rather than missed.
     """
-    problems = []
+    name, problems = runtime.name, []
     for path, text in files.items():
         own = required.get(path, ())
         if text is None:
             if own:
-                problems.append(f"{path} is missing, so the Python floor it states cannot be read")
+                problems.append(
+                    f"{path} is missing, so the {name} floor it states cannot be read"
+                )
             continue
         for rx in dict.fromkeys((*own, *anywhere)):
-            stated = sorted({f"{m[1]}.{m[2]}" for m in re.finditer(rx, text, re.M)})
+            stated = sorted({".".join(m.groups()) for m in re.finditer(rx, text, re.M)})
             if not stated and rx in own:
                 problems.append(
-                    f"{path}: no line states the Python floor in the form this check reads "
+                    f"{path}: no line states the {name} floor in the form this check reads "
                     f"(`{rx}`)"
                 )
             problems += [
-                f"{path}: states a Python {v} floor; CI runs only the image's {image}"
+                f"{path}: states a {name} {v} floor; CI runs only the image's {image}"
                 for v in stated
                 if v != image
             ]
@@ -396,7 +503,9 @@ def parse_record(text: str) -> tuple[dict[str, str], bool]:
     """(manual-check id → status, approved?) from a release record."""
     statuses = {}
     for m in re.finditer(
-        r"^\|\s*(M\d+\.\d+)\s*\|\s*(PASS|FAIL|N/A|NOT RUN|ACCEPTED|PENDING)\s*\|", text, re.M
+        r"^\|\s*(M\d+\.\d+)\s*\|\s*(PASS|FAIL|N/A|NOT RUN|ACCEPTED|PENDING)\s*\|",
+        text,
+        re.M,
     ):
         statuses[m[1]] = m[2]
     approved = bool(re.search(r"^- \[x\] \*\*Release approved\*\*", text, re.M | re.I))

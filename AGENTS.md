@@ -469,6 +469,15 @@ why `research_engine` refuses an older interpreter by name rather than failing t
 why `desktop.yml`'s `shell` job sets up the image's Python: `check_packaged_sidecar.py`
 imports the verifier, which the runner's own `python3` cannot run.
 
+**The frontend has the same rule, for Node (A10.07).** `frontend/Dockerfile`'s `FROM node:N`
+is the `node-version` of every `actions/setup-node` — ci.yml's `frontend` and `golden-e2e`,
+desktop's `shell`, pages' `build` — and every stated floor: `engines` in
+`frontend/package.json` and each `Node N+` in the docs (`NODE_FLOORS`). One implementation
+serves both checks (`release_checks.evaluate.runtime_drift`/`floor_drift`, read through a
+`Runtime`), so a third image is one more `Runtime`, not a third copy. The drift it exists for:
+the image sat on Node 25 — an odd release vitest refuses — then Dependabot moved it to 26,
+while CI built on 22 and three documents promised 18+, 20+ and 22+.
+
 Frontend CI also runs four bespoke greps (`.github/workflows/ci.yml`): no raw-HTML React
 escape hatches, no hardcoded hex colors, no hardcoded backend URLs, no web-storage access
 without an inline `ci-allow-web-storage: <reason>` marker.
