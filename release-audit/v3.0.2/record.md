@@ -1,0 +1,284 @@
+# Release record — v3.0.2
+
+Copied from `release-audit/TEMPLATE.md` at the start of the release (RELEASE.md, M0.01).
+Everything a person decided, checked or accepted for this release is written here; everything
+a machine checked is in the audit JSON beside it. Nothing is marked PASS without evidence a
+reader can re-check.
+
+Stage A (prepare) was run on 2026-10-18 from an Apple Silicon Mac, on the release branch
+`release/v3.0.2` cut from `origin/main` at `a887720`. Every row below that needs the merged
+release commit, the tag or the published artifacts is `PENDING`.
+
+| | |
+|---|---|
+| Version | v3.0.2 |
+| Previous release | v3.0.1 (`d53d645`) |
+| Release manager | Aditya Mhaske (stage A prepared with Claude Code; the sign-off is the release manager's) |
+| Release commit (tag target) | PENDING — the merge of the release PR into `main` |
+| Tag | v3.0.2 (annotated) |
+| Tag date | PENDING |
+| Audit evidence | `pre-tag.json`, `published.json`, `post-release.json` in this directory |
+
+Result values: `PASS` · `FAIL` · `N/A` (why it does not apply) · `NOT RUN` (why not) ·
+`ACCEPTED` (a known failure the sign-off accepts, with the reason) · `PENDING`.
+
+---
+
+## Scope
+
+Every PR merged since the previous release, in or out (A2.01 fails on a `#N` missing here).
+Version rationale (M0.03): **patch**. Every scope row is a fix, a test, a dependency update or
+a release-process change. Two rows add something, and neither is a new capability: #179 offers
+in the agent editor the reset the agent's card already offered (the same `prompt_overrides`
+call, no new route), and #181's `cited_indices` is an additive response field that the fix
+for wrong cited counts needed, which no existing client breaks on. No migration, ORM model or
+bundle-format change (A19.02).
+
+| Feature / fix | PRs | Implementation | Tests | UI | API | Desktop | Docs | Website | Release notes | Known limitations | Status |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Custom, OpenRouter and Ollama setups research for real (`start.sh` stopped forcing demo mode) | #171, #177 | `start.sh` mirrors `_validate_secrets` | `test_start_sh_mode.py` (8 of 10 cases fail on the old script) | — | — | n/a — the desktop does not use `start.sh` | ✓ 20-quick-start | — | ✓ | — | Shipped |
+| Plan approval no longer fails the run (one event loop per worker process; failures not masked) | #171, #177 | `app/workers/event_loop.py`, `research_engine/concurrency.py` | `test_worker_event_loop.py`, `test_node_failure_is_not_masked.py`, `test_worker_task_lifecycle.py` | — | — | `gather_or_cancel` is shared; the loop fix is server-only (the desktop drives runs on its own loop) | ✓ backend/AGENTS.md | — | ✓ | — | Shipped |
+| Provider SDKs and HTTP stack pinned | #171 | `backend/constraints.txt` | `test_dependency_constraints.py` | — | — | ✓ the sidecar build resolves the same set | ✓ backend/AGENTS.md | — | ✓ changelog | — | Shipped |
+| A non-string `read_webpage` url is an observation | #171 | `graph.py` | `test_executor_tool_arguments.py` | — | — | ✓ same engine | — | — | ✓ | — | Shipped |
+| Search-engine results pages refused; executor steered to `web_search` | #178 | `tools.py`, `prompts.py` | `test_search_pages_steer_to_web_search.py` (24 cases); golden parity re-recorded | — | — | ✓ same engine | ✓ docs/04 §4 | — | ✓ | — | Shipped — prompt change, evaluated (M2.04) |
+| A rework stores no second copy of the evidence | #181 | `run_lifecycle.record_evidence`, `record_contradictions` | `test_rework_keeps_evidence_and_citations_honest.py` on server and desktop drivers; four lifecycle tests | ✓ | — | ✓ shared `persist_outcome` | — | — | ✓ | ✓ older runs keep their duplicates | Shipped |
+| Cited counts and "backs N claims" describe the latest revision | #181 | `project_run` `cited_indices`; `primitives.tsx`, `SourcesPanel.tsx` | `RunWorkspace.test.tsx` rework scenario | ✓ | ✓ additive `cited_indices` | ✓ the sidecar serves the same projection | ✓ docs/19, docs/34 | — | ✓ | — | Shipped |
+| An approval is not a 500 when project memory cannot take the report | #180 | `runs._ingest_report_into_memory` | `test_approval_survives_memory_ingest_failure.py` (Postgres) | ✓ | ✓ | n/a — project memory is pgvector-only, server-only by design | — | — | ✓ | — | Shipped |
+| A demo run says first that nothing was researched | #177 | `DemoNotice.tsx` | `DemoNotice.test.tsx`, run page test | ✓ | — | ✓ same frontend | — | — | ✓ | — | Shipped |
+| Reset an agent from inside its editor | #179 | `RolePromptEditor.tsx`, `AgentsSection.tsx` | 4 tests | ✓ | — (existing call) | ✓ same frontend | — | — | ✓ | — | Shipped |
+| Server images stamped with the commit that built them | #170 | `release.yml` `stamp` job + image step | runs only on a tag: A10.05, A11.09 | ✓ Settings → About | ✓ `/api/v1/version` | n/a | ✓ AGENTS.md, RELEASE.md | — | ✓ | — | PENDING — first exercised by this tag (stage B) |
+| Oracle deploy defaults to `latest`, not a pre-1.0 `edge` build | #170 | `deploy/oracle-bootstrap.sh` | A10.04 | — | — | n/a | ✓ deploy/README.md | — | ✓ | — | Shipped |
+| Release process, audit, installed-installer CI steps, `/build.json` | #170 | `RELEASE.md`, `scripts/release_audit.py`, `desktop.yml`, `pages.yml` | `test_release_audit.py` | — | — | ✓ `.deb`/AppImage/`.msi` journeys in CI | ✓ RELEASE.md, release-audit/README.md, README | ✓ `/build.json` | ✓ changelog *Process* | — | Shipped (process) |
+| Refresh-token rotation and reuse detection tested | #170 | test only | `test_refresh_token_reuse.py` | — | — | — | — | — | — | — | Shipped (test) |
+| v3.0.1 offered for download (the previous release's flip) | #169 | `releases.ts` | `download/unreleased.test.tsx` | ✓ | — | — | — | ✓ | — | — | Shipped (process) |
+| Frontend dependency updates: Next.js 16.3.6, the frontend minor group, undici 8.11.2, brace-expansion 1.1.21 | #174, #175, #176, #182 | `frontend/package*.json` | CI on each PR | — | — | ✓ same frontend | — | — | ✓ changelog | — | Shipped |
+| Backend images on Python 3.14 (from 3.11) | #173 | `backend/Dockerfile` | Built and the full suite run inside the image (Finding 2); CI itself still tests 3.11 | — | — | n/a — the desktop engine is built on 3.11 | — | — | ✓ changelog | — | Shipped — CI-interpreter gap open (Finding 2) |
+
+Deferred (merged but not part of this release's story): none.
+
+## Desktop artifacts (M6.01)
+
+Packaged artifacts only — source-checkout evidence goes in its own row and never satisfies
+a desktop check (M6.03).
+
+| Artifact | SHA-256 | OS | Arch | Version (installed) | Engine git SHA | Install | Launch | Journey |
+|---|---|---|---|---|---|---|---|---|
+| `Research.Assistant_X.Y.Z_aarch64.dmg` | | macOS | arm64 | | | | | |
+| `Research.Assistant_X.Y.Z_x64_en-US.msi` | | Windows | x64 | | | | | |
+| `Research.Assistant_X.Y.Z_amd64.AppImage` | | Linux | x86-64 | | | | | |
+| `Research.Assistant_X.Y.Z_amd64.deb` | | Linux | x86-64 | | | | | |
+
+## Container images
+
+| Image | Digest (`X.Y.Z`) | amd64 | arm64 | Provenance revision | Runs (M10.x) |
+|---|---|---|---|---|---|
+| api | | | | | |
+| worker | | | | | |
+| frontend | | | | | |
+
+## Automated audit
+
+| Stage | Command | Verdict | Counts | Evidence |
+|---|---|---|---|---|
+| pre-tag | `release_audit.py --version X.Y.Z` | | | `pre-tag.json` |
+| published | `… --published --download --docker` | | | `published.json` |
+| post-release | `… --post-release --download --docker` | | | `post-release.json` |
+
+Disposition of every WARN and UNAVAILABLE (M21.01):
+
+| Check | Result | Disposition |
+|---|---|---|
+
+## Manual checks
+
+One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
+
+| ID | Result | Check — evidence |
+|---|---|---|
+| **Phase 0 — Release Scope Freeze** | | |
+| M0.01 | PASS | Create the release record — Created 2026-10-18 from TEMPLATE.md on `release/v3.0.2`, before any version carrier changed |
+| M0.02 | PASS | Freeze the scope: list every feature and fix in the record's Scope table, each with its PR numbers — Scope table above: every first-parent merge in `v3.0.1..a887720` — #169, #170, #171, #173-#182, merge commits and squash merges alike. Preparing it found A2.01 blind to squash merges (#179-#181); fixed in this PR (`merged_prs`) |
+| M0.03 | PASS | Choose the version number and record why: major for a breaking change (API contract, bundle format a… — Patch — reasoning under Scope: fixes, tests, dependencies and process; #179 reuses an existing operation and `cited_indices` is an additive field the fix needed; no migration, model or bundle-format change (A19.02) |
+| M0.04 | PASS | Carry forward known limitations: start this release's `known` from the previous release's, and remove an… — `known` starts from 3.0.1's sixteen items, all carried unchanged except the citation-support item, which now names this release's run; two added (pre-3.0.2 duplicated evidence; the spend limit on `openrouter`/`custom`). Nothing removed |
+| **Phase 1 — Repository / Version Consistency** | | |
+| M1.01 | PASS | Bump and derive, in this order: `VERSION`; the new `releases.ts` entry at the top with `unreleased: true`… — `VERSION` 3.0.2; entry at the top with `unreleased: true`; `sync_version.py --write` → "consistent across 4 files"; `cargo update -p research-desktop` → Cargo.lock 3.0.2; changelog `## v3.0.2 — unreleased` with **Known**. `--stage ci`: 22/22 PASS |
+| M1.02 | PASS | Search for stale references the scanner cannot see: images and screenshots with text in them, the… — `git grep` for 3.0.1/v3.0.1, `releases/download/`, `ghcr.io/…:<tag>`: every hit is incident history (RELEASE.md, AGENTS.md, a release.yml comment), a test fixture, or a URL template built from `releases.ts`; the OpenGraph image names no version |
+| M1.03 | PASS | Review every line A1.09 flags, one by one — A1.09 PASS — no new version mention in user-facing text; the new mentions are in `releases.ts` and the changelog (version histories by design), RELEASE.md and this record |
+| **Phase 2 — Feature Completeness** | | |
+| M2.01 | PASS | Fill the feature matrix in the record for every scope row: Implementation · Tests · UI · API · Desktop ·… — Matrix under Scope; one row PENDING on stage B (image stamping, first exercised by this tag), one decided by Findings #1 (Python 3.14) |
+| M2.02 | PENDING | For every feature on both hosts, confirm the desktop really has it: the route exists and behaves… — Source evidence so far: #181's rework journey passes on both the server and desktop drivers; #180 is server-only by design (project memory is pgvector-only). The packaged-desktop and published-image exercise is stage B (Phases 7, 10) |
+| M2.03 | PENDING | Read the `releases.ts` entry and the changelog entry against the matrix: `improved` states user-visible… — evidence: |
+| M2.04 | PENDING | If A2.03 fails: run the release evaluation (`docs/developers/08-testing-and-evaluation.md`, "The release… — evidence: |
+| **Phase 3 — Automated Testing** | | |
+| M3.01 | PENDING | Explain every re-run: any required job on the release commit that passed only on a retry is recorded with… — evidence: |
+| M3.02 | PENDING | Read the non-blocking dependency-audit output of the release commit's CI run — evidence: |
+| **Phase 4 — Backend / API Verification** | | |
+| M4.01 | PASS | If `backend/app/api/` changed since the previous release, `docs/reference/34-api.md` and `35-sse.md`… — `backend/app/api` changed in `runs.py` only: #180 (no shape change) and #181's additive `cited_indices` on each revision, documented in docs/34; the sidecar serves the same projection. Contract hash re-checked on the stage B stack |
+| M4.02 | PENDING | On the published images (Phase 10 stack), probe the boundaries: an unauthenticated `GET /api/v1/projects`… — evidence: |
+| **Phase 5 — Frontend Verification** | | |
+| M5.01 | PENDING | On the Phase 10 stack, open dashboard, a project, a finished run (report, evidence, citations), Settings… — evidence: |
+| M5.02 | PENDING | Keyboard-only pass over the two gates: plan approval and report approval are reachable and operable… — evidence: |
+| **Phase 6 — Desktop Application Verification** | | |
+| M6.01 | PENDING | Record the artifact table in the record for all four installers: file name · SHA-256 · OS · architecture ·… — evidence: |
+| M6.02 | PENDING | On every platform, run the packaged-engine checker against the **installed** copy of the **published**… — evidence: |
+| M6.03 | PENDING | Mark every desktop row in the record as *packaged* or *source* — evidence: |
+| **Phase 7 — macOS Verification** | | |
+| M7.01 | PENDING | Download the `.dmg` from the release in a browser (so it carries the quarantine flag) and verify it — evidence: |
+| M7.02 | PENDING | The DMG opens and holds the app at the right version — evidence: |
+| M7.03 | PENDING | The signature is whole and valid — evidence: |
+| M7.04 | PENDING | Gatekeeper judges a quarantined copy as policy, not damage — evidence: |
+| M7.05 | PENDING | The bundled engine is present, native, and unmodified by hardened runtime — evidence: |
+| M7.06 | PENDING | The packaged engine identifies itself and completes the journey — evidence: |
+| M7.07 | PENDING | First launch as a user: drag to Applications; open it *without* the command and confirm the block is the… — evidence: |
+| M7.08 | PENDING | The Phase 20 desktop journey on macOS (M20.02) — evidence: |
+| M7.09 | PENDING | Quit the app; no engine is left running — evidence: |
+| **Phase 8 — Windows Verification** | | |
+| M8.01 | PENDING | Download the `.msi` in a browser; verify it — evidence: |
+| M8.02 | PENDING | SmartScreen shows the unknown-publisher warning; **More info → Run anyway** proceeds, exactly as the… — evidence: |
+| M8.03 | PENDING | Install completes; Start-menu entry exists; Settings → Apps shows version `X.Y.Z`; files under `C:\Program… — evidence: |
+| M8.04 | PENDING | Launch: the window opens without a crash; Task Manager shows `research-sidecar.exe`; no firewall prompt… — evidence: |
+| M8.05 | PENDING | `python scripts\check_packaged_sidecar.py --search "C:\Program Files\Research Assistant" --expect-sha <tag… — evidence: |
+| M8.06 | PENDING | The Phase 20 desktop journey on Windows (M20.02), from a user whose profile path has a space; exports save… — evidence: |
+| M8.07 | PENDING | Local storage: data under `%USERPROFILE%\.research-engine`; provider keys in Windows Credential Manager,… — evidence: |
+| M8.08 | PENDING | Quit: `research-sidecar.exe` exits (the watchdog — two Windows-only crashes lived here, #113) — evidence: |
+| M8.09 | PENDING | Uninstall from Settings → Apps: the Program Files directory is removed; user data remains (as documented) — evidence: |
+| **Phase 9 — Linux Verification** | | |
+| M9.01 | PENDING | AppImage: download, verify (`sha256sum -c SHA256SUMS --ignore-missing`), `chmod +x`, launch from a desktop… — evidence: |
+| M9.02 | PENDING | `.deb`: `sudo apt install ./Research.Assistant_X.Y.Z_amd64.deb` on a clean supported Ubuntu LTS resolves… — evidence: |
+| M9.03 | PENDING | Key storage uses the Secret Service keyring; on a session without one, the app says so rather than storing… — evidence: |
+| M9.04 | PENDING | `sudo apt remove research-assistant` removes the application; user data remains; no engine left running — evidence: |
+| **Phase 10 — Docker / Container Verification** | | |
+| M10.01 | PENDING | Run the published images on the full-stack topology, on their own volumes: — evidence: |
+| M10.02 | PENDING | On that stack: register, log in, create a project, run a fake-mode research through both gates, export… — evidence: |
+| M10.03 | PENDING | On an arm64 host (Apple Silicon Docker or the Ampere target), the same stack starts from the same tags — evidence: |
+| M10.04 | PENDING | Tear down with `down -v` using the same flags; the developer's own `mara_full_*` volumes are untouched — evidence: |
+| **Phase 11 — GitHub Release Verification** | | |
+| M11.01 | PENDING | Add the hand-written summary at the top of the Release body (what changed for users, the macOS… — evidence: |
+| **Phase 12 — Documentation Verification** | | |
+| M12.01 | PASS | For each scope row, the docs describe what shipped — on both hosts, with desktop differences stated… — docs/04 §4 (results-page refusal), docs/19 (citation number ≠ cited, corrected), docs/34 (`cited_indices`), docs/20 (start.sh's real-or-demo rule), deploy/README.md (`latest`); desktop differences: none for these rows |
+| M12.02 | N/A | Configuration: every environment variable added, renamed or removed since the previous release (`git diff… — `git diff --stat v3.0.1..a887720 -- backend/app/config.py backend/research_engine/local.py .env.example` is empty |
+| M12.03 | PASS | Search the docs for removed or renamed features, commands and routes named in the diff (`git diff --stat… — Nothing removed or renamed; `start.sh`'s mode rule widened (docs/20 updated), the Oracle default changed (deploy/README.md updated) |
+| M12.04 | N/A | Architecture docs (`docs/architecture/02`, `04`) match the graph's nodes and gates — Graph nodes and gates unchanged — graph.py's diff is the fan-out primitive and a url type guard |
+| M12.05 | PENDING | Known limitations agree across `releases.ts` `known`, the changelog **Known**, the Release body and the… — evidence: |
+| **Phase 13 — README Verification** | | |
+| M13.01 | PASS | Read the README top to bottom against the release: the feature list (nothing unreleased, nothing removed),… — README diff since 3.0.1: one sentence linking RELEASE.md and release-audit/. Features, platforms, commands and the measured claim (A1.14 PASS) still current |
+| **Phase 14 — Landing Page Verification** | | |
+| M14.01 | PENDING | View `/` at desktop width and at 375 px, light and dark: hero, download call-to-action, "New in" link to… — evidence: |
+| M14.02 | PENDING | `/why`: every comparison claim (`frontend/lib/comparison.ts`) still holds for this release — evidence: |
+| **Phase 15 — Download Page Verification** | | |
+| M15.01 | PENDING | On each OS (or with a UA override), the detected-OS card leads; the big button and every card button point… — evidence: |
+| M15.02 | PENDING | Download one installer by clicking the page's button in a real browser; the file name and checksum are right — evidence: |
+| **Phase 16 — Releases Page Verification** | | |
+| M16.01 | PENDING | View `/releases`: the new entry is first with the tag's date; its summaries are shown and the lists fold… — evidence: |
+| **Phase 17 — GitHub Pages / Deployment Verification** | | |
+| M17.01 | PENDING | If A17.01 fails because `main` moved after the flip, wait for the newer deploy and re-run; if the deploy… — evidence: |
+| **Phase 18 — Security / Configuration Verification** | | |
+| M18.01 | PASS | Review `git diff vPREV..HEAD` for debug flags, test accounts, credentials, private URLs, and anything that… — Added lines searched for prints, debuggers, test accounts, credentials and private URLs: every `print` is in a CLI script (`scripts/`) or a workflow step, every loopback URL in a test fixture or the packaged-engine checker; no credentials |
+| M18.02 | N/A | If `backend/app/config.py`, the security middleware, auth, or the SSRF guard changed: re-check CORS… — No change to app/config.py, auth, middleware or the SSRF guard since 3.0.1 |
+| M18.03 | PENDING | No secret or env file ships in an artifact — evidence: |
+| M18.04 | PENDING | Public surface: `/api/v1/version` is unauthenticated on the server by design; nothing else new is — evidence: |
+| **Phase 19 — Upgrade / Migration Verification** | | |
+| M19.01 | PENDING | Fresh install: an empty database migrates to head (CI), and a fresh desktop data directory starts (M6.02… — evidence: |
+| M19.02 | N/A | Server upgrade from the previous release: run the previous release's images (`RELEASE_TAG=PREV` with the… — A19.02 PASS: no migration, ORM model or bundle-format change since v3.0.1 |
+| M19.03 | N/A | Desktop upgrade from the previous release: install the previous release, create the same data, install… — As M19.02 |
+| M19.04 | N/A | Downgrade: CI's round-trip proves the schema reverses; record whether running the previous images against… — As M19.02 |
+| M19.05 | N/A | A bundle exported by the previous release verifies with this release's verifier, unchanged (`python -m… — Bundle format unchanged (v2); a bundle's content changes only in carrying no duplicated evidence. v1/v2 fixtures verify in CI (`test_bundle_v2_verifier.py`) |
+| **Phase 20 — Final End-to-End Production Smoke Test** | | |
+| M20.01 | PENDING | The web/self-hosted journey on the Phase 10 stack, **with a real provider at least once** (fake mode… — evidence: |
+| M20.02 | PENDING | The desktop journey on each platform (M7.08, M8.06, M9.01/M9.02), with a real provider or Ollama — evidence: |
+| M20.03 | PENDING | Negative paths on the published build: an invalid provider key is refused before it is stored; a run… — evidence: |
+| M20.04 | PENDING | Every `[n]` in the final report resolves on hover to a source and its snippet; an unresolved one renders… — evidence: |
+| **Phase 21 — Release Approval** | | |
+| M21.01 | PENDING | Every WARN and UNAVAILABLE in the published audit has a written disposition in the record — evidence: |
+| M21.02 | PENDING | Known issues are documented everywhere they belong (M12.05), including anything this audit found and the… — evidence: |
+| M21.03 | PENDING | The release manager signs the approval block in the record — evidence: |
+| **Phase 22 — Post-Release Verification** | | |
+| M22.01 | PENDING | The flip PR: drop `unreleased`, set the entry's `date` to the tag's date, date the changelog heading,… — evidence: |
+| M22.02 | PENDING | After Pages deploys: run the post-release audit with `--download --docker`, commit its JSON (write-once)… — evidence: |
+| M22.03 | PENDING | Load `/`, `/why`, `/docs`, `/download`, `/releases` on a phone and a desktop browser with the cache disabled — evidence: |
+| M22.04 | PENDING | In an installed copy of the **previous** desktop release, Settings → About → *Check for updates* reports… — evidence: |
+| M22.05 | PENDING | For 48 hours, watch issues and discussions for install or launch reports; any release-blocking report… — evidence: |
+| M22.06 | PASS | Every incident found during this release becomes a check: an `A…` check (preferred) or an `M…` item, plus… — Incidents table below: two audit gaps became fixes with negative-control tests in this PR |
+
+## Findings
+
+Found while preparing stage A, separated by kind.
+
+**Release-blocking until resolved**
+
+1. **Open high-severity dependency alerts (A18.05, STOP).** On 2026-10-18: `next` < 16.3.8
+   (high: SSRF in Image Optimization; plus two medium and one low advisories), `sharp` <
+   0.35.5 (high: librsvg), `source-map-js` < 1.2.2 (high: event-loop denial of service), and
+   `postcss-selector-parser` < 7.1.6 (medium). Dependabot's #185, #184 and #183 fix the three
+   highs and are green; they must merge before the pre-tag audit, and each joins the scope
+   table when it does. The medium has no PR yet.
+
+**Verified, with a gap left open**
+
+2. **#173 moved the server images from Python 3.11 to 3.14, and nothing had built them.**
+   `ci.yml` and `desktop.yml` never build `backend/Dockerfile`; `release.yml` builds it only
+   from a tag, so this release's images would have been the first 3.14 build anywhere — while
+   every test job, the desktop engine and the release tooling run 3.11. Checked on
+   2026-10-18 on Apple Silicon: the `api` target builds (`python:3.14-slim-bookworm`,
+   Python 3.14.8; every pinned package installs), and the full backend suite on `a887720`'s
+   tree, run inside that image against pgvector and Redis, gave **2072 passed, 1 failed, 1
+   skipped**. The failure is the container, not the interpreter:
+   `test_routing_is_read_through_the_real_openai_client_end_to_end` serves a stub on
+   `127.0.0.1`, and inside Docker Desktop `map_local_host` rewrites that to
+   `host.docker.internal`; with no network, so the name cannot resolve, the same file passes
+   30/30 under 3.14. The skip is the retrieval eval's missing local embedder. The real-mode
+   worker lifecycle tests — the path #171 fixed — ran and passed, and no asyncio deprecation
+   was raised. **Not checked:** the amd64 image (release.yml builds both), and the image
+   running a real-provider journey (stage B, M20.01). **Gap:** the image and CI run different
+   interpreters, and nothing would notice the next drift. Either CI tests on the image's
+   Python or the image goes back to CI's; that is a follow-up, not part of this patch.
+
+**Release-process defects (fixed in this PR)**
+
+3. **A2.01 was blind to squash merges.** It counted only `Merge pull request #N`, so #179,
+   #180 and #181 — squash-merged — were outside the scope check. `evaluate.merged_prs` reads
+   both styles.
+4. **A2.03 read the template's placeholder as a waiver.** `Eval waiver: <!-- … -->` matched
+   `^Eval waiver:\s*\S`, so a record copied and never edited downgraded a missing evaluation
+   to a WARN — the first preview of this release's pre-tag audit showed exactly that.
+   `evaluate.records_eval_waiver` ignores the placeholder.
+
+**Carried over from the v3.0.1 record, still open**
+
+5. The download page's size note (~80 MB download, ~180 MB installed) against 3.0.1's
+   measured 70.3 MiB and 146 MB; re-measure on 3.0.2's artifacts at M15.01.
+6. Two historical release dates disagree with their tags (A16.03 WARN): v1.0.0 and v1.0.2.
+
+## Known issues shipped with this release
+
+Everything in `frontend/lib/releases.ts` v3.0.2 `known` (18 items): 3.0.1's sixteen, carried,
+plus evidence duplicated by a rework before this release, and the spend limit doing nothing
+on `openrouter` and `custom` routes. And the size note in Finding 5.
+
+## Incidents found during this release, and the check each became (M22.06)
+
+| Incident | Check added |
+|---|---|
+| A2.01 counted only merge commits; squash-merged PRs escaped the scope check | `merged_prs` (A2.01); `test_a_squash_merged_pr_is_in_scope_as_surely_as_a_merge_commit` |
+| A2.03 read the template's waiver placeholder as a waiver | `records_eval_waiver` (A2.03); `test_the_templates_waiver_placeholder_is_not_a_waiver` |
+| A dependency bump changed the server images' Python with nothing building the image | Not yet a check — Finding 2's follow-up |
+
+## Release approval
+
+```text
+Version:            vX.Y.Z
+Commit:
+Tag:                vX.Y.Z (annotated)
+Release manager:
+
+Automated checks    [ ] pre-tag PASS   [ ] published PASS   [ ] post-release PASS
+Desktop             [ ] macOS PASS     [ ] Windows PASS     [ ] Linux PASS
+Web                 [ ] Landing PASS   [ ] Download PASS    [ ] Releases PASS   [ ] Docs PASS
+Distribution        [ ] GitHub Release PASS   [ ] Docker PASS   [ ] Checksums PASS
+Security            [ ] PASS
+Upgrade/migration   [ ] PASS
+Critical journey    [ ] web PASS   [ ] desktop PASS
+Known issues        [ ] documented everywhere they belong
+```
+
+- [ ] **Release approved**
