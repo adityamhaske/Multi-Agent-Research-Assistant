@@ -261,6 +261,27 @@ def parse_record(text: str) -> tuple[dict[str, str], bool]:
     return statuses, approved
 
 
+def merged_prs(first_parent_subjects: str) -> list[str]:
+    """PR numbers merged to `main`, from `git log --first-parent --format=%s` output.
+
+    Both merge styles land here: a merge commit says `Merge pull request #N`, and a squash
+    merge ends its subject with GitHub's ` (#N)`. Reading only the first let every
+    squash-merged PR between 3.0.1 and 3.0.2 skip the scope check unseen.
+    """
+    prs = re.findall(r"^Merge pull request #(\d+)", first_parent_subjects, re.M)
+    prs += re.findall(r"\(#(\d+)\)$", first_parent_subjects, re.M)
+    return sorted(set(prs), key=int)
+
+
+def records_eval_waiver(record: str) -> bool:
+    """Whether a release record carries a written `Eval waiver:` line.
+
+    The template's own line, `Eval waiver: <!-- … -->`, is an instruction, not a waiver: a
+    record copied and never edited must not turn a missing evaluation into a warning.
+    """
+    return bool(re.search(r"^Eval waiver:[ \t]*(?!<!--)\S", record, re.M))
+
+
 def manual_ids(release_md: str) -> list[str]:
     return sorted(set(re.findall(r"\*\*(M\d+\.\d+)\*\*", release_md)), key=id_key)
 

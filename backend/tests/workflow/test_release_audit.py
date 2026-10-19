@@ -35,9 +35,11 @@ from release_checks.evaluate import (  # noqa: E402
     checksum_problems,
     entry_completeness,
     manual_ids,
+    merged_prs,
     parse_record,
     parse_releases_ts,
     parse_sha256sums,
+    records_eval_waiver,
     release_body_problems,
     release_list_problems,
     review_references,
@@ -272,6 +274,26 @@ def test_the_record_parser_reads_statuses_and_the_sign_off():
     assert statuses == {"M7.03": "PASS", "M8.01": "NOT RUN"}
     assert approved
     assert parse_record(record.replace("[x]", "[ ]"))[1] is False
+
+
+def test_a_squash_merged_pr_is_in_scope_as_surely_as_a_merge_commit():
+    # The first-parent history between 3.0.1 and 3.0.2, both merge styles side by side.
+    subjects = (
+        "Merge pull request #178 from adityamhaske/executor-search-steering\n"
+        "fix(runs): a rework stores no second copy of the evidence (#181)\n"
+        "feat(settings): reset an agent's instructions from inside its editor (#179)\n"
+        "Merge pull request #171 from adityamhaske/run-failure-fixes\n"
+    )
+    assert merged_prs(subjects) == ["171", "178", "179", "181"]
+    # A PR number mentioned mid-subject is a reference, not a merge.
+    assert merged_prs("fix: follow-up to #170, see the record\n") == []
+
+
+def test_the_templates_waiver_placeholder_is_not_a_waiver():
+    template = "Eval waiver: <!-- only if A2.03 requires one; delete otherwise -->\n"
+    assert not records_eval_waiver(template)
+    assert not records_eval_waiver("Eval waiver:\n")
+    assert records_eval_waiver("Eval waiver: the change only renames a log field\n")
 
 
 # ─── The runner never counts an unmeasured check as a pass ─────────────────────────────
