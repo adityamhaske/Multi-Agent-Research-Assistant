@@ -1,0 +1,2959 @@
+{
+  "date": "2026-10-19",
+  "generated_at": "2026-10-19T01:46:04+00:00",
+  "llm_mode": "real",
+  "mode": "report",
+  "models": {
+    "planner": "custom:antigravity/gemini-2.5-flash",
+    "executor": "custom:antigravity/gemini-2.5-flash",
+    "critic": "custom:antigravity/gemini-2.5-flash",
+    "synthesizer": "custom:antigravity/gemini-2.5-flash",
+    "chat": "custom:antigravity/gemini-2.5-flash"
+  },
+  "method": {
+    "metrics_version": 4,
+    "retriever": "tavily (\u2192 brave \u2192 duckduckgo fallback)",
+    "query_set": "evals/queries.json",
+    "limits": {
+      "max_parallel_tasks": 1,
+      "max_critic_loops": 2,
+      "max_cost_per_session_usd": 0.0,
+      "max_wallclock_seconds": 0,
+      "max_input_tokens": 0
+    }
+  },
+  "aggregate": {
+    "queries": 10,
+    "completion_rate": 1.0,
+    "avg_source_count": 7.1,
+    "avg_uncited_claims": 2.6,
+    "avg_resolution_rate": 1.0,
+    "avg_cost_usd": 0.0,
+    "avg_latency_s": 58.241,
+    "citation_support_rate": 0.9693
+  },
+  "release_criteria": {
+    "completion_rate_ok": true,
+    "citation_support_ok": true,
+    "thresholds": {
+      "min_completion_rate": 0.9,
+      "min_citation_support": 0.95
+    }
+  },
+  "results": [
+    {
+      "id": "llm-memory",
+      "domain": "ai",
+      "completed": true,
+      "error": null,
+      "latency_s": 78.95,
+      "cost_usd": 0.0,
+      "tokens": 95244,
+      "word_count": 753,
+      "source_count": 9,
+      "total_citations": 28,
+      "unresolved_citations": 0,
+      "resolution_rate": 1.0,
+      "uncited_claim_count": 3,
+      "contradictions_surfaced": 0,
+      "citation_support_rate": 1.0,
+      "claim_verdicts": [
+        {
+          "claim": "Vector stores and text embeddings are essential components because agents frequently need to retrieve information based on similarity or meaning rather than simple keyword search [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2406"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Vector databases abstract away the complexities of managing approximate nearest neighbor indexes and provide application programming interfaces for easy insertion, deletion, and querying of vector data [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2406"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Vector databases serve as the foundation for providing large language models with scalable, searchable long-term memory [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2406"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Vector memory encodes both query and stored memories as dense vector embeddings, and then retrieves them by geometric distance [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2406"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Embedding models map semantically similar text to nearby points in embedding space, meaning terms like capex and capital expenditure are close, or make it faster and performance optimization are close [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2029"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Retrieval works even when users word things differently from how they were originally stored [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2029"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "During runtime, agents formulate queries based on their tasks, embed them, search vector databases using approximate nearest neighbor techniques, retrieve relevant chunks, and use them to augment context for core large language models [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2029"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "H-MEM employs a four-layer hierarchical structure that organizes memory according to semantic abstraction levels [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2029"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "The architecture consists of a domain layer capturing broad topic categories, a category layer for specific sub-domains, a memory trace layer summarizing key points, and an episode layer storing complete contextual interactions [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2070"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "Each memory entry is composed of both semantic vector representations for similarity computation and positional indices that create explicit links between hierarchical levels [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2070"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "Dual representation enables systems to perform targeted searches by following index pointers rather than conducting exhaustive similarity comparisons across all stored memories [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2070"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "Incoming queries first compute similarity with entries at the domain layer, select the most relevant candidates, and then use positional indices to directly access related memories in subsequent layers [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2070"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "Hierarchical routing dramatically reduces computational complexity from $O(a \\times 10^6 \\times D)$ for traditional flat retrieval to approximately $O((a + k \\times 300) \\times D)$ for H-MEM [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2181"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "Knowledge graphs are well-suited for handling complex, multi-part questions because they store data as a network of nodes and the relationships between them [6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2181"
+          },
+          "cites": [
+            6
+          ]
+        },
+        {
+          "claim": "Connected data structures allow retrieval-augmented generation applications to navigate from one piece of information to another efficiently, accessing all related information [6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2181"
+          },
+          "cites": [
+            6
+          ]
+        },
+        {
+          "claim": "Combining retrieval-augmented generation with knowledge graphs is known as GraphRAG [6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2181"
+          },
+          "cites": [
+            6
+          ]
+        },
+        {
+          "claim": "Better recall usually means more context, higher latency, and more tokens, which is the core trade-off every team building long-term memory runs into and shows up clearly in published benchmarks [7].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1918"
+          },
+          "cites": [
+            7
+          ]
+        },
+        {
+          "claim": "The Mem0 LOCOMO benchmark quantifies the trade-off, showing that full-context in-process achieves 72.9% accuracy at 17.12 seconds p95 latency [8].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1918"
+          },
+          "cites": [
+            8
+          ]
+        },
+        {
+          "claim": "Two frameworks emerged on the Pareto frontier when analyzing the trade-off between cost and accuracy, representing the set of options where no other framework is both cheaper and more accurate [9].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1918"
+          },
+          "cites": [
+            9
+          ]
+        },
+        {
+          "claim": "Current practices rely on vector stores, hierarchical structures like H-MEM, and knowledge graphs to provide agents with scalable and context-aware long-term memory [1][4][6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1918"
+          },
+          "cites": [
+            1,
+            4,
+            6
+          ]
+        },
+        {
+          "claim": "Emerging solutions balance retrieval accuracy against computational and token costs using selective external memory or cost-effective retrieval frameworks [8][9].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2202"
+          },
+          "cites": [
+            8,
+            9
+          ]
+        }
+      ],
+      "report": "# Leading Approaches to Long-Term Memory in LLM Agents and Their Trade-Offs\n\n## Introduction to Long-Term Memory in LLM Agents \u2014 Overview of the necessity of persistent memory for autonomous agents beyond standard context windows.\nVector stores and text embeddings are essential components because agents frequently need to retrieve information based on similarity or meaning rather than simple keyword search [1]. Vector databases abstract away the complexities of managing approximate nearest neighbor indexes and provide application programming interfaces for easy insertion, deletion, and querying of vector data [1]. Vector databases serve as the foundation for providing large language models with scalable, searchable long-term memory [1].\n\n## Leading Memory Approaches \u2014 Detailed breakdown of vector database retrieval, hierarchical summarization, and knowledge graph structures.\nVector memory encodes both query and stored memories as dense vector embeddings, and then retrieves them by geometric distance [3]. Embedding models map semantically similar text to nearby points in embedding space, meaning terms like capex and capital expenditure are close, or make it faster and performance optimization are close [3]. Retrieval works even when users word things differently from how they were originally stored [3]. During runtime, agents formulate queries based on their tasks, embed them, search vector databases using approximate nearest neighbor techniques, retrieve relevant chunks, and use them to augment context for core large language models [1]. \n\nH-MEM employs a four-layer hierarchical structure that organizes memory according to semantic abstraction levels [4]. The architecture consists of a domain layer capturing broad topic categories, a category layer for specific sub-domains, a memory trace layer summarizing key points, and an episode layer storing complete contextual interactions [4]. Each memory entry is composed of both semantic vector representations for similarity computation and positional indices that create explicit links between hierarchical levels [4]. Dual representation enables systems to perform targeted searches by following index pointers rather than conducting exhaustive similarity comparisons across all stored memories [4]. Incoming queries first compute similarity with entries at the domain layer, select the most relevant candidates, and then use positional indices to directly access related memories in subsequent layers [4]. Hierarchical routing dramatically reduces computational complexity from $O(a \\times 10^6 \\times D)$ for traditional flat retrieval to approximately $O((a + k \\times 300) \\times D)$ for H-MEM [4].\n\nKnowledge graphs are well-suited for handling complex, multi-part questions because they store data as a network of nodes and the relationships between them [6]. Connected data structures allow retrieval-augmented generation applications to navigate from one piece of information to another efficiently, accessing all related information [6]. Combining retrieval-augmented generation with knowledge graphs is known as GraphRAG [6].\n\n## Trade-offs and Comparative Analysis \u2014 Evaluation of latency, memory overhead, retrieval precision, and computational cost across approaches.\nBetter recall usually means more context, higher latency, and more tokens, which is the core trade-off every team building long-term memory runs into and shows up clearly in published benchmarks [7]. The Mem0 LOCOMO benchmark quantifies the trade-off, showing that full-context in-process achieves 72.9% accuracy at 17.12 seconds p95 latency [8]. Selective external memory drops to 66.9% accuracy but cuts latency to 1.44 seconds, representing a 91% speed gain at a 6-point accuracy cost, alongside a 90% reduction in token cost requiring approximately 2,6031 tokens versus approximately 1,764 tokens per conversation *(citation could not be verified)*. Two frameworks emerged on the Pareto frontier when analyzing the trade-off between cost and accuracy, representing the set of options where no other framework is both cheaper and more accurate [9]. Retrieval-augmented generation is identified as the most cost-effective solution, achieving approximately 78% accuracy with a total cost of ownership of only $0.65 *(citation could not be verified)*. Mem0 achieved the highest overall accuracy at 81.08% but at a significantly higher total cost of ownership of $5.43 *(citation could not be verified)*.\n\n## Conclusion and Future Directions \u2014 Summary of current best practices and emerging trends in hybrid agent memory architectures.\nCurrent practices rely on vector stores, hierarchical structures like H-MEM, and knowledge graphs to provide agents with scalable and context-aware long-term memory [1][4][6]. Emerging solutions balance retrieval accuracy against computational and token costs using selective external memory or cost-effective retrieval frameworks [8][9].\n\n## Limitations\nCertain evidence sources contained empty text snippets or omitted specific details regarding hybrid integration strategies [2][5]. Quantitative benchmarks are limited to specific evaluations like the Mem0 LOCOMO benchmark and Pareto frontier analyses, meaning performance metrics may vary across different task domains [8][9].\n\n## Sources\n[1] https://apxml.com/courses/agentic-llm-memory-architectures/chapter-3-designing-memory-systems/long-term-memory-vector-stores\n[2] https://builder.aws.com/content/3IVOiW0t2j0RUxZzYDNwR6g5DQG/temporal-vector-databases-for-long-term-memory-in-ai-agents\n[3] https://zylos.ai/research/2026-03-19-vector-memory-embedding-retrieval-ai-agents\n[4] https://www.alphaxiv.org/abs/2507.22925\n[5] https://tianpan.co/blog/2026/04/10/graph-memory-llm-agents-relational-reasoning\n[6] https://neo4j.com/blog/genai/knowledge-graph-llm-multi-hop-reasoning\n[7] https://redis.io/blog/long-term-memory-architectures-ai-agents\n[8] https://atlan.com/know/agent-memory-architectures\n[9] https://www.alphaxiv.org/abs/2601.07978v3"
+    },
+    {
+      "id": "postgres-vs-mysql",
+      "domain": "software",
+      "completed": true,
+      "error": null,
+      "latency_s": 53.11,
+      "cost_usd": 0.0,
+      "tokens": 56049,
+      "word_count": 703,
+      "source_count": 10,
+      "total_citations": 29,
+      "unresolved_citations": 0,
+      "resolution_rate": 1.0,
+      "uncited_claim_count": 3,
+      "contradictions_surfaced": 0,
+      "citation_support_rate": 1.0,
+      "claim_verdicts": [
+        {
+          "claim": "PostgreSQL delivers superior speeds across complex query operations and high-performance processing capabilities [1][2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2194"
+          },
+          "cites": [
+            1,
+            2
+          ]
+        },
+        {
+          "claim": "MySQL maintains traditional strengths in read-heavy workloads and straightforward web applications [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2194"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "PostgreSQL achieves speeds approximately 1.6 times faster than MySQL across most operations, particularly in complex query scenarios [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2194"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Benchmarks indicate that PostgreSQL handles insert operations at a rate 4 times faster than MySQL and processes JSON data up to 150 times faster than MongoDB [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2194"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "MySQL maintains specific operational strengths for read-heavy workloads, rendering it suitable for straightforward web applications [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2015"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "PostgreSQL provides robust JSON support through two primary data types known as JSON and JSONB [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2015"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "The JSON data type stores an exact copy of input text with parsing on each operation, lacks indexing, and requires reparsing each time it is accessed [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2015"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "The JSONB data type stores data in an optimized binary format for more efficient processing, although JSONB is marginally slower with insertion operations and provides extensive functionality [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2015"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Type `jsonb` supports two operator classes where `jsonb_ops` serves as the default, while `jsonb_path_ops` supports fewer operators but offers better performance for those specific operators [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2154"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "PostgreSQL supports specialized extensions for vector, GIS, and time-series workloads [10].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2154"
+          },
+          "cites": [
+            10
+          ]
+        },
+        {
+          "claim": "Managed relational database services such as Amazon RDS and Cloud SQL automate time-consuming administrative tasks like hardware provisioning, database setup, patching, and backups [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2154"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Cloud SQL supports MySQL, PostgreSQL, and SQL Server while offering high availability, automated backups, and seamless integration with Google Cloud Platform services [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2154"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Amazon RDS supports multiple database engines including MySQL, PostgreSQL, MariaDB, Oracle, and SQL Server [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2290"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "TiDB Cloud operates as a managed distributed SQL service that is MySQL-compatible across AWS, Azure, Google Cloud Platform, and Alibaba Cloud, enabling independent compute and storage scaling alongside automated deployments, enterprise-grade security, backups, and 99.99% uptime with multi-AZ failover [7].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2290"
+          },
+          "cites": [
+            7
+          ]
+        },
+        {
+          "claim": "Oracle MySQL Database Service with HeatWave in Oracle Cloud Infrastructure scales capacity and performance near linearly without compromising data integrity while running transaction processing and analytics concurrently without extract, transform, load processes [6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2290"
+          },
+          "cites": [
+            6
+          ]
+        },
+        {
+          "claim": "MySQL HeatWave is natively available on public cloud across all available Oracle Cloud Infrastructure regions, Oracle Dedicated Region, Oracle Alloy, and Amazon Web Services [8].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2290"
+          },
+          "cites": [
+            8
+          ]
+        },
+        {
+          "claim": "MySQL provides high-availability solutions out of the box through Group Replication and InnoDB Cluster, featuring automatic failover, conflict resolution built into the database itself, and connection routing handled by MySQL Router [9].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2063"
+          },
+          "cites": [
+            9
+          ]
+        },
+        {
+          "claim": "MySQL offers asynchronous replication by default with semi-sync and group replication for tighter consistency [10].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2063"
+          },
+          "cites": [
+            10
+          ]
+        },
+        {
+          "claim": "PostgreSQL relies on streaming replication for binary near-real-time replication, alongside logical replication that permits replicating specific tables or subsets for analytics offloads or multi-tenant sharding [10].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2063"
+          },
+          "cites": [
+            10
+          ]
+        },
+        {
+          "claim": "PostgreSQL requires external tools like Patroni or pg_auto_failover to achieve automated failover [9].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2063"
+          },
+          "cites": [
+            9
+          ]
+        },
+        {
+          "claim": "PostgreSQL is appropriate for applications requiring complex queries, extensive JSON processing via JSONB, or advanced extensions including vector, GIS, and time-series capabilities [1][3][10].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2248"
+          },
+          "cites": [
+            1,
+            3,
+            10
+          ]
+        },
+        {
+          "claim": "MySQL is suited for straightforward read-heavy web applications and environments that benefit from turnkey high-availability solutions such as Group Replication and InnoDB Cluster [1][9].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2248"
+          },
+          "cites": [
+            1,
+            9
+          ]
+        },
+        {
+          "claim": "Cloud-managed infrastructure options like Amazon RDS, Cloud SQL, and Oracle MySQL Database Service with HeatWave further influence deployment choices across multi-cloud environments [5][6][8].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2248"
+          },
+          "cites": [
+            5,
+            6,
+            8
+          ]
+        }
+      ],
+      "report": "# PostgreSQL vs. MySQL Practical Trade-Offs for Transactional Web Applications in 2025\n\n## Introduction\nModern transactional web applications require robust relational database management systems capable of handling varying concurrency, performance demands, and complex data structures. Selecting between PostgreSQL and MySQL involves weighing distinct architectural advantages, operational workflows, and ecosystem features. PostgreSQL delivers superior speeds across complex query operations and high-performance processing capabilities [1][2]. MySQL maintains traditional strengths in read-heavy workloads and straightforward web applications [1].\n\n## Performance and ACID Compliance\nPostgreSQL achieves speeds approximately 1.6 times faster than MySQL across most operations, particularly in complex query scenarios [1]. EDB Postgres AI demonstrates performance advantages including processing New Orders Per Minute (NOPM) 17% higher than Oracle and 30% higher than SQL Server, alongside delivering 7 times better price performance than Oracle and 6 times better performance than SQL Server measured in cost per transaction *(citation could not be verified)*. Benchmarks indicate that PostgreSQL handles insert operations at a rate 4 times faster than MySQL and processes JSON data up to 150 times faster than MongoDB [2]. MySQL maintains specific operational strengths for read-heavy workloads, rendering it suitable for straightforward web applications [1].\n\n## Developer Experience and Feature Set\nPostgreSQL provides robust JSON support through two primary data types known as JSON and JSONB [3]. The JSON data type stores an exact copy of input text with parsing on each operation, lacks indexing, and requires reparsing each time it is accessed [3]. The JSONB data type stores data in an optimized binary format for more efficient processing, although JSONB is marginally slower with insertion operations and provides extensive functionality [3]. Type `jsonb` supports two operator classes where `jsonb_ops` serves as the default, while `jsonb_path_ops` supports fewer operators but offers better performance for those specific operators [4]. PostgreSQL supports specialized extensions for vector, GIS, and time-series workloads [10].\n\n## Operations, Scaling, and Ecosystem\nManaged relational database services such as Amazon RDS and Cloud SQL automate time-consuming administrative tasks like hardware provisioning, database setup, patching, and backups [5]. Cloud SQL supports MySQL, PostgreSQL, and SQL Server while offering high availability, automated backups, and seamless integration with Google Cloud Platform services [5]. Amazon RDS supports multiple database engines including MySQL, PostgreSQL, MariaDB, Oracle, and SQL Server [5]. TiDB Cloud operates as a managed distributed SQL service that is MySQL-compatible across AWS, Azure, Google Cloud Platform, and Alibaba Cloud, enabling independent compute and storage scaling alongside automated deployments, enterprise-grade security, backups, and 99.99% uptime with multi-AZ failover [7]. Oracle MySQL Database Service with HeatWave in Oracle Cloud Infrastructure scales capacity and performance near linearly without compromising data integrity while running transaction processing and analytics concurrently without extract, transform, load processes [6]. MySQL HeatWave is natively available on public cloud across all available Oracle Cloud Infrastructure regions, Oracle Dedicated Region, Oracle Alloy, and Amazon Web Services [8]. MySQL provides high-availability solutions out of the box through Group Replication and InnoDB Cluster, featuring automatic failover, conflict resolution built into the database itself, and connection routing handled by MySQL Router [9]. MySQL offers asynchronous replication by default with semi-sync and group replication for tighter consistency [10]. PostgreSQL relies on streaming replication for binary near-real-time replication, alongside logical replication that permits replicating specific tables or subsets for analytics offloads or multi-tenant sharding [10]. PostgreSQL requires external tools like Patroni or pg_auto_failover to achieve automated failover [9].\n\n## Conclusion and Decision Framework\nPostgreSQL is appropriate for applications requiring complex queries, extensive JSON processing via JSONB, or advanced extensions including vector, GIS, and time-series capabilities [1][3][10]. MySQL is suited for straightforward read-heavy web applications and environments that benefit from turnkey high-availability solutions such as Group Replication and InnoDB Cluster [1][9]. Cloud-managed infrastructure options like Amazon RDS, Cloud SQL, and Oracle MySQL Database Service with HeatWave further influence deployment choices across multi-cloud environments [5][6][8].\n\n## Limitations\nSpecific quantitative data regarding locking mechanisms, concurrency handling, and exact transaction latency under heavy concurrent load are absent from the evidence, preventing deeper technical comparisons of ACID isolation overhead. Evidence regarding MySQL replication primarily highlights its turnkey high-availability features without providing direct comparative benchmarks against PostgreSQL replication throughput.\n\n## Sources\n[1] https://www.liquibase.com/resources/guides/postgresql-vs-mysql\n[2] https://finance.yahoo.com/news/edb-postgres-ai-significantly-outperforms-140000959.html\n[3] https://aws.amazon.com/blogs/database/postgresql-as-a-json-database-advanced-patterns-and-best-practices\n[4] https://www.postgresql.org/docs/current/gin.html\n[5] https://www.ai-infra-link.com/managed-database-services-showdown-aws-gcp-and-azure-compared-for-2025\n[6] https://thecuberesearch.com/oracle-mysql-database-service-heatwave-vaporizes-aws-redshift-aqua-snowflake-azure-synapse-gcp-bq\n[7] https://www.dbvis.com/thetable/top-cloud-and-multi-cloud-database-hosting-services-in-2025\n[8] https://dev.mysql.com/doc/heatwave/en/mys-hw-supported-cloud-platforms.html\n[9] https://www.velodb.io/glossary/postgresql-vs-mysql\n[10] https://upcloud.com/blog/postgresql-vs-mysql-practical-guide-modern-workloads"
+    },
+    {
+      "id": "solid-state-batteries",
+      "domain": "energy",
+      "completed": true,
+      "error": null,
+      "latency_s": 64.91,
+      "cost_usd": 0.0,
+      "tokens": 79847,
+      "word_count": 426,
+      "source_count": 5,
+      "total_citations": 15,
+      "unresolved_citations": 0,
+      "resolution_rate": 1.0,
+      "uncited_claim_count": 4,
+      "contradictions_surfaced": 0,
+      "citation_support_rate": 1.0,
+      "claim_verdicts": [
+        {
+          "claim": "Industrial players are advancing pilot production lines and targeting commercial vehicle deployments between 2026 and 2028 [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2031"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Technical barriers such as lithium dendrite formation continue to impede large-scale implementation [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2031"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Manufacturing processes for these batteries remain expensive and show limited synergies with conventional production methods [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2031"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Toyota delayed plans for a dedicated solid-state battery manufacturing plant in Japan while reaffirming its deployment target for initial vehicles between 2027 and 2028 [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2031"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Samsung SDI finalized an S-Line pilot production facility at its research and development center located in Suwon, South Korea [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2046"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Samsung confirmed solid-state battery specifications of 500 Wh/kg and 900 Wh/L at InterBattery 2024 by utilizing proprietary solid electrolyte and anode-less technology [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2046"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Lithium dendrite formation at the anode remains a critical point of concern [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2046"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Tiny, needle-like metal structures known as lithium dendrites can penetrate the solid electrolyte that conducts lithium ions between electrodes [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2046"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Implementation has faced hurdles due to the difficulty of densifying the material sufficiently to prevent the formation of voids that lithium dendrites can penetrate [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=3690"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Research groups rely on applying very high pressure to compress the material at room temperature or employing processes combining pressure with temperatures exceeding 400 degrees Celsius to densify the solid electrolyte [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=3690"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Solid-state battery manufacturing processes are more expensive and exhibit fewer synergies with conventional manufacturing processes, which impacts final production costs and market access pricing [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=3690"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Oxide-based electrolytes require high-temperature sintering steps during manufacturing [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=3690"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Polymer-based electrolyte manufacturing processes do not require high-temperature sintering steps, resulting in a more affordable final price compared to oxides [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1913"
+          },
+          "cites": [
+            5
+          ]
+        }
+      ],
+      "report": "```markdown\n# Solid-State Battery Commercialization and Engineering Challenges\n\n## Executive Summary\nThe solid-state battery market is projected to expand from USD 1.601 billion in 2025 to USD 5.886 billion in 2030, registering a compound annual growth rate of 29.74% *(citation could not be verified)*. Industrial players are advancing pilot production lines and targeting commercial vehicle deployments between 2026 and 2028 [2]. Technical barriers such as lithium dendrite formation continue to impede large-scale implementation [3]. Manufacturing processes for these batteries remain expensive and show limited synergies with conventional production methods [5].\n\n## Current Commercialization Landscape\nQuantumScape anticipates its QSE-5 solid-state cells will enter vehicle field testing in 2026 following B-sample delivery to automotive customers in 2025 *(citation could not be verified)*. Toyota delayed plans for a dedicated solid-state battery manufacturing plant in Japan while reaffirming its deployment target for initial vehicles between 2027 and 2028 [2]. Samsung SDI finalized an S-Line pilot production facility at its research and development center located in Suwon, South Korea [2]. Samsung confirmed solid-state battery specifications of 500 Wh/kg and 900 Wh/L at InterBattery 2024 by utilizing proprietary solid electrolyte and anode-less technology [2]. Mass production by Samsung is targeted for 2027, with 20-year lifespans expected by 2029 *(citation could not be verified)*.\n\n## Core Engineering Obstacles\nLithium dendrite formation at the anode remains a critical point of concern [3]. Tiny, needle-like metal structures known as lithium dendrites can penetrate the solid electrolyte that conducts lithium ions between electrodes [3]. These structures propagate toward the cathode and ultimately cause internal short circuits *(citation could not be verified)*. Implementation has faced hurdles due to the difficulty of densifying the material sufficiently to prevent the formation of voids that lithium dendrites can penetrate [3]. Research groups rely on applying very high pressure to compress the material at room temperature or employing processes combining pressure with temperatures exceeding 400 degrees Celsius to densify the solid electrolyte [3].\n\n## Electrolyte Material Trade-offs\nSolid-state battery manufacturing processes are more expensive and exhibit fewer synergies with conventional manufacturing processes, which impacts final production costs and market access pricing [5]. Oxide-based electrolytes require high-temperature sintering steps during manufacturing [5]. Polymer-based electrolyte manufacturing processes do not require high-temperature sintering steps, resulting in a more affordable final price compared to oxides [5].\n\n## Limitations\nCertain evidence items provided empty text strings, restricting the analysis of specific oxide, sulfide, and polymer electrolyte properties [2][4]. Quantitative details regarding solid-solid interfacial resistance and volume changes are absent from the provided evidence.\n\n## Sources\n[1] https://www.researchandmarkets.com/reports/6164872/solid-state-battery-market-forecasts\n[2] https://www.afsethmillar.co.uk/Assets/ssb-roadmap-branded.html\n[3] https://techxplore.com/news/2026-01-densifies-electrolytes-stabilizing-lithium-anodes.html\n[4] https://www.patsnap.com/resources/blog/articles/solid-state-electrolytes-2026-oxide-vs-sulfide-vs-polymer\n[5] https://cicenergigune.com/en/blog/polymers-oxides-sulfides-electrolyte-alternatives-solid-state-batteries\n```"
+    },
+    {
+      "id": "ozempic-mechanism",
+      "domain": "health",
+      "completed": true,
+      "error": null,
+      "latency_s": 68.96,
+      "cost_usd": 0.0,
+      "tokens": 83581,
+      "word_count": 594,
+      "source_count": 7,
+      "total_citations": 28,
+      "unresolved_citations": 0,
+      "resolution_rate": 1.0,
+      "uncited_claim_count": 0,
+      "contradictions_surfaced": 0,
+      "citation_support_rate": 0.9444,
+      "claim_verdicts": [
+        {
+          "claim": "Glucagon-like peptide-1 receptor agonists function by stimulating specific receptors to influence metabolic pathways and control blood glucose [1][3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2108"
+          },
+          "cites": [
+            1,
+            3
+          ]
+        },
+        {
+          "claim": "Medications like semaglutide operate at the molecular level through selective binding and activation of the glucagon-like peptide-1 receptor [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2108"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Documented adverse events encompass gastrointestinal complications, potential thyroid cancer risks, and aspiration hazards during procedures [4][5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2108"
+          },
+          "cites": [
+            4,
+            5
+          ]
+        },
+        {
+          "claim": "Open questions persist regarding long-term safety profiles, sustained weight loss outcomes, and direct head-to-head comparisons between agents [6][7].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2108"
+          },
+          "cites": [
+            6,
+            7
+          ]
+        },
+        {
+          "claim": "Glucagon-like peptide-1 receptor agonists stimulate the glucagon-like peptide-1 receptor to trigger the activation of metabolic pathways involved in insulin secretion, lipid metabolism, energy expenditure, pro-survival and anti-apoptotic cellular signaling, and oxidative stress prevention across multiple tissues [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2081"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Semaglutide exerts its effects at the molecular level primarily through selective binding and activation of the glucagon-like peptide-1 receptor [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2081"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Ozempic lowers fasting and postprandial blood glucose by stimulating insulin secretion in a glucose-dependent manner [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2081"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Ozempic also lowers glucagon secretion in a glucose-dependent manner [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2081"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Gastrointestinal disturbances represent the most prevalent adverse effects associated with glucagon-like peptide-1 receptor agonists, affecting approximately 50% to 60% of patients during the initial treatment phase [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1915"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Long-term clinical trials have dispelled concerns that glucagon-like peptide-1 receptor agonists raise the risk for acute pancreatitis and pancreatic cancer, though these medications may confer an increased risk for thyroid cancer [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1915"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "The main mechanism of action of glucagon-like peptide-1 receptor agonists involves the stimulation of the glucagon-like peptide-1 receptor in tissues such as the pancreas, central nervous system, heart, muscle, kidneys, and gut [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1915"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Semaglutide functions specifically through a class B G-protein-coupled receptor [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1915"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Ozempic causes a delay of gastric emptying and has the potential to impact the absorption of concomitantly administered oral medications [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2331"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Glucagon-like peptide-1 receptors are present within the central nervous system in regions including the hypothalamus, brainstem, and other circumventricular organs that lack a fully intact blood-brain barrier [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2331"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Binding in these areas contributes to appetite regulation and energy balance by modulating neural circuits controlling hunger and satiety [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2331"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Adverse events of specific interest observed with these therapies include gastrointestinal side effects, psychiatric, ocular, thyroid, biliary, and pancreatic complications [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2331"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "Gastrointestinal side effects include nausea, vomiting, diarrhea, and constipation, which generally diminish over time and occur in a dose-dependent manner [5].",
+          "supported": false,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1927"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "The slowing of gastric emptying with glucagon-like peptide-1 receptor agonist treatment increases the propensity for retained gastric contents, which could increase the risk of aspiration during upper gastrointestinal endoscopy or general anesthesia [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1927"
+          },
+          "cites": [
+            4
+          ]
+        }
+      ],
+      "report": "# Mechanisms, Risks, and Open Questions of GLP-1 Receptor Agonists\n\n## Executive Summary\nGlucagon-like peptide-1 receptor agonists function by stimulating specific receptors to influence metabolic pathways and control blood glucose [1][3]. Medications like semaglutide operate at the molecular level through selective binding and activation of the glucagon-like peptide-1 receptor [2]. Documented adverse events encompass gastrointestinal complications, potential thyroid cancer risks, and aspiration hazards during procedures [4][5]. Open questions persist regarding long-term safety profiles, sustained weight loss outcomes, and direct head-to-head comparisons between agents [6][7].\n\n## Key Findings\nGlucagon-like peptide-1 receptor agonists stimulate the glucagon-like peptide-1 receptor to trigger the activation of metabolic pathways involved in insulin secretion, lipid metabolism, energy expenditure, pro-survival and anti-apoptotic cellular signaling, and oxidative stress prevention across multiple tissues [1]. Semaglutide exerts its effects at the molecular level primarily through selective binding and activation of the glucagon-like peptide-1 receptor [2]. Ozempic lowers fasting and postprandial blood glucose by stimulating insulin secretion in a glucose-dependent manner [3]. Ozempic also lowers glucagon secretion in a glucose-dependent manner [3]. Gastrointestinal disturbances represent the most prevalent adverse effects associated with glucagon-like peptide-1 receptor agonists, affecting approximately 50% to 60% of patients during the initial treatment phase [5]. Long-term clinical trials have dispelled concerns that glucagon-like peptide-1 receptor agonists raise the risk for acute pancreatitis and pancreatic cancer, though these medications may confer an increased risk for thyroid cancer [4].\n\n## Detailed Analysis\nThe main mechanism of action of glucagon-like peptide-1 receptor agonists involves the stimulation of the glucagon-like peptide-1 receptor in tissues such as the pancreas, central nervous system, heart, muscle, kidneys, and gut [1]. Semaglutide functions specifically through a class B G-protein-coupled receptor [2]. Ozempic causes a delay of gastric emptying and has the potential to impact the absorption of concomitantly administered oral medications [3]. Glucagon-like peptide-1 receptors are present within the central nervous system in regions including the hypothalamus, brainstem, and other circumventricular organs that lack a fully intact blood-brain barrier [2]. Binding in these areas contributes to appetite regulation and energy balance by modulating neural circuits controlling hunger and satiety [2]. Adverse events of specific interest observed with these therapies include gastrointestinal side effects, psychiatric, ocular, thyroid, biliary, and pancreatic complications [4]. Gastrointestinal side effects include nausea, vomiting, diarrhea, and constipation, which generally diminish over time and occur in a dose-dependent manner [5]. The slowing of gastric emptying with glucagon-like peptide-1 receptor agonist treatment increases the propensity for retained gastric contents, which could increase the risk of aspiration during upper gastrointestinal endoscopy or general anesthesia [4].\n\n## Limitations\nLong-term outcomes, particularly regarding sustained weight loss, weight regain, and safety profiles, remain areas of active investigation despite randomized controlled trials confirming short-term efficacy and safety [6]. Head-to-head trials directly comparing glucagon-like peptide-1 receptor agonists are scarce and necessary to inform optimal agent selection [6]. Underrepresented populations, including adolescents, the elderly, and individuals with psychiatric or eating disorders, require focused study [6]. Critical needs remain for long-term outcome data extending beyond two years [6]. Longitudinal studies should investigate how these agents impact long-term health outcomes such as the incidence of cardiovascular diseases and mortality [7]. Open questions remain regarding the long-term effects of sustained glucagon-like peptide-1 receptor agonist use on cardiovascular, pancreatic, thyroid, hepatobiliary, and neurocognitive outcomes across diverse populations [7]. Additional open questions question whether biomarkers or clinical characteristics can reliably predict individual response to guide personalized therapy, and what strategies can be employed to preserve lean body mass and mitigate weight regain after treatment [7].\n\n## Sources\n[1] https://www.frontiersin.org/journals/nutrition/articles/10.3389/fnut.2024.1398059/full\n[2] https://synapse.patsnap.com/article/what-is-the-mechanism-of-action-of-semaglutide\n[3] https://www.novomedlink.com/diabetes/products/treatments/ozempic/about/how-ozempic-works.html\n[4] https://www.jci.org/articles/view/194740\n[5] https://pmc.ncbi.nlm.nih.gov/articles/PMC12270588\n[6] https://pmc.ncbi.nlm.nih.gov/articles/PMC12361690\n[7] https://www.sciencedirect.com/science/article/pii/S2589537025002950"
+    },
+    {
+      "id": "carbon-capture-cost",
+      "domain": "climate",
+      "completed": true,
+      "error": null,
+      "latency_s": 56.99,
+      "cost_usd": 0.0,
+      "tokens": 53339,
+      "word_count": 565,
+      "source_count": 6,
+      "total_citations": 22,
+      "unresolved_citations": 0,
+      "resolution_rate": 1.0,
+      "uncited_claim_count": 2,
+      "contradictions_surfaced": 0,
+      "citation_support_rate": 0.9444,
+      "claim_verdicts": [
+        {
+          "claim": "Direct air capture remains the most expensive pathway for carbon dioxide removal compared to other available methods [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2079"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "Credible cost estimates for direct air capture with storage remained in the range of $400 to $1,000 per ton of CO\u2082 in 2023-2024, with leading developers citing operational costs of $500\u2013$600 per ton [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2079"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Alternative carbon dioxide removal approaches such as forestry-based methods, soil-carbon sequestration, and biomass energy with carbon capture and storage offer significantly lower cost ranges per tonne [2][3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2079"
+          },
+          "cites": [
+            2,
+            3
+          ]
+        },
+        {
+          "claim": "Geological storage of captured carbon dioxide offers permanence measured in millennia, whereas nature-based methods face reversal risks from fire, land-use change, or climate impacts [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2079"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Direct air capture operates within a broader portfolio of carbon dioxide removal technologies that vary significantly in cost and permanence [2][4][5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2021"
+          },
+          "cites": [
+            2,
+            4,
+            5
+          ]
+        },
+        {
+          "claim": "Current direct air capture projects with geological storage feature costs running roughly from $500 to $1,900 per tonne according to the IEA [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2021"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "The cost gap reflects the thermodynamic reality of capturing dilute versus concentrated carbon dioxide [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2021"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Current costs for direct air capture range widely from $500 to $1,200 per tonne [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2021"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "Credible cost estimates for direct air capture with storage remained in the range of $400 to $1,000 per ton of CO\u2082 in 2023-2024 [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2035"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Leading developers of direct air capture cite operational costs of $500\u2013$600 per ton [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2035"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Direct air capture stands as the most expensive pathway among carbon dioxide removal options [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2035"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "The least expensive carbon dioxide removal approaches are forestry-based methods, soil-carbon sequestration, and biomass burial [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2035"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Forestry-based methods put the cost of carbon dioxide removal at $5-$53 per tonne of CO2 removed [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1939"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Soil-carbon sequestration costs reach as high as $150 per tonne of CO2 removed, but could have negative overall costs when accounting for crop yield increases potentially resulting from changed farm-management practices [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1939"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Costs for biomass energy with carbon capture and storage are currently in the range of $200\u2013$600 per tonne, benefiting from integration with existing biomass supply chains [4].",
+          "supported": false,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1939"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "Geological storage of captured carbon dioxide offers permanence measured in millennia [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1939"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Nature-based methods such as forests and soil face reversal risks from fire, land-use change, or climate impacts [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2037"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Growing energy crops increases competition for land by limiting land for biodiversity conservation and food [6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2037"
+          },
+          "cites": [
+            6
+          ]
+        }
+      ],
+      "report": "# Cost-Effectiveness of Direct Air Capture Compared to Alternative Carbon-Removal Methods\n\n## Executive Summary\nDirect air capture remains the most expensive pathway for carbon dioxide removal compared to other available methods [4]. Credible cost estimates for direct air capture with storage remained in the range of $400 to $1,000 per ton of CO\u2082 in 2023-2024, with leading developers citing operational costs of $500\u2013$600 per ton [1]. Alternative carbon dioxide removal approaches such as forestry-based methods, soil-carbon sequestration, and biomass energy with carbon capture and storage offer significantly lower cost ranges per tonne [2][3]. Geological storage of captured carbon dioxide offers permanence measured in millennia, whereas nature-based methods face reversal risks from fire, land-use change, or climate impacts [5].\n\n## Introduction to Carbon Removal and DAC \u2014 Overview of carbon dioxide removal (CDR) portfolio and the specific role of direct air capture.\nDirect air capture operates within a broader portfolio of carbon dioxide removal technologies that vary significantly in cost and permanence [2][4][5]. Current direct air capture projects with geological storage feature costs running roughly from $500 to $1,900 per tonne according to the IEA [5]. The cost gap reflects the thermodynamic reality of capturing dilute versus concentrated carbon dioxide [5]. \n\n## Current Economics of Direct Air Capture \u2014 Detailed breakdown of current capital and operational expenses for solid and liquid DAC systems.\nCurrent costs for direct air capture range widely from $500 to $1,200 per tonne [4]. Credible cost estimates for direct air capture with storage remained in the range of $400 to $1,000 per ton of CO\u2082 in 2023-2024 [1]. Leading developers of direct air capture cite operational costs of $500\u2013$600 per ton [1]. \n\n## Cost Comparison with Alternative Removal Methods \u2014 Comparative analysis of DAC against nature-based solutions (afforestation, soil sequestration) and BECCS.\nDirect air capture stands as the most expensive pathway among carbon dioxide removal options [4]. The least expensive carbon dioxide removal approaches are forestry-based methods, soil-carbon sequestration, and biomass burial [2]. Forestry-based methods put the cost of carbon dioxide removal at $5-$53 per tonne of CO2 removed [2]. Soil-carbon sequestration costs reach as high as $150 per tonne of CO2 removed, but could have negative overall costs when accounting for crop yield increases potentially resulting from changed farm-management practices [2]. Biomass energy with carbon capture and storage can remove a tonne of carbon dioxide equivalent at a price of $21 to $436 *(citation could not be verified)*. Costs for biomass energy with carbon capture and storage are currently in the range of $200\u2013$600 per tonne, benefiting from integration with existing biomass supply chains [4]. \n\n## Trade-offs: Cost, Permanence, and Scalability \u2014 Synthesis of cost-effectiveness in relation to storage permanence, energy requirements, and land footprint.\nGeological storage of captured carbon dioxide offers permanence measured in millennia [5]. Nature-based methods such as forests and soil face reversal risks from fire, land-use change, or climate impacts [5]. This permanence spectrum affects credit quality in carbon markets *(citation could not be verified)*. Growing energy crops increases competition for land by limiting land for biodiversity conservation and food [6]. \n\n## Limitations\nDirect evidence detailing specific breakdowns between solid and liquid direct air capture system expenses is absent from the provided material. Specific capital expenditure versus operational expenditure breakdowns are largely omitted outside of general operational cost citations by leading developers [1]. \n\n## Sources\n[1] https://enkiai.com/new-direct-air-capture-market-2023-2025-from-hype-to-commercial-maturity-amid-volatility\n[2] https://www.carbonbrief.org/qa-the-current-state-of-carbon-dioxide-removal-around-the-world\n[3] https://deepblue.lib.umich.edu/bitstreams/70a6c918-59e2-49ea-b8bf-2e27a3c9c532/download\n[4] https://reports.weforum.org/docs/WEF_Carbon_Dioxide_Removal_Technologies_2026.pdf\n[5] https://www.councilfire.org/resources/compare/carbon-capture-vs-carbon-removal\n[6] https://www.ipcc.ch/report/ar6/wg3/downloads/outreach/IPCC_AR6_WGIII_Factsheet_CDR.pdf"
+    },
+    {
+      "id": "rust-adoption",
+      "domain": "software",
+      "completed": true,
+      "error": null,
+      "latency_s": 49.09,
+      "cost_usd": 0.0,
+      "tokens": 43827,
+      "word_count": 461,
+      "source_count": 4,
+      "total_citations": 19,
+      "unresolved_citations": 0,
+      "resolution_rate": 1.0,
+      "uncited_claim_count": 1,
+      "contradictions_surfaced": 0,
+      "citation_support_rate": 1.0,
+      "claim_verdicts": [
+        {
+          "claim": "Systems engineering teams are adopting Rust to achieve memory and concurrency safety without sacrificing the low-level performance traditionally associated with C and C++ [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2095"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "C++ relies on manual memory allocation and deallocation, which can result in errors like memory leaks or buffer overflows [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2095"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "Rust encounters trade-offs including a steep learning curve, longer compile times, and an ecosystem that may lack the maturity of C++ in certain domains [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2095"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Rust is a modern systems programming language engineered for safety, performance, and concurrency [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2095"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Rust provides an alternative to traditional languages like C and C++ by eliminating entire classes of critical vulnerabilities at compile-time [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2234"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Rust delivers C/C++-level performance with built-in memory and concurrency safety [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2234"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Rust achieves C/C++-level performance by adhering to the principle of zero-cost abstractions [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2234"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Rust gives the programmer fine-grained control on when and how much memory is allocated [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2234"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "C++ memory management requires careful handling through manual allocation and deallocation [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2335"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "C++ lacks built-in safety features for concurrency, which makes multithreading more error-prone [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2335"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "Rust is rapidly gaining traction for cryptographic libraries and secure software, automotive software and software-defined vehicles, as well as defense and aerospace systems [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2335"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Languages achieving memory safety through garbage collection are not ideal choices for systems programming because their runtimes can lead to unpredictable performance and unnecessary overhead [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2335"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Rust allows the programmer to have a very good idea of exactly how the program will perform every time it is run [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2031"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "The compiler optimizes zero-cost abstractions down to highly efficient machine code [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2031"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "C++ presents several challenges in systems programming, including complexity, extensive feature sets leading to steep learning curves, and intricate codebases that are difficult to manage [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2031"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "C++ flexibility means different coding styles can lead to inconsistency across projects [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2031"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "Debugging and maintaining C++ code can be time-consuming, particularly for large systems with multiple dependencies [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2008"
+          },
+          "cites": [
+            4
+          ]
+        }
+      ],
+      "report": "# Rust Adoption and Comparative Analysis Against C++\n\n## Executive Summary\nSystems engineering teams are adopting Rust to achieve memory and concurrency safety without sacrificing the low-level performance traditionally associated with C and C++ [1]. Rust eliminates entire classes of critical vulnerabilities at compile-time by utilizing ownership and borrow checking principles *(citation could not be verified)*. C++ relies on manual memory allocation and deallocation, which can result in errors like memory leaks or buffer overflows [4]. Rust encounters trade-offs including a steep learning curve, longer compile times, and an ecosystem that may lack the maturity of C++ in certain domains [3].\n\n## Key Findings\n- Rust is a modern systems programming language engineered for safety, performance, and concurrency [1].\n- Rust provides an alternative to traditional languages like C and C++ by eliminating entire classes of critical vulnerabilities at compile-time [1].\n- Rust delivers C/C++-level performance with built-in memory and concurrency safety [1].\n- Rust achieves C/C++-level performance by adhering to the principle of zero-cost abstractions [1].\n- Rust gives the programmer fine-grained control on when and how much memory is allocated [2].\n- C++ memory management requires careful handling through manual allocation and deallocation [4].\n- C++ lacks built-in safety features for concurrency, which makes multithreading more error-prone [4].\n\n## Detailed Analysis\nRust is rapidly gaining traction for cryptographic libraries and secure software, automotive software and software-defined vehicles, as well as defense and aerospace systems [1]. Languages achieving memory safety through garbage collection are not ideal choices for systems programming because their runtimes can lead to unpredictable performance and unnecessary overhead [2]. Rust allows the programmer to have a very good idea of exactly how the program will perform every time it is run [2]. The compiler optimizes zero-cost abstractions down to highly efficient machine code [1]. C++ presents several challenges in systems programming, including complexity, extensive feature sets leading to steep learning curves, and intricate codebases that are difficult to manage [4]. C++ flexibility means different coding styles can lead to inconsistency across projects [4]. Debugging and maintaining C++ code can be time-consuming, particularly for large systems with multiple dependencies [4].\n\n## Limitations\nThe evidence does not provide quantitative metrics regarding the exact magnitude of performance gains or compile-time differences between Rust and C++. The evidence mentions that Rust may lack the maturity of C++ in domains like game development, but it does not detail other specific industrial domains where Rust falls short [3]. The evidence notes that managing lifetimes in complex codebases requires practice, but it lacks broader data on team productivity impacts [3]. Furthermore, the specific claim that C++ flexibility means different coding styles can lead to inconsistency across projects lacks direct support in the provided evidence.\n\n## Sources\n[1] https://parvezshaik.info/techblogs/rustforswsolutions.html\n[2] https://www.microsoft.com/en-us/msrc/blog/2019/07/why-rust-for-safe-systems-programming\n[3] https://medium.com/@kaly.salas.7/rust-performance-optimizations-compared-to-other-programming-languages-c2e3685163e2\n[4] https://proxify.io/articles/c-plus-plus-vs-rust-for-systems-programming"
+    },
+    {
+      "id": "remote-work-productivity",
+      "domain": "economics",
+      "completed": true,
+      "error": null,
+      "latency_s": 60.01,
+      "cost_usd": 0.0,
+      "tokens": 74004,
+      "word_count": 502,
+      "source_count": 7,
+      "total_citations": 17,
+      "unresolved_citations": 0,
+      "resolution_rate": 1.0,
+      "uncited_claim_count": 2,
+      "contradictions_surfaced": 0,
+      "citation_support_rate": 0.9286,
+      "claim_verdicts": [
+        {
+          "claim": "Measuring productivity in distributed environments presents complexity due to varying methodologies and differing outcomes reported across diverse studies [1][2][3].",
+          "supported": false,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2406"
+          },
+          "cites": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "claim": "A six-month randomized control trial at Trip.com involving 1,612 employees revealed that hybrid working significantly improves job satisfaction and reduces attrition rates by one-third without harming performance [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2406"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "A Stanford study published in Nature found no drop in productivity, along with a 33% reduction in employee turnover [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2406"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "In the first half of 2020, firms with workers switching to remote work reported lower average productivity for remote work than in-person work, with a mean answer of -16.30, which is statistically different from 0.9 [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2406"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "By the first half of 2021, firms reported that the productivity of remote work was higher than in-person work, with an average response of 16.76, a statistically significant shift [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2034"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "In 2022, Great Place To Work's two-year study of more than 800,000 employees found stable or improved productivity after transitioning to remote work [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2034"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "A BLS analysis of 61 industries found a positive link between remote work and total factor productivity growth, showing that remote and hybrid work arrangements do not drag down economic output [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2034"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Gallup data shows employees in remote settings work about one hour less per day, yet macro-level productivity remains steady [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2034"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Going fully remote may reduce individual output by 8-19%, according to some studies [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=4228"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "The 10 percent of U.S. employees who are fully remote are 10 percent to 20 percent less productive than office workers, according to the review of studies [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=4228"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Going into the office two or three days a week and spending the other days at home has no apparent impact on productivity and, in one study, hybrid workers were slightly more productive [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=4228"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Remote work brings operational cost reduction and enhanced flexibility yet it creates significant HR challenges through its impacts on communication effectiveness and employee retention as well as performance measurement complexity alongside data protection risks alongside work-life balance undesirable outcomes [6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=4228"
+          },
+          "cites": [
+            6
+          ]
+        },
+        {
+          "claim": "Key challenges include communication delays, employee isolation, performance tracking difficulties, cybersecurity risks, and burnout [6]. 85% of business leaders struggle to trust that remote employees are being productive, even though most research shows stable or improved output [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2176"
+          },
+          "cites": [
+            6,
+            2
+          ]
+        },
+        {
+          "claim": "Remote work can lead to employee disengagement due to the lack of social interactions with coworkers, feelings of being left out, and gaps in communication [7].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2176"
+          },
+          "cites": [
+            7
+          ]
+        }
+      ],
+      "report": "# Research Report on the Effect of Remote Work on Productivity Since 2020\n\n## Introduction\nThe shift to remote work since 2020 has prompted extensive investigation into its effects on professional output. Measuring productivity in distributed environments presents complexity due to varying methodologies and differing outcomes reported across diverse studies [1][2][3].\n\n## Empirical Findings on Remote Productivity\nA six-month randomized control trial at Trip.com involving 1,612 employees revealed that hybrid working significantly improves job satisfaction and reduces attrition rates by one-third without harming performance [1]. A Stanford study published in Nature found no drop in productivity, along with a 33% reduction in employee turnover [2]. In the first half of 2020, firms with workers switching to remote work reported lower average productivity for remote work than in-person work, with a mean answer of -16.30, which is statistically different from 0.9 [3]. By the first half of 2021, firms reported that the productivity of remote work was higher than in-person work, with an average response of 16.76, a statistically significant shift [3]. In 2022, Great Place To Work's two-year study of more than 800,000 employees found stable or improved productivity after transitioning to remote work [4]. A BLS analysis of 61 industries found a positive link between remote work and total factor productivity growth, showing that remote and hybrid work arrangements do not drag down economic output [2]. Gallup data shows employees in remote settings work about one hour less per day, yet macro-level productivity remains steady [2].\n\n## Fully Remote vs. Hybrid Models\nGoing fully remote may reduce individual output by 8-19%, according to some studies [2]. This stands in contrast to hybrid work, which shows a roughly flat impact on performance *(citation could not be verified)*. The 10 percent of U.S. employees who are fully remote are 10 percent to 20 percent less productive than office workers, according to the review of studies [5]. Going into the office two or three days a week and spending the other days at home has no apparent impact on productivity and, in one study, hybrid workers were slightly more productive [5].\n\n## Conclusion and Future Outlook\nRemote work brings operational cost reduction and enhanced flexibility yet it creates significant HR challenges through its impacts on communication effectiveness and employee retention as well as performance measurement complexity alongside data protection risks alongside work-life balance undesirable outcomes [6]. Key challenges include communication delays, employee isolation, performance tracking difficulties, cybersecurity risks, and burnout [6]. 85% of business leaders struggle to trust that remote employees are being productive, even though most research shows stable or improved output [2]. Remote work can lead to employee disengagement due to the lack of social interactions with coworkers, feelings of being left out, and gaps in communication [7].\n\n## Limitations\nCertain evidence items lack comprehensive context or sample size disclosures. The available research relies on mixed methodologies ranging from randomized control trials to broad industrial analyses.\n\n## Sources\n[1] https://voxchina.org/show-3-367.html\n[2] https://www.worktime.com/blog/statistics/remote-work-productivity-statistics-trends-data\n[3] https://www.hbs.edu/ris/Publication%20Files/20-138_eca954c7-dde8-4154-8d7b-5688fd5caf94.pdf\n[4] https://www.greatplacetowork.com/resources/blog/remote-work-productivity-study-finds-surprising-reality-2-year-study\n[5] https://crr.bc.edu/hybrid-work-is-having-more-success-than-fully-remote/\n[6] https://www.ijraset.com/research-paper/hr-challenges-in-remote-work-and-strategies-for-overcoming-them\n[7] https://ideanote.io/blog/remote-employee-engagement"
+    },
+    {
+      "id": "quantum-error-correction",
+      "domain": "physics",
+      "completed": true,
+      "error": null,
+      "latency_s": 56.06,
+      "cost_usd": 0.0,
+      "tokens": 56635,
+      "word_count": 567,
+      "source_count": 7,
+      "total_citations": 18,
+      "unresolved_citations": 0,
+      "resolution_rate": 1.0,
+      "uncited_claim_count": 5,
+      "contradictions_surfaced": 0,
+      "citation_support_rate": 1.0,
+      "claim_verdicts": [
+        {
+          "claim": "Quantum error correction remains a critical requirement for scaling quantum computers toward fault-tolerant operation [1][5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2145"
+          },
+          "cites": [
+            1,
+            5
+          ]
+        },
+        {
+          "claim": "Recent experimental demonstrations show significant milestones, including Google reporting the first experimental evidence of a logical qubit benefiting from increased code size in 2023 [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2145"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "QuEra Computing, Harvard University, MIT, and NIST/UMD successfully executed large-scale algorithms on an error-corrected quantum computer featuring 48 logical qubits and hundreds of entangling logical operations in December 2023 [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2145"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Industry roadmaps converge on the late 2020s for fault-tolerance demonstrations [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2145"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Google implemented a distance-3 surface code using 17 total qubits and a distance-5 surface code using 49 total qubits on their superconducting processor [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2018"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Google reported the first experimental evidence of a logical qubit benefiting from increased code size in 2023 [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2018"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Researchers found that the larger distance-5 code had a slightly lower error rate than the smaller code during these superconducting processor experiments [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2018"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "QuEra Computing announced a significant breakthrough published in Nature on December 6, 2023 [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2018"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Experiments led by Harvard University in close collaboration with QuEra Computing, MIT, and NIST/UMD successfully executed large-scale algorithms on an error-corrected quantum computer with 48 logical qubits and hundreds of entangling logical operations [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2087"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Magic state distillation functions as a crucial yet resource-intensive process in fault-tolerant quantum computation [6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2087"
+          },
+          "cites": [
+            6
+          ]
+        },
+        {
+          "claim": "Protocol overhead is defined as the number of input magic states required per output magic state with an error rate below $\\epsilon$ [6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2087"
+          },
+          "cites": [
+            6
+          ]
+        },
+        {
+          "claim": "Protocol overhead typically grows as $\\mathcal{O}(\\log^{\\gamma}(1/\\epsilon))$ [6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2087"
+          },
+          "cites": [
+            6
+          ]
+        },
+        {
+          "claim": "Researchers developed magic state distillation protocols for qubits featuring efficient, polynomial-time decoding that achieve an $\\mathcal{O}(1)$ overhead, meaning the optimal exponent $\\gamma = 0$ [6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1956"
+          },
+          "cites": [
+            6
+          ]
+        },
+        {
+          "claim": "IBM Quantum Starling is scheduled for delivery by 2029 as a large-scale, fault-tolerant quantum computer capable of running quantum circuits comprising 100 million quantum gates on 200 logical qubits [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1956"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Google's roadmap points to a similar timeframe for fault-tolerance demonstrations [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1956"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Quantinuum, PsiQuantum, and QuEra described fault-tolerant milestones in the 2028\u20132030 window [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1956"
+          },
+          "cites": [
+            5
+          ]
+        }
+      ],
+      "report": "# Quantum Error Correction and Fault-Tolerant Machines\n\n## Executive Summary\nQuantum error correction remains a critical requirement for scaling quantum computers toward fault-tolerant operation [1][5]. Recent experimental demonstrations show significant milestones, including Google reporting the first experimental evidence of a logical qubit benefiting from increased code size in 2023 [1]. QuEra Computing, Harvard University, MIT, and NIST/UMD successfully executed large-scale algorithms on an error-corrected quantum computer featuring 48 logical qubits and hundreds of entangling logical operations in December 2023 [2]. Industry roadmaps converge on the late 2020s for fault-tolerance demonstrations [5].\n\n## Introduction to Quantum Error Correction \u2014 Overview of why error correction is necessary for scaling quantum computers and basic principles of quantum codes.\nQuantum error correction utilizes surface codes to protect quantum information against environmental noise and operational errors *(citation could not be verified)*. Google implemented a distance-3 surface code using 17 total qubits and a distance-5 surface code using 49 total qubits on their superconducting processor [1]. Larger code sizes allow researchers to compare logical error rates to determine if increased code size benefits the logical qubit *(citation could not be verified)*.\n\n## Recent Experimental Breakthroughs \u2014 Summary of recent demonstrations of logical qubits, break-even fidelities, and reduced error rates across different hardware modalities.\nGoogle reported the first experimental evidence of a logical qubit benefiting from increased code size in 2023 [1]. Researchers found that the larger distance-5 code had a slightly lower error rate than the smaller code during these superconducting processor experiments [1]. QuEra Computing announced a significant breakthrough published in Nature on December 6, 2023 [2]. Experiments led by Harvard University in close collaboration with QuEra Computing, MIT, and NIST/UMD successfully executed large-scale algorithms on an error-corrected quantum computer with 48 logical qubits and hundreds of entangling logical operations [2].\n\n## Algorithmic and Architectural Challenges \u2014 Discussion of magic state distillation, real-time decoding, and physical resource overhead.\nMagic state distillation functions as a crucial yet resource-intensive process in fault-tolerant quantum computation [6]. Protocol overhead is defined as the number of input magic states required per output magic state with an error rate below $\\epsilon$ [6]. Protocol overhead typically grows as $\\mathcal{O}(\\log^{\\gamma}(1/\\epsilon))$ [6]. Researchers developed magic state distillation protocols for qubits featuring efficient, polynomial-time decoding that achieve an $\\mathcal{O}(1)$ overhead, meaning the optimal exponent $\\gamma = 0$ [6].\n\n## Timeline to Fault-Tolerant Machines \u2014 Analysis of current industry roadmaps and scientific estimates for realizing practical fault-tolerant quantum computers.\nIndustrial roadmaps are converging on the late 2020s for fault-tolerance demonstrations *(citation could not be verified)*. IBM targets approximately 200 logical qubits by 2029 *(citation could not be verified)*. IBM Quantum Starling is scheduled for delivery by 2029 as a large-scale, fault-tolerant quantum computer capable of running quantum circuits comprising 100 million quantum gates on 200 logical qubits [3]. Google's roadmap points to a similar timeframe for fault-tolerance demonstrations [5]. Quantinuum, PsiQuantum, and QuEra described fault-tolerant milestones in the 2028\u20132030 window [5]. Quantinuum unveiled an accelerated roadmap to achieve universal fault-tolerant quantum computing by 2030 *(citation could not be verified)*.\n\n## Limitations\nSpecific details regarding PsiQuantum's exact architecture and Quantinuum's intermediate technical milestones are absent from the evidence. Quantitative performance metrics for platforms other than Google and QuEra are limited to high-level roadmap projections. Quantinuum unveiled an accelerated roadmap to achieve universal fault-tolerant quantum computing by 2030 [4].\n\n## Sources\n[1] https://postquantum.com/quantum-computing/surface-code-qec\n[2] https://www.quera.com/press-releases/harvard-quera-mit-and-the-nist-university-of-maryland-usher-in-new-era-of-quantum-computing-by-performing-complex-error-corrected-quantum-algorithms-on-48-logical-qubits0\n[3] https://www.ibm.com/quantum/blog/large-scale-ftqc\n[4] https://www.quantinuum.com/press-releases/quantinuum-unveils-accelerated-roadmap-to-achieve-universal-fault-tolerant-quantum-computing-by-2030\n[5] https://postquantum.com/quantum-computing-companies/quantum-computing-companies-roadmaps\n[6] https://arxiv.org/html/2408.07764v1\n[7] https://errorcorrectionzoo.org/list/quantum_magic"
+    },
+    {
+      "id": "eu-ai-act",
+      "domain": "policy",
+      "completed": true,
+      "error": null,
+      "latency_s": 50.26,
+      "cost_usd": 0.0,
+      "tokens": 50600,
+      "word_count": 873,
+      "source_count": 7,
+      "total_citations": 29,
+      "unresolved_citations": 0,
+      "resolution_rate": 1.0,
+      "uncited_claim_count": 2,
+      "contradictions_surfaced": 0,
+      "citation_support_rate": 0.913,
+      "claim_verdicts": [
+        {
+          "claim": "Chapter V of the Act\u2014Articles 53, 54, and 55\u2014sets out specific legal obligations for providers of general-purpose AI (GPAI) models [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1806"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Understanding these requirements is critical for compliance, risk mitigation, and promoting transparency and trust in the use of AI across the EU [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1806"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Providers must prepare detailed technical documentation, put in place a policy to comply with Union law on copyright and related rights, and make a publicly available training data summary [1][2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1806"
+          },
+          "cites": [
+            1,
+            2
+          ]
+        },
+        {
+          "claim": "Furthermore, providers established in third countries must appoint an authorised representative, and models with systemic risk face additional obligations under Article 55 [2][3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1806"
+          },
+          "cites": [
+            2,
+            3
+          ]
+        },
+        {
+          "claim": "General-purpose AI model providers must prepare detailed technical documentation that includes elements listed in Annex XI [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2228"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Providers must document technical information to provide it upon request to the AI Office and national competent authorities, and make it available to downstream providers [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2228"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Providers must put in place a policy to comply with Union law on copyright and related rights, and draw up and make publicly available a sufficiently detailed summary [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2228"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Providers are required to publish a detailed summary of content and data used to train the GPAI model, using a simple and effective template provided by the AI Office [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2228"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "All providers of GPAI models, including the providers of free and open-source licenses, are required to fulfill this obligation [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2049"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Providers established in third countries and wanting to place a GPAI model on the Union market are required by Article 54(1) AI Act to first appoint, by written mandate, an authorised representative established in the Union [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2049"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Providers of general-purpose AI models with systemic risk must assess and mitigate systemic risks by performing model evaluations, keeping track of, documenting, and reporting serious incidents, and ensuring adequate cybersecurity protection [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2049"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "General-purpose AI model providers must prepare detailed technical documentation that includes at least the elements listed in Annex XI [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2049"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "The documentation must also outline integration requirements, design specifications, training methodologies, key design choices including their rationale and assumptions, and details on data sources, curation methods, and bias detection measures [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2030"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Providers must document technical information about their models for the purpose of providing that information upon request to the AI Office and national competent authorities under Article 53(1)(a) of the AI Act, and making it available to downstream providers under Article 53(1)(b) of the AI Act [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2030"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Providers must also put in place a policy to comply with Union law on copyright and related rights under Article 53(1)(c) of the AI Act, and draw up and make publicly available a sufficiently detailed summary [2].",
+          "supported": false,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2030"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Providers are required to publish a detailed summary of content and data used to train the GPAI model, using a simple and effective template provided by the AI Office under Article 53(1)(d) [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2030"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "All providers of GPAI models, including the providers of free and open-source licenses, are required to fulfill this obligation to ensure transparency across the board concerning the data used for training GPAI models [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2098"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Providers established in third countries and wanting to place a GPAI model on the Union market are required by Article 54(1) of the AI Act to first appoint, by written mandate, an authorised representative established in the Union [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2098"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Under the AI Act, providers of general-purpose AI models with systemic risk have additional obligations under Article 55 [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2098"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "They must assess and mitigate systemic risks, in particular by performing model evaluations in accordance with standardised protocols and tools reflecting the state of the art, including conducting and documenting adversarial testing of the model with a view to identifying and mitigating systemic risks [2][7].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2098"
+          },
+          "cites": [
+            2,
+            7
+          ]
+        },
+        {
+          "claim": "They must assess and mitigate possible systemic risks at the Union level, including their sources, that may stem from the development and the placing on the market [7].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2238"
+          },
+          "cites": [
+            7
+          ]
+        },
+        {
+          "claim": "They must keep track of, document, and report, without undue delay, to the AI Office and, as appropriate, to national competent authorities, relevant information about serious incidents [2][7].",
+          "supported": false,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2238"
+          },
+          "cites": [
+            2,
+            7
+          ]
+        },
+        {
+          "claim": "They must also ensure an adequate level of cybersecurity protection for the general-purpose AI model and its physical infrastructure under Article 55 of the AI Act [2][7].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2238"
+          },
+          "cites": [
+            2,
+            7
+          ]
+        }
+      ],
+      "report": "# Obligations for General-Purpose AI Models Under the EU AI Act\n\n## Executive Summary\nChapter V of the Act\u2014Articles 53, 54, and 55\u2014sets out specific legal obligations for providers of general-purpose AI (GPAI) models [1]. Understanding these requirements is critical for compliance, risk mitigation, and promoting transparency and trust in the use of AI across the EU [1]. Providers must prepare detailed technical documentation, put in place a policy to comply with Union law on copyright and related rights, and make a publicly available training data summary [1][2]. Furthermore, providers established in third countries must appoint an authorised representative, and models with systemic risk face additional obligations under Article 55 [2][3].\n\n## Key Findings\n- General-purpose AI model providers must prepare detailed technical documentation that includes elements listed in Annex XI [1].\n- Providers must document technical information to provide it upon request to the AI Office and national competent authorities, and make it available to downstream providers [2].\n- Providers must put in place a policy to comply with Union law on copyright and related rights, and draw up and make publicly available a sufficiently detailed summary [2].\n- Providers are required to publish a detailed summary of content and data used to train the GPAI model, using a simple and effective template provided by the AI Office [1].\n- All providers of GPAI models, including the providers of free and open-source licenses, are required to fulfill this obligation [5].\n- Providers established in third countries and wanting to place a GPAI model on the Union market are required by Article 54(1) AI Act to first appoint, by written mandate, an authorised representative established in the Union [3].\n- Providers of general-purpose AI models with systemic risk must assess and mitigate systemic risks by performing model evaluations, keeping track of, documenting, and reporting serious incidents, and ensuring adequate cybersecurity protection [2].\n\n## Detailed Analysis\nGeneral-purpose AI model providers must prepare detailed technical documentation that includes at least the elements listed in Annex XI [1]. These elements contain a general description of the GPAI model, including its tasks, architecture, and number of parameters *(citation could not be verified)*. The documentation must also outline integration requirements, design specifications, training methodologies, key design choices including their rationale and assumptions, and details on data sources, curation methods, and bias detection measures [1]. Providers must document technical information about their models for the purpose of providing that information upon request to the AI Office and national competent authorities under Article 53(1)(a) of the AI Act, and making it available to downstream providers under Article 53(1)(b) of the AI Act [2]. Providers must also put in place a policy to comply with Union law on copyright and related rights under Article 53(1)(c) of the AI Act, and draw up and make publicly available a sufficiently detailed summary [2]. Providers are required to publish a detailed summary of content and data used to train the GPAI model, using a simple and effective template provided by the AI Office under Article 53(1)(d) [1]. All providers of GPAI models, including the providers of free and open-source licenses, are required to fulfill this obligation to ensure transparency across the board concerning the data used for training GPAI models [5]. This transparency is particularly crucial for complying with EU legislation for copyright and associated rights, including respect for opt-outs under text and data mining rules, as well as for removing illegal content to minimize the possibility that the GPAI model may replicate and distribute it widely *(citation could not be verified)*. Providers established in third countries and wanting to place a GPAI model on the Union market are required by Article 54(1) of the AI Act to first appoint, by written mandate, an authorised representative established in the Union [3]. Under the AI Act, providers of general-purpose AI models with systemic risk have additional obligations under Article 55 [2]. They must assess and mitigate systemic risks, in particular by performing model evaluations in accordance with standardised protocols and tools reflecting the state of the art, including conducting and documenting adversarial testing of the model with a view to identifying and mitigating systemic risks [2][7]. They must assess and mitigate possible systemic risks at the Union level, including their sources, that may stem from the development and the placing on the market [7]. They must keep track of, document, and report, without undue delay, to the AI Office and, as appropriate, to national competent authorities, relevant information about serious incidents [2][7]. They must also ensure an adequate level of cybersecurity protection for the general-purpose AI model and its physical infrastructure under Article 55 of the AI Act [2][7].\n\n## Limitations\nThe provided evidence does not detail the exact computational thresholds or specific parameter counts required to classify a general-purpose AI model as having systemic risk. The text mentions that models placed on the market on or after 2 August 2025 must apply the training content template, and models already on the market before that date have a transitional period to comply by 2 August 2027, but further details on other transitional deadlines for general obligations are absent [6].\n\n## Sources\n[1] https://prighter.com/resources/ai-act-obligations-for-general-purpose-ai-models\n[2] https://digital-strategy.ec.europa.eu/en/faqs/general-purpose-ai-models-ai-act-questions-answers\n[3] http://www.bundesnetzagentur.de/EN/Areas/Digitalisation/AI/03_Models/start.html\n[4] https://www.wilmerhale.com/en/insights/blogs/wilmerhale-privacy-and-cybersecurity-law/european-commission-releases-mandatory-template-for-public-disclosure-of-ai-training-data\n[5] https://securiti.ai/eu-publishes-template-for-public-summaries-of-ai-training-content\n[6] https://regulations.ai/regulations/RAI-EU-NA-TPSTCXX-2025\n[7] https://artificialintelligenceact.eu/article/55"
+    },
+    {
+      "id": "mediterranean-diet",
+      "domain": "health",
+      "completed": true,
+      "error": null,
+      "latency_s": 44.07,
+      "cost_usd": 0.0,
+      "tokens": 37962,
+      "word_count": 898,
+      "source_count": 9,
+      "total_citations": 28,
+      "unresolved_citations": 0,
+      "resolution_rate": 1.0,
+      "uncited_claim_count": 4,
+      "contradictions_surfaced": 0,
+      "citation_support_rate": 0.963,
+      "claim_verdicts": [
+        {
+          "claim": "Randomized trials tested the efficacy of two Mediterranean diets, one supplemented with extra-virgin olive oil and the other with nuts, compared with a control diet in which patients were given advice on eating a low-fat diet [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2011"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Prospective cohort studies and comprehensive meta-analyses further associate higher adherence to the Mediterranean diet with lower risks of total cardiovascular disease mortality, coronary heart disease incidence and mortality, and stroke incidence and mortality [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2011"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Cardioprotective effects likely arise from multiple, overlapping mechanisms such as improvements in blood lipid profiles, reduction in systemic inflammation and oxidative stress, enhanced insulin sensitivity, improved endothelial function, and decreased platelet aggregation [6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2011"
+          },
+          "cites": [
+            6
+          ]
+        },
+        {
+          "claim": "Methodological challenges exist, including a previous retraction and republication of a major trial due to randomization errors [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2011"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Randomized trials of the diet tested the efficacy of two Mediterranean diets, one supplemented with extra-virgin olive oil and the other with nuts, compared with a control diet in which patients were given advice on eating a low-fat diet [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2070"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "Cardioprotective effects ascribed to the Mediterranean diet likely arise from multiple, overlapping mechanisms rather than a single pathway [6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2070"
+          },
+          "cites": [
+            6
+          ]
+        },
+        {
+          "claim": "Proposed mechanisms include improvements in blood lipid profiles, reduction in systemic inflammation and oxidative stress, enhanced insulin sensitivity, improved endothelial function, and decreased platelet aggregation [6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2070"
+          },
+          "cites": [
+            6
+          ]
+        },
+        {
+          "claim": "Studies also suggest that this type of diet may lower stress and inflammation in the body [7].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2070"
+          },
+          "cites": [
+            7
+          ]
+        },
+        {
+          "claim": "Mediterranean diet polyphenols reduce inflammatory angiogenesis through MMP-9 and COX-2 inhibition in human vascular endothelial cells [8].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1945"
+          },
+          "cites": [
+            8
+          ]
+        },
+        {
+          "claim": "The main mechanisms of action include its macronutrients and micronutrients profile, the content of antioxidants, and its beneficial effects on postprandial lipemia [9].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1945"
+          },
+          "cites": [
+            9
+          ]
+        },
+        {
+          "claim": "The randomized trial tested the efficacy of two Mediterranean diets, one supplemented with extra-virgin olive oil and the other with nuts, compared with a control diet in which patients were given advice on eating a low-fat diet [1].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1945"
+          },
+          "cites": [
+            1
+          ]
+        },
+        {
+          "claim": "On June 13, 2018, the New England Journal of Medicine retracted the 2013 study, \u201cPrimary Prevention of Cardiovascular Diseases with a Mediterranean Diet,\u201d as a result of an error in randomization procedures affecting a portion of participants in the PREDIMED trial [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1945"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Concurrently, the New England Journal of Medicine published a corrected version of the study with reanalyzed data titled \u201cPrimary Prevention of Cardiovascular Disease with a Mediterranean Diet Supplemented with Extra-Virgin Olive Oil or Nuts\u201d [2].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2053"
+          },
+          "cites": [
+            2
+          ]
+        },
+        {
+          "claim": "Data revealed an inverse association with total cardiovascular disease mortality at a relative risk of 0.79 with a 95% confidence interval of 0.77 to 0.82 [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2053"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Coronary heart disease incidence showed a relative risk of 0.73 with a 95% confidence interval of 0.62 to 0.86 [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2053"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Coronary heart disease mortality showed a relative risk of 0.83 with a 95% confidence interval of 0.75 to 0.92 [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2053"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Stroke incidence showed a relative risk of 0.80 with a 95% confidence interval of 0.71 to 0.90 [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2021"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Stroke mortality showed a relative risk of 0.87 with a 95% confidence interval of 0.80 to 0.96 [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2021"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Myocardial infarction incidence showed a relative risk of 0.73 with a 95% confidence interval of 0.61 to 0.88 [3].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2021"
+          },
+          "cites": [
+            3
+          ]
+        },
+        {
+          "claim": "Higher adherence to the Mediterranean diet was associated with a lower risk of all-cause mortality at 0.74 with a 95% confidence interval of 0.65 to 0.84, cardiovascular mortality at 0.84 with a 95% confidence interval of 0.75 to 0.94, and recurrent cardiovascular events at 0.60 with a 95% confidence interval of 0.39 to 0.92 [4].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2021"
+          },
+          "cites": [
+            4
+          ]
+        },
+        {
+          "claim": "In all of these studies, higher adherence to the Mediterranean diet was significantly associated with a reduced risk of mortality [5].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2160"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Patients who had higher scores on the various Mediterranean diet scales exhibited a reduction in the risk of overall mortality ranging from a hazard ratio of 0.51 with a 95% confidence interval of 0.44 to 0.59 to 0.80 [5].",
+          "supported": false,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2160"
+          },
+          "cites": [
+            5
+          ]
+        },
+        {
+          "claim": "Cardioprotective effects ascribed to the Mediterranean diet likely arise from multiple, overlapping mechanisms rather than a single pathway [6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2160"
+          },
+          "cites": [
+            6
+          ]
+        },
+        {
+          "claim": "Proposed mechanisms include improvements in blood lipid profiles, reduction in systemic inflammation and oxidative stress, enhanced insulin sensitivity, improved endothelial function, and decreased platelet aggregation [6].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=2160"
+          },
+          "cites": [
+            6
+          ]
+        },
+        {
+          "claim": "Studies also suggest that this type of diet may lower stress and inflammation in the body [7].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1936"
+          },
+          "cites": [
+            7
+          ]
+        },
+        {
+          "claim": "Mediterranean diet polyphenols reduce inflammatory angiogenesis through MMP-9 and COX-2 inhibition in human vascular endothelial cells [8].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1936"
+          },
+          "cites": [
+            8
+          ]
+        },
+        {
+          "claim": "The main mechanisms of action include its macronutrients and micronutrients profile, the content of antioxidants, and its beneficial effects on postprandial lipemia [9].",
+          "supported": true,
+          "judged": true,
+          "judged_by": "claude-sonnet-4.5",
+          "judge_routing": {
+            "provider": "kr",
+            "model": "claude-sonnet-4.5",
+            "decision": "strategy=single; provider=kr; latency_ms=1936"
+          },
+          "cites": [
+            9
+          ]
+        }
+      ],
+      "report": "# Strength of Evidence for the Mediterranean Diet in Reducing Cardiovascular Risk\n\n## Executive Summary\nResearch indicates that a Mediterranean diet reduces the risk of cardiovascular events by 30% *(citation could not be verified)*. Randomized trials tested the efficacy of two Mediterranean diets, one supplemented with extra-virgin olive oil and the other with nuts, compared with a control diet in which patients were given advice on eating a low-fat diet [1]. Prospective cohort studies and comprehensive meta-analyses further associate higher adherence to the Mediterranean diet with lower risks of total cardiovascular disease mortality, coronary heart disease incidence and mortality, and stroke incidence and mortality [3]. Cardioprotective effects likely arise from multiple, overlapping mechanisms such as improvements in blood lipid profiles, reduction in systemic inflammation and oxidative stress, enhanced insulin sensitivity, improved endothelial function, and decreased platelet aggregation [6]. Methodological challenges exist, including a previous retraction and republication of a major trial due to randomization errors [2]. \n\n## Introduction to the Mediterranean Diet and Cardiovascular Health\nRandomized trials of the diet tested the efficacy of two Mediterranean diets, one supplemented with extra-virgin olive oil and the other with nuts, compared with a control diet in which patients were given advice on eating a low-fat diet [1]. Cardioprotective effects ascribed to the Mediterranean diet likely arise from multiple, overlapping mechanisms rather than a single pathway [6]. Proposed mechanisms include improvements in blood lipid profiles, reduction in systemic inflammation and oxidative stress, enhanced insulin sensitivity, improved endothelial function, and decreased platelet aggregation [6]. Studies also suggest that this type of diet may lower stress and inflammation in the body [7]. Mediterranean diet polyphenols reduce inflammatory angiogenesis through MMP-9 and COX-2 inhibition in human vascular endothelial cells [8]. The main mechanisms of action include its macronutrients and micronutrients profile, the content of antioxidants, and its beneficial effects on postprandial lipemia [9].\n\n## Evidence from Clinical Trials\nThe randomized trial tested the efficacy of two Mediterranean diets, one supplemented with extra-virgin olive oil and the other with nuts, compared with a control diet in which patients were given advice on eating a low-fat diet [1]. Researchers concluded that a Mediterranean diet reduces the risk of cardiovascular events by 30% *(citation could not be verified)*. On June 13, 2018, the New England Journal of Medicine retracted the 2013 study, \u201cPrimary Prevention of Cardiovascular Diseases with a Mediterranean Diet,\u201d as a result of an error in randomization procedures affecting a portion of participants in the PREDIMED trial [2]. Concurrently, the New England Journal of Medicine published a corrected version of the study with reanalyzed data titled \u201cPrimary Prevention of Cardiovascular Disease with a Mediterranean Diet Supplemented with Extra-Virgin Olive Oil or Nuts\u201d [2].\n\n## Observational Data and Meta-Analyses\nData revealed an inverse association with total cardiovascular disease mortality at a relative risk of 0.79 with a 95% confidence interval of 0.77 to 0.82 [3]. Coronary heart disease incidence showed a relative risk of 0.73 with a 95% confidence interval of 0.62 to 0.86 [3]. Coronary heart disease mortality showed a relative risk of 0.83 with a 95% confidence interval of 0.75 to 0.92 [3]. Stroke incidence showed a relative risk of 0.80 with a 95% confidence interval of 0.71 to 0.90 [3]. Stroke mortality showed a relative risk of 0.87 with a 95% confidence interval of 0.80 to 0.96 [3]. Myocardial infarction incidence showed a relative risk of 0.73 with a 95% confidence interval of 0.61 to 0.88 [3]. Thirteen prospective cohort studies comprising 54,034 patients with established cardiovascular disease, over 13,111 events, and follow-up periods from 2 to 10 years were included *(citation could not be verified)*. Higher adherence to the Mediterranean diet was associated with a lower risk of all-cause mortality at 0.74 with a 95% confidence interval of 0.65 to 0.84, cardiovascular mortality at 0.84 with a 95% confidence interval of 0.75 to 0.94, and recurrent cardiovascular events at 0.60 with a 95% confidence interval of 0.39 to 0.92 [4]. All-cause mortality data were obtained from seven prospective cohort studies, which included a total of 38,881 patients and reported 7,267 events *(citation could not be verified)*. In all of these studies, higher adherence to the Mediterranean diet was significantly associated with a reduced risk of mortality [5]. Patients who had higher scores on the various Mediterranean diet scales exhibited a reduction in the risk of overall mortality ranging from a hazard ratio of 0.51 with a 95% confidence interval of 0.44 to 0.59 to 0.80 [5].\n\n## Biological Mechanisms\nCardioprotective effects ascribed to the Mediterranean diet likely arise from multiple, overlapping mechanisms rather than a single pathway [6]. Proposed mechanisms include improvements in blood lipid profiles, reduction in systemic inflammation and oxidative stress, enhanced insulin sensitivity, improved endothelial function, and decreased platelet aggregation [6]. Studies also suggest that this type of diet may lower stress and inflammation in the body [7]. Mediterranean diet polyphenols reduce inflammatory angiogenesis through MMP-9 and COX-2 inhibition in human vascular endothelial cells [8]. The main mechanisms of action include its macronutrients and micronutrients profile, the content of antioxidants, and its beneficial effects on postprandial lipemia [9].\n\n## Limitations\nEvidence regarding primary prevention protocols features a notable retraction and subsequent republication of the 2013 PREDIMED study due to errors in randomization procedures affecting a portion of participants [2].\n\n## Sources\n[1] https://www.patientcareonline.com/view/mediterranean-diet-provides-primary-prevention-cardiovascular-disease\n[2] https://nutritionsource.hsph.harvard.edu/2018/06/22/predimed-retraction-republication\n[3] https://pubmed.ncbi.nlm.nih.gov/30676058\n[4] https://www.sciencedirect.com/science/article/pii/S0939475326003169\n[5] https://www.mdpi.com/2072-6643/15/15/3356\n[6] https://www.mdpi.com/2072-6643/17/22/3617\n[7] https://www.mayoclinic.org/healthy-lifestyle/nutrition-and-healthy-eating/in-depth/mediterranean-diet/art-20047801\n[8] https://www.ahajournals.org/doi/10.1161/CIRCRESAHA.118.313348\n[9] https://austinpublishinggroup.com/nutritional-disorders/fulltext/andt-v2-id1016.php"
+    }
+  ],
+  "judge": {
+    "route": "custom:kiro/claude-sonnet-4.5",
+    "independent_of": {
+      "planner": "custom:antigravity/gemini-2.5-flash",
+      "executor": "custom:antigravity/gemini-2.5-flash",
+      "critic": "custom:antigravity/gemini-2.5-flash",
+      "synthesizer": "custom:antigravity/gemini-2.5-flash",
+      "chat": "custom:antigravity/gemini-2.5-flash"
+    },
+    "baseline": {
+      "claims_judged": 190,
+      "claims_unjudged": 0,
+      "served_models": [
+        "claude-sonnet-4.5"
+      ],
+      "routing": {
+        "providers": [
+          "kr"
+        ],
+        "models": [
+          "claude-sonnet-4.5"
+        ],
+        "strategies": [
+          "single"
+        ],
+        "rulings_without_routing": 0
+      }
+    },
+    "answered": true
+  }
+}

@@ -762,6 +762,8 @@ The release does not only test happy paths. Where each release-critical failure 
 | ≤3.0.1 | Every published api/worker image answered `/api/v1/version` with `unknown` — nothing stamped them | `release.yml` stamp job + image step (A6.03, A11.09), A10.05 |
 | ≤3.0.1 | Nothing on the live site said which commit it was built from | `pages.yml` `build.json` (A6.03), A17.02 |
 | every | Features and fixes merged with no record of whether they were meant to ship | A0.01, A2.01, M2.01 |
+| 3.0.2 (caught in preparation) | A2.01 read only `Merge pull request #N`, so three squash-merged PRs (#179-#181) were outside the scope check | `merged_prs` reads both merge styles (A2.01) |
+| 3.0.2 (caught in preparation) | A2.03 read the template's own `Eval waiver: <!-- … -->` line as a waiver, so an unedited record turned a missing evaluation into a WARN | `records_eval_waiver` (A2.03) |
 
 ---
 

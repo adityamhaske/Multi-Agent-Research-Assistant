@@ -25,8 +25,10 @@ from .evaluate import (
     changelog_heading,
     changelog_section,
     entry_completeness,
+    merged_prs,
     parse_releases_ts,
     parse_version,
+    records_eval_waiver,
     release_list_problems,
     review_references,
     version_references,
@@ -360,7 +362,7 @@ def prs_accounted(ctx: Ctx) -> Outcome:
     if prev is None:
         return skip("no previous release to diff against")
     subjects = ctx.git("log", "--first-parent", "--format=%s", f"{prev}..{ctx.release_commit()}")
-    prs = sorted(set(re.findall(r"Merge pull request #(\d+)", subjects)), key=int)
+    prs = merged_prs(subjects)
     if not ctx.record_path.exists():
         return fail("no release record to account for them in", prs=prs)
     record = ctx.record_path.read_text(encoding="utf-8")
@@ -406,7 +408,7 @@ def eval_gate(ctx: Ctx) -> Outcome:
     if new_results:
         return ok(f"{len(changed)} quality paths changed; new result(s): {new_results}")
     record = ctx.record_path.read_text(encoding="utf-8") if ctx.record_path.exists() else ""
-    if re.search(r"^Eval waiver:\s*\S", record, re.M):
+    if records_eval_waiver(record):
         return warn(f"changed {changed} with no new result; waiver recorded — confirm it")
     return fail(
         f"changed {changed} since {prev} with no new committed eval result and no "
