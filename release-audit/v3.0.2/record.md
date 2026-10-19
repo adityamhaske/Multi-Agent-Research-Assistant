@@ -54,6 +54,9 @@ bundle-format change (A19.02).
 | Scope update: #187-#189 recorded, extra checks planned | #192 | this record, changelog, `releases.ts` | release-entry tests; `--stage ci` | — | — | — | — | ✓ releases.ts (unreleased) | ✓ | — | Shipped (process) |
 | Python 3.14 is the stated floor everywhere — `requires-python`, ruff's target, the engine's import guard, the standalone verifier, the release audit — and A10.06 holds every floor to the image | #193 | `research_engine/__init__.py` guard, both `pyproject.toml`, 3.14 syntax (unquoted annotations, PEP 758 `except`), docs | `test_engine_python_floor.py`; A10.06 | — | — | ✓ same engine | ✓ docs/15, docs/20, docs/32, README, CONTRIBUTING | — | ✓ | ✓ the verifier needs 3.14 (Finding 8) | Shipped |
 | A packaged-app check whose bundle verification did not run fails CI | #194 | `check_packaged_sidecar.py --require-verify`; `desktop.yml` installs the verifier's one dependency | `test_packaged_checker_requires_verify.py` | — | — | ✓ `.deb`/AppImage/`.msi` journeys | ✓ RELEASE.md, AGENTS.md | — | ✓ changelog *Process* | — | Shipped (process) |
+| Next.js and `eslint-config-next` 16.4.2, Playwright 1.64.1 | #191 | `frontend/package*.json` | CI; lint, typecheck, 495 tests and all three builds — `build:pages` included, which CI does not run — on the PR's tree | — | — | ✓ same frontend | — | ✓ `build:pages` | ✓ changelog | — | Shipped |
+| Frontend image on Node 26 (from 25) | #172 | `frontend/Dockerfile` | CI does not build the image: built and run locally from the PR's tree (Finding 9) | — | — | n/a | — | — | ✓ changelog | — | Shipped — Node drift open (Finding 9) |
+| `numpy>=2.5.4` | #190 | `backend/requirements.txt` | CI on 3.14 | — | — | ✓ the sidecar resolves the same set | — | — | ✓ changelog | — | Shipped |
 | v3.0.1 offered for download (the previous release's flip) | #169 | `releases.ts` | `download/unreleased.test.tsx` | ✓ | — | — | — | ✓ | — | — | Shipped (process) |
 | Frontend dependency updates: Next.js 16.3.6, the frontend minor group, undici 8.11.2, brace-expansion 1.1.21 | #174, #175, #176, #182 | `frontend/package*.json` | CI on each PR | — | — | ✓ same frontend | — | — | ✓ changelog | — | Shipped |
 | Security updates past three high-severity advisories: Next.js 16.3.8, sharp 0.35.5, source-map-js 1.2.2 | #185, #184, #183 | `frontend/package*.json` | CI on each PR; merged during stage A (Finding 1), then lint, typecheck, tests and all three builds re-run on the release branch | — | — | ✓ same frontend | — | — | ✓ | — | Shipped |
@@ -319,6 +322,17 @@ Found while preparing stage A, separated by kind.
      upgrade rows A19.02 makes required (M19.02–M19.05) were already required by the
      interpreter move and are planned under Extra checks.
 
+9. **The frontend image's Node is not the Node anything tests.** CI's `frontend` job, the
+   desktop build and the Pages build use Node 22 (`setup-node`). `frontend/Dockerfile` was
+   already on Node 25 before this release, and #172 moves it to 26. No job builds that image
+   before a tag, so it's the frontend twin of Finding 2.
+   - Checked for this release on 2026-10-19: #172's tree builds the `runtime` target on
+     `node:26-bookworm-slim` (v26.12.0). The container comes up healthy.
+   - `/`, `/login`, `/settings` and `/dashboard` answer exactly as the current Node 25 stack
+     does (200, 200, 307, 404; `/dashboard` is not a route).
+   - **Gap:** nothing enforces that the image and CI agree on Node. The fix is the Node
+     counterpart of A10.06, a follow-up.
+
 **Carried over from the v3.0.1 record, still open**
 
 5. The download page's size note (~80 MB download, ~180 MB installed) against 3.0.1's
@@ -437,6 +451,7 @@ on `openrouter` and `custom` routes. And the size note in Finding 5.
 | A2.01 counted only merge commits; squash-merged PRs escaped the scope check | `merged_prs` (A2.01); `test_a_squash_merged_pr_is_in_scope_as_surely_as_a_merge_commit` |
 | A2.03 read the template's waiver placeholder as a waiver | `records_eval_waiver` (A2.03); `test_the_templates_waiver_placeholder_is_not_a_waiver` |
 | A dependency bump changed the server images' Python with nothing building the image | A10.06 (#187, #189): every workflow's Python equals the image's |
+| The frontend image's Node (25, then 26) differs from CI's (22), and nothing builds the image before a tag | Not yet a check — Finding 9's follow-up |
 | A local image carried a stale build stamp and reported another version and commit | `test_local_build_stamp.py` (#188); the sidecar spec refuses a stale stamp |
 
 ## Release approval

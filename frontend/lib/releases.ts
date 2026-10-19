@@ -68,7 +68,7 @@ export const RELEASES: Release[] = [
       "A server you build yourself reports its own version and commit. A leftover build stamp in a checkout was copied into every image built from it, so a 3.0.2 build could tell Settings \u2192 About it was 2.1.0; ./start.sh now stamps images from the checkout, and an image built any other way says unknown.",
       "The server and the desktop app\u2019s engine run Python 3.14, the version every test now runs on. The server images had moved to 3.14 while every test still ran 3.11.",
       "The Oracle Cloud deploy script installs the latest release. It defaulted to a development build made before 1.0.",
-      "The self-hosted web server runs Next.js 16.3.8, which fixes a high-severity server-side request forgery advisory in its image optimization, along with two medium and one low; sharp and source-map-js are updated past high-severity advisories of their own.",
+      "The self-hosted web server runs Next.js 16.4.2, past a high-severity server-side request forgery advisory in its image optimization (fixed in 16.3.8), along with two medium and one low; sharp and source-map-js are updated past high-severity advisories of their own.",
     ],
     improvedSummary:
       "Research through Custom, OpenRouter and Ollama setups runs for real instead of returning the demo, and no longer fails at plan approval. A reworked report no longer doubles its evidence, and its cited counts describe the draft you approved. Citation support measured 96.9% on ten fixed questions.",

@@ -109,7 +109,10 @@ describe the report you approved.
   plus two medium and one low advisory (#185); sharp 0.35.5 (#184) and source-map-js 1.2.2
   (#183) are past high-severity advisories of their own.
 - Dependency updates: Next.js 16.3.6 and the frontend minor group, undici 8.11.2,
-  brace-expansion 1.1.21 (#174, #175, #176, #182).
+  brace-expansion 1.1.21 (#174, #175, #176, #182); then Next.js and `eslint-config-next`
+  16.4.2 and Playwright 1.64.1 (#191), and `numpy>=2.5.4` (#190).
+- **The frontend image runs Node 26** (#172), up from 25. CI, the desktop build and the
+  Pages build still use Node 22; the Node 26 image was built and run for this release.
 
 **Known**
 
