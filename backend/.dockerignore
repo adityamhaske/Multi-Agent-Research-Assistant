@@ -16,3 +16,7 @@ evals/results/
 # A fresh named volume is seeded from whatever the image has at its mount point, so a
 # baked-in corpus/ here would silently reappear as phantom documents on first run.
 data/
+# Deliberately NOT ignored: research_engine/_build.py, the build stamp. release.yml stamps
+# the context fresh and the published images carry it through COPY, by passing
+# BUILD_STAMP=context. Every other build discards whatever stale stamp the checkout holds
+# (the Dockerfile's default) — docker/stamp_image.py.

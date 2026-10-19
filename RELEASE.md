@@ -170,7 +170,7 @@ may claim one.
 | `frontend/lib/releases.ts` newest entry | releases page, download page, landing page | `sync_version.py` (A1.02), A1.04-A1.06 |
 | `desktop/Cargo.lock` `research-desktop` | the lock | `cargo update -p research-desktop` (A1.03) |
 | `docs/project/37-changelog.md` heading | the changelog | by hand (A1.07) |
-| `backend/research_engine/_build.py` | `/api/v1/version`, Settings → About | `stamp_build.py` at build time, never committed (A6.02, A10.05) |
+| `backend/research_engine/_build.py` | `/api/v1/version`, Settings → About | `stamp_build.py` at build time, never committed (A6.02, A10.05); every image build except `release.yml`'s discards the context's stamp (`BUILD_STAMP=local` by default), and a source run reports `unknown` when its checkout contradicts the stamp |
 | git tag, GitHub Release, asset names, image tags | the release | the tag (A1.12, A1.13, A11.x, A10.x) |
 | `frontend/package.json`, `desktop/package.json`, `backend/research_engine/pyproject.toml` | `0.1.0` — **not carriers**: private, published nowhere, read by nothing | A1.08 fails the day something reads one |
 
@@ -730,7 +730,7 @@ The release does not only test happy paths. Where each release-critical failure 
 | Invalid or tampered bundle | `tests/workflow/test_bundle_v2_verifier.py`, `test_bundle_export_routes.py`; M20.03 |
 | Wrong checksum, space in a name, missing or extra asset | `tests/workflow/test_release_audit.py` (planted); A11.03, A11.05, A11.06 |
 | Stale artifact (not from the tag's run) | A11.04; A10.03 (image provenance) |
-| Wrong or unstamped git SHA | `desktop.yml` SHA steps; `release.yml` image step; A10.05; `check_packaged_sidecar.py` negative control |
+| Wrong or unstamped git SHA | `desktop.yml` SHA steps; `release.yml` image step; A10.05; `check_packaged_sidecar.py` negative control; `tests/workflow/test_local_build_stamp.py` (a planted stale stamp, local images and hand-run bundles) |
 | Invalid migration, multiple heads, downgrade | `tests/workflow/test_migration_round_trip.py`, `tests/task/test_migration_downgrade_policy.py`; A19.01 |
 | Stale version text, future version, stale reviewed reference | `tests/workflow/test_release_audit.py` (planted); A1.09, A1.10 |
 
@@ -764,6 +764,7 @@ The release does not only test happy paths. Where each release-critical failure 
 | ≤3.0.1 | Every published api/worker image answered `/api/v1/version` with `unknown` — nothing stamped them | `release.yml` stamp job + image step (A6.03, A11.09), A10.05 |
 | 3.0.2 (caught in preparation) | #173, a Dependabot base-image bump, moved the server images to Python 3.14 while every job that tests them stayed on 3.11 — and nothing builds the image before a tag | CI on the image's Python; A10.06, per commit |
 | ≤3.0.1 | Nothing on the live site said which commit it was built from | `pages.yml` `build.json` (A6.03), A17.02 |
+| 3.0.2 | A local image of the 3.0.2 tree answered `/api/v1/version` with 2.1.0 and a September commit: a leftover, git-ignored `_build.py` rode `COPY . /app` into every image `./start.sh` built (release-audit/v3.0.2 Finding 7). Not Docker-ignored on purpose — the published images carry their stamp the same way | The Dockerfile discards a context's stamp unless `release.yml` passes `BUILD_STAMP=context` (A6.03), and restamps from `start.sh` reading git; `research-sidecar.spec` runs `stamp_build.py --check`; a source run's `build_info()` reports `unknown` when the checkout contradicts the stamp; `tests/workflow/test_local_build_stamp.py` |
 | every | Features and fixes merged with no record of whether they were meant to ship | A0.01, A2.01, M2.01 |
 | 3.0.2 (caught in preparation) | A2.01 read only `Merge pull request #N`, so three squash-merged PRs (#179-#181) were outside the scope check | `merged_prs` reads both merge styles (A2.01) |
 | 3.0.2 (caught in preparation) | A2.03 read the template's own `Eval waiver: <!-- … -->` line as a waiver, so an unedited record turned a missing evaluation into a WARN | `records_eval_waiver` (A2.03) |

@@ -46,6 +46,15 @@ services:
     build:
       context: ./backend
       target: api
+      # A local image must not report the identity of whatever stale
+      # `research_engine/_build.py` the checkout holds: `local` (also the Dockerfile's
+      # default, spelled out here) discards it and restamps from the facts start.sh exports,
+      # or leaves the image `unknown` when built without start.sh. backend/docker/stamp_image.py.
+      args: &build_stamp
+        BUILD_STAMP: local
+        BUILD_VERSION: ${BUILD_VERSION:-}
+        BUILD_GIT_SHA: ${BUILD_GIT_SHA:-}
+        BUILD_DIRTY: ${BUILD_DIRTY:-}
     env_file: [.env]
     environment:
       # Override the app's localhost defaults with the compose network hostnames.
@@ -82,6 +91,7 @@ services:
     build:
       context: ./backend
       target: worker
+      args: *build_stamp # same as api — see the comment there
     env_file: [.env]
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-research_user}:${POSTGRES_PASSWORD:-research_pass}@postgres:5432/${POSTGRES_DB:-research_db}
