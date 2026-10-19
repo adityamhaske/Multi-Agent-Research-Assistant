@@ -6,7 +6,7 @@ runs these concurrently and reports.
 |---|---|---|
 | `repository` | 0-2 | the checkout |
 | `workflows` | 3, 6 | the checkout; GitHub Actions for run evidence |
-| `images` | 10 | the container registry (anonymous) |
+| `images` | 10 | the checkout; the container registry (anonymous) |
 | `github_release` | 11 | the GitHub Release and its assets |
 | `site` | 12-17 | the checkout; the live site |
 | `security` | 18 | the checkout; code-scanning and Dependabot |

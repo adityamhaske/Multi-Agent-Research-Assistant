@@ -449,6 +449,15 @@ cd frontend && npm run lint && npm run typecheck && npm test && npm run build
 Backend lint **includes `evals/`** and excludes `desktop/`, `alembic/`, and repo-root
 scripts. A lint-clean `app/` is not a green build.
 
+**The backend suite runs on the server image's Python, not the desktop engine's.** CI's
+`python-version` follows `backend/Dockerfile`, and release check A10.06 fails any commit
+that moves one without the other (a Dependabot base-image bump once moved the image to 3.14
+while CI stayed on 3.11). `desktop.yml` builds the engine on its own interpreter, still
+3.11. Two things guard that interpreter: ruff's `target-version = "py311"` rejects newer
+*syntax*, and the sidecar job's packaged smoke journeys run the engine. **A standard-library
+call newer than 3.11 passes the whole suite** and breaks only the desktop, so a green
+`backend` job says nothing about it.
+
 Frontend CI also runs four bespoke greps (`.github/workflows/ci.yml`): no raw-HTML React
 escape hatches, no hardcoded hex colors, no hardcoded backend URLs, no web-storage access
 without an inline `ci-allow-web-storage: <reason>` marker.

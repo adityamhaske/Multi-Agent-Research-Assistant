@@ -40,9 +40,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # The image's Python: the stamp's contract hash is computed by importing the app, and
+      # it has to describe the app as the image will run it (A10.06).
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.14"
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - name: Install backend dependencies

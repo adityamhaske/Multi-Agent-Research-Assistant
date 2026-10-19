@@ -42,9 +42,13 @@ jobs:
       REDIS_URL: redis://localhost:6379/1
     steps:
       - uses: actions/checkout@v7
+      # The backend image's Python (`backend/Dockerfile`): no job builds the image before a
+      # tag, so this job and golden-e2e are where the server's code meets its interpreter.
+      # Every setup-python here and in release.yml moves with the image; A10.06 fails the
+      # commit that moves one alone.
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.14"
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - name: Install system deps (WeasyPrint)
@@ -196,7 +200,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.14"
       # No dependencies: the script reads files and compares strings. Keeping it that way
       # is deliberate — a consistency check that needs the app to import is a check that
       # stops running the moment the app stops importing.
@@ -243,7 +247,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.14"
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - name: Install system deps (WeasyPrint)

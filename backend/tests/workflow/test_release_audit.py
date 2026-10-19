@@ -24,8 +24,16 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from release_checks import REGISTRY  # noqa: E402
-from release_checks.constants import CHECKSUMS, FAIL, INSTALLERS, UNAVAILABLE, WARN  # noqa: E402
-from release_checks.core import Check, Outcome, Unavailable  # noqa: E402
+from release_checks.constants import (  # noqa: E402
+    CHECKSUMS,
+    FAIL,
+    INSTALLERS,
+    PASS,
+    SERVER_PYTHON_JOBS,
+    UNAVAILABLE,
+    WARN,
+)
+from release_checks.core import Check, Ctx, Outcome, Unavailable  # noqa: E402
 from release_checks.evaluate import (  # noqa: E402
     alembic_heads,
     asset_problems,
@@ -34,6 +42,8 @@ from release_checks.evaluate import (  # noqa: E402
     changelog_heading,
     checksum_problems,
     entry_completeness,
+    image_pythons,
+    interpreter_drift,
     manual_ids,
     parse_record,
     parse_releases_ts,
@@ -42,6 +52,7 @@ from release_checks.evaluate import (  # noqa: E402
     release_list_problems,
     review_references,
     secret_hits,
+    setup_python_steps,
     version_references,
 )
 
@@ -182,6 +193,135 @@ def test_an_unreviewed_line_an_edited_line_and_a_future_version_are_each_caught(
 def test_a_third_party_version_is_not_mistaken_for_a_future_release():
     refs = version_references({"README.md": "Built on Next.js 16.3.5."})
     assert review_references(refs, [], "3.0.1")[2] == []
+
+
+# ─── The server image and CI run one Python (A10.06) ───────────────────────────────────
+
+DOCKERFILE = (
+    "# syntax=docker/dockerfile:1\nFROM python:3.14-slim-bookworm AS base\nFROM base AS api\n"
+)
+WORKFLOW = """\
+name: CI
+on:
+  push:
+    branches: [main]
+jobs:
+  backend:
+    steps:
+      - uses: actions/checkout@v7
+      # uses: actions/setup-python@v7 — a comment, not a step
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+      - name: Tests
+        run: pytest
+  stamp:
+    steps:
+      - name: Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14.2'
+"""
+REQUIRED = {"ci.yml": ("backend", "stamp")}
+
+
+def test_steps_are_attributed_to_their_job_and_read_to_x_y():
+    assert setup_python_steps(WORKFLOW) == [("backend", "3.14"), ("stamp", "3.14")]
+    assert image_pythons(DOCKERFILE) == ["3.14"]
+
+
+def test_an_image_and_jobs_on_one_python_pass():
+    assert interpreter_drift(DOCKERFILE, {"ci.yml": WORKFLOW}, REQUIRED) == []
+
+
+def test_a_base_image_bump_the_jobs_did_not_follow_is_caught():
+    # #173: Dependabot moved the image from 3.11 to 3.14; every job stayed on 3.11.
+    behind = WORKFLOW.replace('"3.14"', '"3.11"').replace("'3.14.2'", "'3.11.15'")
+    problems = interpreter_drift(DOCKERFILE, {"ci.yml": behind}, REQUIRED)
+    assert problems == [
+        "ci.yml: job `backend` sets up Python 3.11; the image runs 3.14",
+        "ci.yml: job `stamp` sets up Python 3.11; the image runs 3.14",
+    ]
+
+
+def test_a_python_the_check_cannot_read_fails_rather_than_passes():
+    # Unreadable is not agreeing: each of these would otherwise be a silent pass.
+    from_file = WORKFLOW.replace('python-version: "3.14"', "python-version-file: .python-version")
+    matrix = WORKFLOW.replace('"3.14"', "${{ matrix.python }}")
+    for text in (from_file, matrix):
+        problems = interpreter_drift(DOCKERFILE, {"ci.yml": text}, REQUIRED)
+        assert any("job `backend`" in p and "cannot read" in p for p in problems), problems
+    for image in ("FROM python:3-slim AS base\n", "ARG V=3.14\nFROM python:${V}-slim\n"):
+        problems = interpreter_drift(image, {"ci.yml": WORKFLOW}, REQUIRED)
+        assert any("backend/Dockerfile" in p and "cannot be read" in p for p in problems)
+
+
+def test_a_required_job_that_stops_setting_up_python_is_caught():
+    # A job moved into a container, or onto the runner's default Python, has an interpreter
+    # this check cannot see — which must not read as one that agrees.
+    without = WORKFLOW.split("  stamp:")[0]
+    problems = interpreter_drift(DOCKERFILE, {"ci.yml": without}, REQUIRED)
+    assert problems == [
+        "ci.yml: job `stamp` no longer sets up Python with actions/setup-python, "
+        "so its interpreter cannot be compared with the image's"
+    ]
+
+
+def test_an_image_built_on_two_pythons_is_caught():
+    two = DOCKERFILE + "FROM python:3.11-slim AS tools\n"
+    assert any("more than one Python" in p for p in interpreter_drift(two, {}, {}))
+
+
+def _python_check(root: Path) -> Outcome:
+    args = argparse.Namespace(
+        root=root,
+        version=V,
+        stage="ci",
+        offline=True,
+        download=False,
+        docker=False,
+        repo="o/r",
+        site="https://example.test",
+        previous=None,
+    )
+    a10_06 = next(c for c in REGISTRY if c.id == "A10.06")
+    return a10_06.fn(Ctx(args))
+
+
+def _copy_interpreter_files(dest: Path) -> None:
+    for rel in ("backend/Dockerfile", *SERVER_PYTHON_JOBS):
+        (dest / rel).parent.mkdir(parents=True, exist_ok=True)
+        (dest / rel).write_text((ROOT / rel).read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def test_the_repository_runs_one_server_python(tmp_path):
+    # The real files, read by the registered check: the evaluator tests above prove the
+    # judgement, this proves the check reads the files that hold it.
+    _copy_interpreter_files(tmp_path)
+    outcome = _python_check(tmp_path)
+    assert outcome.status == PASS, outcome.detail
+
+
+def test_drift_planted_in_the_real_dockerfile_fails_the_real_check(tmp_path):
+    # The negative control: the incident replayed on this repository's own files — the
+    # image's Python moved and nothing else did.
+    _copy_interpreter_files(tmp_path)
+    dockerfile = tmp_path / "backend/Dockerfile"
+    image = image_pythons(dockerfile.read_text(encoding="utf-8"))[0]
+    major, minor = image.split(".")
+    bumped = f"{major}.{int(minor) + 1}"
+    dockerfile.write_text(
+        dockerfile.read_text(encoding="utf-8").replace(f"python:{image}", f"python:{bumped}"),
+        encoding="utf-8",
+    )
+    outcome = _python_check(tmp_path)
+    assert outcome.status == FAIL
+    for path, jobs in SERVER_PYTHON_JOBS.items():
+        for job in jobs:
+            assert f"{path}: job `{job}` sets up Python {image}; the image runs {bumped}" in (
+                outcome.detail
+            )
 
 
 # ─── Repository data ────────────────────────────────────────────────────────────────────

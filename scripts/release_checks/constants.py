@@ -25,6 +25,15 @@ SIZE_FLOOR_MB = {".dmg": 40, ".msi": 40, ".deb": 40, ".AppImage": 60}
 IMAGES = ("api", "worker", "frontend")
 PLATFORMS = ("linux/amd64", "linux/arm64")
 
+# The workflows whose every `actions/setup-python` must be the backend image's Python
+# (A10.06), and in each the jobs that run the server's code and so must keep setting one up.
+# desktop.yml is absent on purpose: PyInstaller bundles the desktop engine's own interpreter,
+# a separate decision with its own verification (a packaged build on three OSes).
+SERVER_PYTHON_JOBS = {
+    ".github/workflows/ci.yml": ("backend", "golden-e2e"),
+    ".github/workflows/release.yml": ("stamp",),
+}
+
 # Required on `main` by ruleset (RG-12). A check dropped from this list is a check a merge
 # no longer waits for.
 REQUIRED_CHECKS = (
