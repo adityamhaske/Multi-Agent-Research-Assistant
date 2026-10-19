@@ -75,6 +75,7 @@ export const RELEASES: Release[] = [
     known: [
       "Research saved before this release keeps its doubled evidence after a rework: its snippet count stays doubled, and a run approved before 3.0.2 keeps the duplicates in its verification bundle. Cited counts and \u201cbacks N claims\u201d are corrected on older runs too, because the page works them out when it loads.",
       "The spend limit (MAX_COST_PER_SESSION_USD) does nothing on OpenRouter and Custom routes. Their prices are not known, so a run\u2019s cost is recorded as $0.00 whatever it spent. Cap spending at the provider.",
+      "Verifying a bundle with this release\u2019s verifier needs Python 3.14 or later; on an older Python it refuses to start. The bundle format has not changed, so the verifier from 3.0.1 still verifies 3.0.2 bundles on an older Python.",
       "Bundles from this release are format v2, and a verifier from before 3.0.0 refuses them. Check a bundle with the verifier from this release; it still verifies every earlier bundle unchanged.",
       "Research recorded before 3.0.0 still exports as a v1 bundle with no instructions recorded. Its prompts were never captured, and the bundle does not invent them.",
       "Research recorded on the earlier pipeline (Sessions) does not apply customized instructions, and says so.",
@@ -93,7 +94,7 @@ export const RELEASES: Release[] = [
       "Claim verification is still not implemented, claim lineage across revisions is still not tracked, and contradiction detection is still source-level and unscored.",
     ],
     knownSummary:
-      "Research saved before this release keeps its doubled evidence after a rework, and the spend limit does nothing on OpenRouter and Custom routes. macOS still blocks the first launch until you run one Terminal command, and citation support rests on a single run.",
+      "Research saved before this release keeps its doubled evidence after a rework, and the spend limit does nothing on OpenRouter and Custom routes. This release\u2019s bundle verifier needs Python 3.14; on an older Python, 3.0.1\u2019s verifies the same bundles.",
   },
   {
     version: "v3.0.1",

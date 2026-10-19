@@ -88,10 +88,16 @@ describe the report you approved.
   `scripts/release_audit.py` and `release-audit/`. CI now installs the `.deb`, unpacks the
   AppImage and installs the `.msi`, and drives the engine inside each through a research
   journey; the site publishes `/build.json`.
+- **A packaged-app check whose bundle verification did not run fails CI** (#194).
+  `check_packaged_sidecar.py --require-verify` makes the standalone verifier's verdict on
+  the journey's bundle part of the pass for the `.deb`, AppImage and `.msi`.
 - **The server, the desktop engine and every CI job run Python 3.14** (#173, #187, #189),
   up from 3.11. #173 moved the server images alone, and nothing built them before a tag;
   CI and the release stamp job moved to match (#187), then the PyInstaller engine (#189).
   A10.06 fails any commit whose workflows and `backend/Dockerfile` name different Pythons.
+- **Python 3.14 is the floor everywhere** (#193). `requires-python`, ruff's target, an
+  import guard in `research_engine`, the standalone bundle verifier and the release audit
+  all say 3.14, and A10.06 fails a commit where any stated floor differs from the image.
 - **Every build reports its own identity, or `unknown`** (#188). A stale, git-ignored
   `research_engine/_build.py` in a checkout was copied into every local image, which then
   claimed another build's version and commit at `/api/v1/version`. The Dockerfile now
@@ -115,6 +121,9 @@ describe the report you approved.
 - `MAX_COST_PER_SESSION_USD` does nothing on `openrouter` and `custom` routes:
   `validate_pricing` skips them, so `estimate_cost` records `$0.00` whatever a run spent.
   Cap spending at the provider.
+- Verifying a bundle with this release's verifier needs Python 3.14 or later; on 3.13 or
+  earlier it refuses to start. The bundle format has not changed, so the verifier from
+  3.0.1 still verifies 3.0.2 bundles on an older Python.
 - Everything listed under 3.0.1's **Known** below still applies.
 
 ---

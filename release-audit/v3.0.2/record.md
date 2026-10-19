@@ -51,6 +51,9 @@ bundle-format change (A19.02).
 | Release process, audit, installed-installer CI steps, `/build.json` | #170 | `RELEASE.md`, `scripts/release_audit.py`, `desktop.yml`, `pages.yml` | `test_release_audit.py` | — | — | ✓ `.deb`/AppImage/`.msi` journeys in CI | ✓ RELEASE.md, release-audit/README.md, README | ✓ `/build.json` | ✓ changelog *Process* | — | Shipped (process) |
 | Refresh-token rotation and reuse detection tested | #170 | test only | `test_refresh_token_reuse.py` | — | — | — | — | — | — | — | Shipped (test) |
 | This release's preparation: version, notes, changelog, record, the release evaluation, and the A2.01/A2.03 audit fixes | #186 | `VERSION` and its carriers, `releases.ts`, the changelog, this record, `eval-2026-10-19-custom.json`, `release_checks/evaluate.py` | `test_release_audit.py` negative controls; release-entry tests | — | — | — | ✓ RELEASE.md incident rows | ✓ releases.ts (unreleased) | ✓ | — | Shipped (process) |
+| Scope update: #187-#189 recorded, extra checks planned | #192 | this record, changelog, `releases.ts` | release-entry tests; `--stage ci` | — | — | — | — | ✓ releases.ts (unreleased) | ✓ | — | Shipped (process) |
+| Python 3.14 is the stated floor everywhere — `requires-python`, ruff's target, the engine's import guard, the standalone verifier, the release audit — and A10.06 holds every floor to the image | #193 | `research_engine/__init__.py` guard, both `pyproject.toml`, 3.14 syntax (unquoted annotations, PEP 758 `except`), docs | `test_engine_python_floor.py`; A10.06 | — | — | ✓ same engine | ✓ docs/15, docs/20, docs/32, README, CONTRIBUTING | — | ✓ | ✓ the verifier needs 3.14 (Finding 8) | Shipped |
+| A packaged-app check whose bundle verification did not run fails CI | #194 | `check_packaged_sidecar.py --require-verify`; `desktop.yml` installs the verifier's one dependency | `test_packaged_checker_requires_verify.py` | — | — | ✓ `.deb`/AppImage/`.msi` journeys | ✓ RELEASE.md, AGENTS.md | — | ✓ changelog *Process* | — | Shipped (process) |
 | v3.0.1 offered for download (the previous release's flip) | #169 | `releases.ts` | `download/unreleased.test.tsx` | ✓ | — | — | — | ✓ | — | — | Shipped (process) |
 | Frontend dependency updates: Next.js 16.3.6, the frontend minor group, undici 8.11.2, brace-expansion 1.1.21 | #174, #175, #176, #182 | `frontend/package*.json` | CI on each PR | — | — | ✓ same frontend | — | — | ✓ changelog | — | Shipped |
 | Security updates past three high-severity advisories: Next.js 16.3.8, sharp 0.35.5, source-map-js 1.2.2 | #185, #184, #183 | `frontend/package*.json` | CI on each PR; merged during stage A (Finding 1), then lint, typecheck, tests and all three builds re-run on the release branch | — | — | ✓ same frontend | — | — | ✓ | — | Shipped |
@@ -116,6 +119,7 @@ Disposition of every WARN and UNAVAILABLE (M21.01):
 
 | Check | Result | Disposition |
 |---|---|---|
+| A19.02 (pre-tag) | WARN | #193 touched six ORM model files and `verify_bundle.py`. The model changes are annotation syntax only, with no schema change and no migration; the verifier's bundle format is unchanged (Finding 8). M19.02–M19.05 are required regardless, by the interpreter move, and are planned under Extra checks |
 
 ## Manual checks
 
@@ -296,6 +300,25 @@ Found while preparing stage A, separated by kind.
    - `start.sh` hands the image the checkout's own version, commit and dirty flag.
    - The sidecar spec refuses a stamp that doesn't describe the checkout.
 
+8. **#193 raised the Python needed to run the engine, and the bundle verifier, to 3.14.**
+   It was merged on 2026-10-19 by the release manager, after #187–#189.
+   - `research_engine/__init__.py` now refuses older interpreters. `verify_bundle.py` uses
+     3.14-only syntax (PEP 758 `except A, B:`), so it can't even be parsed on 3.13 or earlier.
+   - The **bundle format is unchanged** (still v2). The v3.0.1 verifier at `d53d645`, on
+     Python 3.11.15, verifies E3's 3.0.2 bundle **PASS 7/7**. So a third party on an older
+     Python has a working path: the previous release's verifier. That's why the version stays
+     patch (M0.03): no bundle is refused, only a newer interpreter is needed for the newest
+     verifier. The changelog and `releases.ts` both carry the floor and the workaround.
+   - E3's 3.11 verification ran on `2a560d2`'s verifier, before #193. On `3d5af71`, that same
+     interpreter is refused with `research_engine needs Python 3.14+`, which was checked
+     directly.
+   - A19.02 warns because #193 touched six ORM model files and `verify_bundle.py`. The
+     models changed only in annotation syntax (forward references unquoted, which 3.14's
+     deferred annotations allow); no column, constraint or table changed, and there is no
+     migration. `verify_bundle.py` changed its docstring and that one `except` line. The
+     upgrade rows A19.02 makes required (M19.02–M19.05) were already required by the
+     interpreter move and are planned under Extra checks.
+
 **Carried over from the v3.0.1 record, still open**
 
 5. The download page's size note (~80 MB download, ~180 MB installed) against 3.0.1's
@@ -366,6 +389,8 @@ required ones. Each line names the row it decides; none is satisfied by source e
     **PASS 7/7** with `python -m research_engine.verify_bundle` on 3.14 (in the image) and on
     3.11.15 (this Mac).
   - No run belonging to the release manager was approved.
+  - The 3.11 verification ran before #193. On the release tree the 3.0.2 verifier needs
+    3.14, and the v3.0.1 verifier on 3.11 verifies this bundle too (Finding 8).
 
 **After the tag (stage B), on the published artifacts — rows that are no longer `N/A`:**
 
