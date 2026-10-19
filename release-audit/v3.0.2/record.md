@@ -52,9 +52,33 @@ bundle-format change (A19.02).
 | Refresh-token rotation and reuse detection tested | #170 | test only | `test_refresh_token_reuse.py` | — | — | — | — | — | — | — | Shipped (test) |
 | v3.0.1 offered for download (the previous release's flip) | #169 | `releases.ts` | `download/unreleased.test.tsx` | ✓ | — | — | — | ✓ | — | — | Shipped (process) |
 | Frontend dependency updates: Next.js 16.3.6, the frontend minor group, undici 8.11.2, brace-expansion 1.1.21 | #174, #175, #176, #182 | `frontend/package*.json` | CI on each PR | — | — | ✓ same frontend | — | — | ✓ changelog | — | Shipped |
+| Security updates past three high-severity advisories: Next.js 16.3.8, sharp 0.35.5, source-map-js 1.2.2 | #185, #184, #183 | `frontend/package*.json` | CI on each PR; merged during stage A (Finding 1), then lint, typecheck, tests and all three builds re-run on the release branch | — | — | ✓ same frontend | — | — | ✓ | — | Shipped |
 | Backend images on Python 3.14 (from 3.11) | #173 | `backend/Dockerfile` | Built and the full suite run inside the image (Finding 2); CI itself still tests 3.11 | — | — | n/a — the desktop engine is built on 3.11 | — | — | ✓ changelog | — | Shipped — CI-interpreter gap open (Finding 2) |
 
 Deferred (merged but not part of this release's story): none.
+
+### Evaluation (A2.03, M2.04)
+
+Quality paths changed since v3.0.1: `graph.py` (#171), `prompts.py` and `tools.py` (#178 —
+the executor prompt and both tools' descriptions, which the model reads). A waiver needs a
+change that provably cannot alter output, and this one can, so the release was evaluated:
+
+| | |
+|---|---|
+| Result | `backend/evals/results/eval-2026-10-19-custom.json` (new, write-once) |
+| Command | `LLM_MODE=real MAX_PARALLEL_TASKS=1 MODEL_{PLANNER,EXECUTOR,CRITIC,SYNTHESIZER,CHAT}=custom:antigravity/gemini-2.5-flash python -m evals.harness --judge custom:kiro/claude-sonnet-4.5` — docs/developers/08 "The release run", without `--candidate` (the candidate measures a custom planner prompt, which nothing in this release touches) |
+| Code measured | `backend/` at `a887720`; between it and this branch's head the only backend change is `APP_VERSION` |
+| Environment | Python 3.11.15, a fresh venv from `requirements.txt` + `constraints.txt` (openai 3.21.0, langchain-openai 1.6.6); retrieval Tavily |
+| Completion | 10 / 10 (threshold 0.90) |
+| Citation support | **0.9693** over 190 judged claims, 0 unjudged (threshold 0.95) |
+| Judge | `custom:kiro/claude-sonnet-4.5`, independent of all five pipeline routes; every ruling served by `claude-sonnet-4.5` via Kiro, strategy `single`, none without routing headers |
+| Compared with | 3.0.0's release run, same routing and judge: 0.9638. One run each — not evidence of a change |
+
+Operational, not quality: the run took 64 minutes from start to result file (00:42–01:46 UTC). About 30
+minutes were spent waiting on OmniRoute between 00:47 and 01:17 UTC — three judge calls
+arrived roughly ten minutes apart (the client's request timeout) and no pipeline call was
+served — after which it recovered. Per-question latency in the result (44–79 s) excludes
+judging, so the stall is not in it.
 
 ## Desktop artifacts (M6.01)
 
@@ -99,16 +123,16 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M0.01 | PASS | Create the release record — Created 2026-10-18 from TEMPLATE.md on `release/v3.0.2`, before any version carrier changed |
 | M0.02 | PASS | Freeze the scope: list every feature and fix in the record's Scope table, each with its PR numbers — Scope table above: every first-parent merge in `v3.0.1..a887720` — #169, #170, #171, #173-#182, merge commits and squash merges alike. Preparing it found A2.01 blind to squash merges (#179-#181); fixed in this PR (`merged_prs`) |
 | M0.03 | PASS | Choose the version number and record why: major for a breaking change (API contract, bundle format a… — Patch — reasoning under Scope: fixes, tests, dependencies and process; #179 reuses an existing operation and `cited_indices` is an additive field the fix needed; no migration, model or bundle-format change (A19.02) |
-| M0.04 | PASS | Carry forward known limitations: start this release's `known` from the previous release's, and remove an… — `known` starts from 3.0.1's sixteen items, all carried unchanged except the citation-support item, which now names this release's run; two added (pre-3.0.2 duplicated evidence; the spend limit on `openrouter`/`custom`). Nothing removed |
+| M0.04 | PASS | Carry forward known limitations: start this release's `known` from the previous release's, and remove an… — `known` starts from 3.0.1's sixteen items, all carried unchanged except the citation-support item, now worded as this release's own run; two added (pre-3.0.2 duplicated evidence; the spend limit on `openrouter`/`custom`). Nothing removed |
 | **Phase 1 — Repository / Version Consistency** | | |
 | M1.01 | PASS | Bump and derive, in this order: `VERSION`; the new `releases.ts` entry at the top with `unreleased: true`… — `VERSION` 3.0.2; entry at the top with `unreleased: true`; `sync_version.py --write` → "consistent across 4 files"; `cargo update -p research-desktop` → Cargo.lock 3.0.2; changelog `## v3.0.2 — unreleased` with **Known**. `--stage ci`: 22/22 PASS |
 | M1.02 | PASS | Search for stale references the scanner cannot see: images and screenshots with text in them, the… — `git grep` for 3.0.1/v3.0.1, `releases/download/`, `ghcr.io/…:<tag>`: every hit is incident history (RELEASE.md, AGENTS.md, a release.yml comment), a test fixture, or a URL template built from `releases.ts`; the OpenGraph image names no version |
 | M1.03 | PASS | Review every line A1.09 flags, one by one — A1.09 PASS — no new version mention in user-facing text; the new mentions are in `releases.ts` and the changelog (version histories by design), RELEASE.md and this record |
 | **Phase 2 — Feature Completeness** | | |
-| M2.01 | PASS | Fill the feature matrix in the record for every scope row: Implementation · Tests · UI · API · Desktop ·… — Matrix under Scope; one row PENDING on stage B (image stamping, first exercised by this tag), one decided by Findings #1 (Python 3.14) |
+| M2.01 | PASS | Fill the feature matrix in the record for every scope row: Implementation · Tests · UI · API · Desktop ·… — Matrix under Scope; one row PENDING on stage B (image stamping, first exercised by this tag), one shipped with an open gap (Finding 2, Python 3.14) |
 | M2.02 | PENDING | For every feature on both hosts, confirm the desktop really has it: the route exists and behaves… — Source evidence so far: #181's rework journey passes on both the server and desktop drivers; #180 is server-only by design (project memory is pgvector-only). The packaged-desktop and published-image exercise is stage B (Phases 7, 10) |
-| M2.03 | PENDING | Read the `releases.ts` entry and the changelog entry against the matrix: `improved` states user-visible… — evidence: |
-| M2.04 | PENDING | If A2.03 fails: run the release evaluation (`docs/developers/08-testing-and-evaluation.md`, "The release… — evidence: |
+| M2.03 | PASS | Read the `releases.ts` entry and the changelog entry against the matrix: `improved` states user-visible… — Read against the matrix: `improved` is user-visible effects only and includes the measured result; `known` carries 3.0.1's list plus the two new gaps; each summary compresses its list and adds nothing (A1.05 PASS; `releases.test.ts` bounds) |
+| M2.04 | PASS | If A2.03 fails: run the release evaluation (`docs/developers/08-testing-and-evaluation.md`, "The release… — A2.03 required it (graph.py, prompts.py, tools.py changed). Release run under an independent judge: completion 1.0, citation support 0.9693 over 190 judged claims — both above threshold. `eval-2026-10-19-custom.json`; details under Scope → Evaluation |
 | **Phase 3 — Automated Testing** | | |
 | M3.01 | PENDING | Explain every re-run: any required job on the release commit that passed only on a retry is recorded with… — evidence: |
 | M3.02 | PENDING | Read the non-blocking dependency-audit output of the release commit's CI run — evidence: |
@@ -204,14 +228,15 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 
 Found while preparing stage A, separated by kind.
 
-**Release-blocking until resolved**
+**Release-blocking, resolved during stage A**
 
 1. **Open high-severity dependency alerts (A18.05, STOP).** On 2026-10-18: `next` < 16.3.8
-   (high: SSRF in Image Optimization; plus two medium and one low advisories), `sharp` <
-   0.35.5 (high: librsvg), `source-map-js` < 1.2.2 (high: event-loop denial of service), and
-   `postcss-selector-parser` < 7.1.6 (medium). Dependabot's #185, #184 and #183 fix the three
-   highs and are green; they must merge before the pre-tag audit, and each joins the scope
-   table when it does. The medium has no PR yet.
+   (high: SSRF in Image Optimization, which the standalone server leaves enabled; plus two
+   medium and one low advisories), `sharp` < 0.35.5 (high: librsvg), `source-map-js` < 1.2.2
+   (high: event-loop denial of service), and `postcss-selector-parser` < 7.1.6 (medium).
+   Dependabot's #185, #184 and #183 — green — were merged on 2026-10-18 with the release
+   manager's approval and are in the scope table. `postcss-selector-parser` (medium) has no
+   PR and does not stop the release; A18.05 counts high and critical only.
 
 **Verified, with a gap left open**
 
@@ -243,6 +268,18 @@ Found while preparing stage A, separated by kind.
    to a WARN — the first preview of this release's pre-tag audit showed exactly that.
    `evaluate.records_eval_waiver` ignores the placeholder.
 
+**Found on a local build, not in any published artifact**
+
+7. **A local image reports another build's identity.** `backend/research_engine/_build.py` is
+   generated by `stamp_build.py` and git-ignored, but `backend/.dockerignore` does not exclude
+   it, so a stale stamp left in a checkout is copied into every image built from it. On
+   2026-10-18 this machine's `./start.sh --rebuild` of the 3.0.2 tree answered
+   `/api/v1/version` with `version 2.1.0`, `git_sha 33f1916`, `built_at 2026-09-27` — a
+   leftover from a September stamp — while `/health` and the code said 3.0.2. Published images
+   are stamped fresh by `release.yml` (A10.05 checks the result), so this is a local-build
+   defect. Excluding the file from the image would break that stamping; the fix belongs in
+   how local builds stamp, and is a follow-up.
+
 **Carried over from the v3.0.1 record, still open**
 
 5. The download page's size note (~80 MB download, ~180 MB installed) against 3.0.1's
@@ -262,6 +299,7 @@ on `openrouter` and `custom` routes. And the size note in Finding 5.
 | A2.01 counted only merge commits; squash-merged PRs escaped the scope check | `merged_prs` (A2.01); `test_a_squash_merged_pr_is_in_scope_as_surely_as_a_merge_commit` |
 | A2.03 read the template's waiver placeholder as a waiver | `records_eval_waiver` (A2.03); `test_the_templates_waiver_placeholder_is_not_a_waiver` |
 | A dependency bump changed the server images' Python with nothing building the image | Not yet a check — Finding 2's follow-up |
+| A local image carried a stale build stamp and reported another version and commit | Not yet a check — Finding 7's follow-up |
 
 ## Release approval
 

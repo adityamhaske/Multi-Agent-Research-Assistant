@@ -73,6 +73,15 @@ describe the report you approved.
 - **The Oracle Cloud deploy defaults to `latest`** (#170). It defaulted to `edge`, a
   development build made on 2026-08-05, before 1.0.
 
+**Measured**
+
+- The executor prompt changed (#178), so this release was evaluated before shipping: the
+  ten fixed questions with every agent on `custom:antigravity/gemini-2.5-flash` and the
+  citation judge on `custom:kiro/claude-sonnet-4.5`, the routing and judge 3.0.0 was measured
+  on. All ten completed, and citation support measured 96.9% over 190 judged claims, none
+  unjudged (`backend/evals/results/eval-2026-10-19-custom.json`). 3.0.0 measured 96.4% the
+  same way; one run each is not evidence of a change in either direction.
+
 **Process**
 
 - **A mandatory release process** (#170): [`RELEASE.md`](https://github.com/adityamhaske/Multi-Agent-Research-Assistant/blob/main/RELEASE.md),
@@ -81,6 +90,10 @@ describe the report you approved.
   journey; the site publishes `/build.json`.
 - **The server images run Python 3.14** (#173), up from 3.11. CI and the desktop engine
   still run 3.11; the full backend suite was run inside the 3.14 image for this release.
+- **Security updates.** Next.js 16.3.8 fixes a high-severity server-side request forgery
+  advisory in Image Optimization, which the self-hosted standalone server leaves enabled,
+  plus two medium and one low advisory (#185); sharp 0.35.5 (#184) and source-map-js 1.2.2
+  (#183) are past high-severity advisories of their own.
 - Dependency updates: Next.js 16.3.6 and the frontend minor group, undici 8.11.2,
   brace-expansion 1.1.21 (#174, #175, #176, #182).
 
