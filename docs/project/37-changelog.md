@@ -88,8 +88,16 @@ describe the report you approved.
   `scripts/release_audit.py` and `release-audit/`. CI now installs the `.deb`, unpacks the
   AppImage and installs the `.msi`, and drives the engine inside each through a research
   journey; the site publishes `/build.json`.
-- **The server images run Python 3.14** (#173), up from 3.11. CI and the desktop engine
-  still run 3.11; the full backend suite was run inside the 3.14 image for this release.
+- **The server, the desktop engine and every CI job run Python 3.14** (#173, #187, #189),
+  up from 3.11. #173 moved the server images alone, and nothing built them before a tag;
+  CI and the release stamp job moved to match (#187), then the PyInstaller engine (#189).
+  A10.06 fails any commit whose workflows and `backend/Dockerfile` name different Pythons.
+- **Every build reports its own identity, or `unknown`** (#188). A stale, git-ignored
+  `research_engine/_build.py` in a checkout was copied into every local image, which then
+  claimed another build's version and commit at `/api/v1/version`. The Dockerfile now
+  discards a stamp in its context unless `release.yml` keeps its own; `start.sh` stamps
+  local images from the checkout; the sidecar spec refuses a stamp that does not describe
+  the checkout.
 - **Security updates.** Next.js 16.3.8 fixes a high-severity server-side request forgery
   advisory in Image Optimization, which the self-hosted standalone server leaves enabled,
   plus two medium and one low advisory (#185); sharp 0.35.5 (#184) and source-map-js 1.2.2
