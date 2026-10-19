@@ -42,12 +42,13 @@ COPY --chown=appuser:appuser . /app
 RUN mkdir -p /app/data/corpus && chown -R appuser:appuser /app/data
 USER appuser
 # Which build identity this image reports (`/api/v1/version`). The COPY above carries any
-# `research_engine/_build.py` in the context: a fresh stamp from `release.yml`, which the
-# default keeps, or a stale leftover in a developer's checkout. docker-compose.full.yml passes
-# BUILD_STAMP=local, which discards it and restamps from the facts start.sh read from git —
-# see docker/stamp_image.py. Last, so a changed commit invalidates only this layer, and
-# BUILT_AT is set when the layer actually builds, not on every cached rebuild.
-ARG BUILD_STAMP=context
+# `research_engine/_build.py` in the context — a fresh stamp from `release.yml`, or a stale
+# leftover in a developer's checkout. By default it is discarded and the image restamps only
+# from the facts start.sh read from git, else answers `unknown`; release.yml alone passes
+# BUILD_STAMP=context to keep the stamp its own job just wrote. See docker/stamp_image.py.
+# Last, so a changed commit invalidates only this layer, and BUILT_AT is set when the layer
+# actually builds, not on every cached rebuild.
+ARG BUILD_STAMP=local
 ARG BUILD_VERSION
 ARG BUILD_GIT_SHA
 ARG BUILD_DIRTY

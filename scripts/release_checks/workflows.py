@@ -109,6 +109,12 @@ WORKFLOW_GUARDS = (
         "every image through 3.0.1 answered /api/v1/version with `unknown`",
     ),
     (
+        ".github/workflows/release.yml",
+        "build-args: BUILD_STAMP=context",
+        "the backend Dockerfile drops a context's stamp unless told to keep it, which is how "
+        "a stale local stamp stopped leaking into images",
+    ),
+    (
         ".github/workflows/pages.yml",
         "out/.nojekyll",
         "Jekyll silently drops `_next/`, i.e. every stylesheet and script",

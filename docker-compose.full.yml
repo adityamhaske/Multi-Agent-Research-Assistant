@@ -47,9 +47,9 @@ services:
       context: ./backend
       target: api
       # A local image must not report the identity of whatever stale
-      # `research_engine/_build.py` the checkout holds: `local` discards it and restamps from
-      # the facts start.sh exports, or leaves the image `unknown` when built without start.sh.
-      # backend/docker/stamp_image.py; the release workflow builds without these on purpose.
+      # `research_engine/_build.py` the checkout holds: `local` (also the Dockerfile's
+      # default, spelled out here) discards it and restamps from the facts start.sh exports,
+      # or leaves the image `unknown` when built without start.sh. backend/docker/stamp_image.py.
       args: &build_stamp
         BUILD_STAMP: local
         BUILD_VERSION: ${BUILD_VERSION:-}

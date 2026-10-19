@@ -7,16 +7,22 @@ carry it. The same COPY carried a developer's leftover stamp into every image `.
 built — a local build of 3.0.2 answered `/api/v1/version` with 2.1.0 and a September commit
 (release-audit/v3.0.2, Finding 7).
 
-So a local build does not trust its context. `docker-compose.full.yml` builds every backend
-image with `BUILD_STAMP=local`, which discards whatever stamp the context carries and writes
-a fresh one only from the facts `start.sh` read from git for this build. Every test that
-exercises that path plants the stale stamp first: in a clean checkout there is no stamp to
-leak, and the bug passes.
+So an image build does not trust its context unless it says so. The backend Dockerfile's
+default, `BUILD_STAMP=local`, discards whatever stamp the context carries and writes a fresh
+one only from the facts `start.sh` read from git for this build; only `release.yml`, whose
+own job wrote the stamp, passes `BUILD_STAMP=context` to keep it. Every test that exercises
+the local path plants the stale stamp first: in a clean checkout there is no stamp to leak,
+and the bug passes.
 
 The desktop bundle is the same leak through a different door: `research-sidecar.spec` bundles
 whatever `_build.py` the checkout holds. `desktop.yml` stamps a fresh checkout right before
 PyInstaller and then asks the frozen engine for its commit, so CI cannot ship a stale stamp —
 but a hand-run build can, so the spec refuses a stamp `stamp_build.py --check` rejects.
+
+And a source checkout is a third door: `make backend-dev`, the CLI and a source-run sidecar
+read the same leftover file. There the checkout itself can contradict the stamp, so
+`build_info()` reports `unknown` when it does. The tree only ever vetoes a stamp; it never
+supplies an answer — that would be the guess `build_info.py` exists to refuse.
 """
 
 from __future__ import annotations
@@ -84,16 +90,15 @@ def _build_step(tree: Path, **facts: str) -> subprocess.CompletedProcess[str]:
 def _reported(tree: Path) -> dict:
     """What `/api/v1/version` would serve from this tree.
 
-    `-S` keeps site-packages out: an editable install of `research_engine` would otherwise
-    be free to answer from a different checkout, and the assertion on `__file__` proves it
-    did not.
+    An editable install of `research_engine` could answer from a different checkout; the
+    assertion on `__file__` proves the tree's own copy did.
     """
     probe = (
         "import json, research_engine; from research_engine.build_info import build_info;"
         "print(json.dumps({'file': research_engine.__file__, **build_info().as_dict()}))"
     )
     out = subprocess.run(
-        [sys.executable, "-S", "-B", "-c", probe],
+        [sys.executable, "-B", "-c", probe],
         cwd=tree,
         capture_output=True,
         text=True,
@@ -168,16 +173,25 @@ def test_an_incomplete_identity_is_unknown_rather_than_partly_true(tmp_path, fac
 
 
 def test_a_release_build_keeps_the_stamp_it_was_handed(tmp_path):
-    """`release.yml` stamps the context fresh and passes no `BUILD_STAMP`; the Dockerfile's
-    default must leave that stamp alone, or every published image answers `unknown`."""
+    """`release.yml` stamps the context fresh and asks the image to keep it; dropping it would
+    leave every published image answering `unknown`."""
     fresh = {**STALE, "VERSION": "3.0.2", "GIT_SHA": HEAD, "BUILT_AT": "2026-10-18T00:00:00+00:00"}
     tree = _image_tree(tmp_path, planted=fresh)
-    result = _build_step(tree, BUILD_STAMP=_dockerfile_default("BUILD_STAMP"))
+    result = _build_step(tree, BUILD_STAMP=_release_build_args()["BUILD_STAMP"])
 
     assert result.returncode == 0, result.stderr
     reported = _reported(tree)
     assert reported["git_sha"] == HEAD
     assert reported["contract_version"] == fresh["CONTRACT_VERSION"]
+
+
+def test_the_step_with_no_mode_trusts_no_stamp(tmp_path):
+    """Keeping a context's stamp is something a build must ask for, never what it gets."""
+    tree = _image_tree(tmp_path)
+    result = _build_step(tree)
+
+    assert result.returncode == 0, result.stderr
+    assert _reported(tree)["git_sha"] == "unknown"
 
 
 def test_an_unrecognised_mode_fails_the_build(tmp_path):
@@ -232,11 +246,30 @@ def test_every_compose_built_backend_image_is_stamped_as_local():
             assert args.get(fact) == f"${{{fact}:-}}", f"{name}: {fact}"
 
 
-def test_the_release_workflow_takes_the_dockerfiles_default():
-    """The published images are stamped by `release.yml`'s stamp job; asking them for a
-    local stamp would discard it."""
-    assert "BUILD_STAMP" not in (ROOT / ".github" / "workflows" / "release.yml").read_text()
-    assert _dockerfile_default("BUILD_STAMP") != "local"
+def _release_build_args() -> dict[str, str]:
+    """The build args `release.yml` hands the image build, as `KEY=value` lines."""
+    workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "release.yml").read_text())
+    steps = [
+        step
+        for step in workflow["jobs"]["build"]["steps"]
+        if str(step.get("uses", "")).startswith("docker/build-push-action@")
+    ]
+    assert len(steps) == 1, "expected one image build step in release.yml"
+    lines = str(steps[0].get("with", {}).get("build-args", "")).splitlines()
+    return dict(line.strip().split("=", 1) for line in lines if line.strip())
+
+
+def test_a_hand_run_image_build_trusts_no_stamp():
+    """`docker build backend` with no arguments: the context's stamp is whatever the checkout
+    happened to hold, so the default is to drop it and answer `unknown`."""
+    assert _dockerfile_default("BUILD_STAMP") == "local"
+
+
+def test_the_release_workflow_keeps_the_stamp_it_made():
+    """The one build allowed to trust the context, because its `stamp` job just wrote it.
+    Without the opt-in the published images drop it; the image check would catch that only
+    on a tag, after the build."""
+    assert _release_build_args().get("BUILD_STAMP") == "context"
 
 
 # ── start.sh: the only place that reads git ───────────────────────────────────────
@@ -347,11 +380,15 @@ def test_start_sh_outside_a_git_checkout_hands_over_no_identity(tmp_path, clean_
 
 
 def _stamped_checkout(tmp_path: Path, env: dict) -> Path:
-    """A checkout with `stamp_build.py`, and nothing it would need to hash the contract."""
+    """A checkout with `stamp_build.py` and the reader it delegates to, and nothing it would
+    need to hash the contract."""
     repo = tmp_path / "checkout"
+    package = repo / "backend" / "research_engine"
     (repo / "scripts").mkdir(parents=True)
-    (repo / "backend" / "research_engine").mkdir(parents=True)
+    package.mkdir(parents=True)
     shutil.copy(ROOT / "scripts" / "stamp_build.py", repo / "scripts" / "stamp_build.py")
+    (package / "__init__.py").write_text("")
+    shutil.copy(BACKEND / "research_engine" / "build_info.py", package / "build_info.py")
     (repo / "VERSION").write_text("3.0.2\n")
     (repo / ".gitignore").write_text("__pycache__/\nbackend/research_engine/_build.py\n")
     (repo / "README.md").write_text("fixture\n")
@@ -431,3 +468,95 @@ def test_the_sidecar_spec_checks_a_stamp_before_bundling_it():
     assert analysis_line and check_line < analysis_line
     raises = [n for n in ast.walk(tree) if isinstance(n, ast.Raise)]
     assert any(n.lineno > check_line for n in raises), "a failed check must stop the build"
+
+
+# ── A source checkout: the tree may veto a stamp, never supply one ────────────────
+
+
+def _source_checkout(tmp_path: Path, env: dict, planted: dict | None = None) -> Path:
+    """A checkout laid out like this one, holding the real reader and a git-ignored stamp."""
+    repo = tmp_path / "checkout"
+    package = repo / "backend" / "research_engine"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("")
+    shutil.copy(BACKEND / "research_engine" / "build_info.py", package / "build_info.py")
+    (repo / "VERSION").write_text("3.0.2\n")
+    (repo / "README.md").write_text("fixture\n")
+    (repo / ".gitignore").write_text("__pycache__/\nbackend/research_engine/_build.py\n")
+    _git(repo, "init", "-q", env=env)
+    _git(repo, "add", "-A", env=env)
+    _git(repo, "commit", "-q", "-m", "fixture", env=env)
+    if planted is not None:
+        (package / "_build.py").write_text(_stamp_source(planted))
+    return repo
+
+
+def _reported_from_source(repo: Path, env: dict, *, frozen: bool = False) -> dict:
+    """`build_info()` as a source run asks it — or, with `frozen`, as a PyInstaller bundle."""
+    probe = (
+        "import json, sys, research_engine;"
+        + ("sys.frozen = True;" if frozen else "")
+        + "from research_engine.build_info import build_info;"
+        "print(json.dumps({'file': research_engine.__file__, **build_info().as_dict()}))"
+    )
+    out = subprocess.run(
+        [sys.executable, "-B", "-c", probe],
+        cwd=repo / "backend",
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    reported = json.loads(out.strip().splitlines()[-1])
+    assert Path(reported.pop("file")).resolve().is_relative_to(repo.resolve())
+    return reported
+
+
+@needs_git
+def test_a_stale_stamp_in_a_source_checkout_reads_as_unknown(tmp_path, clean_env):
+    repo = _source_checkout(tmp_path, clean_env, planted=STALE)
+
+    reported = _reported_from_source(repo, clean_env)
+
+    assert reported["version"] == "unknown"
+    assert reported["git_sha"] == "unknown"
+    assert reported["contract_version"] == "unknown"
+
+
+@needs_git
+def test_a_stamp_of_this_checkout_is_still_reported(tmp_path, clean_env):
+    """The veto must not swallow a true answer, or every source run would say `unknown`."""
+    repo = _source_checkout(tmp_path, clean_env)
+    head = _git(repo, "rev-parse", "HEAD", env=clean_env)
+    stamp = {**STALE, "VERSION": "3.0.2", "GIT_SHA": head, "DIRTY": False}
+    (repo / "backend" / "research_engine" / "_build.py").write_text(_stamp_source(stamp))
+
+    reported = _reported_from_source(repo, clean_env)
+
+    assert reported["git_sha"] == head
+    assert reported["contract_version"] == STALE["CONTRACT_VERSION"]
+
+
+@needs_git
+def test_a_clean_stamp_over_uncommitted_changes_reads_as_unknown(tmp_path, clean_env):
+    """Right commit, edited tree: the running code is not the commit the stamp names."""
+    repo = _source_checkout(tmp_path, clean_env)
+    head = _git(repo, "rev-parse", "HEAD", env=clean_env)
+    stamp = {**STALE, "VERSION": "3.0.2", "GIT_SHA": head, "DIRTY": False}
+    (repo / "backend" / "research_engine" / "_build.py").write_text(_stamp_source(stamp))
+    (repo / "README.md").write_text("fixture, edited\n")
+
+    reported = _reported_from_source(repo, clean_env)
+
+    assert reported["git_sha"] == "unknown"
+
+
+@needs_git
+def test_a_frozen_bundle_reports_its_own_stamp_wherever_it_runs(tmp_path, clean_env):
+    """A bundle's identity was checked when it was built (the spec, desktop.yml). Running it
+    from inside some checkout — `backend/dist/` is one — must not rewrite that answer."""
+    repo = _source_checkout(tmp_path, clean_env, planted=STALE)
+
+    reported = _reported_from_source(repo, clean_env, frozen=True)
+
+    assert reported["git_sha"] == STALE["GIT_SHA"]

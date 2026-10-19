@@ -56,10 +56,12 @@ collide with a dev database of a different Postgres major version.
 **A locally built image reports the commit it was built from, or `unknown`.** Settings →
 About and `GET /api/v1/version` read a build stamp. `./start.sh` reads the version, commit
 and whether the tree had uncommitted changes from git, and the `api` and `worker` images
-record them. A plain `docker compose … up --build` has no git to read, so those images
-answer `unknown`. Neither path reuses a stamp left in the checkout by an earlier build: the
-compose file builds with `BUILD_STAMP=local`, which discards it. Published images are
-stamped by the release workflow instead.
+record them. A plain `docker compose … up --build`, or a `docker build` of `backend/` by
+hand, has no git to read, so those images answer `unknown`. No local build reuses a stamp
+left in the checkout by an earlier one: the backend Dockerfile discards it unless told
+otherwise, and only the release workflow, which stamps the images itself, tells it otherwise.
+The same holds running from source: if the checkout contradicts a stamp it holds, the API
+answers `unknown`.
 
 **A fourth named volume, `mara_full_corpus_data`, holds per-project corpora** (docs/12
 M10) and is mounted at `/app/data` on **both** `api` and `worker`. It must be on both:

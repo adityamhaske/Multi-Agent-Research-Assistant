@@ -22,19 +22,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 STAMP = ROOT / "backend" / "research_engine" / "_build.py"
-
-
-def _git(*args: str) -> str:
-    return subprocess.run(
-        ["git", *args], cwd=ROOT, capture_output=True, text=True, check=True
-    ).stdout.strip()
 
 
 def contract_version() -> str:
@@ -70,13 +63,22 @@ def contract_version() -> str:
     return hashlib.sha256(canonical.encode()).hexdigest()[:16]
 
 
+def _build_info():
+    """`research_engine.build_info`: the one home for what a stamp claims about its checkout
+    and when the checkout contradicts it — `build_info()` asks the same question at runtime.
+    It imports nothing from the app."""
+    sys.path.insert(0, str(ROOT / "backend"))
+    from research_engine import build_info  # noqa: PLC0415
+
+    return build_info
+
+
 def identity() -> dict:
     """What a stamp claims about the checkout, and all `--check` compares."""
-    return {
-        "VERSION": (ROOT / "VERSION").read_text(encoding="utf-8").strip(),
-        "GIT_SHA": _git("rev-parse", "HEAD"),
-        "DIRTY": bool(_git("status", "--porcelain")),
-    }
+    found = _build_info().checkout_identity(ROOT)
+    if found is None:
+        raise SystemExit(f"cannot read the git checkout at {ROOT}; a stamp names its commit")
+    return found
 
 
 def stamp() -> dict:
@@ -108,15 +110,12 @@ def main() -> int:
             if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name):
                 recorded[node.targets[0].id] = ast.literal_eval(node.value)
 
-        # DIRTY too: a stamp of a clean HEAD over uncommitted changes would let the bundle
-        # claim to be exactly that commit.
-        for key in ("VERSION", "GIT_SHA", "DIRTY"):
-            if recorded.get(key) != current[key]:
-                print(
-                    f"stamp says {key}={recorded.get(key)!r}, checkout says {current[key]!r}",
-                    file=sys.stderr,
-                )
-                return 1
+        # DIRTY included: a stamp of a clean HEAD over uncommitted changes would let the
+        # bundle claim to be exactly that commit.
+        problem = _build_info().stamp_contradiction(recorded, current)
+        if problem:
+            print(problem, file=sys.stderr)
+            return 1
         print(f"build stamp matches this checkout ({current['GIT_SHA'][:9]})")
         return 0
 

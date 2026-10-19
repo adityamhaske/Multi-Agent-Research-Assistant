@@ -8,11 +8,12 @@ a leftover one made a local 3.0.2 image report 2.1.0 and a September commit as i
 
 `BUILD_STAMP` says which kind of build this is:
 
-* `context` (the Dockerfile's default, what `release.yml` gets) — keep the context's stamp.
-* `local` (what `docker-compose.full.yml` passes) — never trust the context's stamp. Write a
-  fresh one only from `BUILD_VERSION`/`BUILD_GIT_SHA`/`BUILD_DIRTY`, which `start.sh` reads
-  from git for this build; with any of them missing or malformed, write none, and the image
-  answers `unknown` (`research_engine/build_info.py`).
+* `local` (the default: compose, a hand-run `docker build`) — never trust the context's
+  stamp. Write a fresh one only from `BUILD_VERSION`/`BUILD_GIT_SHA`/`BUILD_DIRTY`, which
+  `start.sh` reads from git for this build; with any of them missing or malformed, write
+  none, and the image answers `unknown` (`research_engine/build_info.py`).
+* `context` (only `release.yml` passes it) — keep the context's stamp, which that
+  workflow's own `stamp` job wrote minutes earlier and its image step then verifies.
 
 `CONTRACT_VERSION` is left out of a local stamp: hashing the contract means importing the
 app, and that logic lives in `scripts/stamp_build.py`, outside this build context. A second
@@ -41,7 +42,7 @@ _SHAPES = {
 
 
 def main() -> int:
-    mode = os.environ.get("BUILD_STAMP", "context")
+    mode = os.environ.get("BUILD_STAMP", "local")
     if mode == "context":
         return 0
     if mode != "local":

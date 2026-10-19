@@ -522,8 +522,10 @@ everywhere` job. Four traps it exists for, each of which shipped:
   needs a stamp *and* a step that asks the published artifact. **Git-ignored is not
   Docker-ignored:** a leftover `_build.py` rode `COPY . /app` into every local image, which
   then reported another build's version and commit. Never Docker-ignore it — `release.yml`
-  stamps the context and the images carry it that way — local builds discard it instead
-  (`BUILD_STAMP=local`, `backend/docker/stamp_image.py`).
+  stamps the context and the images carry it that way. Instead the Dockerfile discards it
+  unless the build passes `BUILD_STAMP=context`, which only `release.yml` does
+  (`backend/docker/stamp_image.py`), and a source run's `build_info()` answers `unknown`
+  when its own checkout contradicts the stamp.
 - **"CI compiled it" is not "CI ran it".** Until the installer steps in `desktop.yml`, no
   `.deb`, AppImage or `.msi` had ever been installed and launched by CI.
   `scripts/check_packaged_sidecar.py` is the one checker for all of them, and for a person
