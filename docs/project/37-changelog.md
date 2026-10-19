@@ -110,7 +110,9 @@ describe the report you approved.
 - **Security updates.** Next.js 16.3.8 fixes a high-severity server-side request forgery
   advisory in Image Optimization, which the self-hosted standalone server leaves enabled,
   plus two medium and one low advisory (#185); sharp 0.35.5 (#184) and source-map-js 1.2.2
-  (#183) are past high-severity advisories of their own.
+  (#183) are past high-severity advisories of their own. `postcss-selector-parser` is patched to
+  7.1.6 under the typography plugin, which pins the vulnerable 6.0.10 even in its latest
+  release (#199, a build-time dependency only).
 - Dependency updates: Next.js 16.3.6 and the frontend minor group, undici 8.11.2,
   brace-expansion 1.1.21 (#174, #175, #176, #182); then Next.js and `eslint-config-next`
   16.4.2 and Playwright 1.64.1 (#191), and `numpy>=2.5.4` (#190).
