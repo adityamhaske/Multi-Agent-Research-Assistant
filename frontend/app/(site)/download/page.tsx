@@ -446,7 +446,7 @@ export default function DownloadPage() {
               architectures are the ones desktop.yml builds — arm64 macOS, x64 Windows,
               x86-64 Linux — and nothing broader is claimed. */}
         <span className="font-mono text-xs text-text-muted">
-          ~80 MB download, ~180 MB installed (macOS) · desktop builds for Apple Silicon
+          ~80 MB download, ~150 MB installed (macOS) · desktop builds for Apple Silicon
           Macs and 64-bit (x86-64) Windows and Linux
         </span>
       </div>
