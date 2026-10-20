@@ -174,7 +174,7 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M7.05 | PASS | The bundled engine is present, native, and unmodified by hardened runtime — research-sidecar: Mach-O 64-bit executable arm64; flags=0x2(adhoc), no hardened runtime; its _internal holds python3.14 (#189) |
 | M7.06 | PASS | The packaged engine identifies itself and completes the journey — check_packaged_sidecar.py on the mounted published app: 3.0.2, git_sha 0a9de70 (not dirty), journey PASS, verify_bundle PASS, tree 143.4 MB |
 | M7.07 | PASS | First launch as a user: drag to Applications; open it *without* the command and confirm the block is the… — Installed over the release manager's 3.0.0 (the app and `~/.research-engine` backed up first), with the download's quarantine flag set: `spctl` rejected it, and the first launch without the command showed "“Research Assistant.app” Not Opened — Apple could not verify…" with *Move to Trash* / *Done*: the documented block, not "damaged". After `xattr -dr com.apple.quarantine` it opened the existing data. Settings → About: 3.0.2, 0a9de70ee, built 2026-10-19T18:44:17Z, API contract fdcd9fceecf4f347 |
-| M7.08 | ACCEPTED | The Phase 20 desktop journey on macOS (M20.02) — On the published app in a throwaway home, with Ollama and no key. The first run failed at once with "No provider key found" (Finding 14). Settings offered no local preset, and Save URL for a custom endpoint answered "Unknown provider." The journey continued after the two settings the GUI could not save (the endpoint URL, and routing `ollama:qwen2.5:7b`) were written into that profile: planner (4 tasks) → plan gate (keyboard) → executor 4/4 → critic → synthesizer → report gate (keyboard) → approved. "All 4 citation markers resolve"; `.md` and bundle exported; the bundle verifies offline (7/7), models `ollama:qwen2.5:7b`, `demo: false`. **Accepted:** present in every desktop release since 2.1.0, including 3.0.1, which the site offers today; fix #202 is in review for the next release; known issue with a workaround |
+| M7.08 | ACCEPTED | The Phase 20 desktop journey on macOS (M20.02) — On the published app in a throwaway home, with Ollama and no key. The first run failed at once with "No provider key found" (Finding 14). Settings offered no local preset, and Save URL for a custom endpoint answered "Unknown provider." The journey continued after the two settings the GUI could not save (the endpoint URL, and routing `ollama:qwen2.5:7b`) were written into that profile: planner (4 tasks) → plan gate (keyboard) → executor 4/4 → critic → synthesizer → report gate (keyboard) → approved. "All 4 citation markers resolve"; `.md` and bundle exported; the bundle verifies offline (7/7), models `ollama:qwen2.5:7b`, `demo: false`. **Accepted:** present in every desktop release since 2.1.0, including 3.0.1, which the site offers today; fixed on `main` by #202 (`105d414`) for the next release; known issue with a workaround |
 | M7.09 | PASS | Quit the app; no engine is left running — Quit from the app menu twice, on the release manager's data and on the throwaway profile: `research-desktop` and `research-sidecar` were both gone within 1 s, and nothing was listening on the engine's port |
 | **Phase 8 — Windows Verification** | | |
 | M8.01 | NOT RUN | Download the `.msi` in a browser; verify it — No Windows machine available |
@@ -397,12 +397,15 @@ Found while preparing stage A, separated by kind.
     them, including 3.0.1, which the site offers today; holding the flip would not protect
     anyone. **Accepted for 3.0.2** (M7.08, M20.02 ACCEPTED). Known issue with a workaround: save
     any text as the Custom Endpoint key, which Ollama ignores; verified on 3.0.2's own
-    `sidecar_run_config`. **Fix in review: #202** (five new tests fail on `main` and pass there).
+    `sidecar_run_config`. **Fixed on main by #202** (`105d414`) for the next release; five new
+    tests failed before it and pass after.
 15. **Every public site page asks the app's API for projects, and logs a 404.** `ActiveProjectProvider`
     sits in the root `Providers`, so on GitHub Pages `/`, `/why`, `/docs`, `/download` and
     `/releases` each fire `GET /api/v1/projects?archived=false` at the domain root. There is no
     backend there, so each page logs a 404. The pages work. Present since 2.0.1 (`39efade5`);
-    found at M22.03; not fixed in this release.
+    found at M22.03; not fixed in this release. **Fixed on main by #205** (`6239fd1`) for the
+    next release: the (app) layout provides the active project, and the root providers fetch
+    nothing.
 16. **The site's headline citation figure is 3.0.0's, and does not say so.** `lib/features.ts` and
     `lib/comparison.ts` say "citation support … 96.4%". 3.0.2's own run, on the same routing and
     judge, measured 96.9%. The README and docs attribute 96.4% to "the 3.0.0 release run"; the

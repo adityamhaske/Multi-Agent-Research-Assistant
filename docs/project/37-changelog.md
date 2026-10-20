@@ -147,8 +147,8 @@ describe the report you approved.
   never listed `ollama` as available, and Save URL for a custom endpoint answers "Unknown
   provider.", because `/desktop/keys/{provider}` matched its path first. Present in earlier
   desktop releases too. Workaround: save any text as the Custom Endpoint key in Settings →
-  Connections (Ollama ignores it); research then runs on the first model Ollama lists. Fix in
-  review for the next release (#202).
+  Connections (Ollama ignores it); research then runs on the first model Ollama lists. Fixed on
+  `main` for the next release (#202).
 - Everything listed under 3.0.1's **Known** below still applies.
 
 ---
