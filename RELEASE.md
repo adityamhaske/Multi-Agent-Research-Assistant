@@ -428,7 +428,7 @@ downloaded copy is a Gatekeeper block that the documented command clears — nev
   - STOP if: checksum mismatch.
 - [ ] **M7.02** The DMG opens and holds the app at the right version.
   - Verify: `hdiutil attach -nobrowse -readonly <dmg>`; `defaults read "/Volumes/Research Assistant/Research Assistant.app/Contents/Info.plist" CFBundleShortVersionString`; `du -sh` the app.
-  - Expected: the app and an Applications link; version `X.Y.Z`; ~180 MB, not ~5 MB.
+  - Expected: the app and an Applications link; version `X.Y.Z`; ~150 MB, not ~5 MB.
   - STOP if: missing app, wrong version, or undersized.
 - [ ] **M7.03** The signature is whole and valid.
   - Verify: `codesign -dv --verbose=2 <app>`; `codesign --verify --deep --strict --verbose=2 <app>`.
@@ -596,7 +596,7 @@ button at the site's own `/releases` page for weeks.
 | A15.02 | Every version in the selector has all four installers and its source archive answering 200 (older versions too) | post-release |
 | A15.03 | The file names the page builds (`download/page.tsx`) are exactly the names the release publishes | all |
 
-- [ ] **M15.01** On each OS (or with a UA override), the detected-OS card leads; the big button and every card button point at the `X.Y.Z` asset for that platform; the macOS card's command copies exactly; each platform's steps match what Phases 7-9 saw; the size note ("~80 MB download, ~180 MB installed") is within 15% of the published sizes.
+- [ ] **M15.01** On each OS (or with a UA override), the detected-OS card leads; the big button and every card button point at the `X.Y.Z` asset for that platform; the macOS card's command copies exactly; each platform's steps match what Phases 7-9 saw; the size note ("~80 MB download, ~150 MB installed") is within 15% of the published sizes.
   - STOP if: any button leads to an old version, a wrong architecture or a 404.
 - [ ] **M15.02** Download one installer by clicking the page's button in a real browser; the file name and checksum are right.
 
@@ -676,7 +676,7 @@ sessions).
   - STOP if: any step fails.
 - [ ] **M20.02** The desktop journey on each platform (M7.08, M8.06, M9.01/M9.02), with a real provider or Ollama.
   - STOP if: any step fails on any platform.
-- [ ] **M20.03** Negative paths on the published build: an invalid provider key is refused before it is stored; a run cancelled mid-flight stays cancelled; a report sent back for rework resumes at the synthesizer and is approvable on the second pass; refreshing the browser mid-run resumes the live feed; restarting the worker while a run waits at a gate still lets it be approved; a bundle edited by one byte fails `verify_bundle`.
+- [ ] **M20.03** Negative paths on the published build: an invalid provider key is reported as rejected by its provider as soon as it is saved (saving is testing; a failed check never blocks the save); a run cancelled mid-flight stays cancelled; a report sent back for rework resumes at the synthesizer and is approvable on the second pass; refreshing the browser mid-run resumes the live feed; restarting the worker while a run waits at a gate still lets it be approved; a bundle edited by one byte fails `verify_bundle`.
   - STOP if: any behaves otherwise.
 - [ ] **M20.04** Every `[n]` in the final report resolves on hover to a source and its snippet; an unresolved one renders the ⚠ chip, never a clean citation.
   - STOP if: a citation renders clean without resolving — the product's P0 class.

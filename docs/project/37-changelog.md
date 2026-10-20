@@ -12,7 +12,7 @@ deciding whether to trust the thing, and a changelog with no bad news is marketi
 
 ---
 
-## v3.0.2 — unreleased
+## v3.0.2 — 2026-10-19
 
 Research through your own model router runs for real, and a reworked report's counts
 describe the report you approved.
@@ -141,6 +141,14 @@ describe the report you approved.
 - Every full load of Settings → Appearance logs React error 418 (a hydration mismatch) in
   the browser console; the page recovers and works. Present in 3.0.1 too; fixed on `main`
   for the next release (#201).
+- On the desktop app, research on a local model (Ollama) with no API key saved fails at once
+  with "No provider key found": `sidecar_run_config` refused any run with no key stored,
+  whatever the routing. Settings → Models offers no local preset, because the desktop catalog
+  never listed `ollama` as available, and Save URL for a custom endpoint answers "Unknown
+  provider.", because `/desktop/keys/{provider}` matched its path first. Present in earlier
+  desktop releases too. Workaround: save any text as the Custom Endpoint key in Settings →
+  Connections (Ollama ignores it); research then runs on the first model Ollama lists. Fix in
+  review for the next release (#202).
 - Everything listed under 3.0.1's **Known** below still applies.
 
 ---

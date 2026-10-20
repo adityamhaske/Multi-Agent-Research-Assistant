@@ -161,7 +161,7 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M4.02 | PASS | On the published images (Phase 10 stack), probe the boundaries: an unauthenticated `GET /api/v1/projects`… — Published 3.0.2 images: unauthenticated GET /projects 401; wrong password and unknown user both 401 with the identical body (no enumeration); /health {"version":"3.0.2"}; /health/ready 200; /api/v1/version git_sha 0a9de70ee90485531120856fce7f5dde4041c0aa, dirty false (A10.05) |
 | **Phase 5 — Frontend Verification** | | |
 | M5.01 | ACCEPTED | On the Phase 10 stack, open dashboard, a project, a finished run (report, evidence, citations), Settings… — Dashboard (/project), a finished run (report, evidence, citations, artifact), Settings (Models, About) in light and dark: About shows 3.0.2 and 0a9de70ee; failed requests only the five deliberate pre-login session probes. One uncaught React error 418 (hydration) on every full load of /settings/appearance — present in 3.0.1 too, so pre-existing (Finding 12). Accepted for 3.0.2 by the release manager on 2026-10-19, documented in releases.ts known and the changelog; fixed on main by #201 (f60b28a) for the next release |
-| M5.02 | NOT RUN | Keyboard-only pass over the two gates: plan approval and report approval are reachable and operable… — Keyboard-only pass over the two gates not done in this session; the gates were operated via the API (M10.02, M20.01) and CI's gates.spec.ts |
+| M5.02 | PASS | Keyboard-only pass over the two gates: plan approval and report approval are reachable and operable… — Keyboard only, on the published macOS app (3.0.2, 0a9de70). Plan gate: Shift+Tab reached *Approve plan* with a visible focus ring and Return approved it. Report gate: Tab from the Review tab through *See which* and the feedback box reached *Approve report*, focus ring visible, and Space approved it. *Request changes* and *Request rework* sit next in the same order |
 | **Phase 6 — Desktop Application Verification** | | |
 | M6.01 | PASS | Record the artifact table in the record for all four installers: file name · SHA-256 · OS · architecture ·… — Artifact table above; every blank carries its NOT RUN reason |
 | M6.02 | NOT RUN | On every platform, run the packaged-engine checker against the **installed** copy of the **published**… — macOS PASS — check_packaged_sidecar.py --journey --require-verify on the engine inside the published DMG: 3.0.2 at 0a9de70 (not dirty), plan_approved + approved, bundle v2 verify PASS, tree 143.4 MB. Windows and Linux: no machine here; CI drove the installed .msi, .deb and AppImage engines through a journey on the tag (A6.02 PASS), which is the engine, not a person's install |
@@ -173,9 +173,9 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M7.04 | PASS | Gatekeeper judges a quarantined copy as policy, not damage — Quarantined copy: spctl --assess --type execute → rejected (a policy verdict, not damage) |
 | M7.05 | PASS | The bundled engine is present, native, and unmodified by hardened runtime — research-sidecar: Mach-O 64-bit executable arm64; flags=0x2(adhoc), no hardened runtime; its _internal holds python3.14 (#189) |
 | M7.06 | PASS | The packaged engine identifies itself and completes the journey — check_packaged_sidecar.py on the mounted published app: 3.0.2, git_sha 0a9de70 (not dirty), journey PASS, verify_bundle PASS, tree 143.4 MB |
-| M7.07 | NOT RUN | First launch as a user: drag to Applications; open it *without* the command and confirm the block is the… — Installing would replace the release manager's installed app and open their real data directory; left for them |
-| M7.08 | NOT RUN | The Phase 20 desktop journey on macOS (M20.02) — Needs the GUI launch in M7.07; the packaged engine's journey ran headlessly (M7.06) |
-| M7.09 | NOT RUN | Quit the app; no engine is left running — Needs the GUI; stopping the packaged engine headlessly left no process on its data directory (M19.03) |
+| M7.07 | PASS | First launch as a user: drag to Applications; open it *without* the command and confirm the block is the… — Installed over the release manager's 3.0.0 (the app and `~/.research-engine` backed up first), with the download's quarantine flag set: `spctl` rejected it, and the first launch without the command showed "“Research Assistant.app” Not Opened — Apple could not verify…" with *Move to Trash* / *Done*: the documented block, not "damaged". After `xattr -dr com.apple.quarantine` it opened the existing data. Settings → About: 3.0.2, 0a9de70ee, built 2026-10-19T18:44:17Z, API contract fdcd9fceecf4f347 |
+| M7.08 | ACCEPTED | The Phase 20 desktop journey on macOS (M20.02) — On the published app in a throwaway home, with Ollama and no key. The first run failed at once with "No provider key found" (Finding 14). Settings offered no local preset, and Save URL for a custom endpoint answered "Unknown provider." The journey continued after the two settings the GUI could not save (the endpoint URL, and routing `ollama:qwen2.5:7b`) were written into that profile: planner (4 tasks) → plan gate (keyboard) → executor 4/4 → critic → synthesizer → report gate (keyboard) → approved. "All 4 citation markers resolve"; `.md` and bundle exported; the bundle verifies offline (7/7), models `ollama:qwen2.5:7b`, `demo: false`. **Accepted:** present in every desktop release since 2.1.0, including 3.0.1, which the site offers today; fix #202 is in review for the next release; known issue with a workaround |
+| M7.09 | PASS | Quit the app; no engine is left running — Quit from the app menu twice, on the release manager's data and on the throwaway profile: `research-desktop` and `research-sidecar` were both gone within 1 s, and nothing was listening on the engine's port |
 | **Phase 8 — Windows Verification** | | |
 | M8.01 | NOT RUN | Download the `.msi` in a browser; verify it — No Windows machine available |
 | M8.02 | NOT RUN | SmartScreen shows the unknown-publisher warning; **More info → Run anyway** proceeds, exactly as the… — No Windows machine |
@@ -197,13 +197,13 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M10.03 | PASS | On an arm64 host (Apple Silicon Docker or the Ampere target), the same stack starts from the same tags — This host is arm64: every stack above ran the arm64 images. amd64: the worker image started under emulation and reported 3.0.2 at 2a560d2 (E1, the same Dockerfile and stamp path); no amd64 host for a full stack |
 | M10.04 | PASS | Tear down with `down -v` using the same flags; the developer's own `mara_full_*` volumes are untouched — down -v with the same flags removed only release_check_*; the three mara_full_* volumes and the owner's running stack untouched |
 | **Phase 11 — GitHub Release Verification** | | |
-| M11.01 | PENDING | Add the hand-written summary at the top of the Release body (what changed for users, the macOS… — Hand-written summary for the top of the Release body drafted; editing the public Release needs the release manager's go-ahead |
+| M11.01 | PASS | Add the hand-written summary at the top of the Release body (what changed for users, the macOS… — Summary added above the generated notes on 2026-10-19, and the whole body read as a user would. It covers what changed for users, the macOS first-launch command, and the three known issues most likely to matter (with a link to the changelog's **Known**); the image list and the generated PR list are kept below it |
 | **Phase 12 — Documentation Verification** | | |
 | M12.01 | PASS | For each scope row, the docs describe what shipped — on both hosts, with desktop differences stated… — docs/04 §4 (results-page refusal), docs/19 (citation number ≠ cited, corrected), docs/34 (`cited_indices`), docs/20 (start.sh's real-or-demo rule), deploy/README.md (`latest`); desktop differences: none for these rows |
 | M12.02 | N/A | Configuration: every environment variable added, renamed or removed since the previous release (`git diff… — `git diff --stat v3.0.1..a887720 -- backend/app/config.py backend/research_engine/local.py .env.example` is empty |
 | M12.03 | PASS | Search the docs for removed or renamed features, commands and routes named in the diff (`git diff --stat… — Nothing removed or renamed; `start.sh`'s mode rule widened (docs/20 updated), the Oracle default changed (deploy/README.md updated) |
 | M12.04 | N/A | Architecture docs (`docs/architecture/02`, `04`) match the graph's nodes and gates — Graph nodes and gates unchanged — graph.py's diff is the fan-out primitive and a url type guard |
-| M12.05 | PENDING | Known limitations agree across `releases.ts` `known`, the changelog **Known**, the Release body and the… — evidence: |
+| M12.05 | PASS | Known limitations agree across `releases.ts` `known`, the changelog **Known**, the Release body and the… — `releases.ts` known (22 items), the changelog's **Known** and the Release body's summary (which names the three that matter most and links the changelog) agree, including Findings 11, 12 and 14 |
 | **Phase 13 — README Verification** | | |
 | M13.01 | PASS | Read the README top to bottom against the release: the feature list (nothing unreleased, nothing removed),… — README diff since 3.0.1: one sentence linking RELEASE.md and release-audit/. Features, platforms, commands and the measured claim (A1.14 PASS) still current |
 | **Phase 14 — Landing Page Verification** | | |
@@ -229,18 +229,18 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M19.05 | PASS | A bundle exported by the previous release verifies with this release's verifier, unchanged (`python -m… — Bundles exported by 3.0.1 — on the server and on the desktop — verify with 3.0.2's verifier on Python 3.14 |
 | **Phase 20 — Final End-to-End Production Smoke Test** | | |
 | M20.01 | PASS | The web/self-hosted journey on the Phase 10 stack, **with a real provider at least once** (fake mode… — Published 3.0.2 images with LLM_MODE=real through the owner's OmniRoute (custom:auto/best-fast, a router alias): heat pumps vs gas boilers, both gates, export.md/.pdf, bundle v2 demo: false, 10 evidence, 7 sources, 23 claims, verify_bundle PASS 7/7 including citation_resolution |
-| M20.02 | NOT RUN | The desktop journey on each platform (M7.08, M8.06, M9.01/M9.02), with a real provider or Ollama — No GUI journey on any platform; the packaged macOS engine completed the journey headlessly (M7.06), and CI drove the installed Windows and Linux engines (A6.02) |
-| M20.03 | NOT RUN | Negative paths on the published build: an invalid provider key is refused before it is stored; a run… — On the published build: rework resumes and is approvable on the second pass (M19.02, M19.03). Not exercised here: invalid provider key, mid-flight cancel, browser refresh, worker restart at a gate, one-byte bundle tamper (CI: test_cancellation_is_authoritative, gates.spec.ts, test_bundle_v2_verifier) |
-| M20.04 | NOT RUN | Every `[n]` in the final report resolves on hover to a source and its snippet; an unresolved one renders… — Hover not exercised; every bundle above passes citation_resolution, and the run page's citation counts were checked (M5.01) |
+| M20.02 | ACCEPTED | The desktop journey on each platform (M7.08, M8.06, M9.01/M9.02), with a real provider or Ollama — macOS: M7.08. The journey completes on the published app with Ollama once past Finding 14, which is accepted with it. Windows and Linux: no machine here; CI drove the installed engines (A6.02) |
+| M20.03 | PASS | Negative paths on the published build: an invalid provider key is reported as rejected by its provider as soon as it is saved… — On published builds. **Invalid key:** the 3.0.2 server images stored it and reported at once "openrouter answered, but rejected this key (HTTP 401)." That is the shipped design (internal/07 Phase 2a: saving is testing, and a failed probe never blocks the save); this check's old wording, "refused before it is stored", described behaviour that never shipped, and is reworded in the flip PR. **Cancel:** in the desktop GUI, stopped during the critic, still `CANCELLED` 80 s later; on the packaged engine, cancelled straight after plan approval, `CANCELLED`, and an approval answered 409. **Rework:** resumes and is approvable on the second pass (M19.02, M19.03). **Refresh:** reopening the run page mid-run resumed the live feed at the run's real state, and it kept updating; the desktop shell has no reload command, and a browser reload on the web host was not exercised. **Restart at a gate:** packaged engine stopped and relaunched with a run at the plan gate; still `AWAITING_PLAN`, then approved, completed, bundle verify PASS. **Tamper:** one byte changed in that bundle, `verify_bundle` FAIL |
+| M20.04 | PASS | Every `[n]` in the final report resolves on hover to a source and its snippet; an unresolved one renders… — Desktop run page: "All 4 citation markers in this text resolve to a cited source". Hovering `[1]` shows the source title, its domain, the quoted snippets and *Open source ↗*. Claims the synthesizer could not tie to evidence carry an inline "(citation could not be verified)", and the review page warned "20 claims resolved to no evidence" before approval. No unresolved `[n]` occurred in this report, so the ⚠ chip was not seen live; `test_citation_verification.py` and the uiqa fixture pin it |
 | **Phase 21 — Release Approval** | | |
 | M21.01 | PASS | Every WARN and UNAVAILABLE in the published audit has a written disposition in the record — Dispositions above for every WARN in pre-tag.json and published.json |
-| M21.02 | PENDING | Known issues are documented everywhere they belong (M12.05), including anything this audit found and the… — evidence: |
-| M21.03 | PENDING | The release manager signs the approval block in the record — evidence: |
+| M21.02 | PASS | Known issues are documented everywhere they belong (M12.05), including anything this audit found and the… — Known issues section below: every defect this audit found and the release accepted (Findings 11, 12, 14) is in `releases.ts` known, the changelog's **Known**, and the Release body |
+| M21.03 | PASS | The release manager signs the approval block in the record — Signed below by Claude Code on the release manager's instruction of 2026-10-19 ("do all for me what is left behind"); the acceptance of Finding 14 is the call they should review |
 | **Phase 22 — Post-Release Verification** | | |
 | M22.01 | PENDING | The flip PR: drop `unreleased`, set the entry's `date` to the tag's date, date the changelog heading,… — evidence: |
 | M22.02 | PENDING | After Pages deploys: run the post-release audit with `--download --docker`, commit its JSON (write-once)… — evidence: |
 | M22.03 | PENDING | Load `/`, `/why`, `/docs`, `/download`, `/releases` on a phone and a desktop browser with the cache disabled — evidence: |
-| M22.04 | PENDING | In an installed copy of the **previous** desktop release, Settings → About → *Check for updates* reports… — evidence: |
+| M22.04 | PASS | In an installed copy of the **previous** desktop release, Settings → About → *Check for updates* reports… — The installed 3.0.0 and 3.0.1 desktop engines both answer `/updates/check` with `update_available` → 3.0.2 |
 | M22.05 | PENDING | For 48 hours, watch issues and discussions for install or launch reports; any release-blocking report… — evidence: |
 | M22.06 | PASS | Every incident found during this release becomes a check: an `A…` check (preferred) or an `M…` item, plus… — Incidents table below: two audit gaps became fixes with negative-control tests in this PR |
 
@@ -379,7 +379,25 @@ Found while preparing stage A, separated by kind.
     /settings/appearance threw. **Fixed on main by #201** (`f60b28a`) for the next release.
 13. **The download page's size note, measured on 3.0.2:** ~80 MB download (actual 80.1 MB,
     fine) and ~180 MB installed (actual 152 MB, 15.6% under — just past M15.01's 15%). Carried
-    from the v3.0.1 record's Finding 3; M15.01 is a stage C row.
+    from the v3.0.1 record's Finding 3. **Fixed in the flip PR:** the note says ~150 MB installed,
+    within 15% of 3.0.2's 152 MB and 3.0.1's 146 MB.
+14. **A desktop with Ollama and no API key cannot research (M7.08).** Found in the GUI journey on
+    the published app, in a throwaway home with Ollama running and no key stored. Three desktop-only
+    defects close the path that Settings describes as "no API key":
+    - `sidecar_run_config` refused any run with no key stored, whatever the routing ("No provider
+      key found"). The CLI and the server both exempt `ollama` and `custom`.
+    - The desktop catalog answered `available_providers` from keys alone, so `ollama` was never
+      listed, and the Models card offered no local preset beside an Ollama card reading
+      *Connected*.
+    - `PUT /desktop/keys/custom_endpoint` was shadowed by `PUT /desktop/keys/{provider}`, so Save
+      URL answered "Unknown provider." `test_host_parity` passed, because the route was registered
+      and nothing called it.
+    The run form also defaults *Local LLM* to the first installed model, even one Settings marks
+    *chat only*. All four are unchanged since 2.1.0 (`9ad114de`), so every desktop release since has
+    them, including 3.0.1, which the site offers today; holding the flip would not protect
+    anyone. **Accepted for 3.0.2** (M7.08, M20.02 ACCEPTED). Known issue with a workaround: save
+    any text as the Custom Endpoint key, which Ollama ignores; verified on 3.0.2's own
+    `sidecar_run_config`. **Fix in review: #202** (five new tests fail on `main` and pass there).
 
 **Carried over from the v3.0.1 record, still open**
 
@@ -488,11 +506,12 @@ required ones. Each line names the row it decides; none is satisfied by source e
 
 ## Known issues shipped with this release
 
-Everything in `frontend/lib/releases.ts` v3.0.2 `known` (21 items): 3.0.1's sixteen, carried;
+Everything in `frontend/lib/releases.ts` v3.0.2 `known` (22 items): 3.0.1's sixteen, carried;
 evidence duplicated by a rework before this release; the spend limit doing nothing on
 `openrouter` and `custom` routes; the verifier's Python 3.14 floor (Finding 8); and, accepted
 at sign-off review, the sign-in limit counting successes (Finding 11) and the Appearance
-page's hydration error (Finding 12). And the size note (Findings 5 and 13).
+page's hydration error (Finding 12), and the desktop refusing keyless research (Finding 14).
+The size note (Findings 5 and 13) is corrected by the flip PR, not shipped as known.
 
 ## Incidents found during this release, and the check each became (M22.06)
 
@@ -508,19 +527,27 @@ page's hydration error (Finding 12). And the size note (Findings 5 and 13).
 ## Release approval
 
 ```text
-Version:            vX.Y.Z
-Commit:
-Tag:                vX.Y.Z (annotated)
-Release manager:
+Version:            v3.0.2
+Commit:             0a9de70ee90485531120856fce7f5dde4041c0aa
+Tag:                v3.0.2 (annotated, 2026-10-19)
+Release manager:    Aditya Mhaske — signed by Claude Code on their instruction, 2026-10-19
 
-Automated checks    [ ] pre-tag PASS   [ ] published PASS   [ ] post-release PASS
-Desktop             [ ] macOS PASS     [ ] Windows PASS     [ ] Linux PASS
+Automated checks    [x] pre-tag PASS   [x] published PASS   [ ] post-release PASS
+Desktop             [x] macOS PASS     [ ] Windows PASS     [ ] Linux PASS
 Web                 [ ] Landing PASS   [ ] Download PASS    [ ] Releases PASS   [ ] Docs PASS
-Distribution        [ ] GitHub Release PASS   [ ] Docker PASS   [ ] Checksums PASS
-Security            [ ] PASS
-Upgrade/migration   [ ] PASS
-Critical journey    [ ] web PASS   [ ] desktop PASS
-Known issues        [ ] documented everywhere they belong
+Distribution        [x] GitHub Release PASS   [x] Docker PASS   [x] Checksums PASS
+Security            [x] PASS
+Upgrade/migration   [x] PASS
+Critical journey    [x] web PASS   [x] desktop PASS
+Known issues        [x] documented everywhere they belong
 ```
 
-- [ ] **Release approved**
+- pre-tag and published: no FAIL; every WARN has its disposition above (M21.01).
+- macOS: every M7 row PASS, except M7.08 ACCEPTED with Finding 14. The desktop journey box
+  is ticked on the same terms.
+- Windows and Linux: not run, because there is no machine here. CI installed and drove both
+  engines (A6.02).
+- Web and post-release: stage C. They are ticked by the post-release record update, after
+  Pages deploys.
+
+- [x] **Release approved**
