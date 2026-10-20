@@ -101,6 +101,10 @@ indistinguishable from ordinary accented chrome.
 - Project scoping comes from the **`ActiveProject` context**, not a route param. Every
   surface under the switcher is project-scoped; putting the id in the URL as well would be
   two sources of truth for one choice.
+- **Nothing in the root `Providers` may fetch.** The public site (`app/(site)/`) shares the
+  root layout, and on GitHub Pages there is no API behind it. The active project is a query,
+  so `app/(app)/layout.tsx` provides it. From 2.0.1 to 3.0.2 it sat in the root, and every
+  site page logged a 404 for `/api/v1/projects`. `components/Providers.test.tsx` pins it.
 
 ## Session routes are generated
 

@@ -5,12 +5,14 @@ import { ThemeProvider } from "next-themes";
 import { useState } from "react";
 import { Toaster } from "react-hot-toast";
 
-import { ActiveProjectProvider } from "./ActiveProject";
-
 /**
  * App-wide client providers (docs/03: TanStack Query owns all server state;
  * next-themes owns the class-based theme; react-hot-toast replaces hand-rolled
  * toast state). Mounted once from the root layout.
+ *
+ * Nothing here may fetch: the public site (app/(site)/) renders inside these too, and on
+ * GitHub Pages there is no API behind it. The active project is a query, so its provider
+ * lives in the (app) layout instead.
  */
 export function Providers({ children }: { children: React.ReactNode }) {
   // One QueryClient per browser session — created lazily so it survives re-renders
@@ -33,8 +35,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       {/* Light is the product default (docs/07 "Theming"); enableSystem=false so a
           dark-OS user still lands on the intended default until they toggle. */}
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-        {/* Inside the query provider — the active project is derived from a query. */}
-        <ActiveProjectProvider>{children}</ActiveProjectProvider>
+        {children}
         <Toaster
           position="bottom-right"
           toastOptions={{
