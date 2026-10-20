@@ -44,6 +44,35 @@ _PROVIDER_ENV = {
 _KEYLESS_PROVIDERS = ("ollama", "custom")
 
 
+def providers_missing_a_key(models: dict[str, str], keys: dict[str, str]) -> list[str]:
+    """The routed providers that cannot run for want of a key, or `[]` when this routing can.
+
+    Only providers that need a key count — routing every role at Ollama or a custom
+    endpoint is a complete, keyless configuration. One home for every host that builds a
+    `RunConfig` from its own key store: this module and `desktop.sidecar.sidecar_run_config`
+    both ask it, so the CLI and the desktop cannot disagree about what "no key" means.
+    """
+    routed = sorted({m.split(":", 1)[0] for m in models.values()})
+    needs_key = [p for p in routed if p not in _KEYLESS_PROVIDERS]
+    # `custom_base_url` is an endpoint, not a credential — it must not count as one.
+    have_a_key = any(name != "custom_base_url" for name in keys)
+    return needs_key if not have_a_key else []
+
+
+def usable_providers(keys: dict[str, str]) -> list[str]:
+    """The providers reachable with these keys — `model_routing.available_providers` for
+    hosts that hold their own keys, as the desktop does.
+
+    Ollama is always usable, as on the server: local inference needs no key. Answering from
+    keys alone left it out on the desktop, so Settings offered no local preset on a machine
+    running Ollama. A custom endpoint is usable once its URL is set, key or not.
+    """
+    usable = {"ollama"} | {p for p in keys if p != "custom_base_url"}
+    if keys.get("custom_base_url"):
+        usable.add("custom")
+    return sorted(usable)
+
+
 def load_env_file(path: str | Path = "../.env") -> bool:
     """Load a `.env` into the process environment, if one exists. Returns whether it did.
 
@@ -105,13 +134,7 @@ def run_config_from_env(*, fake: bool) -> RunConfig:
 
     # An upfront guard for the common "forgot to export anything" case; per-provider
     # coverage is still enforced later, with an actionable message, by `llm_factory._build`.
-    # Only providers that need a key can trigger it — routing every role at Ollama is a
-    # complete, keyless configuration and used to be rejected here outright.
-    routed = sorted({m.split(":", 1)[0] for m in models.values()})
-    needs_key = [p for p in routed if p not in _KEYLESS_PROVIDERS]
-    # `custom_base_url` is an endpoint, not a credential — it must not count as one.
-    have_a_key = any(name != "custom_base_url" for name in keys)
-    if needs_key and not have_a_key:
+    if needs_key := providers_missing_a_key(models, keys):
         wanted = ", ".join(_PROVIDER_ENV.get(p, f"{p.upper()}_API_KEY") for p in needs_key)
         raise SystemExit(
             f"No provider key found. Routing needs one of: {wanted}.\n"

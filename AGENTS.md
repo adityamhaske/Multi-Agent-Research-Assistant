@@ -104,6 +104,7 @@ locally.
 | Resolving `corpus_dir` | 2 | 2 — both relative, so upload and run disagreed |
 | Validating a `provider:model` route | 2 | 1 — routing accepted what pricing refused |
 | Where the bundled sidecar lives | 3 | 3 |
+| Whether a routing needs a key (`ollama`/`custom` don't) | 3 | 1 — the desktop refused every keyless run, so Ollama-only desktops could not research |
 
 **When you change any of these, grep for the other copy before you finish:**
 
@@ -146,6 +147,11 @@ locally.
   `sidecar::_TERMINAL_EVENTS` — a stream left open on a suspended graph waits on no one
 - Route validation → `app/services/model_routing.py::validate` *and*
   `research_engine/llm_factory.py::validate_pricing`
+- Keyless providers → `app/config.py::_KEYLESS_PROVIDERS` (server) *and*
+  `research_engine/local.py::providers_missing_a_key`, which the CLI and
+  `sidecar_run_config` both call. Which providers are *available* follows the same rule:
+  `model_routing.available_providers` *and* `local.usable_providers` (the desktop's) both
+  list `ollama` with no key
 - Unmeasured-vs-zero in the support rate → `evals/harness.py::judge_citation_support`
   *and* `evals/benchmark.py::calc_support_rate`
 - Embedder locality → every `Embeddings` adapter must expose `is_local`

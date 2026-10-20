@@ -158,6 +158,7 @@ from research_engine.events import make_event
 from research_engine.graph import build_graph
 from research_engine.llm_factory import get_llm, text_of
 from research_engine.local import SqliteCache, load_env_file
+from research_engine.local import providers_missing_a_key, usable_providers
 from research_engine.prompt_composition import recording_provenance, system_prompt
 from research_engine.routing_rules import validate as validate_routing_rule
 from research_engine.runconfig import (
@@ -668,6 +669,24 @@ def make_corpus_store(data_dir: str | Path) -> CorpusStore:
     return CorpusStore(Path(data_dir) / "corpus.sqlite", embedder)
 
 
+def provider_keys(data_dir: str | Path | None) -> dict[str, str]:
+    """Env keys, then keychain keys (keychain wins), plus a saved custom endpoint URL."""
+    env_names = {
+        "google": "GOOGLE_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+        "custom": "CUSTOM_API_KEY",
+    }
+    keys = {p: os.environ[e] for p, e in env_names.items() if os.environ.get(e)}
+    keys.update(stored_keys())
+    if data_dir is not None:
+        custom_base_url = stored_custom_endpoint(data_dir)
+        if custom_base_url:
+            keys["custom_base_url"] = custom_base_url
+    return keys
+
+
 def sidecar_run_config(
     *,
     fake: bool,
@@ -713,22 +732,8 @@ def sidecar_run_config(
     if fake:
         return RunConfig(llm_mode="fake", demo=demo, models=models)
 
-    env_names = {
-        "google": "GOOGLE_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY",
-        "openai": "OPENAI_API_KEY",
-        "openrouter": "OPENROUTER_API_KEY",
-        "custom": "CUSTOM_API_KEY",
-    }
-    keys = {p: os.environ[e] for p, e in env_names.items() if os.environ.get(e)}
-    keys.update(stored_keys())
-
-    if data_dir is not None:
-        custom_base_url = stored_custom_endpoint(data_dir)
-        if custom_base_url:
-            keys["custom_base_url"] = custom_base_url
-
-    if not keys:
+    keys = provider_keys(data_dir)
+    if providers_missing_a_key(models, keys):  # Ollama/custom-only routing needs no key
         raise RuntimeError(
             "No provider key found. Paste one in Settings (stored in the OS keychain), "
             "or export e.g. GOOGLE_API_KEY before launching."
@@ -2242,11 +2247,9 @@ def create_sidecar_app(
         user_routing = stored_routing(app.state.data_dir)
         effective = _effective_with(user_routing)
         deployment = _effective_with(None)
-        try:
-            config = sidecar_run_config(fake=app.state.fake, data_dir=app.state.data_dir)
-            usable = set(config.provider_keys)
-        except RuntimeError:
-            usable = set()
+        if not app.state.fake:
+            load_env_file()
+        usable = usable_providers({} if app.state.fake else provider_keys(app.state.data_dir))
 
         # Falls back to the static defaults when nothing is installed or the probe is
         # down, same as the server's own fallback — never an empty preset.
@@ -2279,7 +2282,7 @@ def create_sidecar_app(
             ],
             "presets": presets,
             "preset_names": list(catalog.PRESET_NAMES),
-            "available_providers": sorted(usable),
+            "available_providers": usable,
             "effective_routing": effective,
             "user_routing": user_routing,
             "deployment_routing": deployment,
@@ -2457,6 +2460,18 @@ def create_sidecar_app(
 
     # -- keys --------------------------------------------------------------------
 
+    # Before `/desktop/keys/{provider}`, which would otherwise match "custom_endpoint" first.
+    @api.put("/desktop/keys/custom_endpoint", status_code=204)
+    async def set_custom_endpoint(request: Request):
+        body = await request.json()
+        base_url = (body.get("base_url") or "").strip()
+        save_custom_endpoint(app.state.data_dir, base_url if base_url else None)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @api.get("/desktop/keys/custom_endpoint")
+    async def get_custom_endpoint():
+        return {"base_url": stored_custom_endpoint(app.state.data_dir)}
+
     @api.put("/desktop/keys/{provider}", status_code=204)
     async def set_key(provider: str, request: Request):
         """Store a pasted provider key in the OS keychain (docs/12 M9)."""
@@ -2501,17 +2516,6 @@ def create_sidecar_app(
             }
             for provider in ("google", "anthropic", "openai", "openrouter", "custom")
         }
-
-    @api.put("/desktop/keys/custom_endpoint", status_code=204)
-    async def set_custom_endpoint(request: Request):
-        body = await request.json()
-        base_url = (body.get("base_url") or "").strip()
-        save_custom_endpoint(app.state.data_dir, base_url if base_url else None)
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-    @api.get("/desktop/keys/custom_endpoint")
-    async def get_custom_endpoint():
-        return {"base_url": stored_custom_endpoint(app.state.data_dir)}
 
     # -- corpus (airgapped mode, docs/12 M10) -----------------------------------
 

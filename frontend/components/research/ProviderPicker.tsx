@@ -42,7 +42,7 @@ export interface CustomSource {
   error?: string | null;
 }
 export interface LocalSource {
-  models?: { route: string | null; is_embedding: boolean }[];
+  models?: { route: string | null; is_embedding: boolean; likely_underpowered?: boolean }[];
 }
 
 const ROLE_ORDER = ["planner", "executor", "critic", "synthesizer", "chat"] as const;
@@ -108,8 +108,10 @@ export function routeForKind(
   if (kind === "local") {
     if (savedProvider === "ollama") return saved;
     if (deployedProvider === "ollama") return deployed;
-    const first = (local?.models ?? []).find((m) => !m.is_embedding && m.route);
-    return first?.route ?? null;
+    // A model Settings marks "chat only" is too small to return citable evidence, so it
+    // is the default only when nothing larger is installed.
+    const chat = (local?.models ?? []).filter((m) => !m.is_embedding && m.route);
+    return (chat.find((m) => !m.likely_underpowered) ?? chat[0])?.route ?? null;
   }
   // API: a catalogued, priced provider the user can actually reach.
   if (savedProvider && !["custom", "ollama"].includes(savedProvider)) return saved;
