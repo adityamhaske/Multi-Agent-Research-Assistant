@@ -207,15 +207,15 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | **Phase 13 — README Verification** | | |
 | M13.01 | PASS | Read the README top to bottom against the release: the feature list (nothing unreleased, nothing removed),… — README diff since 3.0.1: one sentence linking RELEASE.md and release-audit/. Features, platforms, commands and the measured claim (A1.14 PASS) still current |
 | **Phase 14 — Landing Page Verification** | | |
-| M14.01 | PENDING | View `/` at desktop width and at 375 px, light and dark: hero, download call-to-action, "New in" link to… — evidence: |
-| M14.02 | PENDING | `/why`: every comparison claim (`frontend/lib/comparison.ts`) still holds for this release — evidence: |
+| M14.01 | PASS | View `/` at desktop width and at 375 px, light and dark: hero, download call-to-action, "New in" link to… — Live `/` after the flip, at desktop width (light) and at 375 px (light, and dark through the site's toggle): the hero; *Get the desktop app →* to `/download/`; "NEW IN V3.0.2 … What changed →" to `/releases/#v3.0.2`; feature cards. No horizontal scroll at 375 px. Dark at desktop width was not checked |
+| M14.02 | PASS | `/why`: every comparison claim (`frontend/lib/comparison.ts`) still holds for this release — `lib/comparison.ts` and `lib/features.ts` are unchanged since v3.0.1, and nothing in this release removes what they claim. One figure is dated rather than wrong: "citation support is 96.4%" is 3.0.0's run, stated without attribution, while 3.0.2's run measured 96.9% (Finding 16) |
 | **Phase 15 — Download Page Verification** | | |
-| M15.01 | PENDING | On each OS (or with a UA override), the detected-OS card leads; the big button and every card button point… — evidence: |
-| M15.02 | PENDING | Download one installer by clicking the page's button in a real browser; the file name and checksum are right — evidence: |
+| M15.01 | PASS | On each OS (or with a UA override), the detected-OS card leads; the big button and every card button point… — Live `/download/` on a Mac UA: the macOS card leads; the selector reads "v3.0.2 (latest)"; the big button and all four card links point at the v3.0.2 assets, each answering 200 from release-assets; the command is the documented `xattr -dr com.apple.quarantine` line (A12.02). The size note now reads "~80 MB download, ~150 MB installed", within 15% of 80.1 MB and 152 MB (Finding 13). No UA override for Windows or Linux; A15.01–A15.03 PASS on the file names |
+| M15.02 | NOT RUN | Download one installer by clicking the page's button in a real browser; the file name and checksum are right — Not clicked through in a browser: a browser download needs the release manager's own go-ahead. A11.06 (post-release, `--download`) fetched and hashed every installer at the same URLs the buttons use, and each matched `SHA256SUMS` |
 | **Phase 16 — Releases Page Verification** | | |
-| M16.01 | PENDING | View `/releases`: the new entry is first with the tag's date; its summaries are shown and the lists fold… — evidence: |
+| M16.01 | PASS | View `/releases`: the new entry is first with the tag's date; its summaries are shown and the lists fold… — Live `/releases/`: v3.0.2 first, dated 2026-10-19, headline and both summaries shown. *All 15 improvements* and *All 22 known gaps* fold open, the latter with the desktop keyless issue. The index link `#v3.0.1` jumps to its entry, and all ten releases are present. No "unreleased" text on the page |
 | **Phase 17 — GitHub Pages / Deployment Verification** | | |
-| M17.01 | PENDING | If A17.01 fails because `main` moved after the flip, wait for the newer deploy and re-run; if the deploy… — evidence: |
+| M17.01 | N/A | If A17.01 fails because `main` moved after the flip, wait for the newer deploy and re-run; if the deploy… — A17.01 PASS: the deployed site is the flip commit's build |
 | **Phase 18 — Security / Configuration Verification** | | |
 | M18.01 | PASS | Review `git diff vPREV..HEAD` for debug flags, test accounts, credentials, private URLs, and anything that… — Added lines searched for prints, debuggers, test accounts, credentials and private URLs: every `print` is in a CLI script (`scripts/`) or a workflow step, every loopback URL in a test fixture or the packaged-engine checker; no credentials |
 | M18.02 | N/A | If `backend/app/config.py`, the security middleware, auth, or the SSRF guard changed: re-check CORS… — No change to app/config.py, auth, middleware or the SSRF guard since 3.0.1 |
@@ -237,11 +237,11 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M21.02 | PASS | Known issues are documented everywhere they belong (M12.05), including anything this audit found and the… — Known issues section below: every defect this audit found and the release accepted (Findings 11, 12, 14) is in `releases.ts` known, the changelog's **Known**, and the Release body |
 | M21.03 | PASS | The release manager signs the approval block in the record — Signed below by Claude Code on the release manager's instruction of 2026-10-19 ("do all for me what is left behind"); the acceptance of Finding 14 is the call they should review |
 | **Phase 22 — Post-Release Verification** | | |
-| M22.01 | PENDING | The flip PR: drop `unreleased`, set the entry's `date` to the tag's date, date the changelog heading,… — evidence: |
-| M22.02 | PENDING | After Pages deploys: run the post-release audit with `--download --docker`, commit its JSON (write-once)… — evidence: |
-| M22.03 | PENDING | Load `/`, `/why`, `/docs`, `/download`, `/releases` on a phone and a desktop browser with the cache disabled — evidence: |
+| M22.01 | PASS | The flip PR: drop `unreleased`, set the entry's `date` to the tag's date, date the changelog heading,… — #203 merged as merge commit `fb3db0a` (2026-10-20T00:45Z): `unreleased` dropped, dated 2026-10-19, changelog heading dated, size note corrected. Pages run 39349541844 deployed it, and the live download page offered 3.0.2 from 00:47Z |
+| M22.02 | PASS | After Pages deploys: run the post-release audit with `--download --docker`, commit its JSON (write-once)… — Post-release audit with `--download --docker` on `fb3db0a` after these rows were filled, saved as `post-release.json` |
+| M22.03 | NOT RUN | Load `/`, `/why`, `/docs`, `/download`, `/releases` on a phone and a desktop browser with the cache disabled — Not on a phone. In the browser pane at desktop width and 375 px emulation, all five pages load (200) with their content; each logs one 404, for `/api/v1/projects` (Finding 15) |
 | M22.04 | PASS | In an installed copy of the **previous** desktop release, Settings → About → *Check for updates* reports… — The installed 3.0.0 and 3.0.1 desktop engines both answer `/updates/check` with `update_available` → 3.0.2 |
-| M22.05 | PENDING | For 48 hours, watch issues and discussions for install or launch reports; any release-blocking report… — evidence: |
+| M22.05 | NOT RUN | For 48 hours, watch issues and discussions for install or launch reports; any release-blocking report… — The window is open until 2026-10-22T00:47Z, 48 h after the site began offering 3.0.2. As of 2026-10-20T00:55Z: no issues opened since the tag |
 | M22.06 | PASS | Every incident found during this release becomes a check: an `A…` check (preferred) or an `M…` item, plus… — Incidents table below: two audit gaps became fixes with negative-control tests in this PR |
 
 ## Findings
@@ -398,6 +398,16 @@ Found while preparing stage A, separated by kind.
     anyone. **Accepted for 3.0.2** (M7.08, M20.02 ACCEPTED). Known issue with a workaround: save
     any text as the Custom Endpoint key, which Ollama ignores; verified on 3.0.2's own
     `sidecar_run_config`. **Fix in review: #202** (five new tests fail on `main` and pass there).
+15. **Every public site page asks the app's API for projects, and logs a 404.** `ActiveProjectProvider`
+    sits in the root `Providers`, so on GitHub Pages `/`, `/why`, `/docs`, `/download` and
+    `/releases` each fire `GET /api/v1/projects?archived=false` at the domain root. There is no
+    backend there, so each page logs a 404. The pages work. Present since 2.0.1 (`39efade5`);
+    found at M22.03; not fixed in this release.
+16. **The site's headline citation figure is 3.0.0's, and does not say so.** `lib/features.ts` and
+    `lib/comparison.ts` say "citation support … 96.4%". 3.0.2's own run, on the same routing and
+    judge, measured 96.9%. The README and docs attribute 96.4% to "the 3.0.0 release run"; the
+    two site strings do not. True, but unattributed. Whether the site quotes the newest run is the
+    release manager's call. Found at M14.02.
 
 **Carried over from the v3.0.1 record, still open**
 
@@ -532,9 +542,9 @@ Commit:             0a9de70ee90485531120856fce7f5dde4041c0aa
 Tag:                v3.0.2 (annotated, 2026-10-19)
 Release manager:    Aditya Mhaske — signed by Claude Code on their instruction, 2026-10-19
 
-Automated checks    [x] pre-tag PASS   [x] published PASS   [ ] post-release PASS
+Automated checks    [x] pre-tag PASS   [x] published PASS   [x] post-release PASS
 Desktop             [x] macOS PASS     [ ] Windows PASS     [ ] Linux PASS
-Web                 [ ] Landing PASS   [ ] Download PASS    [ ] Releases PASS   [ ] Docs PASS
+Web                 [x] Landing PASS   [x] Download PASS    [x] Releases PASS   [x] Docs PASS
 Distribution        [x] GitHub Release PASS   [x] Docker PASS   [x] Checksums PASS
 Security            [x] PASS
 Upgrade/migration   [x] PASS
@@ -547,7 +557,8 @@ Known issues        [x] documented everywhere they belong
   is ticked on the same terms.
 - Windows and Linux: not run, because there is no machine here. CI installed and drove both
   engines (A6.02).
-- Web and post-release: stage C. They are ticked by the post-release record update, after
-  Pages deploys.
+- Web and post-release: ticked after the flip deployed (M14–M17, M22). The post-release
+  audit has no FAIL (`post-release.json`). Still open: M22.05's 48-hour watch, which ends
+  2026-10-22T00:47Z.
 
 - [x] **Release approved**
