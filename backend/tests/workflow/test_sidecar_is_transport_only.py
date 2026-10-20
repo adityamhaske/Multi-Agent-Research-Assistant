@@ -37,6 +37,11 @@ SIDECAR = Path(__file__).resolve().parents[2] / "desktop" / "sidecar.py"
 #: Was 3,063 as of PR-10's `GET /models/prompt-defaults`: an eight-line wrapper that
 #: delegates to `app.api.v1.models.get_prompt_defaults` and restates nothing — the one
 #: route the prompt editors need, and it cannot live anywhere but here on this host.
+#: Was 3,059 before keyless local models worked on the desktop. The rules moved out —
+#: whether a routing needs a key and which providers are usable are
+#: `research_engine.local.providers_missing_a_key`/`usable_providers`, shared with the CLI —
+#: so what grew is `provider_keys`: this host reading its own key store (keychain, saved
+#: endpoint) outside a run, which the catalog needs and no server route owns.
 #: Was 3,055 as of PR-6's prompt-override snapshot. The *rules* all delegate — the freeze
 #: and the row-read are `run_execution.freeze_prompt_overrides`/`prompt_overrides_for_run`,
 #: the chat scope is `run_config.chat_prompt_context`, called rather than restated — so what
@@ -66,7 +71,7 @@ SIDECAR = Path(__file__).resolve().parents[2] / "desktop" / "sidecar.py"
 #: supervision and logging bootstrap for a process that is not itself an HTTP handler), and
 #: 2,850 before that, itself down from 3,015 before plan phase 7 began delegating session
 #: routes. Small headroom above the current count, not a target to grow into.
-CEILING = 3059
+CEILING = 3065
 
 
 def test_sidecar_has_not_grown_past_its_ratchet():

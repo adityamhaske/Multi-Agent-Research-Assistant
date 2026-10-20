@@ -85,6 +85,23 @@ describe("backend resolution", () => {
     expect(splitRoute("ollama:qwen2.5:7b")).toEqual({ provider: "ollama", model: "qwen2.5:7b" });
   });
 
+  it("does not default to a model Settings calls chat only while a larger one is installed", () => {
+    const installed = {
+      models: [
+        { route: "ollama:deepseek-r1:1.5b", is_embedding: false, likely_underpowered: true },
+        { route: "ollama:nomic-embed-text:latest", is_embedding: true, likely_underpowered: false },
+        { route: "ollama:qwen2.5:7b", is_embedding: false, likely_underpowered: false },
+      ],
+    };
+    expect(routeForKind("local", { user_routing: null }, CUSTOM, installed)).toBe(
+      "ollama:qwen2.5:7b",
+    );
+    const onlySmall = { models: installed.models.slice(0, 2) };
+    expect(routeForKind("local", { user_routing: null }, CUSTOM, onlySmall)).toBe(
+      "ollama:deepseek-r1:1.5b",
+    );
+  });
+
   it("reports a backend with nothing configured as null, not as an empty route", () => {
     expect(routeForKind("local", CATALOG, CUSTOM, { models: [] })).toBeNull();
     expect(isKindReady("local", CATALOG, CUSTOM, { models: [] })).toBe(false);

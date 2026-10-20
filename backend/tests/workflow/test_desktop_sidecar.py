@@ -207,12 +207,13 @@ async def test_local_user_and_default_project(sidecar):
 
 
 async def test_model_catalog_marks_no_keys_unavailable(sidecar):
-    """Fake mode has no provider keys: the picker must show everything unavailable
-    rather than crashing or pretending."""
+    """Fake mode has no provider keys: every keyed model shows unavailable rather than
+    the picker crashing or pretending. Ollama stays available, as on the server — local
+    inference needs no key."""
     resp = await sidecar.get("/api/v1/models", headers=_auth())
     assert resp.status_code == 200
     body = resp.json()
-    assert body["available_providers"] == []
+    assert body["available_providers"] == ["ollama"]
     assert body["models"], "the catalog must still render"
     assert all(m["available"] is False for m in body["models"])
 
