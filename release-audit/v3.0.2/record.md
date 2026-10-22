@@ -241,7 +241,7 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M22.02 | PASS | After Pages deploys: run the post-release audit with `--download --docker`, commit its JSON (write-once)… — Post-release audit with `--download --docker` on `fb3db0a` after these rows were filled, saved as `post-release.json` |
 | M22.03 | NOT RUN | Load `/`, `/why`, `/docs`, `/download`, `/releases` on a phone and a desktop browser with the cache disabled — Not on a phone. In the browser pane at desktop width and 375 px emulation, all five pages load (200) with their content; each logs one 404, for `/api/v1/projects` (Finding 15) |
 | M22.04 | PASS | In an installed copy of the **previous** desktop release, Settings → About → *Check for updates* reports… — The installed 3.0.0 and 3.0.1 desktop engines both answer `/updates/check` with `update_available` → 3.0.2 |
-| M22.05 | NOT RUN | For 48 hours, watch issues and discussions for install or launch reports; any release-blocking report… — The window is open until 2026-10-22T00:47Z, 48 h after the site began offering 3.0.2. As of 2026-10-20T00:55Z: no issues opened since the tag |
+| M22.05 | PASS | For 48 hours, watch issues and discussions for install or launch reports; any release-blocking report… — Watched 2026-10-20T00:47Z–2026-10-22T00:47Z: no issues or discussions opened since the tag (checked 2026-10-22T01:00Z) |
 | M22.06 | PASS | Every incident found during this release becomes a check: an `A…` check (preferred) or an `M…` item, plus… — Incidents table below: two audit gaps became fixes with negative-control tests in this PR |
 
 ## Findings
@@ -561,7 +561,7 @@ Known issues        [x] documented everywhere they belong
 - Windows and Linux: not run, because there is no machine here. CI installed and drove both
   engines (A6.02).
 - Web and post-release: ticked after the flip deployed (M14–M17, M22). The post-release
-  audit has no FAIL (`post-release.json`). Still open: M22.05's 48-hour watch, which ends
-  2026-10-22T00:47Z.
+  audit has no FAIL (`post-release.json`). M22.05's 48-hour watch closed at
+  2026-10-22T00:47Z with no reports.
 
 - [x] **Release approved**
