@@ -70,6 +70,10 @@ EXPECTED = {
     "synthesizer.repair": "SYNTHESIZER_REPAIR_PROMPT",
     "chat.general": "CHAT_PROMPT",
     "chat.project": "PROJECT_CHAT_PROMPT",
+    "critic.claim_decompose": "CLAIM_DECOMPOSE_PROMPT",
+    "critic.claim_verify": "CLAIM_VERIFY_PROMPT",
+    "critic.citation_relevance": "CITATION_RELEVANCE_PROMPT",
+    "critic.inference_verify": "INFERENCE_VERIFY_PROMPT",
 }
 
 
@@ -121,11 +125,15 @@ def test_role_of_reads_the_role_off_the_purpose(purpose, role):
     assert role_of(purpose) == role
 
 
-def test_three_purposes_share_the_critic_role():
+def test_seven_purposes_share_the_critic_role():
     """The fan-out that makes a purpose vocabulary necessary rather than decorative."""
     assert sorted(p for p in PURPOSE_CONSTANTS if role_of(p) == "critic") == [
+        "critic.citation_relevance",
         "critic.citation_verify",
+        "critic.claim_decompose",
+        "critic.claim_verify",
         "critic.contradiction_detector",
+        "critic.inference_verify",
         "critic.research",
     ]
 
@@ -322,9 +330,14 @@ def test_the_run_partition_covers_every_purpose_exactly_once():
     assert not (RUN_PURPOSES & NON_RUN_PURPOSES)
 
 
-def test_the_seven_research_run_purposes_are_the_frozen_seven():
-    """Spelled out, because the scope freeze spells them out (§16 decisions, G-2)."""
+def test_the_research_run_purposes_are_the_frozen_set():
+    """Spelled out, because the scope freezes spell them out (V3.0 §16 decisions, G-2; the
+    V3.1 RFC §9.7 adds the four selected-files grounding checks)."""
     assert RUN_PURPOSES == {
+        "critic.claim_decompose",
+        "critic.claim_verify",
+        "critic.citation_relevance",
+        "critic.inference_verify",
         "planner.main",
         "executor.main",
         "critic.research",
@@ -358,6 +371,7 @@ def test_applicability_is_not_a_restatement_of_the_override_policy():
 
 def test_adding_applicability_did_not_move_the_override_boundary():
     """The guard on this change: classification for the bundle must not have altered who may
-    replace a prompt. Five overridable, four protected, exactly as PR-4 froze them."""
+    replace a prompt. Five overridable, as PR-4 froze them; the V3.1 RFC's four grounding
+    checks were added protected, so the protected count rose from four to eight."""
     assert len(OVERRIDABLE_PURPOSES) == 5
-    assert len(set(PURPOSE_CONSTANTS) - OVERRIDABLE_PURPOSES) == 4
+    assert len(set(PURPOSE_CONSTANTS) - OVERRIDABLE_PURPOSES) == 8

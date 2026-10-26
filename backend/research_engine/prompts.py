@@ -116,6 +116,54 @@ supported. Close paraphrases of the snippet ARE supported.
 Answer with exactly one line per claim: "Claim N: YES" or "Claim N: NO".
 Answer for every claim."""
 
+# Claim-level grounding for selected-files runs (internal/rfcs/V3.1-corpus-scope.md §9).
+# All four are PROTECTED: they decide what counts as supported, and a user who could
+# rewrite them would grade their own report. None asks the model to decide anything the
+# code can check — spans, citation numbers and quantities are verified in
+# `research_engine/grounding.py` after the model answers.
+
+CLAIM_DECOMPOSE_PROMPT = f"""You split sentences from a research report into atomic claims.
+An atomic claim is the smallest assertion that can be true or false on its own: one subject
+and predicate, one number, one date, one comparison. A sentence joined by "and", "but" or a
+semicolon usually holds several.
+
+For every numbered sentence, return its claims. For each claim give:
+- "text": the claim as a standalone assertion;
+- "span": [start, end], character offsets of the claim's words inside the sentence as given;
+- "cites": the citation numbers from that sentence's own [n] markers that the claim relies on;
+- "calculation": null, or when the claim states a value computed from others (a difference,
+  sum, ratio or percentage change), {{"op": "add" | "subtract" | "multiply" | "divide" |
+  "percent_change", "operands": [<value>, <value>], "result": <value>}}, values as written.
+Every number, date, name and quoted phrase in a sentence must fall inside some claim's span.
+A sentence that asserts nothing returns an empty list.
+
+Return ONLY a JSON array: [{{"sentence": 1, "claims": [...]}}, ...]. Cover every sentence.
+{UNTRUSTED_CONTENT_NOTE}"""
+
+CLAIM_VERIFY_PROMPT = f"""You verify claims against the evidence their citations provide.
+For each numbered claim you are given the exact snippets its cited sources provided, taken
+together. Rule SUPPORTED only if the snippets state the claim: numbers, dates, entities and
+direction of change must be backed by the snippet text, and a plausible claim the snippets
+do not state is not supported. Rule CONTRADICTED if a snippet states the opposite or a
+different value. Otherwise rule NOT_SUPPORTED. Close paraphrase of a snippet is SUPPORTED.
+Answer with exactly one line per claim: "Claim N: SUPPORTED", "Claim N: NOT_SUPPORTED" or
+"Claim N: CONTRADICTED". Answer for every claim.
+{UNTRUSTED_CONTENT_NOTE}"""
+
+CITATION_RELEVANCE_PROMPT = f"""You check single citations, one at a time.
+For each numbered pair you are given one claim and ONE snippet. Answer YES only if this
+snippet, on its own, states some part of the claim. Being about the same topic is not
+enough. Answer with exactly one line per pair: "Pair N: YES" or "Pair N: NO".
+{UNTRUSTED_CONTENT_NOTE}"""
+
+INFERENCE_VERIFY_PROMPT = f"""You check conclusions against the findings they rest on.
+For each numbered conclusion claim you are given the supported findings it cites and their
+snippets. Rule SUPPORTED only if the conclusion follows from those findings without adding a
+new fact, a causal link, a generalisation beyond their scope, or a quantity. Rule
+CONTRADICTED if the findings state otherwise; otherwise NOT_SUPPORTED. Answer with exactly
+one line per claim: "Claim N: SUPPORTED", "Claim N: NOT_SUPPORTED" or "Claim N: CONTRADICTED".
+{UNTRUSTED_CONTENT_NOTE}"""
+
 # Contradiction detection (docs/12 M11). The detector compares verbatim snippets from
 # DIFFERENT sources and reports only direct conflicts — it never resolves them; the
 # review gate is where a human adjudicates. Precision over recall is deliberate: a

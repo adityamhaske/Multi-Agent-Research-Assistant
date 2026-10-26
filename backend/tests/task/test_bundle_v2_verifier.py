@@ -31,6 +31,7 @@ from research_engine.prompt_composition import (
     OVERRIDABLE_PURPOSES,
     PURPOSE_CONSTANTS,
     RUN_PURPOSES,
+    SELECTION_ONLY_PURPOSES,
     role_of,
 )
 from research_engine.verify_bundle import (
@@ -183,7 +184,9 @@ def test_a_v1_bundle_is_unaffected_by_the_provenance_assertion():
 def test_the_fixture_covers_exactly_the_canonical_run_purposes():
     """Read from the registry, never a list retyped here — a second copy would drift and
     this test would bless the drift."""
-    assert {r["purpose"] for r in _load(V2)["prompt_provenance"]} == set(RUN_PURPOSES)
+    assert {r["purpose"] for r in _load(V2)["prompt_provenance"]} == set(RUN_PURPOSES) - set(
+        SELECTION_ONLY_PURPOSES
+    )
 
 
 def test_protected_purposes_are_marked_and_carry_the_shipped_prompt():
@@ -329,7 +332,7 @@ def test_a_v2_bundle_hashes_over_its_provenance():
 def _all_shipped_records() -> list[dict]:
     """Provenance for a run that executed every purpose on its shipped prompt."""
     records = []
-    for purpose in sorted(RUN_PURPOSES):
+    for purpose in sorted(set(RUN_PURPOSES) - set(SELECTION_ONLY_PURPOSES)):
         text = PURPOSE_CONSTANTS[purpose]
         records.append(
             {
