@@ -47,6 +47,12 @@ FROZEN_PROTECTED = {
     "critic.contradiction_detector",
     "synthesizer.repair",
     "chat.project",
+    # Added by the V3.1 RFC (§9.7): the selected-files grounding checks. Protected because
+    # they decide what counts as supported; the overridable set below did not move.
+    "critic.claim_decompose",
+    "critic.claim_verify",
+    "critic.citation_relevance",
+    "critic.inference_verify",
 }
 FROZEN_OVERRIDABLE = {
     "planner.main",
@@ -70,7 +76,7 @@ PROTECTED_CONSTANT_NAMES = {
 # ── The classification itself ─────────────────────────────────────────────────────
 
 
-def test_the_protected_set_is_exactly_the_frozen_four():
+def test_the_protected_set_is_exactly_the_frozen_set():
     assert pc.PROTECTED_PURPOSES == FROZEN_PROTECTED
 
 

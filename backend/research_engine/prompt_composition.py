@@ -50,7 +50,7 @@ from research_engine.runconfig import get_run_config
 #: Every shipped prompt, keyed by the purpose it serves. The key is `<role>.<purpose>`, so
 #: the role a purpose belongs to is readable from the key and cannot drift from it.
 #:
-#: **Nine purposes, five roles.** `critic` owns three and `synthesizer` and `chat` two each —
+#: **Thirteen purposes, five roles.** `critic` owns seven and `synthesizer` and `chat` two each —
 #: which is the entire reason a purpose vocabulary exists rather than a role-keyed lookup.
 PURPOSE_CONSTANTS: Mapping[str, str] = {
     "planner.main": prompts.PLANNER_PROMPT_V2,
@@ -60,6 +60,10 @@ PURPOSE_CONSTANTS: Mapping[str, str] = {
     "critic.contradiction_detector": prompts.CONTRADICTION_DETECTOR_PROMPT,
     "synthesizer.main": prompts.SYNTHESIZER_PROMPT_V2,
     "synthesizer.repair": prompts.SYNTHESIZER_REPAIR_PROMPT,
+    "critic.claim_decompose": prompts.CLAIM_DECOMPOSE_PROMPT,
+    "critic.claim_verify": prompts.CLAIM_VERIFY_PROMPT,
+    "critic.citation_relevance": prompts.CITATION_RELEVANCE_PROMPT,
+    "critic.inference_verify": prompts.INFERENCE_VERIFY_PROMPT,
     "chat.general": prompts.CHAT_PROMPT,
     "chat.project": prompts.PROJECT_CHAT_PROMPT,
 }
@@ -133,6 +137,23 @@ RUN_PURPOSES: frozenset[str] = frozenset(
         "critic.contradiction_detector",
         "synthesizer.main",
         "synthesizer.repair",
+        # Selected-files runs only (internal/rfcs/V3.1-corpus-scope.md §9.7).
+        "critic.claim_decompose",
+        "critic.claim_verify",
+        "critic.citation_relevance",
+        "critic.inference_verify",
+    }
+)
+
+#: The run purposes only a **selected-files** run executes — the claim-level grounding
+#: checks (internal/rfcs/V3.1-corpus-scope.md §9.7). Every other run, and every bundle from
+#: one, records the rest of `RUN_PURPOSES` and none of these.
+SELECTION_ONLY_PURPOSES: frozenset[str] = frozenset(
+    {
+        "critic.claim_decompose",
+        "critic.claim_verify",
+        "critic.citation_relevance",
+        "critic.inference_verify",
     }
 )
 

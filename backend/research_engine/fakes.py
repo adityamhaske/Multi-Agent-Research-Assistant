@@ -54,6 +54,10 @@ class ScriptedScenario(StrEnum):
     CRITIC = "critic"
     CONTRADICTION_DETECTOR = "contradiction_detector"
     CITATION_VERIFY = "citation_verify"
+    CLAIM_DECOMPOSE = "claim_decompose"
+    CLAIM_VERIFY = "claim_verify"
+    CITATION_RELEVANCE = "citation_relevance"
+    INFERENCE_VERIFY = "inference_verify"
     SYNTHESIZER = "synthesizer"
     SYNTHESIZER_REPAIR = "synthesizer_repair"
     CHAT = "chat"
@@ -69,6 +73,10 @@ SCENARIO_BY_PROMPT: dict[str, ScriptedScenario] = {
     prompts.CRITIC_PROMPT_V2: ScriptedScenario.CRITIC,
     prompts.CONTRADICTION_DETECTOR_PROMPT: ScriptedScenario.CONTRADICTION_DETECTOR,
     prompts.CITATION_VERIFY_PROMPT: ScriptedScenario.CITATION_VERIFY,
+    prompts.CLAIM_DECOMPOSE_PROMPT: ScriptedScenario.CLAIM_DECOMPOSE,
+    prompts.CLAIM_VERIFY_PROMPT: ScriptedScenario.CLAIM_VERIFY,
+    prompts.CITATION_RELEVANCE_PROMPT: ScriptedScenario.CITATION_RELEVANCE,
+    prompts.INFERENCE_VERIFY_PROMPT: ScriptedScenario.INFERENCE_VERIFY,
     prompts.SYNTHESIZER_PROMPT_V2: ScriptedScenario.SYNTHESIZER,
     prompts.SYNTHESIZER_REPAIR_PROMPT: ScriptedScenario.SYNTHESIZER_REPAIR,
     prompts.CHAT_PROMPT: ScriptedScenario.CHAT,
@@ -199,6 +207,40 @@ class _ScriptedModel(FakeMessagesListChatModel):
                 "## Limitations\nFixture data only.\n\n"
                 "## Sources\n[1] https://example.com/fixture/1\n[2] https://example.com/fixture/2\n"
             )
+        elif scenario is ScriptedScenario.CLAIM_DECOMPOSE:
+            # One claim per sentence, spanning all of it and carrying every marker it has —
+            # always structurally valid, so scripted selection runs exercise the whole
+            # validator. Rulings stay rubber stamps below, as `CITATION_VERIFY`'s are: fake
+            # mode proves the plumbing, and the adversarial tests bring their own judge.
+            items = []
+            for number, sentence in re.findall(r"Sentence (\d+): (.*)", human):
+                cites = sorted(
+                    {
+                        int(p)
+                        for m in re.findall(r"\[(\d+(?:\s*,\s*\d+)*)\]", sentence)
+                        for p in m.split(",")
+                    }
+                )
+                items.append(
+                    {
+                        "sentence": int(number),
+                        "claims": [
+                            {
+                                "text": sentence,
+                                "span": [0, len(sentence)],
+                                "cites": cites,
+                                "calculation": None,
+                            }
+                        ],
+                    }
+                )
+            content = json.dumps(items)
+        elif scenario in (ScriptedScenario.CLAIM_VERIFY, ScriptedScenario.INFERENCE_VERIFY):
+            n_claims = len(re.findall(r"Claim \d+:", human)) or 1
+            content = "\n".join(f"Claim {i}: SUPPORTED" for i in range(1, n_claims + 1))
+        elif scenario is ScriptedScenario.CITATION_RELEVANCE:
+            n_pairs = len(re.findall(r"Pair \d+:", human)) or 1
+            content = "\n".join(f"Pair {i}: YES" for i in range(1, n_pairs + 1))
         elif scenario is ScriptedScenario.CITATION_VERIFY:
             # The citation-fidelity verifier (graph._verify_citation_fidelity) asks for one
             # YES/NO line per claim. Fixture claims all resolve, so rule YES for as many
