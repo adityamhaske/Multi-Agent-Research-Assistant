@@ -78,7 +78,7 @@
     "step": "upload an unsupported format",
     "status": 400,
     "body": {
-      "detail": "Unsupported document type '.exe'. The corpus accepts PDF, HTML (.html/.htm), Markdown (.md/.markdown), and plain text (.txt) only \u2014 a format we cannot locate a quote inside cannot enter a citation-grade corpus."
+      "detail": "Unsupported document type '.exe'. The corpus accepts PDF, HTML, Markdown, plain text (.csv .htm .html .json .markdown .md .pdf .rst .text .txt) \u2014 a format we cannot locate a quote inside cannot enter a citation-grade corpus."
     }
   },
   {

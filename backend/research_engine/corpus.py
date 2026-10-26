@@ -41,7 +41,7 @@ from urllib.parse import unquote, urlsplit
 import structlog
 
 from research_engine.chunking import chunk_document
-from research_engine.documents import extract_document
+from research_engine.documents import extract
 from research_engine.embeddings import EmbeddingsUnavailable
 from research_engine.ports import Corpus, Embeddings
 from research_engine.runconfig import get_run_config
@@ -184,6 +184,27 @@ def parse_corpus_url(url: str) -> CorpusLocation | None:
         return None
     page = int(match.group(3)) if match.group(3) else None
     return CorpusLocation(doc_id=unquote(parts.netloc), start=start, end=end, page=page)
+
+
+def segment_label(segments: list, start: int, end: int) -> str:
+    """The human-readable location of `[start, end)`: the segment it starts in, and the one
+    it ends in when that differs ("row 14", "rows 14–22"). Empty when there are no segments.
+    """
+    first = last = ""
+    for seg_start, label in segments:
+        if seg_start <= start:
+            first = label
+        if seg_start < end:
+            last = label
+    if not first:
+        return ""
+    if last and last != first:
+        head, _, n1 = first.rpartition(" ")
+        head2, _, n2 = last.rpartition(" ")
+        if head == head2 and n1.isdigit() and n2.isdigit():
+            return f"{head}s {n1}–{n2}" if not head.endswith("s") else f"{head} {n1}–{n2}"
+        return f"{first} – {last}"
+    return first
 
 
 # ── The store ────────────────────────────────────────────────────────────────────
@@ -350,6 +371,15 @@ class CorpusStore:
             "ON corpus_documents (doc_key, version)"
         )
 
+        # ── Schema 3 (RFC V3.1 §7.1): where each sheet/row/slide/cell starts, and whether
+        # the text is the document's own or a rendering of its structure. Nullable and
+        # read as "no segments" / "verbatim", so legacy rows need no backfill and a 3.0.x
+        # binary opening this file simply ignores both columns.
+        if "segments" not in have:
+            conn.execute("ALTER TABLE corpus_documents ADD COLUMN segments TEXT")
+        if "extraction_mode" not in have:
+            conn.execute("ALTER TABLE corpus_documents ADD COLUMN extraction_mode TEXT")
+
     @property
     def embedder(self) -> Embeddings:
         return self._embedder
@@ -392,7 +422,7 @@ class CorpusStore:
         prepared = await asyncio.to_thread(self._prepare_sync, filename, data, doc_key)
         if isinstance(prepared, Ingested):  # skipped (duplicate) — nothing to embed
             return prepared
-        doc_id, text, page_starts, kind, digest, chunks = prepared
+        doc_id, text, page_starts, kind, digest, chunks, extraction = prepared
 
         vectors = await self._embed_chunks([c.text for c in chunks])
         width = len(vectors[0])
@@ -412,6 +442,8 @@ class CorpusStore:
             data,
             origin,
             doc_key,
+            extraction.segments,
+            extraction.mode,
         )
         logger.info(
             "corpus_ingested",
@@ -430,8 +462,9 @@ class CorpusStore:
 
     def _prepare_sync(
         self, filename: str, data: bytes, doc_key: str | None = None
-    ) -> Ingested | tuple[str, str, list[int], str, str, list]:
-        text, page_starts, kind = extract_document(filename, data)
+    ) -> Ingested | tuple:
+        extraction = extract(filename, data)
+        text, page_starts, kind = extraction.text, extraction.page_starts, extraction.kind
         digest = hashlib.sha256(data).hexdigest()
 
         with self._connect() as conn:
@@ -468,7 +501,7 @@ class CorpusStore:
         chunks = chunk_document(text, page_starts=page_starts)
         if not chunks:
             return Ingested(filename=filename, skipped=True, reason="no chunks produced")
-        return str(uuid.uuid4()), text, page_starts, kind, digest, chunks
+        return str(uuid.uuid4()), text, page_starts, kind, digest, chunks, extraction
 
     def _write_sync(
         self,
@@ -483,6 +516,8 @@ class CorpusStore:
         blob: bytes | None = None,
         origin: str = "uploaded",
         doc_key: str | None = None,
+        segments: list | None = None,
+        extraction_mode: str | None = None,
     ) -> tuple[str, int]:
         # One transaction for the whole state change: the version number, the predecessor's
         # supersession, the chunks, and the corpus counter. Anything less and a reader could
@@ -507,8 +542,8 @@ class CorpusStore:
             conn.execute(
                 "INSERT INTO corpus_documents "
                 "(id, filename, kind, sha256, text, page_starts, chunk_count, ingested_at, "
-                "blob, origin, doc_key, version) "
-                "SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
+                "blob, origin, doc_key, segments, extraction_mode, version) "
+                "SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
                 "       COALESCE(MAX(version), 0) + 1 FROM corpus_documents WHERE doc_key = ?",
                 (
                     doc_id,
@@ -522,6 +557,8 @@ class CorpusStore:
                     blob,
                     origin,
                     key,
+                    json.dumps([list(seg) for seg in segments]) if segments else None,
+                    extraction_mode,
                     key,
                 ),
             )
@@ -847,13 +884,13 @@ class CorpusStore:
 
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT filename, text FROM corpus_documents WHERE id = ?",
+                "SELECT filename, text, segments FROM corpus_documents WHERE id = ?",
                 (location.doc_id,),
             ).fetchone()
         if row is None:
             return {"url": url, "title": "", "text": "", "error": "document not found in corpus"}
 
-        filename, text = row
+        filename, text, segments = row
         if location.start >= len(text) or location.end > len(text):
             # The span no longer fits its document — refuse rather than returning a
             # shifted window that would look right but cite the wrong place.
@@ -870,9 +907,14 @@ class CorpusStore:
         if len(window) > _READ_MAX_CHARS:
             window = window[:_READ_MAX_CHARS]
 
+        label = segment_label(
+            json.loads(segments) if segments else [], location.start, location.end
+        )
         where = (
             f"page {location.page}, chars {location.start}-{location.end}"
             if location.page is not None
+            else f"{label}, chars {location.start}-{location.end}"
+            if label
             else f"chars {location.start}-{location.end}"
         )
         return {
