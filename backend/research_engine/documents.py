@@ -72,9 +72,59 @@ FORMATS: dict[str, Format] = {
     ".txt": Format("txt", "plain text"),
     ".text": Format("txt", "plain text"),
     ".rst": Format("txt", "plain text"),
-    ".csv": Format("txt", "plain text"),
     ".json": Format("txt", "plain text"),
+    # Tier A (RFC V3.1 §10.2): the standard library reads all of these.
+    ".csv": Format("csv", "CSV"),
+    ".tsv": Format("csv", "TSV"),
+    ".ipynb": Format("ipynb", "Jupyter notebook"),
+    **{
+        ext: Format("code", "source code")
+        for ext in (
+            ".py",
+            ".java",
+            ".r",
+            ".m",
+            ".jl",
+            ".c",
+            ".h",
+            ".cpp",
+            ".hpp",
+            ".cc",
+            ".cs",
+            ".js",
+            ".ts",
+            ".tsx",
+            ".jsx",
+            ".go",
+            ".rs",
+            ".rb",
+            ".scala",
+            ".kt",
+            ".swift",
+            ".sql",
+            ".sh",
+            ".ps1",
+            ".yaml",
+            ".yml",
+            ".toml",
+            ".ini",
+            ".cfg",
+            ".xml",
+            ".tex",
+            ".sty",
+            ".cls",
+            ".bib",
+        )
+    },
 }
+
+#: Bounds on a table rendered into text, beyond which the file is refused by name rather than
+#: indexed in part (§10.2). A partial index would answer as if it had read the whole sheet.
+MAX_TABLE_ROWS = 1_048_576
+MAX_TABLE_COLUMNS = 256
+MAX_TABLE_CELLS = 2_000_000
+#: A notebook cell's text output is kept up to this many characters, then marked as cut.
+MAX_NOTEBOOK_OUTPUT_CHARS = 4096
 
 
 def _extension(filename: str) -> str:
@@ -148,6 +198,17 @@ def extract(filename: str, data: bytes) -> Extraction:
         if kind == "html":
             text, page_starts, kind = _extract_html(data)
             return Extraction(text, page_starts, kind)
+        if kind == "csv":
+            return _extract_table(data, delimiter="\t" if _extension(filename) == ".tsv" else None)
+        if kind == "ipynb":
+            return _extract_notebook(data)
+        if kind == "code":
+            # Exact source: what a citation quotes is the file as written. Only the BOM and
+            # Windows line endings go, as for every text format, so offsets are stable.
+            text = data.decode("utf-8-sig", errors="replace").replace("\r\n", "\n")
+            if not text.strip():
+                raise ValueError("Document contains no text.")
+            return Extraction(text, [0], "code")
         text = data.decode("utf-8", errors="replace").replace("\r\n", "\n")
         if not text.strip():
             raise ValueError("Document contains no text.")
@@ -233,3 +294,110 @@ def _extract_html(data: bytes) -> tuple[str, list[int], str]:
     if not text.strip():
         raise ValueError("Document contains no text.")
     return text, [0], "html"
+
+
+def _extract_table(data: bytes, *, delimiter: str | None) -> Extraction:
+    """A CSV or TSV as one line per data row, each carrying its own header (§10.2).
+
+    `Row N — Header: value; Header: value`. The header is written into every row because a
+    quoted row must be readable on its own, and verbatim matching survives only if the
+    header is part of the text that is quoted. N is the row number a spreadsheet shows —
+    the header is row 1 — so "row 14" in a citation is row 14 in the user's own program.
+    Empty cells are left out rather than rendered as "Header: ".
+    """
+    import csv
+
+    raw = data.decode("utf-8-sig", errors="replace").replace("\r\n", "\n")
+    if not raw.strip():
+        raise ValueError("Document contains no text.")
+    if delimiter is None:
+        try:
+            delimiter = csv.Sniffer().sniff(raw[:4096], delimiters=",;\t|").delimiter
+        except csv.Error:
+            delimiter = ","
+    rows = list(csv.reader(io.StringIO(raw), delimiter=delimiter))
+    rows = [r for r in rows if any(cell.strip() for cell in r)]
+    if len(rows) < 2:
+        raise ValueError("The table has a header row but no data rows.")
+    header = [h.strip() or f"Column {i + 1}" for i, h in enumerate(rows[0])]
+    width = max(len(r) for r in rows)
+    if (
+        len(rows) > MAX_TABLE_ROWS
+        or width > MAX_TABLE_COLUMNS
+        or len(rows) * width > MAX_TABLE_CELLS
+    ):
+        raise ValueError(
+            f"The table is {len(rows)} rows by {width} columns; the corpus reads at most "
+            f"{MAX_TABLE_ROWS} rows, {MAX_TABLE_COLUMNS} columns and {MAX_TABLE_CELLS} cells."
+        )
+    parts: list[str] = []
+    segments: list[tuple[int, str]] = []
+    offset = 0
+    for number, row in enumerate(rows[1:], start=2):
+        cells = [
+            f"{header[i] if i < len(header) else f'Column {i + 1}'}: {value.strip()}"
+            for i, value in enumerate(row)
+            if value.strip()
+        ]
+        line = f"Row {number} — " + "; ".join(cells)
+        segments.append((offset, f"row {number}"))
+        parts.append(line)
+        offset += len(line) + 1
+    return Extraction("\n".join(parts), [0], "csv", segments, LINEARIZED)
+
+
+def _extract_notebook(data: bytes) -> Extraction:
+    """A Jupyter notebook as its cells in order, each headed `## Cell N (markdown|code)`.
+
+    Text outputs (`stream`, `text/plain`) follow their cell under `Output:`, cut at
+    `MAX_NOTEBOOK_OUTPUT_CHARS`; images and other rich outputs are left out and counted in
+    the cell's heading, so the text never claims to show what it cannot.
+    """
+    import json
+
+    try:
+        notebook = json.loads(data.decode("utf-8-sig"))
+        cells = notebook["cells"]
+        if not isinstance(cells, list):
+            raise TypeError("cells is not a list")
+    except (ValueError, KeyError, TypeError) as exc:
+        raise ValueError(f"Not a readable notebook: {exc}") from exc
+
+    def joined(value) -> str:
+        return "".join(value) if isinstance(value, list) else str(value or "")
+
+    parts: list[str] = []
+    segments: list[tuple[int, str]] = []
+    offset = 0
+    for number, cell in enumerate(cells, start=1):
+        if not isinstance(cell, dict):
+            continue
+        kind = "code" if cell.get("cell_type") == "code" else "markdown"
+        body = joined(cell.get("source")).replace("\r\n", "\n").rstrip()
+        texts, dropped = [], 0
+        for output in cell.get("outputs") or []:
+            if not isinstance(output, dict):
+                continue
+            if output.get("output_type") == "stream":
+                texts.append(joined(output.get("text")))
+            elif "text/plain" in (output.get("data") or {}):
+                texts.append(joined(output["data"]["text/plain"]))
+                dropped += len(output["data"]) - 1
+            elif output.get("data"):
+                dropped += len(output["data"])
+        heading = f"## Cell {number} ({kind})"
+        if dropped:
+            heading += f" — {dropped} non-text output(s) not shown"
+        block = heading + "\n" + body
+        out = "\n".join(t.rstrip() for t in texts if t.strip())
+        if out:
+            if len(out) > MAX_NOTEBOOK_OUTPUT_CHARS:
+                out = out[:MAX_NOTEBOOK_OUTPUT_CHARS] + " [output cut]"
+            block += "\nOutput:\n" + out
+        segments.append((offset, f"cell {number}"))
+        parts.append(block)
+        offset += len(block) + 2
+    text = "\n\n".join(parts)
+    if not text.strip():
+        raise ValueError("The notebook has no cells.")
+    return Extraction(text, [0], "ipynb", segments, LINEARIZED)

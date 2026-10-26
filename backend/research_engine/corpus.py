@@ -884,13 +884,13 @@ class CorpusStore:
 
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT filename, text, segments FROM corpus_documents WHERE id = ?",
+                "SELECT filename, text, segments, kind FROM corpus_documents WHERE id = ?",
                 (location.doc_id,),
             ).fetchone()
         if row is None:
             return {"url": url, "title": "", "text": "", "error": "document not found in corpus"}
 
-        filename, text, segments = row
+        filename, text, segments, kind = row
         if location.start >= len(text) or location.end > len(text):
             # The span no longer fits its document — refuse rather than returning a
             # shifted window that would look right but cite the wrong place.
@@ -910,6 +910,12 @@ class CorpusStore:
         label = segment_label(
             json.loads(segments) if segments else [], location.start, location.end
         )
+        if not label and kind == "code":
+            # Source files carry no stored segments: their location is the line, which the
+            # text itself says. Counted here rather than stored per line.
+            first = text.count("\n", 0, location.start) + 1
+            last = text.count("\n", 0, max(location.start, location.end - 1)) + 1
+            label = f"line {first}" if first == last else f"lines {first}–{last}"
         where = (
             f"page {location.page}, chars {location.start}-{location.end}"
             if location.page is not None
