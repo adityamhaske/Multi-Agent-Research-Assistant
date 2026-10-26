@@ -8,6 +8,10 @@ This page covers what you can upload, how folders and selection work, what "only
 does and does not guarantee, and what you see when your files cannot answer. It applies to the
 desktop app and the server alike.
 
+> **Not in a released version yet.** This page describes the current source on `main`. The
+> installers on the download page have no folders, file selection or Offline, and read only the
+> first two rows of the table below (plus CSV, as plain text). The rest arrive with the next release.
+
 ## What you can upload
 
 | Kind | Extensions | How a citation names its place |
