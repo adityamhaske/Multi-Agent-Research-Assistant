@@ -99,6 +99,45 @@ def get_corpus() -> Corpus:
     return _corpus.get()
 
 
+class ScopedCorpus:
+    """A corpus that answers only for one run's frozen selection of document versions.
+
+    The selection is enforced here, at the port, rather than by filtering results after
+    the fact or by telling the model which files it may use: every search and every read
+    the engine makes goes through this object, so nothing outside the selection can be
+    retrieved, read, or become evidence — including a `corpus://` URL the model invented
+    or a document's own text tried to inject (internal/rfcs/V3.1-corpus-scope.md §8.4).
+    """
+
+    def __init__(self, inner: CorpusStore, allowed_ids: frozenset[str]):
+        if not allowed_ids:
+            # An empty selection is refused before execution (§8.2); reaching here with
+            # one is a bug, and widening to the whole corpus would be the silent failure.
+            raise ValueError("a scoped corpus needs at least one selected document")
+        self._inner = inner
+        self._allowed = frozenset(allowed_ids)
+
+    @property
+    def allowed_ids(self) -> frozenset[str]:
+        return self._allowed
+
+    async def search(self, query: str, max_results: int) -> list[dict]:
+        return await self._inner.search(query, max_results, document_ids=self._allowed)
+
+    async def read(self, url: str) -> dict:
+        location = parse_corpus_url(url)
+        if location is None:
+            return {"url": url, "title": "", "text": "", "error": "not a valid corpus URL"}
+        if location.doc_id not in self._allowed:
+            # Same shape as every refused read, with nothing in `text` that could be
+            # quoted. Deliberately does not say whether the document exists.
+            return {"url": url, "title": "", "text": "", "error": OUTSIDE_SELECTION}
+        return await self._inner.read(url)
+
+
+OUTSIDE_SELECTION = "outside_selection: this document is not one of the run's selected files"
+
+
 # ── The URL scheme ───────────────────────────────────────────────────────────────
 #
 # corpus://<document-id>#chars=<start>-<end>[&page=<n>]
@@ -522,7 +561,9 @@ class CorpusStore:
 
     # -- retrieval (the Corpus port) ────────────────────────────────────────────
 
-    async def search(self, query: str, max_results: int) -> list[dict]:
+    async def search(
+        self, query: str, max_results: int, *, document_ids: frozenset[str] | None = None
+    ) -> list[dict]:
         # The query embedding is the ONLY model call retrieval makes — the store itself
         # never opens a socket. That made corpus mode's zero-egress claim rest entirely on
         # the host having configured a *local* embedder, and nothing checked: with
@@ -532,7 +573,7 @@ class CorpusStore:
         # one call that egresses was the one call stubbed out. Enforce, don't trust.
         self._require_local_embedder_in_corpus_mode()
         query_vector = (await self._embedder.embed([query]))[0]
-        return await asyncio.to_thread(self._search_sync, query_vector, max_results)
+        return await asyncio.to_thread(self._search_sync, query_vector, max_results, document_ids)
 
     def _require_local_embedder_in_corpus_mode(self) -> None:
         """Refuse to embed off-machine while claiming to be airgapped (docs/12 M10).
@@ -551,8 +592,16 @@ class CorpusStore:
             f"with a local OLLAMA_BASE_URL, or run without corpus-only mode."
         )
 
-    def _search_sync(self, query_vector: list[float], max_results: int) -> list[dict]:
+    def _search_sync(
+        self,
+        query_vector: list[float],
+        max_results: int,
+        document_ids: frozenset[str] | None = None,
+    ) -> list[dict]:
         import numpy as np
+
+        if document_ids is not None:
+            return self._rank(query_vector, max_results, self._selected_rows(document_ids), np)
 
         with self._connect() as conn:
             rows = conn.execute(
@@ -624,7 +673,63 @@ class CorpusStore:
             raise RuntimeError(
                 "The corpus is empty. Ingest documents before running corpus-only research."
             )
+        return self._rank(query_vector, max_results, rows, np)
 
+    def _selected_rows(self, document_ids: frozenset[str]) -> list[tuple]:
+        """The chunks of exactly these document versions, or a named failure.
+
+        A selection names document *versions*, frozen when the run was created, so the
+        `superseded_at IS NULL` filter of a whole-corpus search does not apply: a selected
+        version superseded mid-run is still the version the run was allowed to read
+        (internal/rfcs/V3.1-corpus-scope.md §8.7). Generated reports stay excluded even if
+        a selection names one — they are never evidence.
+
+        The ids travel as one JSON parameter through `json_each`, never as an
+        `IN (?, ?, …)` list, so a large selection cannot hit SQLite's parameter limit.
+
+        The diagnostics are the selection's own. Falling through to the whole-corpus ones
+        would describe documents the run was never allowed to see — "the corpus is empty"
+        for a selection whose files exist but were indexed with another model.
+        """
+        ids = json.dumps(sorted(document_ids))
+        with self._connect() as conn:
+            rows = conn.execute(
+                'SELECT c.id, c.document_id, c.start, c."end", c.page, c.text, c.embedding, '
+                "d.filename "
+                "FROM corpus_chunks c JOIN corpus_documents d ON d.id = c.document_id "
+                "WHERE c.embedding_model = ? AND d.origin != 'generated' "
+                "AND d.id IN (SELECT value FROM json_each(?))",
+                (self._embedder.model_id, ids),
+            ).fetchall()
+            if rows:
+                return rows
+            present = conn.execute(
+                "SELECT COUNT(*) FROM corpus_documents "
+                "WHERE origin != 'generated' AND id IN (SELECT value FROM json_each(?))",
+                (ids,),
+            ).fetchone()[0]
+            other = conn.execute(
+                "SELECT c.embedding_model, COUNT(*) FROM corpus_chunks c "
+                "JOIN corpus_documents d ON d.id = c.document_id "
+                "WHERE d.origin != 'generated' AND d.id IN (SELECT value FROM json_each(?)) "
+                "GROUP BY 1",
+                (ids,),
+            ).fetchall()
+        if not present:
+            raise RuntimeError(
+                f"None of the {len(document_ids)} selected documents is in this corpus — "
+                "they were deleted, or they are auto-saved reports, which are never evidence."
+            )
+        if other:
+            models = ", ".join(f"{m} ({n} chunks)" for m, n in other)
+            raise RuntimeError(
+                f"The selected documents were indexed with a different embedding model "
+                f"({models}); current model is '{self._embedder.model_id}'. Re-ingest them "
+                "to re-index."
+            )
+        raise RuntimeError(f"The {present} selected document(s) produced no searchable text.")
+
+    def _rank(self, query_vector: list[float], max_results: int, rows: list, np) -> list[dict]:
         matrix = np.stack([np.frombuffer(row[6], dtype=np.float32) for row in rows])
         if matrix.shape[1] != len(query_vector):
             raise RuntimeError(
