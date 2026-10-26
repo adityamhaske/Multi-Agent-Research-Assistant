@@ -26,11 +26,21 @@ import { ApiError } from "@/lib/api";
  * one failed, instead of one spinner that hides a partial failure.
  */
 
-/** What the backend will accept (`research_engine/documents.py`). */
-// The file picker's convenience list, narrower than what `documents.kind_for` accepts
-// (.rst/.csv/.json also ingest as text). Adding a kind here without adding it there
-// produces a file the picker offers and the upload rejects — the two are one contract.
-const ACCEPTED = [".pdf", ".html", ".htm", ".md", ".markdown", ".txt"];
+/** What the backend will accept: exactly `documents.FORMATS`. A backend test reads this
+ * list and fails when the two differ, so the picker never offers a file the upload refuses
+ * or refuses one it would accept. */
+const ACCEPTED = [
+  ".pdf",
+  ".html",
+  ".htm",
+  ".md",
+  ".markdown",
+  ".txt",
+  ".text",
+  ".rst",
+  ".csv",
+  ".json",
+];
 const MAX_BYTES = 25 * 1024 * 1024;
 
 type Outcome = "queued" | "uploading" | "done" | "failed" | "skipped";
