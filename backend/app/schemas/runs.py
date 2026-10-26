@@ -23,6 +23,18 @@ import uuid
 from pydantic import BaseModel, Field
 
 
+class CorpusSelectionRequest(BaseModel):
+    """Which corpus files a selected-files run may read (internal/rfcs/V3.1-corpus-scope.md §8.1).
+
+    Logical documents (`doc_keys`) and folders, resolved to exact document versions when
+    the run is created and frozen on the row. Capped so one request cannot ask the store to
+    resolve an unbounded list.
+    """
+
+    folder_ids: list[str] = Field(default_factory=list, max_length=5000)
+    doc_keys: list[str] = Field(default_factory=list, max_length=5000)
+
+
 class CreateRunRequest(BaseModel):
     """The domain entry point for a run."""
 
@@ -30,6 +42,9 @@ class CreateRunRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
     depth: str = Field("balanced", description="fast | balanced | comprehensive")
     corpus_mode: bool = False
+    #: A selected-files run. Setting it implies corpus mode; sending it with an explicit
+    #: `corpus_mode: false` is refused rather than guessed at.
+    corpus_selection: CorpusSelectionRequest | None = None
     skip_plan_gate: bool = True
     topic_seeds: list | None = None
     outline_template: str | None = None

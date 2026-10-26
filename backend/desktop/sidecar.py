@@ -1574,6 +1574,7 @@ def create_sidecar_app(
                     # only to install the corpus port — which is a different thing, and
                     # mistaking one for the other is how the server shipped without this.
                     "corpus_mode": bool(run.corpus_mode),
+                    "corpus_allowed_ids": run_execution.selection_ids_for_run(run),
                 }
                 question, depth = run.question, run.depth
                 run_routing = run.model_routing
@@ -1617,7 +1618,7 @@ def create_sidecar_app(
                 "event_sink": sink,
                 "cache": sidecar["cache"],
                 "run_config": config,
-                "corpus": sidecar["corpus"] if overrides["corpus_mode"] else None,
+                "corpus": run_execution.corpus_port_for(sidecar["corpus"], config) if config.corpus_mode else None,
             }
             # The same snapshot the server takes in `run_execution._corpus_port`, through
             # the same function object rather than a second copy of the rule — this is a
@@ -2692,7 +2693,7 @@ def create_sidecar_app(
         # for byte, so the ordering rules it encodes are not restated here.
         from app.api.v1.runs import create_run
 
-        return await create_run(body, db, user, dispatcher=_dispatcher)
+        return await create_run(body, db, user, _dispatcher, get_corpus_locator())
 
     @api.get("/runs")
     @delegates_to("app.api.v1.runs:list_runs")

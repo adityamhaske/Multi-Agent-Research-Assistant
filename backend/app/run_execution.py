@@ -176,6 +176,9 @@ async def run_config_for_run(db: AsyncSession, run: ResearchRun) -> RunConfig:
         # a run recorded as airgapped researched the open web until this line existed.
         # Desktop counterpart: `sidecar._drive_run`, which has always carried it.
         "corpus_mode": bool(run.corpus_mode),
+        # The frozen selection, read off the row — never re-resolved. Desktop counterpart:
+        # `sidecar._drive_run`, through the same function.
+        "corpus_allowed_ids": selection_ids_for_run(run),
     }
     # The demo rule, shared with the session worker and both desktop drivers — see
     # `app/services/run_config.py` for why it is one branch and why it has to be one home.
@@ -596,6 +599,32 @@ async def execute_run(
         await engine.dispose()
 
 
+def selection_ids_for_run(run: ResearchRun) -> frozenset[str] | None:
+    """The document-version ids this run may read, from its frozen selection.
+
+    One home for both run builders (`run_config_for_run` here, `sidecar._drive_run` on the
+    desktop), asserted by object identity like the other two-host rules. `None` for a run
+    with no recorded selection: a web run, or a corpus run created before selections
+    existed, which reads its project's whole corpus as it always did.
+    """
+    from app.services.corpus_selection import allowed_ids
+
+    return allowed_ids(run.corpus_selection)
+
+
+def corpus_port_for(store, config):
+    """The corpus port a run installs: its store, scoped to its selection when it has one.
+
+    Shared by both hosts so a selection cannot be enforced on one and forgotten on the
+    other (internal/rfcs/V3.1-corpus-scope.md §8.4).
+    """
+    from research_engine.corpus import ScopedCorpus
+
+    if config.corpus_allowed_ids is None:
+        return store
+    return ScopedCorpus(store, config.corpus_allowed_ids)
+
+
 async def record_corpus_snapshot(db: AsyncSession, run: ResearchRun, store) -> None:
     """Stamp the corpus identity and version this run is about to read.
 
@@ -630,6 +659,6 @@ async def _corpus_port(db: AsyncSession, run: ResearchRun, ports: dict) -> str |
     )
     if store is None:
         return f"Corpus database not found for project {run.project_id}. Ingest documents first."
-    ports["corpus"] = store
+    ports["corpus"] = corpus_port_for(store, ports["run_config"])
     await record_corpus_snapshot(db, run, store)
     return None

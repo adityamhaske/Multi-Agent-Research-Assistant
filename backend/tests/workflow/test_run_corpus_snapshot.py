@@ -111,4 +111,6 @@ def test_the_server_takes_the_snapshot_only_inside_the_corpus_branch():
 
     source = inspect.getsource(run_execution._corpus_port)
     assert "record_corpus_snapshot" in source
-    assert source.index('ports["corpus"] = store') < source.index("record_corpus_snapshot")
+    assert source.index('ports["corpus"] = corpus_port_for(store') < source.index(
+        "record_corpus_snapshot"
+    )
