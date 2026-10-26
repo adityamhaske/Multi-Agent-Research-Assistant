@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import { useActiveProject } from "@/components/ActiveProject";
+import { CorpusTree } from "@/components/corpus/CorpusTree";
 import { GeneratedBadge } from "@/components/GeneratedBadge";
 import { documentUrl } from "@/components/preview/DocumentPreview";
 import { PreviewDrawer } from "@/components/preview/PreviewDrawer";
@@ -11,10 +12,12 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import {
   useCorpusDocuments,
   useCorpusStatus,
+  useCorpusTree,
   useDeleteDocument,
   useUploadDocument,
 } from "@/hooks/queries";
 import { ApiError } from "@/lib/api";
+import { filesFromDrop } from "@/lib/dropFiles";
 
 /**
  * Corpus management (docs/12 M10).
@@ -166,6 +169,7 @@ export default function CorpusPage() {
   const { activeId, active } = useActiveProject();
   const { data: status, refetch: refetchStatus } = useCorpusStatus(activeId);
   const { data: docs, isLoading: docsLoading } = useCorpusDocuments(activeId);
+  const { data: tree } = useCorpusTree(activeId);
   const upload = useUploadDocument();
   const del = useDeleteDocument();
 
@@ -205,7 +209,11 @@ export default function CorpusPage() {
       if (item.state === "skipped") continue;
       setQueue((q) => q.map((x) => (x.key === item.key ? { ...x, state: "uploading" } : x)));
       try {
-        await upload.mutateAsync({ projectId: activeId, file: item.file });
+        await upload.mutateAsync({
+          projectId: activeId,
+          file: item.file,
+          relativePath: item.path,
+        });
         added += 1;
         setQueue((q) => q.map((x) => (x.key === item.key ? { ...x, state: "done" } : x)));
       } catch (err) {
@@ -232,8 +240,8 @@ export default function CorpusPage() {
   const fromInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files ?? []).map((file) => ({
       file,
-      // webkitRelativePath is set only by the folder picker. It keeps the folder
-      // structure visible in the queue even though the corpus itself is flat.
+      // webkitRelativePath is set only by the folder picker; it files each document in
+      // the matching folders (created on the server as needed).
       path: (file as File & { webkitRelativePath?: string }).webkitRelativePath || undefined,
     }));
     e.target.value = "";
@@ -244,7 +252,9 @@ export default function CorpusPage() {
     e.preventDefault();
     setDragging(false);
     if (busy) return;
-    void runQueue(Array.from(e.dataTransfer.files).map((file) => ({ file })));
+    // Walks dropped folders where the browser allows it; elsewhere the files still upload,
+    // without their folders (lib/dropFiles.ts).
+    void filesFromDrop(e.dataTransfer).then(runQueue);
   };
 
   const handleDelete = async (docId: string, filename: string) => {
@@ -347,6 +357,12 @@ export default function CorpusPage() {
             {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
           />
         </div>
+
+        {tree && (
+          <div className="mb-8">
+            <CorpusTree tree={tree} />
+          </div>
+        )}
 
         {/* 2. Upload Queue */}
         {queue.length > 0 && (
@@ -474,7 +490,7 @@ export default function CorpusPage() {
                   Total Documents
                 </div>
                 <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-text-primary">
-                  {status?.documents || 0}
+                  {status ? status.documents : "—"}
                 </div>
               </div>
               <div className="border-b border-border/60 pb-3">
@@ -482,7 +498,7 @@ export default function CorpusPage() {
                   Total Chunks
                 </div>
                 <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-text-primary">
-                  {status?.chunks || 0}
+                  {status ? status.chunks : "—"}
                 </div>
               </div>
               <div>

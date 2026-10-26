@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import type { CorpusTree } from "@/lib/corpusTree";
 import { ApiError, apiFetch } from "@/lib/api";
 import { UNKNOWN_CAPABILITIES, type Capabilities } from "@/lib/capabilities";
 import { apiBase, authHeaders, isDesktop } from "@/lib/desktop";
@@ -756,6 +757,11 @@ export interface CorpusDocument {
    *  this project). Retrieval never cites a generated document as evidence — the badge
    *  this drives exists so the UI doesn't imply otherwise. */
   origin?: "uploaded" | "generated";
+  /** The logical document every version shares — what a selection and a folder name. */
+  doc_key?: string | null;
+  version?: number | null;
+  /** False for a superseded version: still readable by runs that cited it, never offered. */
+  is_current?: boolean;
 }
 
 /** Same-origin URL for the stored original (docs/06 §6 — never a hardcoded backend host). */
@@ -806,6 +812,15 @@ export function useCorpusDocuments(projectId?: string | null) {
   });
 }
 
+/** Folders, documents and memberships as flat lists; `lib/corpusTree` builds the tree. */
+export function useCorpusTree(projectId?: string | null) {
+  return useQuery({
+    queryKey: ["corpus", projectId, "tree"],
+    queryFn: () => apiFetch<CorpusTree>(`/projects/${projectId}/corpus/tree`),
+    enabled: !!projectId,
+  });
+}
+
 export function useCorpusStatus(projectId?: string | null) {
   return useQuery({
     queryKey: ["corpus", projectId, "status"],
@@ -821,9 +836,19 @@ export function useCorpusStatus(projectId?: string | null) {
 export function useUploadDocument() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ projectId, file }: { projectId: string; file: File }) => {
+    mutationFn: async ({
+      projectId,
+      file,
+      relativePath,
+    }: {
+      projectId: string;
+      file: File;
+      /** The file's path inside an uploaded folder; files it into those folders. */
+      relativePath?: string;
+    }) => {
       const form = new FormData();
       form.append("file", file);
+      if (relativePath) form.append("relative_path", relativePath);
       
       const res = await fetch(`${apiBase()}/projects/${projectId}/corpus/documents`, {
         method: "POST",
