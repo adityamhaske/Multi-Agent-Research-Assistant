@@ -78,7 +78,7 @@
     "step": "upload an unsupported format",
     "status": 400,
     "body": {
-      "detail": "Unsupported document type '.exe'. The corpus accepts PDF, HTML, Markdown, plain text, CSV, TSV, Jupyter notebook, source code (.bib .c .cc .cfg .cls .cpp .cs .csv .go .h .hpp .htm .html .ini .ipynb .java .jl .js .json .jsx .kt .m .markdown .md .pdf .ps1 .py .r .rb .rs .rst .scala .sh .sql .sty .swift .tex .text .toml .ts .tsv .tsx .txt .xml .yaml .yml) \u2014 a format we cannot locate a quote inside cannot enter a citation-grade corpus."
+      "detail": "Unsupported document type '.exe'. The corpus accepts PDF, HTML, Markdown, plain text, Word document, Excel workbook, OpenDocument spreadsheet, CSV, TSV, Jupyter notebook, source code (.bib .c .cc .cfg .cls .cpp .cs .csv .docx .go .h .hpp .htm .html .ini .ipynb .java .jl .js .json .jsx .kt .m .markdown .md .ods .pdf .ps1 .py .r .rb .rs .rst .scala .sh .sql .sty .swift .tex .text .toml .ts .tsv .tsx .txt .xls .xlsm .xlsx .xml .yaml .yml) \u2014 a format we cannot locate a quote inside cannot enter a citation-grade corpus."
     }
   },
   {
