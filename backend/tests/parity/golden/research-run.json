@@ -31,6 +31,9 @@
         "status": "AWAITING_PLAN",
         "depth": "fast",
         "corpus_mode": false,
+        "corpus_selection": null,
+        "corpus_id": null,
+        "corpus_version": null,
         "demo": true,
         "skip_plan_gate": false,
         "model_routing": {
@@ -130,6 +133,9 @@
         "status": "AWAITING_REVIEW",
         "depth": "fast",
         "corpus_mode": false,
+        "corpus_selection": null,
+        "corpus_id": null,
+        "corpus_version": null,
         "demo": true,
         "skip_plan_gate": false,
         "model_routing": {
@@ -565,6 +571,9 @@
         "status": "AWAITING_REVIEW",
         "depth": "fast",
         "corpus_mode": false,
+        "corpus_selection": null,
+        "corpus_id": null,
+        "corpus_version": null,
         "demo": true,
         "skip_plan_gate": false,
         "model_routing": {
@@ -1284,6 +1293,9 @@
         "status": "COMPLETED",
         "depth": "fast",
         "corpus_mode": false,
+        "corpus_selection": null,
+        "corpus_id": null,
+        "corpus_version": null,
         "demo": true,
         "skip_plan_gate": false,
         "model_routing": {

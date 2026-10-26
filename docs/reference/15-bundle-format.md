@@ -259,6 +259,21 @@ and `UNUSABLE` both produce shipped prompts, and only the run knows which happen
 status says what the run was configured with; the `overridden` flags say what actually ran. A
 run that recorded its prompts but has no recorded status reads as `NONE`.
 
+### 9. Selected files (version 1 and 2)
+
+A run limited to selected files records what it was allowed to read, inside fields the
+format already has, so the bundle stays the same version and an older verifier still
+verifies it:
+
+- `trace` begins with one entry, `{"event": "corpus_selection", "resolved": [...],
+  "corpus_id", "corpus_version"}`. `resolved` lists each selected document version:
+  `document_id`, `doc_key`, `version`, `sha256`, `filename`, `path`.
+- Each corpus entry in `sources` carries that version's `document_id`, `doc_key`,
+  `version`, `sha256` and `path`.
+
+Both are covered by `bundle_hash`, so neither can be edited without breaking integrity. A
+bundle from a run without a selection has neither.
+
 ## Standalone verifier
 
 Ships with the engine. No model, no network, no database. It needs Python 3.14+ and
@@ -278,7 +293,7 @@ still verifies. **A verifier released before version 2 refuses every version 2 b
 `Unsupported bundle_version 2 (this verifier supports version 1)` — and nothing can change
 that after the fact; verifying a version 2 bundle needs a current verifier.
 
-Seven checks:
+Seven checks on every bundle:
 
 1. **Schema validity** — the JSON parses and matches the manifest for a supported version, 1
    or 2. Any other version is refused by name.
@@ -294,6 +309,14 @@ Seven checks:
 6. **Claim–evidence linkage** — every cited source in a claim points to a source that has at
    least one evidence snippet behind it.
 7. **Approval-chain integrity** — a valid, linked `approved` entry exists per §6.
+
+An eighth check runs only on a bundle that records a selection (§9):
+
+8. **Corpus selection** — every source is a `corpus://` location naming one of the selected
+   document versions. A web source, or a corpus source outside the selection, fails it.
+   Integrity catches an edited bundle; this catches one that is consistent but cites
+   outside what the run was allowed to read. A verifier that predates this check does not run
+   it, and still verifies such a bundle.
 
 Demo provenance is reported alongside the verdict rather than inside the notes, because a
 demo bundle verifies perfectly well — its hashes match and its citations resolve — and would

@@ -14,6 +14,7 @@ route call the same handler, which calls this. It imports nothing host-specific 
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
 
 class SelectionError(ValueError):
@@ -103,3 +104,36 @@ def allowed_ids(selection: dict | None) -> frozenset[str] | None:
         return frozenset(str(item["document_id"]) for item in selection["resolved"])
     except KeyError, TypeError:
         return frozenset()
+
+
+def document_id_of(url: str) -> str | None:
+    """The document-version id a `corpus://` URL names, or `None` for any other URL.
+
+    Only the identity, never the span: what a selection admits is a document version, and
+    `Source.corpus_document_id` stores the whole fragment beside it (audit C3), so callers
+    must not compare that column to a selection directly.
+    """
+    parts = urlsplit(url or "")
+    if parts.scheme != "corpus" or not parts.netloc:
+        return None
+    return unquote(parts.netloc)
+
+
+def violations(selection: dict | None, urls: list[str]) -> list[str]:
+    """Every URL in `urls` that a run with this selection could not legitimately cite.
+
+    The defence in depth behind `ScopedCorpus` (internal/rfcs/V3.1-corpus-scope.md §8.5):
+    the port should make a violation impossible, so finding one means a path around it
+    exists. In a run with a selection, a source is admissible only if it is a corpus URL
+    naming a selected version — a web URL is a violation too, since a selected-files run
+    reads nothing else. A run with no selection has nothing to violate.
+    """
+    allowed = allowed_ids(selection)
+    if allowed is None:
+        return []
+    bad: list[str] = []
+    for url in urls:
+        doc = document_id_of(url)
+        if doc is None or doc not in allowed:
+            bad.append(url)
+    return sorted(set(bad))

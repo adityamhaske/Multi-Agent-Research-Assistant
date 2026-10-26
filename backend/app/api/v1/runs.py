@@ -219,6 +219,12 @@ async def project_run(db: AsyncSession, run: ResearchRun) -> dict:
             "status": run.status,
             "depth": run.depth,
             "corpus_mode": run.corpus_mode,
+            # What the run was allowed to read and which corpus state it opened. Written at
+            # creation and at start; NULL on a web run and on runs predating selections, which
+            # read their project's whole corpus (internal/rfcs/V3.1-corpus-scope.md §8.6).
+            "corpus_selection": run.corpus_selection,
+            "corpus_id": run.corpus_id,
+            "corpus_version": run.corpus_version,
             "demo": run.demo,
             "skip_plan_gate": run.skip_plan_gate,
             "model_routing": run.model_routing,

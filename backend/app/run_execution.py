@@ -46,7 +46,7 @@ from app.logconfig import bind_research_run_context
 from app.models.research import ResearchRun
 from app.models.user import User
 from app.runtime import run_config_from_settings
-from app.services import model_routing
+from app.services import corpus_selection, model_routing
 from app.services.run_config import (
     OVERRIDES_UNUSABLE,
     apply_demo_rule,
@@ -317,6 +317,24 @@ async def persist_outcome(
                 run_id=str(run.id),
                 skipped=len(evidence) - len(usable),
             )
+        # A selected-files run may persist evidence and sources only from its frozen
+        # selection. `ScopedCorpus` should make this unreachable; reaching it means a path
+        # around the port exists, so the run fails loudly instead of quietly dropping the
+        # offending items (internal/rfcs/V3.1-corpus-scope.md §8.5).
+        bad = corpus_selection.violations(
+            run.corpus_selection,
+            [e["source_url"] for e in usable]
+            + [s["url"] for s in outcome.sources or [] if isinstance(s, dict) and s.get("url")],
+        )
+        if bad:
+            logger.error("selection_violation", run_id=str(run.id), urls=bad[:20], count=len(bad))
+            await run_lifecycle.record_failure(
+                db,
+                run,
+                f"selection_violation: {len(bad)} source(s) outside this run's selected files "
+                "reached its evidence. Nothing from this run was kept as evidence.",
+            )
+            return PersistResult(status="FAILED", evidence_outcome=evidence_outcome)
         written = await run_lifecycle.record_evidence(
             db, run, evidence=usable, numbered_sources=outcome.sources
         )
@@ -607,9 +625,7 @@ def selection_ids_for_run(run: ResearchRun) -> frozenset[str] | None:
     with no recorded selection: a web run, or a corpus run created before selections
     existed, which reads its project's whole corpus as it always did.
     """
-    from app.services.corpus_selection import allowed_ids
-
-    return allowed_ids(run.corpus_selection)
+    return corpus_selection.allowed_ids(run.corpus_selection)
 
 
 def corpus_port_for(store, config):
