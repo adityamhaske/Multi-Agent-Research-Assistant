@@ -259,7 +259,7 @@ and `UNUSABLE` both produce shipped prompts, and only the run knows which happen
 status says what the run was configured with; the `overridden` flags say what actually ran. A
 run that recorded its prompts but has no recorded status reads as `NONE`.
 
-### 9. Selected files (version 1 and 2, from 3.1.0)
+### 9. Selected files (version 1 and 2)
 
 A run limited to selected files records what it was allowed to read, inside fields the
 format already has, so the bundle stays the same version and an older verifier still
@@ -315,8 +315,8 @@ An eighth check runs only on a bundle that records a selection (§9):
 8. **Corpus selection** — every source is a `corpus://` location naming one of the selected
    document versions. A web source, or a corpus source outside the selection, fails it.
    Integrity catches an edited bundle; this catches one that is consistent but cites
-   outside what the run was allowed to read. A verifier from before 3.1.0 does not run this
-   check, and still verifies such a bundle.
+   outside what the run was allowed to read. A verifier that predates this check does not run
+   it, and still verifies such a bundle.
 
 Demo provenance is reported alongside the verdict rather than inside the notes, because a
 demo bundle verifies perfectly well — its hashes match and its citations resolve — and would
