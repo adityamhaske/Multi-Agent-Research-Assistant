@@ -240,7 +240,7 @@ The whole run graph in one response: `run`, `plans`, `sources`, `evidence`, `rev
 `run.offline` says whether the run asked for the Offline guarantee. `run.corpus_selection` is the frozen selection a corpus-only run was created with (the request
 and the exact document versions it resolved to); `run.corpus_id` and `run.corpus_version` are
 the corpus state the run opened. All three are `null` on a web run and on runs created before
-3.1.0, which read their project's whole corpus.
+file selections existed, which read their project's whole corpus.
 
 One aggregate rather than nine endpoints, because every view of a run needs a slice of the
 same graph and nine round trips would mean nine places to get the ownership predicate
