@@ -174,6 +174,7 @@ const NAV_ORDER: Record<string, string[]> = {
     "user-guide/projects-and-memory",
     "user-guide/exports",
     "user-guide/agent-instructions",
+    "user-guide/corpus-folders-and-selection",
   ],
   architecture: [
     "architecture/system-architecture",
