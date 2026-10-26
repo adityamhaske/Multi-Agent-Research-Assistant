@@ -89,6 +89,7 @@ from app.schemas.corpus import (
     CorpusStatusResponse,
     CorpusTreeResponse,
     DocumentResponse,
+    ExtractedTextResponse,
     FolderCreateRequest,
     FolderDeleteResponse,
     FolderResponse,
@@ -2546,6 +2547,13 @@ def create_sidecar_app(
         )
 
     # Folders: thin delegates to the server's handlers, same paths and bodies.
+
+    @api.get("/projects/{project_id}/corpus/documents/{doc_id}/text", response_model=ExtractedTextResponse)
+    @delegates_to("app.api.v1.corpus:get_document_text")
+    async def project_corpus_document_text(project_id: uuid.UUID, doc_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_local_user)):
+        from app.api.v1.corpus import get_document_text
+
+        return await get_document_text(project_id, doc_id, db, user, get_corpus_locator())
 
     @api.get("/projects/{project_id}/corpus/tree", response_model=CorpusTreeResponse)
     @delegates_to("app.api.v1.corpus:get_tree")

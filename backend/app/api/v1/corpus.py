@@ -25,6 +25,7 @@ from app.schemas.corpus import (
     CorpusStatusResponse,
     CorpusTreeResponse,
     DocumentResponse,
+    ExtractedTextResponse,
     FolderCreateRequest,
     FolderDeleteResponse,
     FolderResponse,
@@ -254,3 +255,21 @@ async def delete_folder(
         return FolderDeleteResponse(**await store.delete_folder(folder_id))
     except FolderNotFound as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Folder not found.") from e
+
+
+@router.get("/documents/{doc_id}/text", response_model=ExtractedTextResponse)
+async def get_document_text(
+    project_id: uuid.UUID,
+    doc_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    corpus: CorpusLocator = Depends(get_corpus_locator),
+):
+    """One version's canonical extracted text: what its citations' quotes are verified
+    against, so the preview highlights the cited span in exactly that text (RFC V3.1 §12)."""
+    await resolve_project(db, current_user.id, project_id)
+    store = await _get_corpus_store(project_id, corpus)
+    found = await store.extracted(doc_id)
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=corpus_ingest.DOCUMENT_NOT_FOUND)
+    return ExtractedTextResponse(**found)

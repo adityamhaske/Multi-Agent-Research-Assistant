@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
+import { CitedPassage } from "@/components/preview/CitedPassage";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { parseCorpusLocator } from "@/lib/corpusLocator";
 import type { RunEvidence, RunGraph, RunSource } from "@/lib/types";
@@ -38,7 +39,9 @@ function SourceCard({
   claimCount,
   focused,
   onInspectEvidence,
+  projectId,
 }: {
+  projectId: string;
   source: RunSource;
   cited: boolean;
   /** Versions of earlier drafts that cited this source when the report does not. */
@@ -60,6 +63,7 @@ function SourceCard({
   // A dead "open" affordance is worse than none: it claims the source is checkable and
   // then refuses to show it.
   const corpus = parseCorpusLocator(source.url);
+  const [showPassage, setShowPassage] = useState(false);
 
   const copyCitation = async () => {
     const n = cited ? source.citation_index : null;
@@ -132,10 +136,25 @@ function SourceCard({
             Read its evidence →
           </button>
         )}
+        {corpus && (
+          <button
+            type="button"
+            onClick={() => setShowPassage((v) => !v)}
+            aria-expanded={showPassage}
+            className="text-accent hover:underline"
+          >
+            {showPassage ? "Hide the passage" : "Open where it's cited →"}
+          </button>
+        )}
         <button type="button" onClick={copyCitation} className="text-accent hover:underline">
           Copy citation
         </button>
       </div>
+      {corpus && showPassage && (
+        <div className="mt-2">
+          <CitedPassage projectId={projectId} locator={corpus} />
+        </div>
+      )}
     </li>
   );
 }
@@ -206,6 +225,7 @@ export function SourcesPanel({
       claimCount={claimsBySource.get(s.id)?.size ?? 0}
       focused={focus === s.id}
       onInspectEvidence={onInspectEvidence}
+      projectId={graph.run.project_id}
     />
   );
 

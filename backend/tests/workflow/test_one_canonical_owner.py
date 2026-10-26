@@ -77,6 +77,7 @@ SHARED_OWNERSHIP: dict[str, str] = {
     "DELETE /projects/{project_id}/corpus/documents/{doc_id}": "app.api.v1.corpus",
     "GET /projects/{project_id}/corpus/status": "app.api.v1.corpus",
     "GET /projects/{project_id}/corpus/tree": "app.api.v1.corpus",
+    "GET /projects/{project_id}/corpus/documents/{doc_id}/text": "app.api.v1.corpus",
     "POST /projects/{project_id}/corpus/folders": "app.api.v1.corpus",
     "PATCH /projects/{project_id}/corpus/folders/{folder_id}": "app.api.v1.corpus",
     "DELETE /projects/{project_id}/corpus/folders/{folder_id}": "app.api.v1.corpus",
