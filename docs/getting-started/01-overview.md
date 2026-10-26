@@ -74,7 +74,7 @@ result names the model that actually answered each ruling.
 | Contradiction detection between sources, surfaced not auto-resolved | Built |
 | Follow-up chat over a finished report, scoped to report / corpus / web / everything | Built for research recorded as a session; not yet on a run |
 | Projects, and chat over the approved research in a project | Built (server only) |
-| Uploaded document corpus, and an airgapped corpus-only mode with no network calls | Built |
+| Uploaded document corpus, and a corpus-only mode: evidence only from the corpus, web search off, a local indexing model required; the research models still receive the question and excerpts, on whatever provider they use | Built |
 | Exports: Markdown, PDF, and a hash-verifiable `.bundle.json` with an offline verifier | Built |
 | An evaluation harness graded by an independent judge, with published results | Built |
 | Bring-your-own-key for Google, Anthropic, OpenAI, OpenRouter, and any OpenAI-compatible endpoint | Built |

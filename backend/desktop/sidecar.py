@@ -24,7 +24,7 @@ What differs from the server host, and nothing else:
   same way (Last-Event-ID honored).
 - `memory_chunks` is excluded from `create_all` — its pgvector column is Postgres-only.
   Project memory (approved-report ingestion) is the one feature absent on desktop;
-  the airgapped corpus (docs/12 M10) has its own SQLite store and local embeddings.
+  the local corpus (docs/12 M10) has its own SQLite store and local embeddings.
 - PDF export answers 501 by design: the desktop renders PDF via the WebView's
   print-to-PDF (docs/13 §7), and WeasyPrint's GTK chain stays out of the bundle.
 """

@@ -19,10 +19,20 @@ preference, then the deployment default. Whatever is resolved is snapshotted on 
 resumed run keeps the models it started with and the finished report stays attributable to
 what wrote it.
 
-**Restrict to uploaded corpus** — evidence only from documents you uploaded to this project.
-No web retriever runs and page fetching refuses every non-corpus URL, so the run makes no
-network calls at all. A run in this mode with no corpus installed fails rather than quietly
-falling back to the web.
+**Restrict to uploaded corpus** — four separate things, and only the first three are what
+the mode enforces:
+
+- Evidence comes only from documents you uploaded to this project.
+- Web search is off, and page fetching refuses every non-corpus URL.
+- Indexing requires a local model: the corpus search refuses an embedding model that is not
+  local.
+- Your question and the excerpts it retrieves go to whichever provider each research model
+  — planner, executor, critic, synthesizer — is set to use. That is a cloud provider unless
+  you have chosen local models ([Local LLM setup](../getting-started/22-local-llm.md)), and
+  corpus mode does not check. A local indexing model does not make the run offline.
+
+A run in this mode with no corpus installed fails rather than quietly falling back to the
+web.
 
 **Review the research plan before searching** — on by default: the run pauses at the design
 gate after the planner, before anything is spent. Turn it off and the run starts searching

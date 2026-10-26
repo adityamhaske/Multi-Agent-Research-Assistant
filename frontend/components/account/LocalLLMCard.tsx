@@ -245,7 +245,8 @@ export function LocalLLMCard() {
       description={
         <>
           Run the assistant against a model on your own machine — no API key, no cost, and
-          nothing leaves your computer.{" "}
+          what you send to it never reaches a model provider. Web research still sends its
+          searches out; corpus-only research does not.{" "}
           <Link
             className="underline underline-offset-2 hover:text-text-secondary"
             href="/docs/getting-started/local-llm"

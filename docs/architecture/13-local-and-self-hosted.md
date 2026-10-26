@@ -177,7 +177,7 @@ probe used to dial the raw configured value and then tell you to retype it by ha
 |---|---|---|---|---|
 | **1 · Cloud, BYOK** | Provider APIs | Web search | Yes | Privacy-minded default: no SaaS intermediary |
 | **2 · Local models** | Ollama | Web search | Yes, for retrieval only | No cloud inference |
-| **3 · Airgapped corpus** | Ollama | **Your documents only** | **None** | Law, health, defence, journalism |
+| **3 · Local corpus, local models** | Ollama | **Your documents only** | **None** — if every role is routed to Ollama | Law, health, defence, journalism |
 
 ### What leaves the machine, per tier
 
@@ -190,9 +190,15 @@ provider. **Search queries still leave**, because ordinary research still search
 and fetches pages. This is the caveat people most often assume away, so it is stated plainly:
 your *reasoning* stays local, your *queries* do not.
 
-**Tier 3.** Nothing. Evidence comes only from the installed corpus; `read_webpage` refuses
-every non-corpus URL, and the retriever delegates exclusively to the corpus store. A run in
-this mode with no corpus installed **fails closed** rather than falling back to the web.
+**Tier 3.** Nothing — but only because tier 3 is tier 2's local models *plus* corpus-only
+mode, and the first half is your configuration, not something the mode enforces. What
+corpus-only mode enforces: evidence comes only from the installed corpus; `read_webpage`
+refuses every non-corpus URL; the retriever delegates exclusively to the corpus store; and
+the store refuses an embedder that is not local. It does not check where the research
+models are, and a local embedder does not make the run offline: corpus mode with a hosted
+planner, executor, critic or synthesizer is tier 1 with local evidence, and the question and
+retrieved excerpts go to that provider. A run in this mode with no corpus installed **fails
+closed** rather than falling back to the web.
 
 Corpus hits carry `corpus://<doc-id>#chars=<start>-<end>` URLs, and the synthesizer's normal
 source assembly turns them into ordinary `[n]` citations whose snippets resolve back to the
@@ -201,8 +207,9 @@ corpus than on the open web.
 
 Embeddings for tier 3 go through the `Embeddings` port to the same Ollama, defaulting to
 `nomic-embed-text` — not a bundled `sentence-transformers`, whose torch dependency alone
-would exceed the whole bundle budget. Zero egress is asserted by a test with socket and DNS
-guards.
+would exceed the whole bundle budget. That retrieval opens no outbound connection is
+asserted by a test with socket and DNS guards (`test_corpus_egress.py`), run with scripted
+models — it proves the retrieval half, not where a real model call goes.
 
 > **A note on testing an absence.** A test that asserts "no network calls" while injecting a
 > fake embedder proves nothing if the query embedding was the only thing that egressed. When

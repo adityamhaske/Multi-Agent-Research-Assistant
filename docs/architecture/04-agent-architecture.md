@@ -186,8 +186,11 @@ loop (max 8 rounds):
 | `calculate(expression)` | AST-restricted arithmetic | Numbers and `+ - * / **` only |
 
 In corpus-only mode the fetch half changes: `read_webpage` resolves `corpus://` locations
-from the installed corpus and **refuses every other URL**, so the tool surface makes zero
-network calls. It fails closed rather than falling back to the web.
+from the installed corpus and **refuses every other URL**, and `web_search` answers from
+the corpus store alone, whose query embedding must be local — so neither tool reaches the
+network. It fails closed rather than falling back to the web. The agents' own model calls
+are not tools and are not restricted: the question and excerpts go wherever the routing
+sends each role, and a local embedder does not change that.
 
 ### Snippets must be text that was really fetched
 
