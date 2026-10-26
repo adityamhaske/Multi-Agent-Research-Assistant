@@ -270,8 +270,7 @@ async def delete_project(
             logger.warning("checkpoint_cleanup_failed", session_id=str(sid), error=str(e))
 
     # The project's corpus (docs/12 M10) is a standalone SQLite file keyed by project_id on
-    # the server, and one flat store for the whole app on the desktop — `corpus`'s own
-    # `.delete()` is what tells them apart; this route no longer does. On the server, left
+    # both hosts; where it lives is `corpus`'s own `.delete()` to know, not this route's. On the server, left
     # alone it becomes an orphan that never surfaces again (no route can address a deleted
     # project's corpus) while still holding every document and embedding that was in it,
     # contradicting the "no orphan vectors after a delete" standard the project model

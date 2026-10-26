@@ -539,7 +539,20 @@ def _install_fake_embedder(app_holder) -> None:
 
     # `app_holder` is the httpx client; the app hangs off its transport.
     app = app_holder._transport.app  # noqa: SLF001 — test-internal access
-    app.state.sidecar["corpus"]._embedder = FakeEmbeddings()  # noqa: SLF001
+    app.state.sidecar["corpus"].embedder = FakeEmbeddings()
+
+
+async def _upload(sidecar, filename: str, data: bytes):
+    """Upload into the default project's corpus — the one a session with no project uses."""
+    from desktop.sidecar import DEFAULT_PROJECT_NAME
+
+    projects = (await sidecar.get("/api/v1/projects", headers=_auth())).json()["projects"]
+    pid = next(p["id"] for p in projects if p["name"] == DEFAULT_PROJECT_NAME)
+    return pid, await sidecar.post(
+        f"/api/v1/projects/{pid}/corpus/documents",
+        headers=_auth(),
+        files={"file": (filename, data, "text/plain")},
+    )
 
 
 # The scripted planner's two task queries are fixed strings (fakes.py); a corpus
@@ -555,12 +568,7 @@ CORPUS_DOC = (
 async def test_corpus_upload_list_delete_round_trip(sidecar):
     _install_fake_embedder(sidecar)
 
-    upload = await sidecar.post(
-        "/api/v1/corpus/documents",
-        params={"filename": "notes.txt"},
-        headers=_auth(),
-        content=CORPUS_DOC.encode(),
-    )
+    pid, upload = await _upload(sidecar, "notes.txt", CORPUS_DOC.encode())
     assert upload.status_code == 201
     body = upload.json()
     # Same field names as the server's DocumentResponse (app/api/v1/corpus.py) — not
@@ -571,30 +579,21 @@ async def test_corpus_upload_list_delete_round_trip(sidecar):
     assert body["id"] and body["chunks"] >= 1
 
     # Same bytes again: deduped to the same id, not doubled.
-    again = await sidecar.post(
-        "/api/v1/corpus/documents",
-        params={"filename": "notes.txt"},
-        headers=_auth(),
-        content=CORPUS_DOC.encode(),
-    )
+    _, again = await _upload(sidecar, "notes.txt", CORPUS_DOC.encode())
     assert again.json()["id"] == body["id"]
 
-    docs = await sidecar.get("/api/v1/corpus/documents", headers=_auth())
+    docs = await sidecar.get(f"/api/v1/projects/{pid}/corpus/documents", headers=_auth())
     assert [d["filename"] for d in docs.json()] == ["notes.txt"]
 
     # A format we cannot locate quotes in never enters a citation-grade corpus.
-    rejected = await sidecar.post(
-        "/api/v1/corpus/documents",
-        params={"filename": "archive.zip"},
-        headers=_auth(),
-        content=b"PK\x03\x04",
-    )
+    _, rejected = await _upload(sidecar, "archive.zip", b"PK\x03\x04")
     # 400, matching the server — see app/services/corpus_ingest.py.
     assert rejected.status_code == 400
 
-    delete = await sidecar.delete(f"/api/v1/corpus/documents/{body['id']}", headers=_auth())
+    doc_path = f"/api/v1/projects/{pid}/corpus/documents/{body['id']}"
+    delete = await sidecar.delete(doc_path, headers=_auth())
     assert delete.status_code == 204
-    gone = await sidecar.delete(f"/api/v1/corpus/documents/{body['id']}", headers=_auth())
+    gone = await sidecar.delete(doc_path, headers=_auth())
     assert gone.status_code == 404
 
 
@@ -610,12 +609,7 @@ async def test_a_run_asking_for_corpus_mode_actually_runs_in_it(sidecar, tmp_pat
     """
     _install_fake_embedder(sidecar)
 
-    upload = await sidecar.post(
-        "/api/v1/corpus/documents",
-        params={"filename": "notes.txt"},
-        headers=_auth(),
-        content=CORPUS_DOC.encode(),
-    )
+    _, upload = await _upload(sidecar, "notes.txt", CORPUS_DOC.encode())
     assert upload.status_code == 201
 
     start = await sidecar.post(

@@ -175,7 +175,12 @@ async def test_a_populated_v2_1_0_install_upgrades_and_keeps_working(install, mo
             assert added <= _columns(db, table), table
         # Nothing was lost and nothing was seeded over the install — not a second user, not
         # a second "General" project, not a fresh demo on what is not a first launch.
-        assert _row_counts(db) == before
+        # `app_meta` is the one table 3.1 adds: it records the corpus layout this upgrade
+        # moved the install to (desktop/corpus_layout.py). Everything that was there is
+        # unchanged.
+        after = _row_counts(db)
+        assert after.pop("app_meta") == 1
+        assert after == before
         assert (install / "demo_seeded.json").read_bytes() == marker
 
         me = (await driver.request("GET", "/auth/me")).json()

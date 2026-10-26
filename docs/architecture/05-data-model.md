@@ -236,9 +236,11 @@ Uploaded documents do **not** live in Postgres. Each project gets a SQLite file 
 configured `CORPUS_DIR`, holding the document bytes, extracted text spans, and their
 embeddings.
 
-That keeps the corpus portable and makes the desktop build's story identical apart from one
-detail: on desktop it is a single `corpus.sqlite` for the whole app rather than one file per
-project.
+That keeps the corpus portable and makes the desktop build's story identical: from 3.1 the
+desktop also keeps one file per project, `corpus/corpus_<project_id>.sqlite` in its data
+folder. Releases before 3.1 kept one `corpus.sqlite` for the whole app; the first 3.1 launch
+moves it, whole, into a project of its own (`desktop/corpus_layout.py`), keeping a backup.
+Which layout is in force is the `corpus_layout` row of the desktop-only `app_meta` table.
 
 `CORPUS_DIR` defaults to the relative path `data/corpus`, resolved against the backend
 package root rather than the process working directory — otherwise running from the

@@ -28,9 +28,10 @@ from research_engine.ports import Corpus
 class CorpusLocator(Protocol):
     """Where a project's corpus lives, and how to open it.
 
-    A genuine host difference: the server keeps one SQLite file per project under
-    `settings.corpus_path`, the desktop one `corpus.sqlite` for the whole app. That storage
-    decision stays — what must not leak is the *convention*, which the server spelled out in
+    Both hosts keep one SQLite file per project — the server under `settings.corpus_path`,
+    the desktop in its data folder (`desktop/corpus_layout.py`; one shared file for the whole
+    app until 3.1). Where the files live is the host's business; what must not leak is the
+    *convention*, which the server spelled out in
     seven places and `projects.py` reconstructed an eighth time in order to delete it.
     `AGENTS.md` records the two-home version of this going wrong in both homes at once, so
     that an uploaded document was invisible to the run that needed it.

@@ -138,8 +138,11 @@ corpus, web search is off and page fetching refuses every non-corpus URL, and in
 requires a local model. It does not keep the *research models* local: the question and the
 excerpts go to whichever provider the planner, executor, critic and synthesizer are set to
 use — a cloud provider unless you have chosen local models. A local indexing model does not
-make the run offline. On the desktop app every project shares one corpus, so a corpus-only
-run there draws on documents uploaded under any project. Corpus
+make the run offline. Each project has its own corpus on both the server and the desktop app,
+so a corpus-only run draws only on documents uploaded to its project. Desktop releases before
+3.1 kept one corpus for the whole app; on upgrading, those documents move to a project named
+"Documents from before 3.1", and the original file is kept as `corpus.legacy-3.0.sqlite` in
+the app's data folder. Corpus
 hits carry `corpus://` locations, and the synthesizer turns them into ordinary `[n]`
 citations whose snippets resolve back to the exact character range in the source document —
 so citation provenance is *more* exact on a closed corpus than on the open web.

@@ -53,8 +53,8 @@ class CorpusStatusResponse(BaseModel):
     chunks: int
     chunks_by_model: dict[str, int]
     current_model: str
-    # Which corpus this is and what state it is in. The server has one file per project and
-    # the desktop one for the whole app, so a path could never name it on both hosts;
-    # identity that lives in the data can.
+    # Which corpus this is and what state it is in. A file path is host-specific (and on the
+    # desktop it moved in 3.1), so a path could never name it on both hosts; identity that
+    # lives in the data can.
     corpus_id: str | None = None
     corpus_version: int | None = None

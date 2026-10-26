@@ -137,10 +137,6 @@ INTENTIONAL_DESKTOP_ONLY: dict[str, str] = {
     "DELETE /desktop/keys/{provider}": "removes the key from the OS keychain",
     "GET /desktop/keys/custom_endpoint": "custom base URL is local config, not a user column",
     "PUT /desktop/keys/custom_endpoint": "custom base URL is local config, not a user column",
-    "GET /corpus/documents": "flat per-app corpus; the server scopes a corpus file per project",
-    "POST /corpus/documents": "flat per-app corpus; the server scopes a corpus file per project",
-    "DELETE /corpus/documents/{doc_id}": "flat per-app corpus, one corpus.sqlite for the app",
-    "GET /corpus/status": "flat per-app corpus, one corpus.sqlite for the whole app",
     "POST /models/local/start": "the desktop app can spawn a local Ollama; a container cannot",
     "POST /models/local/stop": "the desktop app can stop the Ollama process it spawned",
     "GET /updates/check": (
@@ -161,8 +157,8 @@ def test_every_server_only_route_is_declared():
 
     `INTENTIONAL_SERVER_ONLY` means the route legitimately does not exist on the desktop
     host. `KNOWN_DESKTOP_GAPS` means the UI calls it anyway, so its absence reaches a user.
-    A route can be in both — the flat `/corpus/*` shape is a real decision *and* the UI was
-    never taught about it — because they answer different questions.
+    A route can be in both — a real host difference *and* something the UI was never taught
+    about — because they answer different questions.
     """
     server_only = _operations(_server_app()) - _operations(_desktop_app())
     undeclared = server_only - set(INTENTIONAL_SERVER_ONLY) - set(KNOWN_DESKTOP_GAPS)

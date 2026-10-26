@@ -223,10 +223,10 @@ CREATE INDEX IF NOT EXISTS idx_corpus_chunks_doc ON corpus_chunks (document_id);
 
 #: Who this corpus is, and how much has happened to it. One row.
 #:
-#: Identity has until now been the *file path* — one file per project on the server, one
-#: flat file for the whole app on the desktop — which means a bundle could cite a corpus
-#: document without being able to name the corpus it came from, and the desktop had no
-#: per-project path to name. Identity that lives in the data is the same on both hosts.
+#: Identity used to be the *file path* — host-specific, and on the desktop one flat file for
+#: the whole app until 3.1 — which meant a bundle could cite a corpus document without being
+#: able to name the corpus it came from. Identity that lives in the data is the same on both
+#: hosts, and survives the desktop's 3.1 move of that file into a project of its own.
 #:
 #: `version` is monotonic and bumped by anything that changes what retrieval can see. It is
 #: what a run records so "reproduce this research" can say which corpus state produced it.

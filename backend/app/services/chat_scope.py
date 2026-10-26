@@ -66,12 +66,9 @@ _DESCRIPTIONS: dict[ChatScope, ScopeDescription] = {
     ),
     "corpus": ScopeDescription(
         label="My corpus",
-        # Both hosts read this. The server keeps one corpus per project; the desktop keeps
-        # one for the whole app, so "this project's documents" would be false there.
-        reads=(
-            "only uploaded documents — this project's on a server; on the desktop app every "
-            "project shares one corpus"
-        ),
+        # Both hosts read this, and from 3.1 both keep one corpus per project, so the
+        # per-project claim is true on each.
+        reads="only the documents uploaded to this project",
         # The model call is a separate axis, governed by model routing, and is stated as
         # such: the question and excerpts reach whichever model chat is routed to.
         excludes=(
