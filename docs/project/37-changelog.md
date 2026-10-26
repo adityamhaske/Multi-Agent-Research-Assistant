@@ -12,7 +12,7 @@ deciding whether to trust the thing, and a changelog with no bad news is marketi
 
 ---
 
-## v3.0.3 — unreleased
+## v3.0.3 — 2026-10-26
 
 The desktop app researches on a local model with no API key, as Settings always said it
 could.

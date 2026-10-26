@@ -49,8 +49,7 @@ export interface Release {
 export const RELEASES: Release[] = [
   {
     version: "v3.0.3",
-    date: "2026-10-25",
-    unreleased: true,
+    date: "2026-10-26",
     headline:
       "The desktop app researches on a local model with no API key, as Settings always said it could.",
     improved: [
