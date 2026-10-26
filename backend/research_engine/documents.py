@@ -13,6 +13,8 @@ touches a PDF) does not pay for it, and so the engine's import surface stays sma
 from __future__ import annotations
 
 import io
+import posixpath
+import re
 import zipfile
 from dataclasses import dataclass, field
 
@@ -80,6 +82,13 @@ FORMATS: dict[str, Format] = {
     ".xlsm": Format("spreadsheet", "Excel workbook", "python_calamine"),
     ".xls": Format("spreadsheet", "Excel workbook", "python_calamine"),
     ".ods": Format("spreadsheet", "OpenDocument spreadsheet", "python_calamine"),
+    # Tier C (RFC V3.1 §10.2). PowerPoint, OpenDocument text and EPUB are ZIP archives of
+    # XML read with the standard library and lxml (already a dependency) — no python-pptx,
+    # so no image library joins the desktop bundle. RTF through striprtf (BSD-3, pure).
+    ".pptx": Format("pptx", "PowerPoint presentation"),
+    ".odt": Format("odt", "OpenDocument text"),
+    ".epub": Format("epub", "EPUB book"),
+    ".rtf": Format("rtf", "Rich Text", "striprtf"),
     # Tier A (RFC V3.1 §10.2): the standard library reads all of these.
     ".csv": Format("csv", "CSV"),
     ".tsv": Format("csv", "TSV"),
@@ -209,6 +218,14 @@ def extract(filename: str, data: bytes) -> Extraction:
             return _extract_docx(data)
         if kind == "spreadsheet":
             return _extract_spreadsheet(data, _extension(filename))
+        if kind == "pptx":
+            return _extract_pptx(data)
+        if kind == "odt":
+            return _extract_odt(data)
+        if kind == "epub":
+            return _extract_epub(data)
+        if kind == "rtf":
+            return _extract_rtf(data)
         if kind == "csv":
             return _extract_table(data, delimiter="\t" if _extension(filename) == ".tsv" else None)
         if kind == "ipynb":
@@ -576,3 +593,236 @@ def _extract_spreadsheet(data: bytes, ext: str) -> Extraction:
     if not text.strip():
         raise ValueError("The workbook has no data.")
     return Extraction(text, [0], "spreadsheet", segments, LINEARIZED)
+
+
+def _xml(archive: zipfile.ZipFile, name: str):
+    """One XML part of an archive, parsed with entity resolution and network access off."""
+    from lxml import etree
+
+    parser = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
+    return etree.fromstring(archive.read(name), parser)
+
+
+_A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+_P = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
+_R = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+_PKG_REL = "{http://schemas.openxmlformats.org/package/2006/relationships}"
+
+
+def _rels(archive: zipfile.ZipFile, part: str) -> dict[str, str]:
+    """Relationship id → target path for one part of an OOXML package."""
+    folder, _, name = part.rpartition("/")
+    rels_name = f"{folder}/_rels/{name}.rels"
+    if rels_name not in archive.namelist():
+        return {}
+    out = {}
+    for rel in _xml(archive, rels_name).iter(f"{_PKG_REL}Relationship"):
+        target = rel.get("Target") or ""
+        out[rel.get("Id")] = (
+            target.lstrip("/")
+            if target.startswith("/")
+            else posixpath.normpath(f"{folder}/{target}")
+        )
+    return out
+
+
+def _paragraphs(element) -> list[str]:
+    """The text of each DrawingML paragraph under `element`, in order."""
+    out = []
+    for para in element.iter(f"{_A}p"):
+        text = "".join(t.text or "" for t in para.iter(f"{_A}t")).strip()
+        if text:
+            out.append(text)
+    return out
+
+
+def _extract_pptx(data: bytes) -> Extraction:
+    """Slides in presentation order: `## Slide N: <title>`, then its text, then `Notes:`.
+
+    Order comes from the presentation's own slide list, not from file names — `slide10.xml`
+    sorts before `slide2.xml`, and slides can be reordered without being renamed. Text frames
+    are read in shape order; tables become `Row N — Header: value` lines.
+    """
+    _refuse_encrypted_office(data)
+    check_archive(data)
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        presentation = _xml(archive, "ppt/presentation.xml")
+        rels = _rels(archive, "ppt/presentation.xml")
+        slide_parts = [
+            rels[s.get(f"{_R}id")]
+            for s in presentation.iter(f"{_P}sldId")
+            if s.get(f"{_R}id") in rels
+        ]
+        parts: list[str] = []
+        segments: list[tuple[int, str]] = []
+        offset = 0
+        for number, part in enumerate(slide_parts, start=1):
+            slide = _xml(archive, part)
+            title, lines = "", []
+            for shape in slide.iter(f"{_P}sp"):
+                placeholder = shape.find(f".//{_P}ph")
+                texts = _paragraphs(shape)
+                if not texts:
+                    continue
+                if (
+                    placeholder is not None
+                    and placeholder.get("type") in ("title", "ctrTitle")
+                    and not title
+                ):
+                    title = " ".join(texts)
+                else:
+                    lines.extend(texts)
+            for table in slide.iter(f"{_A}tbl"):
+                rows = [
+                    [" ".join(_paragraphs(cell)) for cell in row.iter(f"{_A}tc")]
+                    for row in table.iter(f"{_A}tr")
+                ]
+                if rows:
+                    header = [h or f"Column {i + 1}" for i, h in enumerate(rows[0])]
+                    for n, row in enumerate(rows[1:], start=2):
+                        cells = [
+                            f"{header[i] if i < len(header) else f'Column {i + 1}'}: {v}"
+                            for i, v in enumerate(row)
+                            if v
+                        ]
+                        if cells:
+                            lines.append(f"Row {n} — " + "; ".join(cells))
+            notes = []
+            for target in _rels(archive, part).values():
+                if "notesSlide" in target and target in archive.namelist():
+                    notes_xml = _xml(archive, target)
+                    for shape in notes_xml.iter(f"{_P}sp"):
+                        placeholder = shape.find(f".//{_P}ph")
+                        if placeholder is not None and placeholder.get("type") == "body":
+                            notes.extend(_paragraphs(shape))
+            block = f"## Slide {number}" + (f": {title}" if title else "")
+            if lines:
+                block += "\n" + "\n".join(lines)
+            if notes:
+                block += "\nNotes:\n" + "\n".join(notes)
+            segments.append((offset, f"slide {number}"))
+            parts.append(block)
+            offset += len(block) + 2
+    text = "\n\n".join(parts)
+    if not re.search(r"^(?!## Slide \d+$).+", text, re.M):
+        raise ValueError("The presentation contains no text.")
+    return Extraction(text, [0], "pptx", segments, LINEARIZED)
+
+
+_ODF_TEXT = "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}"
+_ODF_TABLE = "{urn:oasis:names:tc:opendocument:xmlns:table:1.0}"
+
+
+def _extract_odt(data: bytes) -> Extraction:
+    """An OpenDocument text file's body in order: headings, paragraphs, tables (as rows)."""
+    check_archive(data)
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        if "content.xml" not in archive.namelist():
+            raise ValueError("Not a readable OpenDocument file: no content.xml.")
+        content = _xml(archive, "content.xml")
+    body = content.find(".//{urn:oasis:names:tc:opendocument:xmlns:office:1.0}text")
+    if body is None:
+        raise ValueError("Not a readable OpenDocument text file.")
+    parts: list[str] = []
+    segments: list[tuple[int, str]] = []
+    offset = 0
+    path: list[str] = []
+    tables = 0
+
+    def add(text: str, label: str) -> None:
+        nonlocal offset
+        segments.append((offset, label))
+        parts.append(text)
+        offset += len(text) + 1
+
+    def text_of(el) -> str:
+        return "".join(el.itertext()).strip()
+
+    for block in body.iter(f"{_ODF_TEXT}h", f"{_ODF_TEXT}p", f"{_ODF_TABLE}table"):
+        if block.tag == f"{_ODF_TABLE}table":
+            tables += 1
+            rows = [
+                [text_of(c) for c in r.iter(f"{_ODF_TABLE}table-cell")]
+                for r in block.iter(f"{_ODF_TABLE}table-row")
+            ]
+            if rows:
+                header = [h or f"Column {i + 1}" for i, h in enumerate(rows[0])]
+                for n, row in enumerate(rows[1:], start=2):
+                    cells = [
+                        f"{header[i] if i < len(header) else f'Column {i + 1}'}: {v}"
+                        for i, v in enumerate(row)
+                        if v
+                    ]
+                    if cells:
+                        add(f"Row {n} — " + "; ".join(cells), f"table {tables} row {n}")
+            continue
+        if any(a.tag == f"{_ODF_TABLE}table-cell" for a in block.iterancestors()):
+            continue  # read with its table
+        text = text_of(block)
+        if not text:
+            continue
+        if block.tag == f"{_ODF_TEXT}h":
+            level = int(block.get(f"{_ODF_TEXT}outline-level") or 1)
+            path = path[: level - 1] + [text]
+            add("#" * level + " " + text, " › ".join(path))
+        else:
+            add(text, " › ".join(path) or "body")
+    text = "\n".join(parts)
+    if not text.strip():
+        raise ValueError("The document contains no text.")
+    return Extraction(text, [0], "odt", segments, LINEARIZED)
+
+
+def _extract_epub(data: bytes) -> Extraction:
+    """An EPUB's chapters in reading (spine) order, each through the HTML extractor."""
+    check_archive(data)
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        names = set(archive.namelist())
+        if "META-INF/container.xml" not in names:
+            raise ValueError("Not a readable EPUB: no META-INF/container.xml.")
+        container = _xml(archive, "META-INF/container.xml")
+        rootfile = next(
+            (el.get("full-path") for el in container.iter() if el.tag.endswith("rootfile")), None
+        )
+        if not rootfile or rootfile not in names:
+            raise ValueError("Not a readable EPUB: the package document is missing.")
+        opf = _xml(archive, rootfile)
+        base = rootfile.rpartition("/")[0]
+        manifest = {
+            el.get("id"): (f"{base}/{el.get('href')}" if base else el.get("href"))
+            for el in opf.iter()
+            if el.tag.endswith("}item")
+        }
+        spine = [el.get("idref") for el in opf.iter() if el.tag.endswith("}itemref")]
+        parts: list[str] = []
+        segments: list[tuple[int, str]] = []
+        offset = 0
+        for number, idref in enumerate(spine, start=1):
+            href = manifest.get(idref)
+            if not href or href not in names:
+                continue
+            try:
+                chapter, _, _ = _extract_html(archive.read(href))
+            except ValueError:
+                continue  # a chapter with no text (a cover image) contributes nothing
+            first = chapter.split("\n", 1)[0][:80]
+            segments.append((offset, f"chapter {number}: {first}"))
+            parts.append(chapter)
+            offset += len(chapter) + 2
+    text = "\n\n".join(parts)
+    if not text.strip():
+        raise ValueError("The book contains no text.")
+    return Extraction(text, [0], "epub", segments, VERBATIM)
+
+
+def _extract_rtf(data: bytes) -> Extraction:
+    """Rich Text with its control words stripped. Linearized: the formatting is gone."""
+    from striprtf.striprtf import rtf_to_text
+
+    raw = data.decode("latin-1")
+    if not raw.lstrip().startswith("{\\rtf"):
+        raise ValueError("Not a readable RTF file.")
+    text = rtf_to_text(raw, errors="replace").replace("\r\n", "\n").strip()
+    if not text:
+        raise ValueError("The document contains no text.")
+    return Extraction(text, [0], "rtf", [], LINEARIZED)

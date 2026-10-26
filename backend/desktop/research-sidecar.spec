@@ -87,6 +87,7 @@ hiddenimports = [
     # `tests/task/test_document_formats.py` fails if a registered parser is missing here.
     "docx",
     "python_calamine",
+    "striprtf",
     # The build stamp (scripts/stamp_build.py), which `research_engine.build_info` imports
     # inside a function so an unstamped source checkout can answer `unknown` instead of
     # failing. That same deferral hides it from the static scan, so it has to be named —

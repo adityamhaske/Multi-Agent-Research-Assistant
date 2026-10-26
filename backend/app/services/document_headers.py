@@ -36,6 +36,10 @@ _MEDIA_TYPES = {
     # One kind covers .xlsx/.xls/.ods; the exact type would need the extension, and a
     # download names its file anyway, so the generic binary type is the honest one.
     "spreadsheet": "application/octet-stream",
+    "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "odt": "application/vnd.oasis.opendocument.text",
+    "epub": "application/epub+zip",
+    "rtf": "application/rtf",
 }
 
 
