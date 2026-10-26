@@ -12,6 +12,70 @@ deciding whether to trust the thing, and a changelog with no bad news is marketi
 
 ---
 
+## v3.0.3 — unreleased
+
+The desktop app researches on a local model with no API key, as Settings always said it
+could.
+
+**Fixed**
+
+- **Desktop research on a local model needs no API key** (#202). `sidecar_run_config`
+  refused any run with no key stored, whatever the routing, while the CLI and the server
+  exempt `ollama` and `custom`. The rule is now
+  `research_engine.local.providers_missing_a_key`, which the CLI and the desktop both call,
+  so the two cannot disagree about what "no key" means. Present in every desktop release
+  since 2.1.0.
+- **The desktop offers the local providers it can reach** (#202). Its catalog answered
+  `available_providers` from stored keys alone, so `ollama` was never listed and Settings →
+  Models offered no local preset. `local.usable_providers` lists `ollama` unconditionally,
+  as `model_routing.available_providers` does on the server, and `custom` once its base URL
+  is saved.
+- **Saving a Custom Endpoint base URL works on the desktop** (#202). `PUT
+  /desktop/keys/custom_endpoint` was declared after `PUT /desktop/keys/{provider}`, which
+  matched first and answered "Unknown provider."; the endpoint routes are now declared
+  first. `test_host_parity` passed throughout, because the route was registered and nothing
+  called it.
+- **The run form's Local LLM default skips chat-only models** (#202) while a larger one is
+  installed.
+- **The per-account sign-in limit counts failures only** (#200), as docs/06 §4 states.
+  `auth.login` raised both counters before checking the password, so a sixth correct
+  sign-in within 15 minutes was refused with 429. The account counter is now read with a
+  non-counting `rate_limit.peek` and raised only on a failure — an unknown address exactly
+  like a wrong password, so the lock does not reveal which addresses have accounts. Five
+  failures still lock the account, the right password included; the per-IP limit still
+  counts every attempt.
+- **Settings → Appearance hydrates cleanly** (#201). The theme radios rendered their
+  selection from next-themes' `resolvedTheme`, which is undefined on the server, so every
+  full load threw React error 418. The picker shows no selection until mount, through a
+  shared `useMounted` hook that `ThemeToggle` and `RelativeTime` now use too;
+  `RelativeTime`'s hover text also waits for mount, since the server renders it in UTC.
+- **The public site fetches nothing** (#205). `ActiveProjectProvider` sat in the root
+  providers, so from 2.0.1 on every page of the GitHub Pages site requested
+  `/api/v1/projects` and logged a 404. The `(app)` layout provides it now.
+
+**Process**
+
+- 3.0.2's flip, post-release audit and record updates (#203, #204, #206). The flip also
+  corrected the download page's installed size to ~150 MB and reworded RELEASE.md's
+  invalid-key check (M20.03) to describe the shipped behaviour.
+
+**Known**
+
+- Research saved before 3.0.2 keeps its duplicated evidence rows after a rework; see 3.0.2
+  below.
+- `MAX_COST_PER_SESSION_USD` does nothing on `openrouter` and `custom` routes:
+  `validate_pricing` skips them, so `estimate_cost` records `$0.00` whatever a run spent.
+  Cap spending at the provider.
+- Verifying a bundle with this release's verifier needs Python 3.14 or later; on 3.13 or
+  earlier it refuses to start. The bundle format has not changed, so the verifier from
+  3.0.1 still verifies this release's bundles on an older Python.
+- Citation support was last measured for 3.0.2. Nothing that measurement covers has changed
+  since (no prompt, graph, routing, retrieval, tool or claim code), so this release was not
+  re-evaluated.
+- Everything listed under 3.0.1's **Known** below still applies.
+
+---
+
 ## v3.0.2 — 2026-10-19
 
 Research through your own model router runs for real, and a reworked report's counts

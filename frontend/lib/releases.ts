@@ -48,6 +48,47 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: "v3.0.3",
+    date: "2026-10-25",
+    unreleased: true,
+    headline:
+      "The desktop app researches on a local model with no API key, as Settings always said it could.",
+    improved: [
+      "On the desktop app, research on a local model (Ollama) runs with no API key saved. Every desktop release since 2.1.0 refused it at once with “No provider key found”, whatever the model routing said, although the server and the command line never needed a key for Ollama.",
+      "Settings → Models on the desktop offers a local model whenever Ollama is running, and a Custom Endpoint once its base URL is saved, with or without a key. It offered only providers you had a key for, so a machine running Ollama was offered no local model beside an Ollama card reading Connected.",
+      "Saving a Custom Endpoint base URL on the desktop saves it. It answered “Unknown provider.”, because the request reached the route that stores provider keys first.",
+      "The run form’s Local LLM choice defaults to a model large enough to return citable evidence. It took the first model Ollama listed, even one Settings marks chat only; a chat-only model is now the default only when nothing larger is installed.",
+      "Signing in successfully no longer counts toward the sign-in limit. A sixth correct sign-in to one account within 15 minutes — from another device, or after signing out — was refused until the 15 minutes were up. Five failed sign-ins still lock the account for the rest of the 15 minutes, even against the right password, and an address with no account locks exactly as one with an account does.",
+      "Settings → Appearance no longer logs a hydration error on every full load. The theme picker shows no selection until the page has loaded in your browser, the only place that knows your theme, so the server’s page and the browser’s first render agree.",
+      "The public website no longer asks for your projects. Every page of the site requested /api/v1/projects from a server that is not there, and logged a 404 in the browser console; the pages worked, but no page of the site has any reason to call the app’s API.",
+    ],
+    improvedSummary:
+      "On the desktop app, research on Ollama runs with no API key saved, Settings offers local models, and a Custom Endpoint URL saves. Successful sign-ins no longer count toward the sign-in limit, and Settings → Appearance and the public website stop logging errors in the browser console.",
+    known: [
+      "Research saved before 3.0.2 keeps its doubled evidence after a rework: its snippet count stays doubled, and a run approved before 3.0.2 keeps the duplicates in its verification bundle. Cited counts and “backs N claims” are corrected on older runs too, because the page works them out when it loads.",
+      "The spend limit (MAX_COST_PER_SESSION_USD) does nothing on OpenRouter and Custom routes. Their prices are not known, so a run’s cost is recorded as $0.00 whatever it spent. Cap spending at the provider.",
+      "Verifying a bundle with this release’s verifier needs Python 3.14 or later; on an older Python it refuses to start. The bundle format has not changed, so the verifier from 3.0.1 still verifies this release’s bundles on an older Python.",
+      "Bundles from this release are format v2, and a verifier from before 3.0.0 refuses them. Check a bundle with the verifier from this release; it still verifies every earlier bundle unchanged.",
+      "Research recorded before 3.0.0 still exports as a v1 bundle with no instructions recorded. Its prompts were never captured, and the bundle does not invent them.",
+      "Research recorded on the earlier pipeline (Sessions) does not apply customized instructions, and says so.",
+      "Customization is per account and applies to every run you start; there is no per-run override, and you cannot add agents of your own.",
+      "Customized instructions are written into the verification bundle in full, so anyone you share a bundle with can read them.",
+      "The default model routing is Google’s Gemini 2.5 models — 2.5 Pro for the planner and synthesizer, 2.5 Flash for the executor, critic and chat — and Google now limits each 2.5 model to accounts that have used it before. On a key from an account that has not, the first call to that model is refused. Choose other models in Settings → Models.",
+      "On a fresh desktop install, the demo report the app prepares on first launch fails: it is treated as corpus-only research against an empty corpus, so it finds no evidence. Your own research is unaffected.",
+      "Citation support was last measured for 3.0.2, in one run: ten fixed questions on one model routing. Nothing that run measured has changed since. It measures whether each claim matches the evidence it cites, not whether the claim is true.",
+      "The share of evidence coming from primary sources is not measured, and is deliberately not estimated. The source URL on a piece of evidence is written by the model, so an invented link would score as a primary source with full confidence.",
+      "Three questions of the scholarly evaluation set carry citation-check records and three are unverified; the set is not yet used to grade anything.",
+      "Retrieval is dense-only; hybrid retrieval was measured against the baseline and did not beat it.",
+      "Desktop builds are still not signed with a publisher certificate or notarized, and do not auto-update. macOS blocks the first launch until you clear the download flag with the Terminal command on the download page; Windows shows SmartScreen.",
+      "Two research pipelines still exist in the backend. The product has one, and research recorded by the earlier one stays readable.",
+      "Follow-up chat scoped to a single report is available on research recorded as a session and not on a run. Project chat, which cites every approved report in a project, covers both.",
+      "Cancelling a run still does not interrupt research already in flight — it runs to its next checkpoint, and the tokens spent there are recorded because they were really spent.",
+      "Claim verification is still not implemented, claim lineage across revisions is still not tracked, and contradiction detection is still source-level and unscored.",
+    ],
+    knownSummary:
+      "Research saved before 3.0.2 keeps the doubled evidence a rework gave it, and the spend limit does nothing on OpenRouter and Custom routes. This release’s bundle verifier needs Python 3.14; on an older Python, 3.0.1’s checks the same bundles.",
+  },
+  {
     version: "v3.0.2",
     date: "2026-10-19",
     headline:
