@@ -27,6 +27,7 @@ from app.authorization import approval_chain
 from app.models.agent_log import AgentLog
 from app.models.research import Contradiction, Evidence, ResearchRun, Source
 from app.models.revision import Revision
+from app.services import corpus_selection
 from research_engine import bundle as bundle_mod
 from research_engine import verify_bundle
 
@@ -58,6 +59,24 @@ async def _trace(db: AsyncSession, run_id) -> list[dict]:
         .all()
     )
     return [row.payload for row in rows]
+
+
+def _selection_trace(run: ResearchRun) -> list[dict]:
+    """The frozen selection as the bundle's first trace entry, or nothing for other runs.
+
+    `verify_bundle._check_corpus_selection` checks every corpus source against it. Copied
+    from the row, never re-resolved — the bundle states what the run was allowed to read.
+    """
+    if not run.corpus_selection:
+        return []
+    return [
+        {
+            "event": "corpus_selection",
+            "resolved": run.corpus_selection.get("resolved") or [],
+            "corpus_id": run.corpus_selection.get("corpus_id"),
+            "corpus_version": run.corpus_selection.get("corpus_version"),
+        }
+    ]
 
 
 def _provenance_records(run: ResearchRun) -> list[dict] | None:
@@ -159,6 +178,15 @@ async def assemble_with_reason(
     # here by replaying that same derivation over the stored evidence. Reconstruction of a
     # documented derivation, not a normalisation: if the stored evidence disagrees with what
     # the run recorded, the rebuilt list differs and the bundle's own checks say so.
+    # A selected-files run records which document version each corpus source is, from the
+    # frozen selection — inside the existing `sources` dicts and one `trace` entry, both
+    # already covered by `bundle_hash`, so the format stays v2 and a 3.0.x verifier still
+    # verifies the bundle (internal/rfcs/V3.1-corpus-scope.md §8.6, D-12).
+    selected = {
+        item["document_id"]: item
+        for item in ((run.corpus_selection or {}).get("resolved") or [])
+        if isinstance(item, dict) and item.get("document_id")
+    }
     source_dicts = []
     for src in sources:
         snippets: list[str] = []
@@ -168,15 +196,21 @@ async def assemble_with_reason(
             text = (e.snippet or "").strip()
             if text and text not in snippets:
                 snippets.append(text)
-        source_dicts.append(
-            {
-                "index": src.citation_index,
-                "url": src.url,
-                "title": src.title or "",
-                "snippet": snippets[0] if snippets else "",
-                "snippets": snippets,
+        entry = {
+            "index": src.citation_index,
+            "url": src.url,
+            "title": src.title or "",
+            "snippet": snippets[0] if snippets else "",
+            "snippets": snippets,
+        }
+        doc = corpus_selection.document_id_of(src.url)
+        if doc is not None and doc in selected:
+            item = selected[doc]
+            entry |= {
+                key: item.get(key)
+                for key in ("document_id", "doc_key", "version", "sha256", "path")
             }
-        )
+        source_dicts.append(entry)
 
     contradictions = (
         (
@@ -248,7 +282,7 @@ async def assemble_with_reason(
             elapsed_seconds=float(run.elapsed_seconds) if run.elapsed_seconds else None,
             research_depth=run.depth,
             approval_chain=approval_chain_dicts,
-            trace=await _trace(db, run.id),
+            trace=_selection_trace(run) + await _trace(db, run.id),
             trace_available=True,
             demo=run.demo,
             prompt_provenance=provenance,

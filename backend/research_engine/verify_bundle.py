@@ -284,6 +284,52 @@ def _check_approval_chain(bundle: BundleManifest) -> CheckResult:
     return CheckResult("approval_chain", True)
 
 
+#: The trace entry a selected-files run's bundle opens with (app/run_bundle.py).
+CORPUS_SELECTION_EVENT = "corpus_selection"
+
+
+def _check_corpus_selection(bundle: BundleManifest) -> CheckResult | None:
+    """Every source of a selected-files run is one of the document versions it selected.
+
+    Runs only when the bundle records a selection, so a bundle with none is reported
+    exactly as before. The selection entry and the sources are both covered by
+    `bundle_hash`, so `bundle_integrity` catches an edit to either; this check catches a
+    bundle that is internally consistent but cites outside what the run was allowed to read.
+    A 3.0.x verifier does not know this check and still verifies the bundle: it is an
+    addition, not a format change (internal/rfcs/V3.1-corpus-scope.md §8.6).
+    """
+    entries = [
+        t for t in bundle.trace if isinstance(t, dict) and t.get("event") == CORPUS_SELECTION_EVENT
+    ]
+    if not entries:
+        return None
+    if len(entries) > 1:
+        return CheckResult("corpus_selection", False, "more than one selection is recorded")
+    resolved = entries[0].get("resolved")
+    if not isinstance(resolved, list) or not resolved:
+        return CheckResult("corpus_selection", False, "the recorded selection is empty")
+    allowed = {str(item.get("document_id")) for item in resolved if isinstance(item, dict)}
+
+    outside: list[str] = []
+    for source in bundle.sources:
+        url = str(source.get("url") or "") if isinstance(source, dict) else ""
+        if not url.startswith("corpus://"):
+            outside.append(url or "(no url)")
+            continue
+        doc = url[len("corpus://") :].split("#", 1)[0]
+        if doc not in allowed:
+            outside.append(url)
+    if outside:
+        return CheckResult(
+            "corpus_selection",
+            False,
+            f"{len(outside)} source(s) are outside the run's selected files: {outside[:3]}",
+        )
+    return CheckResult(
+        "corpus_selection", True, f"all {len(bundle.sources)} source(s) are selected files"
+    )
+
+
 # ── Top-level verify ──────────────────────────────────────────────────────────────
 
 
@@ -298,6 +344,9 @@ def verify(bundle: BundleManifest) -> VerifyResult:
         _check_claim_evidence_linkage(bundle),
         _check_approval_chain(bundle),
     ]
+    selection = _check_corpus_selection(bundle)
+    if selection is not None:
+        checks.append(selection)
 
     notes: list[str] = []
     if not bundle.trace_available:
