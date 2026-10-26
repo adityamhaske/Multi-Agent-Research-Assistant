@@ -130,7 +130,7 @@ python scripts/release_audit.py --version X.Y.Z --post-release --download --dock
 | Tool | What it does |
 |---|---|
 | `scripts/release_audit.py` | The automated checks, by stage. `--list` prints the registry |
-| `scripts/check_packaged_sidecar.py` | Launches the engine inside an installed/mounted/extracted build with an isolated data directory, checks its token gate, version and git SHA, and with `--journey` drives a run through both gates to an exported bundle and runs the standalone verifier on it. The verification imports the repository's `verify_bundle`, so it needs the engine's Python 3.14+ and `pydantic`; without `pydantic` it reports the verification `NOT RUN` and the check still passes, unless `--require-verify` is given, which makes that a failure. CI runs it with `--require-verify` on the `.deb`, AppImage and `.msi`; people run it the same way on the published installers (M6.02, M7.06, M8.05) |
+| `scripts/check_packaged_sidecar.py` | Launches the engine inside an installed/mounted/extracted build with an isolated data directory, checks its token gate, version and git SHA, and with `--journey` drives a run through both gates to an exported bundle and runs the standalone verifier on it. The verification imports the repository's `verify_bundle`, so it needs the engine's Python 3.14+ and `pydantic`; without `pydantic` it reports the verification `NOT RUN` and the check still passes, unless `--require-verify` is given, which makes that a failure. CI runs it with `--require-verify` on the DMG's app, the `.deb`, the AppImage and the `.msi`; people run it the same way on the published installers (M6.02, M7.06, M8.05) |
 | `scripts/sync_version.py` | Derives the version carriers from `VERSION`; `--tag` is the release workflows' guard |
 | `scripts/check_packaged_upgrade.py`, `scripts/make_upgrade_fixture.py` | Upgrade a populated older desktop data directory with a packaged engine and record what happened (currently wired to the v2.1.0 fixture — see Phase 19) |
 | `release-audit/compose.published-images.yml` | Runs the **published** images on the full-stack topology, on separate volumes |
@@ -350,7 +350,7 @@ passed, that the checks are still required, and that nothing passed only by luck
 | Three builds | `npm run build`, `npm run build:desktop`, pages-copy `build:pages` | each target compiles its own branch of `next.config.ts` | `frontend` | yes |
 | Golden E2E | `cd frontend && npm run e2e` (Playwright: `golden`, `gates`, `run-journey`) | real browser through both gates, rework, dropped connection | `golden-e2e` | yes (A3.01) |
 | Packaged sidecar ×3 OS | `desktop.yml` sidecar smoke steps | the frozen engine: token gate, git SHA, journey, verifier, V3 invariants | `Sidecar (…)` | yes (A3.02, A6.02) |
-| Packaged installers | `desktop.yml` shell steps + `scripts/check_packaged_sidecar.py --require-verify` | engine inside the `.app`, `.deb`, AppImage, `.msi`; the verifier's verdict on the `.deb`, AppImage and `.msi` journeys' bundles; DMG signature | `Shell (…)` | yes (A6.02) |
+| Packaged installers | `desktop.yml` shell steps + `scripts/check_packaged_sidecar.py --require-verify` | engine inside the `.app`, `.deb`, AppImage, `.msi`; the verifier's verdict on the DMG's, `.deb`, AppImage and `.msi` journeys' bundles; DMG signature | `Shell (…)` | yes (A6.02) |
 | Image identity | `release.yml` "The pushed image reports the commit that built it" | stamped images, both arches | tag only | yes (A11.09, A10.05) |
 | Release audit (offline) | `python scripts/release_audit.py --stage ci` | this document's per-commit invariants | `One version, everywhere` | yes |
 | Release audit tests | `pytest tests/workflow/test_release_audit.py` | every historical failure planted and caught | `backend` | yes |
@@ -401,7 +401,7 @@ counts.
 | ID | Automated check | Stages |
 |---|---|---|
 | A6.01 | The tag's `Desktop` run passed every job, `Publish release` included | published → post-release |
-| A6.02 | Every packaged-app guard step ran and passed on the tag's run: the tag guard and stamp on all three OSes; frozen-engine SHA, journey and verifier on all three; the engine inside the `.app` reports the commit; the DMG's app is validly signed and Gatekeeper gives a policy verdict; the installed `.deb`, the AppImage and the installed `.msi` each run a journey whose bundle the verifier passes, and report the commit. A guard absent from the tag's workflow is a WARN the record must note | published → post-release |
+| A6.02 | Every packaged-app guard step ran and passed on the tag's run: the tag guard and stamp on all three OSes; frozen-engine SHA, journey and verifier on all three; the engine inside the `.app` reports the commit; the DMG's app is validly signed and Gatekeeper gives a policy verdict; the engine inside the DMG, the installed `.deb`, the AppImage and the installed `.msi` each run a journey whose bundle the verifier passes, and report the commit. A guard absent from the tag's workflow is a WARN the record must note | published → post-release |
 | A6.03 | Every workflow guard a past incident added is still in the workflows (the list is in `scripts/release_checks/workflows.py`) | all |
 | A6.04 | `tauri.conf.json` bundles the engine as `sidecar/`, signs the whole macOS bundle (`signingIdentity: "-"`), builds all targets | all |
 
@@ -765,6 +765,7 @@ The release does not only test happy paths. Where each release-critical failure 
 | 3.0.0 | The site could offer a version before its installers existed | two-stage release, `unreleased` (A1.06, A1.13) |
 | 1.0.1-3.0.0 | Every macOS build was only linker-signed; every download was "damaged", and the documented Open Anyway steps never worked | `signingIdentity: "-"` (A6.04), DMG signature step (A6.02), M7.03, M7.04, A12.02 |
 | ≤3.0.1 | The `.deb`, AppImage and `.msi` were never installed or launched by CI — only compiled | installer steps in `desktop.yml` (A6.02, A6.03) |
+| ≤3.0.3 | No CI job drove the macOS engine through the gates after it was bundled — only its handshake and commit were read — and 3.0.3's release Mac could not launch it (M7.06 NOT RUN), so nothing had | DMG journey step in `desktop.yml` (A6.02, A6.03) |
 | ≤3.0.1 | Every published api/worker image answered `/api/v1/version` with `unknown` — nothing stamped them | `release.yml` stamp job + image step (A6.03, A11.09), A10.05 |
 | 3.0.2 (caught in preparation) | #173, a Dependabot base-image bump, moved the server images to Python 3.14 while every job that tests them stayed on 3.11 — and nothing builds the image before a tag | CI on the image's Python; A10.06, per commit |
 | 3.0.2 (caught in preparation) | #172, a Dependabot base-image bump, moved the frontend image to Node 26 while every job that builds the frontend ran 22 — the image had already sat on 25, which vitest refuses — and three documents stated three different Node floors (18+, 20+, 22+) | CI on the image's Node; A10.07, per commit |

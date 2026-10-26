@@ -281,9 +281,8 @@ jobs:
       # verification NOT RUN, which `--require-verify` below turns into a failure. pydantic
       # alone, under the specifier and constraints the backend resolves it with — the whole
       # requirements file would check the verifier in the engine's environment rather than
-      # the one a third party verifying a bundle has. macOS runs no journey here.
+      # the one a third party verifying a bundle has.
       - name: Install the bundle verifier's dependency
-        if: runner.os != 'macOS'
         shell: bash
         # pip's own bounds end a dead connection by name: 30s per read, 5 retries, so at most
         # 3 minutes on any one request. The ceiling allows five requests to exhaust every
@@ -473,17 +472,35 @@ jobs:
             echo "::error::Gatekeeper does not reach a policy verdict — a downloaded copy would be reported as damaged"
             exit 1
           fi
-      # The three steps below are the Linux and Windows halves of the two macOS steps above.
-      # Until they existed, "Linux and Windows passed CI" meant the installers *compiled*: the
-      # engine was smoke-tested as raw PyInstaller output in the sidecar job, and the size
-      # check only proved something large was packed. Nothing had ever installed a .deb or
-      # an .msi, or unpacked an AppImage, and run what came out. Each now does exactly that
-      # and drives the engine it finds through both gates to an approved, exported run
-      # (`scripts/check_packaged_sidecar.py`, the same checker a person runs against a
-      # published installer in RELEASE.md). `--require-verify` makes the standalone
-      # verifier's verdict on that run's bundle part of the pass: a verifier that could not
-      # run fails the step rather than logging NOT RUN. The desktop UI itself needs a
-      # display and is still checked by hand.
+      # The four steps below install or unpack each installer and run what came out. Until
+      # they existed, "passed CI" meant the installers *compiled*: the engine was smoke-tested
+      # as raw PyInstaller output in the sidecar job, and the size check only proved
+      # something large was packed. Each drives the engine it finds through both gates to an
+      # approved, exported run (`scripts/check_packaged_sidecar.py`, the same checker a
+      # person runs against a published installer in RELEASE.md). `--require-verify` makes
+      # the standalone verifier's verdict on that run's bundle part of the pass: a verifier
+      # that could not run fails the step rather than logging NOT RUN. The desktop UI itself
+      # needs a display and is still checked by hand.
+      #
+      # macOS was the last to get one. Its two steps above only start the bundled copy and
+      # read its commit, so when a release Mac could not launch the published engine,
+      # nothing had ever driven the macOS engine through the gates after it was bundled.
+      - name: The engine inside the published disk image completes a journey
+        if: runner.os == 'macOS'
+        shell: bash
+        # The image, not the build directory: it is the file users download and the one
+        # RELEASE.md M7.06 points the checker at. The checker gives the engine a scratch data
+        # directory, so the read-only mount is enough.
+        run: |
+          set -euo pipefail
+          dmg=$(find desktop/target/release/bundle/dmg -name '*.dmg' -print -quit)
+          if [ -z "$dmg" ]; then echo "::error::no .dmg in the bundle output"; exit 1; fi
+          mnt=$(mktemp -d)
+          hdiutil attach -nobrowse -readonly -noverify -mountpoint "$mnt" "$dmg" >/dev/null
+          trap 'hdiutil detach -quiet "$mnt" || true' EXIT
+          python scripts/check_packaged_sidecar.py --search "$mnt" \
+            --expect-sha "$GITHUB_SHA" --expect-version "$(tr -d '[:space:]' < VERSION)" \
+            --journey --require-verify
       - name: The installed .deb carries a working engine that reports this commit
         if: runner.os == 'Linux'
         shell: bash

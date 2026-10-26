@@ -562,7 +562,9 @@ everywhere` job. Four traps it exists for, each of which shipped:
   (`backend/docker/stamp_image.py`), and a source run's `build_info()` answers `unknown`
   when its own checkout contradicts the stamp.
 - **"CI compiled it" is not "CI ran it".** Until the installer steps in `desktop.yml`, no
-  `.deb`, AppImage or `.msi` had ever been installed and launched by CI.
+  `.deb`, AppImage or `.msi` had ever been installed and launched by CI — and macOS was the
+  last gap: its Shell job read the bundled engine's handshake and commit but never drove it
+  through the gates, which went unnoticed until 3.0.3's release Mac could not launch it.
   `scripts/check_packaged_sidecar.py` is the one checker for all of them, and for a person
   checking a published installer. **A step that passed is not a check that ran:** its bundle
   verification needs `pydantic`, which no Shell runner had, so every Shell job logged
