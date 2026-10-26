@@ -69,6 +69,13 @@ def _selection_trace(run: ResearchRun) -> list[dict]:
     """
     if not run.corpus_selection:
         return []
+    entries = []
+    report = run.grounding_report
+    if report:
+        # The counts, causes and status — not the per-claim list, which is the run page's.
+        entries.append(
+            {"event": "grounding_validation", **{k: v for k, v in report.items() if k != "claims"}}
+        )
     return [
         {
             "event": "corpus_selection",
@@ -76,7 +83,7 @@ def _selection_trace(run: ResearchRun) -> list[dict]:
             "corpus_id": run.corpus_selection.get("corpus_id"),
             "corpus_version": run.corpus_selection.get("corpus_version"),
         }
-    ]
+    ] + entries
 
 
 def _provenance_records(run: ResearchRun) -> list[dict] | None:

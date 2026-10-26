@@ -181,6 +181,11 @@ class ResearchRun(Base):
     #: The Offline guarantee was requested (internal/rfcs/V3.1-corpus-scope.md §6.2): the
     #: engine refuses to run unless every model route is local. Recorded so a finished run,
     #: its report and its bundle can say which guarantee it ran under.
+    #: A selected-files run's claim-level grounding record (research_engine/grounding.py),
+    #: copied from the graph state when the draft is persisted. The approval route refuses a
+    #: revision whose text this record did not validate. NULL on every other run.
+    grounding_report: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
+
     offline: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )

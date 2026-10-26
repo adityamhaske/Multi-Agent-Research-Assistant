@@ -122,7 +122,13 @@ class ScopedCorpus:
         return self._allowed
 
     async def search(self, query: str, max_results: int) -> list[dict]:
-        return await self._inner.search(query, max_results, document_ids=self._allowed)
+        # max(1, ceil(k / n)) hits per selected file: a two-file selection searching for five
+        # passages may take three from one file. A retrieval change, measured before and
+        # after by the §17 eval rather than assumed to help (docs/08).
+        per_document = max(1, -(-max_results // len(self._allowed)))
+        return await self._inner.search(
+            query, max_results, document_ids=self._allowed, per_document=per_document
+        )
 
     async def read(self, url: str) -> dict:
         location = parse_corpus_url(url)
@@ -562,7 +568,12 @@ class CorpusStore:
     # -- retrieval (the Corpus port) ────────────────────────────────────────────
 
     async def search(
-        self, query: str, max_results: int, *, document_ids: frozenset[str] | None = None
+        self,
+        query: str,
+        max_results: int,
+        *,
+        document_ids: frozenset[str] | None = None,
+        per_document: int = 1,
     ) -> list[dict]:
         # The query embedding is the ONLY model call retrieval makes — the store itself
         # never opens a socket. That made corpus mode's zero-egress claim rest entirely on
@@ -573,7 +584,9 @@ class CorpusStore:
         # one call that egresses was the one call stubbed out. Enforce, don't trust.
         self._require_local_embedder_in_corpus_mode()
         query_vector = (await self._embedder.embed([query]))[0]
-        return await asyncio.to_thread(self._search_sync, query_vector, max_results, document_ids)
+        return await asyncio.to_thread(
+            self._search_sync, query_vector, max_results, document_ids, per_document
+        )
 
     def _require_local_embedder_in_corpus_mode(self) -> None:
         """Refuse to embed off-machine while promising local retrieval (docs/12 M10).
@@ -597,11 +610,14 @@ class CorpusStore:
         query_vector: list[float],
         max_results: int,
         document_ids: frozenset[str] | None = None,
+        per_document: int = 1,
     ) -> list[dict]:
         import numpy as np
 
         if document_ids is not None:
-            return self._rank(query_vector, max_results, self._selected_rows(document_ids), np)
+            return self._rank(
+                query_vector, max_results, self._selected_rows(document_ids), np, per_document
+            )
 
         with self._connect() as conn:
             rows = conn.execute(
@@ -729,7 +745,9 @@ class CorpusStore:
             )
         raise RuntimeError(f"The {present} selected document(s) produced no searchable text.")
 
-    def _rank(self, query_vector: list[float], max_results: int, rows: list, np) -> list[dict]:
+    def _rank(
+        self, query_vector: list[float], max_results: int, rows: list, np, per_document: int = 1
+    ) -> list[dict]:
         matrix = np.stack([np.frombuffer(row[6], dtype=np.float32) for row in rows])
         if matrix.shape[1] != len(query_vector):
             raise RuntimeError(
@@ -747,17 +765,19 @@ class CorpusStore:
 
         ranked = np.argsort(-scores)[: max_results * 4]
         results: list[dict] = []
-        seen_docs: set[str] = set()
+        hits_per_doc: dict[str, int] = {}
         for idx in ranked:
             if scores[idx] <= 0.0:
                 break
             row = rows[int(idx)]
             doc_id = row[1]
-            # One hit per document per search: two chunks from the same file are not
-            # two independent sources, and the synthesizer counts URLs as sources.
-            if doc_id in seen_docs:
+            # One hit per document per search by default: two chunks from the same file are
+            # not two independent sources, and the synthesizer counts URLs as sources. A small
+            # selection raises the cap (`ScopedCorpus`), or a one-file selection could never
+            # surface more than one passage of the only file it has (RFC V3.1 §9.8).
+            if hits_per_doc.get(doc_id, 0) >= per_document:
                 continue
-            seen_docs.add(doc_id)
+            hits_per_doc[doc_id] = hits_per_doc.get(doc_id, 0) + 1
             results.append(
                 {
                     "title": row[7],

@@ -25,6 +25,7 @@ approved report review authorizes an artifact is not restated here.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import uuid
 from collections.abc import AsyncGenerator
@@ -226,6 +227,9 @@ async def project_run(db: AsyncSession, run: ResearchRun) -> dict:
             "corpus_id": run.corpus_id,
             "corpus_version": run.corpus_version,
             "offline": run.offline,
+            # A selected-files run's claim-level grounding record: what was checked, what was
+            # rejected or repaired out, and what could not be measured (RFC V3.1 §9.6).
+            "grounding_report": run.grounding_report,
             "demo": run.demo,
             "skip_plan_gate": run.skip_plan_gate,
             "model_routing": run.model_routing,
@@ -384,6 +388,23 @@ async def project_run(db: AsyncSession, run: ResearchRun) -> dict:
             else None
         ),
     }
+
+
+def grounding_refusal(run: ResearchRun, report_text: str) -> str | None:
+    """Why a selected-files report may not be approved, decided on the row (RFC V3.1 §9.6).
+
+    The engine refuses to pause such a draft for approval; this is the same rule at the
+    approval route, so a client cannot approve a revision the validation never covered.
+    """
+    if run.corpus_selection is None:
+        return None
+    report = run.grounding_report or {}
+    if report.get("status") != "complete" or report.get("claims_unmeasured"):
+        return "This report's claims were not all checked against your selected files."
+    digest = hashlib.sha256((report_text or "").encode("utf-8")).hexdigest()
+    if digest != report.get("validated_text_sha256"):
+        return "This report differs from the text that was checked against your selected files."
+    return None
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -651,6 +672,10 @@ async def submit_report_review(
     revision = (await db.execute(query.order_by(Revision.version.desc()))).scalars().first()
     if revision is None:
         raise Conflict("This run has no report to review.")
+    if body.decision == "APPROVED":
+        refused = grounding_refusal(run, revision.report_markdown)
+        if refused:
+            raise Conflict(refused)
 
     try:
         review = await run_lifecycle.record_report_review(

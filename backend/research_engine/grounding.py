@@ -84,6 +84,12 @@ PARAGRAPH, LIST_ITEM, TABLE_ROW, CAPTION, BLOCKQUOTE, HEADING, LIMITATION, CONCL
     "conclusion",
 )
 
+#: Written by the repair loop where it removed a unit. Never validated: it states nothing
+#: about the world, so the parser skips it.
+REMOVED_NOTICE = (
+    "*A passage was removed here: its claims are not supported by your selected files.*"
+)
+
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 _SOURCES_RE = re.compile(r"^#{1,6}\s*(sources|references|bibliography)\b", re.IGNORECASE)
 _LIMITATIONS_RE = re.compile(
@@ -207,6 +213,8 @@ def parse_units(draft: str) -> tuple[list[Unit], list[int]]:
             continue
         if _SOURCES_RE.match(line):
             break
+        if line == REMOVED_NOTICE:
+            continue
         heading = _HEADING_RE.match(line)
         if heading:
             section = line

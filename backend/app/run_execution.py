@@ -324,6 +324,8 @@ async def persist_outcome(
         written = await run_lifecycle.record_evidence(
             db, run, evidence=usable, numbered_sources=outcome.sources
         )
+        # Each synthesis writes a fresh record; a rework's re-validation replaces it.
+        run.grounding_report = values.get("grounding_report")
 
     # ── the revision, its claims and their links ──────────────────────────────────
     revision_version = claim_count = link_count = 0
