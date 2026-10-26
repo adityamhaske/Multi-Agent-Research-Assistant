@@ -7,8 +7,8 @@ reader can re-check.
 
 Stage A (prepare) was run on 2026-10-25 from an Apple Silicon Mac, on the release branch
 `release/v3.0.3` cut from `origin/main` at `41b7bf4`. Stage B (publish) was checked on 2026-10-26
-on the same Mac against the published artifacts; the rows for Phases 14-17 and 22 stay `PENDING`
-until the flip PR deploys (Stage C).
+on the same Mac against the published artifacts, and Stage C (offer) on the live site after the flip
+(#233) deployed.
 
 | | |
 |---|---|
@@ -132,7 +132,7 @@ a desktop check (M6.03). Sizes are the published assets'; every SHA-256 matches 
 | ci | `release_audit.py --stage ci --version 3.0.3` on the release branch | PASS | 24 PASS | not committed — the `ci` stage is the per-commit check CI repeats on every push |
 | pre-tag | `release_audit.py --version 3.0.3` on `0c72d37` | PASS | 34 PASS, 2 WARN | `pre-tag.json` |
 | published | `… --published --download --docker`, run 2026-10-26T16:30Z | PASS | 50 PASS, 4 WARN | `published.json`. An earlier run at 07:10Z without `--docker` had A10.05 UNAVAILABLE and is superseded, not committed |
-| post-release | `… --post-release --download --docker` | PENDING | | `post-release.json` |
+| post-release | `… --post-release --download --docker`, run 2026-10-26T17:47Z on `399c122` | PASS | 60 PASS, 4 WARN | `post-release.json`. A first run failed only A17.01 (M17.01) |
 
 Disposition of every WARN and UNAVAILABLE (M21.01):
 
@@ -143,6 +143,8 @@ Disposition of every WARN and UNAVAILABLE (M21.01):
 | A16.03 (published) | WARN | Historical only: v1.0.0 and v1.0.2's site dates disagree with their tags (Finding 7); 3.0.3's entry is dated 2026-10-26, the tag's date, by the flip PR |
 | A19.02 (published) | WARN | As at pre-tag |
 | A21.01 (published) | WARN | The audit ran before this record's stage B rows were written; the rows for Phases 14-17 and 22 are stage C and are filled after the flip deploys |
+| A6.02 (post-release) | WARN | The macOS DMG-journey step (#234) was added after the tag, so the tag's run could not have it — designed to warn, not fail. The guard it adds is exactly the gap Finding 11 records for this release |
+| A2.03, A16.03, A19.02 (post-release) | WARN | As at published |
 | A19.02 (pre-tag) | WARN | No upgrade check is needed. The only file A19.02 flags, `backend/app/models/__init__.py`, changed in one comment word ("airgapped" → "local", the privacy-copy correction in #210); no table, column or constraint changed, so M19.02/M19.03 stay N/A as recorded |
 
 ## Manual checks
@@ -219,15 +221,15 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | **Phase 13 — README Verification** | | |
 | M13.01 | PASS | Read the README top to bottom against the release: the feature list (nothing unreleased, nothing removed),… — README unchanged since v3.0.2 (`git diff --stat v3.0.2 HEAD -- README.md` is empty). Its features, platforms and commands are unaffected by four fixes; the measured claim is A1.14 (PASS) |
 | **Phase 14 — Landing Page Verification** | | |
-| M14.01 | PENDING | View `/` at desktop width and at 375 px, light and dark: hero, download call-to-action, "New in" link to… — PENDING — stage C, after the flip PR deploys |
-| M14.02 | PENDING | `/why`: every comparison claim (`frontend/lib/comparison.ts`) still holds for this release — PENDING — stage C, after the flip PR deploys; v3.0.2's Finding 16 (the site's 96.4% is unattributed) is still open |
+| M14.01 | PASS | View `/` at desktop width and at 375 px, light and dark: hero, download call-to-action, "New in" link to… — Live `/` after the flip, at desktop width (light, and dark through the site's toggle) and at 375 px: the hero; *Get the desktop app →* to `/download/`; "NEW IN V3.0.3 … What changed →" to `/releases/#v3.0.3`; the feature cards, with the corrected corpus card (X5). No horizontal scroll at 375 px (`scrollWidth` 375) |
+| M14.02 | PASS | `/why`: every comparison claim (`frontend/lib/comparison.ts`) still holds for this release — **X5 PASS:** `/why`'s corpus row reads "evidence from your uploads only, web search off, local indexing model required. The question and excerpts still go to the provider each research model uses", and its detail says the manuscript stays local only when all four research models are local; every remaining "offline"/"no network" claim on the page is about the bundle verifier, which is true. The other claims are unchanged by this release. Still dated rather than wrong: the unattributed 96.4% (Finding 6) |
 | **Phase 15 — Download Page Verification** | | |
-| M15.01 | PENDING | On each OS (or with a UA override), the detected-OS card leads; the big button and every card button point… — PENDING — stage C, after the flip PR deploys |
-| M15.02 | PENDING | Download one installer by clicking the page's button in a real browser; the file name and checksum are right — PENDING — stage C, after the flip PR deploys |
+| M15.01 | PASS | On each OS (or with a UA override), the detected-OS card leads; the big button and every card button point… — Live `/download/` on a Mac: the macOS card leads with *Download for macOS — Apple Silicon*; it and all four card links point at the v3.0.3 assets; the size note "~80 MB download, ~150 MB installed" is within 15% of the 80.2 MB DMG and the 152 MB app. No UA override for Windows or Linux; A15.01-A15.03 PASS on the file names |
+| M15.02 | NOT RUN | Download one installer by clicking the page's button in a real browser; the file name and checksum are right — Not clicked through in a browser: a browser download needs the release manager's own go-ahead. The post-release audit's `--download` fetched and hashed every installer at the URLs the buttons use (A11.06), and the DMG's SHA-256 matched `SHA256SUMS` here (M7.01) |
 | **Phase 16 — Releases Page Verification** | | |
-| M16.01 | PENDING | View `/releases`: the new entry is first with the tag's date; its summaries are shown and the lists fold… — PENDING — stage C, after the flip PR deploys |
+| M16.01 | PASS | View `/releases`: the new entry is first with the tag's date; its summaries are shown and the lists fold… — Live `/releases/`: v3.0.3 first, marked LATEST, dated 2026-10-26, headline and both summaries shown; *All 9 improvements* and *All 21 known gaps* fold; all eleven releases in the index. No "unreleased" text on the page |
 | **Phase 17 — GitHub Pages / Deployment Verification** | | |
-| M17.01 | PENDING | If A17.01 fails because `main` moved after the flip, wait for the newer deploy and re-run; if the deploy… — PENDING — stage C, after the flip PR deploys |
+| M17.01 | PASS | If A17.01 fails because `main` moved after the flip, wait for the newer deploy and re-run; if the deploy… — A17.01 first FAILED: `main` moved after the flip to `399c122` (#234), which changes nothing the site is built from (`git diff 1c72e9b 399c122 -- frontend docs .github/workflows/pages.yml` is empty), so no deploy followed. Pages dispatched on `399c122` (run 40370850385) published the identical site; the re-run passed |
 | **Phase 18 — Security / Configuration Verification** | | |
 | M18.01 | PASS | Review `git diff vPREV..HEAD` for debug flags, test accounts, credentials, private URLs, and anything that… — Added lines since v3.0.2 searched for prints, debuggers, credentials, test accounts and private URLs: every hit is a comment or a test fixture (`http://test`, a loopback Ollama URL, a test token); no credential, no debug flag |
 | M18.02 | PASS | If `backend/app/config.py`, the security middleware, auth, or the SSRF guard changed: re-check CORS… — Auth changed (#200), so re-checked on the diff: the login limits are unchanged (`LOGIN_IP` 20/60 s counts every attempt; `LOGIN_EMAIL` 5/900 s now counts failures only, as docs/06 §4 states); an unknown address raises the account counter exactly as a wrong password does, so the lock cannot enumerate accounts; five failures still lock the right password out. CORS, CSP, cookies, JWT lifetimes, refresh rotation, `ENCRYPTION_KEY`, `/docs` and the SSRF guard are untouched (no diff in `config.py`, `security`, the middleware or `ssrf`). Re-probed on the published images at M4.02 |
@@ -249,12 +251,12 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M21.02 | PASS | Known issues are documented everywhere they belong (M12.05), including anything this audit found and the… — Known issues section below; this audit found no new defect in the release, and the one environmental failure (M7.06) is this Mac's, recorded in Findings |
 | M21.03 | PASS | The release manager signs the approval block in the record — Signed below by Claude Code on the release manager's instruction of 2026-10-26 ("I rebooted and the 3.0.3 app launched fine. Go ahead with the Stage C flip PR for 3.0.3."). What they should review: the macOS rows left NOT RUN, above all M7.08 — the headline fix not yet seen in the published app |
 | **Phase 22 — Post-Release Verification** | | |
-| M22.01 | PENDING | The flip PR: drop `unreleased`, set the entry's `date` to the tag's date, date the changelog heading,… — PENDING — stage C, after the flip PR deploys |
-| M22.02 | PENDING | After Pages deploys: run the post-release audit with `--download --docker`, commit its JSON (write-once)… — PENDING — stage C, after the flip PR deploys |
-| M22.03 | PENDING | Load `/`, `/why`, `/docs`, `/download`, `/releases` on a phone and a desktop browser with the cache disabled — PENDING — stage C, after the flip PR deploys; the five pages must log no 404 for `/api/v1/projects` (#205, Extra checks X4) |
-| M22.04 | PENDING | In an installed copy of the **previous** desktop release, Settings → About → *Check for updates* reports… — PENDING — stage C, after the flip PR deploys; an installed 3.0.2 must report 3.0.3 |
-| M22.05 | PENDING | For 48 hours, watch issues and discussions for install or launch reports; any release-blocking report… — PENDING — stage C, after the flip PR deploys |
-| M22.06 | PASS | Every incident found during this release becomes a check: an `A…` check (preferred) or an `M…` item, plus… — Incidents table below: the template's stale M20.03 text, and the corpus privacy overclaim — each fixed in this PR, the second with a test |
+| M22.01 | PASS | The flip PR: drop `unreleased`, set the entry's `date` to the tag's date, date the changelog heading,… — #233 merged as merge commit `1c72e9b` (2026-10-26): `unreleased` dropped, dated 2026-10-26, the changelog heading dated, the stage B record and audits committed. Pages run 40362741857 deployed it at 16:50Z, and the live download page offers 3.0.3 |
+| M22.02 | PASS | After Pages deploys: run the post-release audit with `--download --docker`, commit its JSON (write-once)… — Post-release audit with `--download --docker` on `399c122` (the flip, plus #234) after these rows were filled, saved as `post-release.json` |
+| M22.03 | NOT RUN | Load `/`, `/why`, `/docs`, `/download`, `/releases` on a phone and a desktop browser with the cache disabled — Not on a phone. In the browser pane at desktop width and at 375 px emulation, `/`, `/why`, `/docs`, `/download` and `/releases` load with their content and log no console error. **X4 PASS:** none of the five requested anything under `/api/v1/` (3.0.2's M22.03 saw a 404 on each) |
+| M22.04 | PASS | In an installed copy of the **previous** desktop release, Settings → About → *Check for updates* reports… — The published 3.0.2 desktop engine (0a9de70, from its DMG) answers `/api/v1/updates/check` with `update_available`, running 3.0.2, latest 3.0.3, and the v3.0.3 release URL |
+| M22.05 | NOT RUN | For 48 hours, watch issues and discussions for install or launch reports; any release-blocking report… — The window is open until 2026-10-28T16:50Z, 48 h after the site began offering 3.0.3. As of 2026-10-26T17:00Z: no issues or discussions opened since the tag |
+| M22.06 | PASS | Every incident found during this release becomes a check: an `A…` check (preferred) or an `M…` item, plus… — Incidents table below: the template's stale M20.03 text and the corpus privacy overclaim, each fixed in the release PR, the second with a test; and the macOS packaged-journey gap found at stage B (Finding 11), which became a `desktop.yml` step that A6.02 requires on a tag and A6.03 keeps in place (#234) |
 
 ## Findings
 
@@ -344,7 +346,9 @@ Found while preparing stage A, separated by kind.
     installed engine; the macOS `Shell` job only waits for the bundled copy's handshake and
     compares its git SHA, and the full journey runs on the frozen engine in `Sidecar`, before it
     is bundled. With M7.06 not runnable here, nothing drove the published macOS engine through
-    the gates. Follow-up: run the same checker in the macOS `Shell` job (not in this PR).
+    the gates. **Fixed by #234** (merged as `399c122`): the macOS `Shell` job now mounts the DMG
+    and runs the same checker with `--journey --require-verify`; on that PR's run it passed
+    (`"journey": "PASS"`, `"verify_bundle": "PASS"`). The 3.0.3 tag predates it.
 12. At 800 px wide, a citation's hover card on the run page is clipped by the viewport's right
     edge (M20.04). Cosmetic; not compared against 3.0.2.
 
@@ -386,6 +390,7 @@ The changelog's **Known** carries the same set (this release's own six lines, an
 | Incident | Check added |
 |---|---|
 | Corpus-only mode was promised, on eight surfaces, to send nothing over the network, and local indexing was labelled "offline"; the code enforces local evidence only, and the egress test proves only the retrieval half because it runs with scripted models | `tests/workflow/test_corpus_privacy_copy.py`: both claim kinds on every published and user-facing surface, with negative controls; it fails on `main`'s copy |
+| No CI job drove the bundled macOS engine through the gates, and the release Mac could not launch the published one (Finding 11) | `desktop.yml` step *The engine inside the published disk image completes a journey*, in A6.02's required steps and A6.03's guards, with the checker-call count in `test_packaged_checker_requires_verify.py` (#234) |
 | The record template's M20.03 row kept the wording RELEASE.md had dropped (Finding 4) | Fixed in this PR. No new check: `test_the_record_template_starts_with_a_row_for_every_manual_check` compares IDs, and the row text is a copy for the reader |
 
 ## Release approval
@@ -396,9 +401,9 @@ Commit:             0c72d371a64500ef5672c83dff543df3c4f386b4
 Tag:                v3.0.3 (annotated)
 Release manager:    Aditya Mhaske
 
-Automated checks    [x] pre-tag PASS   [x] published PASS   [ ] post-release PASS
+Automated checks    [x] pre-tag PASS   [x] published PASS   [x] post-release PASS
 Desktop             [ ] macOS PASS     [ ] Windows PASS     [ ] Linux PASS
-Web                 [ ] Landing PASS   [ ] Download PASS    [ ] Releases PASS   [ ] Docs PASS
+Web                 [x] Landing PASS   [x] Download PASS    [x] Releases PASS   [x] Docs PASS
 Distribution        [x] GitHub Release PASS   [x] Docker PASS   [x] Checksums PASS
 Security            [x] PASS
 Upgrade/migration   [x] PASS
@@ -407,8 +412,8 @@ Known issues        [x] documented everywhere they belong
 ```
 
 Not ticked, and why: no desktop platform has a manual PASS — macOS's packaged checks could not run
-on the release Mac (Finding 10), and there is no Windows or Linux machine; the web rows are stage C;
-the critical journeys ran in fake mode only (M20.01, M20.02).
+on the release Mac (Finding 10), and there is no Windows or Linux machine; the critical journeys
+ran in fake mode only (M20.01, M20.02).
 
 - [x] **Release approved** — by Claude Code on the release manager's instruction of 2026-10-26, after
   they restarted a Mac and launched the published 3.0.3 app: "Go ahead with the Stage C flip PR for
