@@ -1617,7 +1617,7 @@ def create_sidecar_app(
                 "event_sink": sink,
                 "cache": sidecar["cache"],
                 "run_config": config,
-                "corpus": sidecar["corpus"],
+                "corpus": sidecar["corpus"] if overrides["corpus_mode"] else None,
             }
             # The same snapshot the server takes in `run_execution._corpus_port`, through
             # the same function object rather than a second copy of the rule — this is a

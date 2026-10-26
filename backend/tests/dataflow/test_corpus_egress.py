@@ -125,6 +125,27 @@ async def test_read_webpage_refuses_the_web_in_corpus_mode(corpus_store, no_egre
     assert no_egress == []
 
 
+@pytest.mark.asyncio
+async def test_a_web_run_cannot_read_the_corpus_even_with_a_store_installed(corpus_store):
+    """The reverse direction: a run that is not corpus-only must not read a corpus document,
+    even when a real store is installed. On the desktop the app-wide store used to be
+    installed for every run, so a `corpus://` URL that reached a web run's executor —
+    model-invented, or quoted inside a fetched page — resolved to another project's file."""
+    hits = await corpus_store.search("photovoltaic sunlight", max_results=1)
+    assert hits
+
+    token_cfg = set_run_config(RunConfig(llm_mode="fake", corpus_mode=False))
+    token_corpus = set_corpus(corpus_store)
+    try:
+        page = await read_webpage.ainvoke({"url": hits[0]["url"]})
+    finally:
+        reset_corpus(token_corpus)
+        reset_run_config(token_cfg)
+
+    assert page["error"] and "corpus-only" in page["error"]
+    assert page["text"] == "", "a refused read must carry nothing that could be quoted"
+
+
 class RemoteEmbeddings(FakeEmbeddings):
     """A hosted embedder, i.e. what `HostedEmbeddings` is when EMBEDDINGS_PROVIDER is
     google or openai. Computes locally so the test needs no network — the point is the

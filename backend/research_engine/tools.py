@@ -100,6 +100,9 @@ async def web_search(query: str, max_results: int | None = None) -> list[dict]:
         return [{"title": "Search unavailable", "url": "", "snippet": str(e)}]
 
 
+CORPUS_READ_REFUSAL = "blocked: corpus documents can be read only by corpus-only research"
+
+
 @tool
 async def read_webpage(url: str) -> dict:
     """Fetch one specific source page and return {url, title, text, error}.
@@ -112,6 +115,12 @@ async def read_webpage(url: str) -> dict:
     if url.startswith("corpus://"):
         # A corpus location is a file offset, not a fetch. Resolved before the
         # fake-mode shortcut so scripted runs exercise the real store too.
+        if not get_run_config().corpus_mode:
+            # Only a corpus-only run may read the corpus. A web run that reaches a corpus
+            # URL — model-invented, or quoted inside a fetched page — must not turn it
+            # into evidence. This is the desktop's exposure in particular: it used to
+            # install its app-wide store for every run, not only corpus runs.
+            return {"url": url, "title": "", "text": "", "error": CORPUS_READ_REFUSAL}
         try:
             return await get_corpus().read(url)
         except Exception as e:  # noqa: BLE001 — surface a usable message to the agent
