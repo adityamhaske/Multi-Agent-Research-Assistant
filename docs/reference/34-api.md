@@ -237,7 +237,13 @@ marker is broken are opposite findings.
 The whole run graph in one response: `run`, `plans`, `sources`, `evidence`, `revisions`,
 `claims`, `claim_evidence_links`, `contradictions`, `reviews`, `artifact`.
 
-`run.offline` says whether the run asked for the Offline guarantee. `run.corpus_selection` is the frozen selection a corpus-only run was created with (the request
+`run.offline` says whether the run asked for the Offline guarantee. `run.grounding_report` is
+a corpus-only run's claim-by-claim check against its selected files: `status` (`complete`,
+`unmeasured` or `no_evidence`), the counts of claims supported, rejected (by cause) and
+unmeasured (by cause), passages rewritten or removed, the checking cost kept apart from the
+research cost, and the sha256 of the exact text that was checked. Approving such a report
+answers `409` unless `status` is `complete`, nothing is unmeasured, and the report's text is
+the text that was checked. `run.corpus_selection` is the frozen selection a corpus-only run was created with (the request
 and the exact document versions it resolved to); `run.corpus_id` and `run.corpus_version` are
 the corpus state the run opened. All three are `null` on a web run and on runs created before
 file selections existed, which read their project's whole corpus.

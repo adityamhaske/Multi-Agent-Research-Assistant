@@ -53,6 +53,8 @@ FROZEN_PROTECTED = {
     "critic.claim_verify",
     "critic.citation_relevance",
     "critic.inference_verify",
+    "critic.selection_addendum",
+    "synthesizer.selection_repair",
 }
 FROZEN_OVERRIDABLE = {
     "planner.main",

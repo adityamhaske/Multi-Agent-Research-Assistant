@@ -164,6 +164,23 @@ CONTRADICTED if the findings state otherwise; otherwise NOT_SUPPORTED. Answer wi
 one line per claim: "Claim N: SUPPORTED", "Claim N: NOT_SUPPORTED" or "Claim N: CONTRADICTED".
 {UNTRUSTED_CONTENT_NOTE}"""
 
+SELECTION_REPAIR_PROMPT = """You rewrite one passage of a research report so that it states
+only what the files the user selected support.
+You are given the passage, the claims from it that were verified with their citation
+markers, and the claims that were rejected. Write the passage again as coherent prose that:
+- states every verified claim, keeping its [n] markers exactly;
+- states none of the rejected claims, and nothing they would be needed to support;
+- adds no new fact, number, name, cause or conclusion;
+- keeps the passage's form (a paragraph stays a paragraph, a bullet stays a bullet).
+If no verified claim remains, answer with exactly: REMOVE
+Return only the rewritten passage."""
+
+SELECTION_CRITIC_ADDENDUM = """This research is limited to the files the user selected; the task
+message says how many, and how many different files a passing task needs. Grade a task as
+passing when its evidence comes from at least that many different selected files and they
+state what the task needs. Do not ask for more independent sources than the selection
+contains."""
+
 # Contradiction detection (docs/12 M11). The detector compares verbatim snippets from
 # DIFFERENT sources and reports only direct conflicts — it never resolves them; the
 # review gate is where a human adjudicates. Precision over recall is deliberate: a

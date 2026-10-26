@@ -58,6 +58,7 @@ class ScriptedScenario(StrEnum):
     CLAIM_VERIFY = "claim_verify"
     CITATION_RELEVANCE = "citation_relevance"
     INFERENCE_VERIFY = "inference_verify"
+    SELECTION_REPAIR = "selection_repair"
     SYNTHESIZER = "synthesizer"
     SYNTHESIZER_REPAIR = "synthesizer_repair"
     CHAT = "chat"
@@ -77,6 +78,9 @@ SCENARIO_BY_PROMPT: dict[str, ScriptedScenario] = {
     prompts.CLAIM_VERIFY_PROMPT: ScriptedScenario.CLAIM_VERIFY,
     prompts.CITATION_RELEVANCE_PROMPT: ScriptedScenario.CITATION_RELEVANCE,
     prompts.INFERENCE_VERIFY_PROMPT: ScriptedScenario.INFERENCE_VERIFY,
+    prompts.SELECTION_REPAIR_PROMPT: ScriptedScenario.SELECTION_REPAIR,
+    # Sent beside the critic's own prompt, never alone, so it scripts as the critic does.
+    prompts.SELECTION_CRITIC_ADDENDUM: ScriptedScenario.CRITIC,
     prompts.SYNTHESIZER_PROMPT_V2: ScriptedScenario.SYNTHESIZER,
     prompts.SYNTHESIZER_REPAIR_PROMPT: ScriptedScenario.SYNTHESIZER_REPAIR,
     prompts.CHAT_PROMPT: ScriptedScenario.CHAT,
@@ -238,6 +242,11 @@ class _ScriptedModel(FakeMessagesListChatModel):
         elif scenario in (ScriptedScenario.CLAIM_VERIFY, ScriptedScenario.INFERENCE_VERIFY):
             n_claims = len(re.findall(r"Claim \d+:", human)) or 1
             content = "\n".join(f"Claim {i}: SUPPORTED" for i in range(1, n_claims + 1))
+        elif scenario is ScriptedScenario.SELECTION_REPAIR:
+            # Restate exactly the verified claims, nothing else.
+            block = human.split("Verified claims in this passage:\n", 1)[-1].split("\n\n", 1)[0]
+            kept = [line[2:] for line in block.splitlines() if line.startswith("- ")]
+            content = " ".join(kept) or "REMOVE"
         elif scenario is ScriptedScenario.CITATION_RELEVANCE:
             n_pairs = len(re.findall(r"Pair \d+:", human)) or 1
             content = "\n".join(f"Pair {i}: YES" for i in range(1, n_pairs + 1))

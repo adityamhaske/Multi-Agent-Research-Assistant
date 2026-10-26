@@ -50,7 +50,7 @@ from research_engine.runconfig import get_run_config
 #: Every shipped prompt, keyed by the purpose it serves. The key is `<role>.<purpose>`, so
 #: the role a purpose belongs to is readable from the key and cannot drift from it.
 #:
-#: **Thirteen purposes, five roles.** `critic` owns seven and `synthesizer` and `chat` two each —
+#: **Fifteen purposes, five roles.** `critic` owns eight, `synthesizer` three and `chat` two —
 #: which is the entire reason a purpose vocabulary exists rather than a role-keyed lookup.
 PURPOSE_CONSTANTS: Mapping[str, str] = {
     "planner.main": prompts.PLANNER_PROMPT_V2,
@@ -64,6 +64,8 @@ PURPOSE_CONSTANTS: Mapping[str, str] = {
     "critic.claim_verify": prompts.CLAIM_VERIFY_PROMPT,
     "critic.citation_relevance": prompts.CITATION_RELEVANCE_PROMPT,
     "critic.inference_verify": prompts.INFERENCE_VERIFY_PROMPT,
+    "critic.selection_addendum": prompts.SELECTION_CRITIC_ADDENDUM,
+    "synthesizer.selection_repair": prompts.SELECTION_REPAIR_PROMPT,
     "chat.general": prompts.CHAT_PROMPT,
     "chat.project": prompts.PROJECT_CHAT_PROMPT,
 }
@@ -142,6 +144,8 @@ RUN_PURPOSES: frozenset[str] = frozenset(
         "critic.claim_verify",
         "critic.citation_relevance",
         "critic.inference_verify",
+        "critic.selection_addendum",
+        "synthesizer.selection_repair",
     }
 )
 
@@ -154,6 +158,8 @@ SELECTION_ONLY_PURPOSES: frozenset[str] = frozenset(
         "critic.claim_verify",
         "critic.citation_relevance",
         "critic.inference_verify",
+        "critic.selection_addendum",
+        "synthesizer.selection_repair",
     }
 )
 

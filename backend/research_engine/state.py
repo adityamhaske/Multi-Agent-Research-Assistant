@@ -56,6 +56,10 @@ class AgentState(TypedDict, total=False):
     human_feedback: str | None
     rework_count: int
     approved: bool | None
+    # A selected-files run's claim-level grounding record (research_engine/grounding.py):
+    # counts, causes, status, and the sha256 of the text it validated. The route out of the
+    # synthesizer and the gate both decide on it; None on every other run.
+    grounding_report: dict[str, Any] | None
 
     # Output
     final_report: str | None

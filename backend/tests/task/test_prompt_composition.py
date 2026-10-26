@@ -74,6 +74,8 @@ EXPECTED = {
     "critic.claim_verify": "CLAIM_VERIFY_PROMPT",
     "critic.citation_relevance": "CITATION_RELEVANCE_PROMPT",
     "critic.inference_verify": "INFERENCE_VERIFY_PROMPT",
+    "critic.selection_addendum": "SELECTION_CRITIC_ADDENDUM",
+    "synthesizer.selection_repair": "SELECTION_REPAIR_PROMPT",
 }
 
 
@@ -125,7 +127,7 @@ def test_role_of_reads_the_role_off_the_purpose(purpose, role):
     assert role_of(purpose) == role
 
 
-def test_seven_purposes_share_the_critic_role():
+def test_eight_purposes_share_the_critic_role():
     """The fan-out that makes a purpose vocabulary necessary rather than decorative."""
     assert sorted(p for p in PURPOSE_CONSTANTS if role_of(p) == "critic") == [
         "critic.citation_relevance",
@@ -135,6 +137,7 @@ def test_seven_purposes_share_the_critic_role():
         "critic.contradiction_detector",
         "critic.inference_verify",
         "critic.research",
+        "critic.selection_addendum",
     ]
 
 
@@ -338,6 +341,8 @@ def test_the_research_run_purposes_are_the_frozen_set():
         "critic.claim_verify",
         "critic.citation_relevance",
         "critic.inference_verify",
+        "critic.selection_addendum",
+        "synthesizer.selection_repair",
         "planner.main",
         "executor.main",
         "critic.research",
@@ -372,6 +377,6 @@ def test_applicability_is_not_a_restatement_of_the_override_policy():
 def test_adding_applicability_did_not_move_the_override_boundary():
     """The guard on this change: classification for the bundle must not have altered who may
     replace a prompt. Five overridable, as PR-4 froze them; the V3.1 RFC's four grounding
-    checks were added protected, so the protected count rose from four to eight."""
+    purposes were added protected, so the protected count rose from four to ten."""
     assert len(OVERRIDABLE_PURPOSES) == 5
-    assert len(set(PURPOSE_CONSTANTS) - OVERRIDABLE_PURPOSES) == 8
+    assert len(set(PURPOSE_CONSTANTS) - OVERRIDABLE_PURPOSES) == 10

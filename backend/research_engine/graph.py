@@ -20,6 +20,7 @@ little and the retry path stays a conditional edge in the compiled graph.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import re
 import time
@@ -32,8 +33,9 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 from pydantic import BaseModel, Field, model_validator
 
-from research_engine import claims, contradictions, outlines, prompts
+from research_engine import claims, contradictions, grounding, grounding_repair, outlines, prompts
 from research_engine.concurrency import gather_or_cancel
+from research_engine.corpus import parse_corpus_url
 from research_engine.events import emit
 from research_engine.llm_factory import (
     estimate_cost,
@@ -1099,10 +1101,20 @@ async def _criticize_one(
         )
         return _task_key(task), verdict, 0.0, 0, 0
 
-    messages = [
-        SystemMessage(content=system_prompt("critic.research")),
+    messages = [SystemMessage(content=system_prompt("critic.research"))]
+    allowed = get_run_config().corpus_allowed_ids
+    selection_note = ""
+    if allowed is not None:
+        # After the user's critic prompt, never replacing it: a one- or two-file selection
+        # cannot meet a two-independent-sources rule (internal/rfcs/V3.1 §9, AC-19).
+        messages.append(SystemMessage(content=system_prompt("critic.selection_addendum")))
+        selection_note = (
+            f"Selected files: {len(allowed)}. A passing task needs evidence from "
+            f"{min(2, len(allowed))} different selected file(s).\n\n"
+        )
+    messages += [
         HumanMessage(
-            content=f"Task: {task['query']}\n\n<untrusted_web_content>\n"
+            content=f"{selection_note}Task: {task['query']}\n\n<untrusted_web_content>\n"
             f"{json.dumps(task_evidence, indent=2)}\n</untrusted_web_content>"
         ),
     ]
@@ -1604,14 +1616,50 @@ async def synthesizer_node(state: AgentState) -> dict:
             message=f"Citation repair: fixed {uncited} uncited claims",
         )
 
-    # Citation-fidelity check (docs/12 M5): every remaining cited claim is judged against
-    # the snippets of its own cited sources, exactly as the eval judge rules. Runs after
-    # the repair pass so a repair-introduced drift is caught too. Unsupported claims lose
-    # their markers and carry a visible note rather than shipping a hollow citation.
-    draft, vcost, vi, vo = await _verify_citation_fidelity(sid, draft, sources)
-    cost += vcost
-    i += vi
-    o += vo
+    grounding_report = None
+    allowed = get_run_config().corpus_allowed_ids
+    if allowed is not None:
+        # A selected-files run (internal/rfcs/V3.1-corpus-scope.md §9): every claim is
+        # checked, uncited ones included, and what fails is rewritten out — never kept with
+        # a note. Replaces the fidelity pass below, which judges cited sentences only and
+        # keeps every citation when its verifier is down.
+        outcome = await grounding_repair.ground(
+            draft,
+            sources,
+            question=state["original_query"],
+            admissible=lambda url: (
+                (loc := parse_corpus_url(url)) is not None and loc.doc_id in allowed
+            ),
+            budget=grounding.Budget(
+                spent_usd=state.get("cost_usd", 0.0) + cost,
+                tokens_in=state.get("tokens_input", 0) + i,
+                started_at=state.get("started_at"),
+            ),
+        )
+        draft, grounding_report = outcome.text, outcome.report
+        cost += outcome.cost_usd
+        i += outcome.tokens_in
+        o += outcome.tokens_out
+        await emit(
+            sid,
+            "agent_log",
+            agent="synthesizer",
+            message=(
+                f"Grounding check: {grounding_report.get('claims_supported', 0)} claim(s) "
+                f"supported by your selected files, {grounding_report.get('claims_rejected', 0)} "
+                f"rejected, {grounding_report.get('claims_unmeasured', 0)} unmeasured"
+            ),
+            detail={k: v for k, v in grounding_report.items() if k != "claims"},
+        )
+    else:
+        # Citation-fidelity check (docs/12 M5): every remaining cited claim is judged against
+        # the snippets of its own cited sources, exactly as the eval judge rules. Runs after
+        # the repair pass so a repair-introduced drift is caught too. Unsupported claims lose
+        # their markers and carry a visible note rather than shipping a hollow citation.
+        draft, vcost, vi, vo = await _verify_citation_fidelity(sid, draft, sources)
+        cost += vcost
+        i += vi
+        o += vo
 
     # Conflicting-evidence block (docs/12 M11): rendered deterministically from the
     # detector's validated pairs and inserted before the reference list. Appended AFTER
@@ -1647,12 +1695,23 @@ async def synthesizer_node(state: AgentState) -> dict:
             "served_model": served_model_id(resp),
         },
     )
-    return {
+    result = {
         "draft_report": draft,
         "sources": sources,
         "human_feedback": None,
         **_acc(state, cost, i, o),
     }
+    if grounding_report is not None:
+        if grounding_report["status"] == "complete":
+            # Over the text exactly as presented — the conflicts block included — so the
+            # gate and the approval route can refuse any other text (§9.6).
+            grounding_report["validated_text_sha256"] = hashlib.sha256(
+                draft.encode("utf-8")
+            ).hexdigest()
+        else:
+            result["error"] = grounding_report["failure"]
+        result["grounding_report"] = grounding_report
+    return result
 
 
 def plan_gate_node(state: AgentState) -> dict:
@@ -1696,6 +1755,11 @@ def route_after_plan_gate(state: AgentState) -> str:
 
 def hitl_gate_node(state: AgentState) -> dict:
     """Pause for human review. interrupt() persists the checkpoint and suspends."""
+    refused = _grounding_refusal(state)
+    if refused:
+        # `route_after_synthesizer` already sends these to the failer; reaching here means
+        # some other path did not. Raised, so the run fails instead of pausing for approval.
+        raise RuntimeError(refused)
     decision = interrupt(
         {
             "type": "HITL_READY",
@@ -1839,6 +1903,29 @@ def route_after_critic(state: AgentState) -> str:
     return "contradiction_detector"
 
 
+def _grounding_refusal(state: AgentState) -> str | None:
+    """Why a selected-files draft may not reach the approval gate, or None (§9.6).
+
+    Decided on the recorded grounding report and the text it validated, so no retry,
+    resume, fallback or alternate rendering can carry an unmeasured claim to approval.
+    """
+    if get_run_config().corpus_allowed_ids is None:
+        return None
+    report = state.get("grounding_report") or {}
+    if report.get("status") != "complete":
+        return report.get("failure") or "grounding_unmeasured: the draft was never validated"
+    if report.get("claims_unmeasured"):
+        return "grounding_unmeasured: unmeasured claims remain"
+    digest = hashlib.sha256((state.get("draft_report") or "").encode("utf-8")).hexdigest()
+    if digest != report.get("validated_text_sha256"):
+        return "grounding_unmeasured: the draft differs from the text that was validated"
+    return None
+
+
+def route_after_synthesizer(state: AgentState) -> str:
+    return "failer" if _grounding_refusal(state) else "hitl_gate"
+
+
 def route_after_gate(state: AgentState) -> str:
     if state.get("approved"):
         return "finalizer"
@@ -1880,7 +1967,9 @@ def build_graph(checkpointer):
         },
     )
     g.add_edge("contradiction_detector", "synthesizer")
-    g.add_edge("synthesizer", "hitl_gate")
+    g.add_conditional_edges(
+        "synthesizer", route_after_synthesizer, {"hitl_gate": "hitl_gate", "failer": "failer"}
+    )
     g.add_conditional_edges(
         "hitl_gate", route_after_gate, {"finalizer": "finalizer", "synthesizer": "synthesizer"}
     )
