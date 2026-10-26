@@ -32,6 +32,10 @@ _MEDIA_TYPES = {
     "code": "text/plain; charset=utf-8",
     "csv": "text/csv; charset=utf-8",
     "ipynb": "application/x-ipynb+json",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    # One kind covers .xlsx/.xls/.ods; the exact type would need the extension, and a
+    # download names its file anyway, so the generic binary type is the honest one.
+    "spreadsheet": "application/octet-stream",
 }
 
 

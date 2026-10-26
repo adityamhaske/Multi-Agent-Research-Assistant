@@ -73,6 +73,13 @@ FORMATS: dict[str, Format] = {
     ".text": Format("txt", "plain text"),
     ".rst": Format("txt", "plain text"),
     ".json": Format("txt", "plain text"),
+    # Tier B (RFC V3.1 §10.2): exact-pinned parsers, both MIT, with cp314 wheels on every
+    # target (G-1). Word documents and spreadsheets, cached values only.
+    ".docx": Format("docx", "Word document", "docx"),
+    ".xlsx": Format("spreadsheet", "Excel workbook", "python_calamine"),
+    ".xlsm": Format("spreadsheet", "Excel workbook", "python_calamine"),
+    ".xls": Format("spreadsheet", "Excel workbook", "python_calamine"),
+    ".ods": Format("spreadsheet", "OpenDocument spreadsheet", "python_calamine"),
     # Tier A (RFC V3.1 §10.2): the standard library reads all of these.
     ".csv": Format("csv", "CSV"),
     ".tsv": Format("csv", "TSV"),
@@ -198,6 +205,10 @@ def extract(filename: str, data: bytes) -> Extraction:
         if kind == "html":
             text, page_starts, kind = _extract_html(data)
             return Extraction(text, page_starts, kind)
+        if kind == "docx":
+            return _extract_docx(data)
+        if kind == "spreadsheet":
+            return _extract_spreadsheet(data, _extension(filename))
         if kind == "csv":
             return _extract_table(data, delimiter="\t" if _extension(filename) == ".tsv" else None)
         if kind == "ipynb":
@@ -401,3 +412,167 @@ def _extract_notebook(data: bytes) -> Extraction:
     if not text.strip():
         raise ValueError("The notebook has no cells.")
     return Extraction(text, [0], "ipynb", segments, LINEARIZED)
+
+
+#: An encrypted Office file is an OLE compound file, not a ZIP: password protection replaces
+#: the archive with an encrypted container. Recognised by its magic number and refused by
+#: name, rather than reported as a corrupt file.
+_OLE_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+
+
+def _refuse_encrypted_office(data: bytes) -> None:
+    if data[:8] == _OLE_MAGIC:
+        raise ValueError(
+            "The file is password-protected (or a pre-2007 .doc). Save an unprotected "
+            ".docx/.xlsx copy and upload that."
+        )
+
+
+def _extract_docx(data: bytes) -> Extraction:
+    """A Word document's body in order: headings, paragraphs, tables (§10.2).
+
+    Headings are prefixed `#` by level, so the text keeps the document's outline. Paragraph
+    text is every `w:t` in the paragraph, inserted runs included and deleted text
+    (`w:delText`) excluded — the accepted-changes view, which is what a reader of the
+    finished document sees. Tables become `Row N — Header: value; …` like a CSV. Footnotes,
+    comments, headers and footers are not read (a known limit, stated in the docs).
+    """
+    _refuse_encrypted_office(data)
+    check_archive(data)
+    import docx
+    from docx.oxml.ns import qn
+
+    document = docx.Document(io.BytesIO(data))
+    parts: list[str] = []
+    segments: list[tuple[int, str]] = []
+    offset = 0
+    path: list[str] = []
+    tables = 0
+
+    def add(text: str, label: str) -> None:
+        nonlocal offset
+        segments.append((offset, label))
+        parts.append(text)
+        offset += len(text) + 1
+
+    for block in document.element.body.iterchildren():
+        if block.tag == qn("w:p"):
+            text = "".join(t.text or "" for t in block.iter(qn("w:t"))).strip()
+            if not text:
+                continue
+            style = block.find(qn("w:pPr"))
+            style_id = ""
+            if style is not None and style.find(qn("w:pStyle")) is not None:
+                style_id = style.find(qn("w:pStyle")).get(qn("w:val")) or ""
+            level = (
+                int(style_id[7:])
+                if style_id.startswith("Heading") and style_id[7:].isdigit()
+                else 0
+            )
+            if level:
+                path = path[: level - 1] + [text]
+                add("#" * level + " " + text, " › ".join(path))
+            else:
+                add(text, " › ".join(path) or "body")
+        elif block.tag == qn("w:tbl"):
+            tables += 1
+            rows = [
+                [
+                    "".join(t.text or "" for t in cell.iter(qn("w:t"))).strip()
+                    for cell in row.iter(qn("w:tc"))
+                ]
+                for row in block.iter(qn("w:tr"))
+            ]
+            if not rows:
+                continue
+            header = [h or f"Column {i + 1}" for i, h in enumerate(rows[0])]
+            for number, row in enumerate(rows[1:], start=2):
+                cells = [
+                    f"{header[i] if i < len(header) else f'Column {i + 1}'}: {v}"
+                    for i, v in enumerate(row)
+                    if v
+                ]
+                if cells:
+                    add(f"Row {number} — " + "; ".join(cells), f"table {tables} row {number}")
+    text = "\n".join(parts)
+    if not text.strip():
+        raise ValueError("The document contains no text.")
+    return Extraction(text, [0], "docx", segments, LINEARIZED)
+
+
+def _cell(value) -> str:
+    """One spreadsheet value as text: integers without `.0`, dates as ISO, the rest as is."""
+    import datetime as _dt
+
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "TRUE" if value else "FALSE"
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    if isinstance(value, _dt.datetime | _dt.date | _dt.time):
+        return value.isoformat()
+    return str(value).strip()
+
+
+def _extract_spreadsheet(data: bytes, ext: str) -> Extraction:
+    """Every sheet in workbook order: `## Sheet: <name>`, then its rows like a CSV (§10.2).
+
+    Cached values only — formulas are not indexed, so a citation quotes the number a reader
+    of the workbook sees. Hidden sheets are read and marked `(hidden)`: leaving them out
+    could hide evidence, and the mark tells the reader it was not on screen. Merged cells
+    take their top-left value, which is what calamine reports. Row numbers are the sheet's
+    own, so "row 14" in a citation is row 14 in the spreadsheet program.
+    """
+    if ext != ".xls":  # .xls is an OLE file by design; the others are ZIP archives
+        _refuse_encrypted_office(data)
+        check_archive(data)
+    from python_calamine import CalamineWorkbook
+
+    workbook = CalamineWorkbook.from_filelike(io.BytesIO(data))
+    visibility = {
+        m.name: str(getattr(m, "visible", "visible")).lower() for m in workbook.sheets_metadata
+    }
+    parts: list[str] = []
+    segments: list[tuple[int, str]] = []
+    offset = 0
+    cells_seen = 0
+    for name in workbook.sheet_names:
+        rows = workbook.get_sheet_by_name(name).to_python(skip_empty_area=False)
+        numbered = [(i + 1, [_cell(v) for v in row]) for i, row in enumerate(rows)]
+        numbered = [(n, row) for n, row in numbered if any(row)]
+        if not numbered:
+            continue
+        width = max(len(row) for _, row in numbered)
+        cells_seen += len(numbered) * width
+        if (
+            len(numbered) > MAX_TABLE_ROWS
+            or width > MAX_TABLE_COLUMNS
+            or cells_seen > MAX_TABLE_CELLS
+        ):
+            raise ValueError(
+                f"Sheet {name!r} is {len(numbered)} rows by {width} columns; the corpus reads "
+                f"at most {MAX_TABLE_ROWS} rows, {MAX_TABLE_COLUMNS} columns and "
+                f"{MAX_TABLE_CELLS} cells per workbook."
+            )
+        hidden = "" if "visible" == visibility.get(name, "visible").split(".")[-1] else " (hidden)"
+        heading = f"## Sheet: {name}{hidden}"
+        segments.append((offset, f"Sheet {name}"))
+        parts.append(heading)
+        offset += len(heading) + 1
+        header_row, header = numbered[0]
+        header = [h or f"Column {i + 1}" for i, h in enumerate(header)]
+        for number, row in numbered[1:]:
+            cells = [
+                f"{header[i] if i < len(header) else f'Column {i + 1}'}: {v}"
+                for i, v in enumerate(row)
+                if v
+            ]
+            line = f"Row {number} — " + "; ".join(cells)
+            segments.append((offset, f"Sheet {name}, row {number}"))
+            parts.append(line)
+            offset += len(line) + 1
+    text = "\n".join(parts)
+    if not text.strip():
+        raise ValueError("The workbook has no data.")
+    return Extraction(text, [0], "spreadsheet", segments, LINEARIZED)

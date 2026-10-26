@@ -184,7 +184,7 @@ def test_text_and_markdown_extract_with_no_pages():
 
 def test_unsupported_formats_are_refused():
     with pytest.raises(ValueError, match="Unsupported document type"):
-        extract_document("archive.docx", b"whatever")
+        extract_document("archive.zip", b"whatever")
     with pytest.raises(ValueError, match="Unsupported document type"):
         kind_for("noextension")
 

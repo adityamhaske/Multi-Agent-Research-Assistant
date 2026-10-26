@@ -82,6 +82,11 @@ hiddenimports = [
     # which PyInstaller's module-level scan does not see.
     "pypdf",
     "numpy",
+    # Word documents and spreadsheets (RFC V3.1 §11.1), imported lazily inside
+    # `documents._extract_docx` / `_extract_spreadsheet` for the same reason.
+    # `tests/task/test_document_formats.py` fails if a registered parser is missing here.
+    "docx",
+    "python_calamine",
     # The build stamp (scripts/stamp_build.py), which `research_engine.build_info` imports
     # inside a function so an unstamped source checkout can answer `unknown` instead of
     # failing. That same deferral hides it from the static scan, so it has to be named —
@@ -95,6 +100,8 @@ hiddenimports = [
 # keyring pick the platform one (macOS Keychain / Windows Credential Locker /
 # SecretService).
 hiddenimports += collect_submodules("keyring.backends")
+# python-docx builds its element classes from submodules it imports by name at runtime.
+hiddenimports += collect_submodules("docx")
 
 excludes = [
     "weasyprint",
