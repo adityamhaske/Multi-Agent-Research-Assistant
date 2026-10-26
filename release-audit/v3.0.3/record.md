@@ -70,11 +70,19 @@ The corpus scope's copy in `chat_scope.py` is also the text of the chat model's
 not an A2.03 path and the release evaluation does not exercise chat; the change narrows what
 the instruction claims and asks the model to do nothing new.
 
-No quality path changed since v3.0.2 — `git diff --stat v3.0.2 HEAD` over A2.03's
-`QUALITY_PATHS` (prompts, prompt composition, graph, routing rules, retrievers, tools, claims,
-citation rate, catalog, model routing) is empty — so this release needs neither a new
-evaluation nor a waiver. The notes say citation support was last measured for 3.0.2
+Two quality paths changed since v3.0.2, both in the privacy-copy correction (#210), and both
+only in text no model reads. `git diff v3.0.2 HEAD -- backend/research_engine/retrievers.py
+backend/research_engine/tools.py` is two hunks:
+
+- `retrievers.py`: one `#` comment ("no network calls at all" → "no retrieval egress").
+- `tools.py`: the **module** docstring. The `@tool` docstrings of `web_search` and
+  `read_webpage`, which are the tool descriptions the executor model receives, are unchanged.
+
+Neither can alter what a run produces, so this release carries a waiver rather than a new
+evaluation. The notes say citation support was last measured for 3.0.2
 (`eval-2026-10-19-custom.json`, 96.9%) and that nothing it measured has changed.
+
+Eval waiver: the only quality-path changes since v3.0.2 are a code comment in retrievers.py and the module docstring of tools.py (privacy-copy correction, #210); no prompt, tool description, graph, routing or retrieval logic changed, so run output cannot differ.
 
 ### Stage A results (on `release/v3.0.3`, before the PR)
 
@@ -150,7 +158,7 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M2.01 | PASS | Fill the feature matrix in the record for every scope row: Implementation · Tests · UI · API · Desktop ·… — Matrix under Scope. Every fix row is Shipped on source evidence; #202's packaged-desktop column and #201's published-image check are confirmed at stage B (Extra checks) |
 | M2.02 | PENDING | For every feature on both hosts, confirm the desktop really has it: the route exists and behaves… — #202 is desktop-only and makes the desktop match what the server and CLI already did; it is satisfied only by the packaged app (Extra checks X1). #200 is server-only by design (the desktop has no sign-in). #201 and #205 are the same frontend on every host |
 | M2.03 | PASS | Read the `releases.ts` entry and the changelog entry against the matrix: `improved` states user-visible… — Read against the matrix: `improved` states user-visible effects only, one item per fix (four for #202's four defects, two for the privacy-copy correction); `known` is 3.0.2's minus the three fixed, two reworded to stay true, plus the two limitations the corrected copy now states; each summary compresses its list and adds nothing (A1.05 PASS; `releases.test.ts` bounds) |
-| M2.04 | N/A | If A2.03 fails: run the release evaluation (`docs/developers/08-testing-and-evaluation.md`, "The release… — A2.03 does not require it: no quality path changed since v3.0.2 (`git diff --stat v3.0.2 HEAD` over `QUALITY_PATHS` is empty). #202 changes which runs the desktop refuses up front and the run form's default Local LLM, not what a run does with a model |
+| M2.04 | PASS | If A2.03 fails: run the release evaluation (`docs/developers/08-testing-and-evaluation.md`, "The release… — Waived, with the evidence in "Evaluation" above: the only quality-path changes are a comment in `retrievers.py` and the module docstring of `tools.py`; no text a model reads changed. #202 changes which runs the desktop refuses up front and the run form's default Local LLM, not what a run does with a model |
 | **Phase 3 — Automated Testing** | | |
 | M3.01 | PENDING | Explain every re-run: any required job on the release commit that passed only on a retry is recorded with… — Read on the release commit's CI, Desktop and Pages runs once the release PR merges |
 | M3.02 | PENDING | Read the non-blocking dependency-audit output of the release commit's CI run — On the release commit's CI. Locally on this branch (Node 26): `npm audit --audit-level=critical` — see Stage A results |
