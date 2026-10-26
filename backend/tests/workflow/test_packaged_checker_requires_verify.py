@@ -163,8 +163,8 @@ def test_every_ci_call_of_the_checker_requires_the_verification():
     jobs = yaml.safe_load(DESKTOP_YML.read_text(encoding="utf-8"))["jobs"].values()
     calls = [call for job in jobs for step in job["steps"] for call in _checker_calls(step)]
 
-    # The installed .deb, the extracted AppImage and the installed .msi.
-    assert len(calls) == 3, calls
+    # The mounted DMG, the installed .deb, the extracted AppImage and the installed .msi.
+    assert len(calls) == 4, calls
     for call in calls:
         assert "--journey" in call and "--require-verify" in call, call
 
