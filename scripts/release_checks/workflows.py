@@ -81,6 +81,11 @@ WORKFLOW_GUARDS = (
     ),
     (
         ".github/workflows/desktop.yml",
+        "name: The engine inside the published disk image completes a journey",
+        "no CI job drove the bundled macOS engine through the gates, and 3.0.3's Mac could not",
+    ),
+    (
+        ".github/workflows/desktop.yml",
         "--journey --require-verify",
         "every Shell job logged the bundle verification NOT RUN, for want of pydantic, and passed",
     ),
@@ -182,6 +187,7 @@ DESKTOP_TAG_STEPS = {
         "The bundle actually contains the backend",
         "The copy actually inside the bundle reports the commit that built it",
         "The app inside the published disk image has a valid signature",
+        "The engine inside the published disk image completes a journey",
     ],
     "Shell (ubuntu-latest)": [
         "The bundle actually contains the backend",
