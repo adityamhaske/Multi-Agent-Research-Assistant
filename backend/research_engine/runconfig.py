@@ -79,6 +79,13 @@ class RunConfig:
     # and no corpus installed fails closed rather than silently degrading to the web.
     corpus_mode: bool = False
 
+    # The frozen selection of a selected-files run: the exact corpus document-version ids
+    # it may search and read (internal/rfcs/V3.1-corpus-scope.md §8). `None` means the run
+    # carries no selection — a web run, or a session, which never takes one (§8.3, D-8).
+    # Hosts install `ScopedCorpus` over this set; it is control-plane data, never a
+    # user preference.
+    corpus_allowed_ids: frozenset[str] | None = None
+
     # SSRF guard (docs/06). Strict on server, relaxed on desktop (to allow local Ollama).
     enforce_ssrf_guards: bool = True
 

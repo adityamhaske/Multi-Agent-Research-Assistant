@@ -172,6 +172,12 @@ class ResearchRun(Base):
     corpus_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     corpus_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    #: The frozen selection of a corpus-only run: the request, and the exact document
+    #: versions it resolved to when the run was created (`app/services/corpus_selection.py`).
+    #: Read on every start and resume, never re-resolved. NULL on a web run and on every run
+    #: predating selections — those read the whole corpus, as they always did.
+    corpus_selection: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
+
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Cancellation state is durable and on the row, not a TTL'd cache key.
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

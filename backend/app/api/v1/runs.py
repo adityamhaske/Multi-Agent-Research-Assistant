@@ -54,6 +54,7 @@ from app.models.research import (
 from app.models.review import ResearchArtifact, Review
 from app.models.revision import Claim, ClaimEvidenceLink, Revision
 from app.models.user import User
+from app.ports import CorpusLocator
 from app.run_dispatch import RunDispatcher
 
 # Request bodies live in app/schemas/runs.py so the desktop sidecar can import the exact
@@ -65,7 +66,9 @@ from app.schemas.runs import (  # noqa: F401  (re-export)
     ReportReviewRequest,
 )
 from app.services import model_routing
+from app.services.corpus_selection import SelectionError, freeze_selection
 from app.services.event_stream import sse_frames
+from app.services.host_ports import get_corpus_locator
 from app.services.sse import SSE_HEADERS
 from app.workers.dispatch import get_run_dispatcher
 from research_engine import citation_rate
@@ -382,6 +385,7 @@ async def create_run(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     dispatcher: RunDispatcher = Depends(get_run_dispatcher),
+    corpus: CorpusLocator = Depends(get_corpus_locator),
 ):
     """Open a run.
 
@@ -411,13 +415,38 @@ async def create_run(
         except model_routing.InvalidRouting as exc:
             raise Unprocessable(str(exc)) from exc
 
+    # A corpus-only run reads a frozen set of document versions, resolved here and never
+    # again (internal/rfcs/V3.1-corpus-scope.md §8.2). Refused before the row exists: an
+    # empty or unresolvable selection must never start, and must never widen to the corpus.
+    corpus_mode = body.corpus_mode or body.corpus_selection is not None
+    if body.corpus_selection is not None and "corpus_mode" in body.model_fields_set:
+        if not body.corpus_mode:
+            raise Unprocessable(
+                "A file selection is corpus-only research; corpus_mode cannot be false."
+            )
+    selection = None
+    if corpus_mode:
+        requested = body.corpus_selection
+        try:
+            selection = await freeze_selection(
+                await corpus.for_project(project.id),
+                folder_ids=requested.folder_ids if requested else None,
+                doc_keys=requested.doc_keys if requested else None,
+                whole_corpus=requested is None,
+            )
+        except SelectionError as exc:
+            if exc.code == "selection_not_found":
+                raise NotFound(str(exc)) from exc
+            raise Unprocessable(str(exc)) from exc
+
     run = await run_lifecycle.create_run(
         db,
         owner_id=current_user.id,
         project_id=project.id,
         question=body.question,
         depth=body.depth,
-        corpus_mode=body.corpus_mode,
+        corpus_mode=corpus_mode,
+        corpus_selection=selection,
         skip_plan_gate=body.skip_plan_gate,
         topic_seeds=body.topic_seeds,
         outline_template=body.outline_template,

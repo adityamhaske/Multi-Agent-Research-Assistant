@@ -178,6 +178,7 @@ artifact — and the report is a rendering of it. See
   "question": "1 to 2000 characters",
   "depth": "fast | balanced | comprehensive",
   "corpus_mode": false,
+  "corpus_selection": null,
   "skip_plan_gate": true,
   "topic_seeds": null,
   "outline_template": null,
@@ -187,6 +188,20 @@ artifact — and the report is a rendering of it. See
 ```
 
 `{"run_id": "...", "status": "PENDING", "dispatched": true}`.
+
+**`corpus_selection`** makes the run corpus-only and limits it to the chosen files:
+`{"doc_keys": ["..."], "folder_ids": []}`, at most 5,000 of each. The selection is resolved
+**when the run is created**, to the current version of each file, and stored on the run. Every
+later step reads that stored list, so a file replaced, deleted or added afterwards never changes
+what the run may read. `corpus_mode: true` with no `corpus_selection` is the project's whole
+corpus, resolved and stored the same way. Refusals, all before the run exists:
+
+| Status | When |
+|---|---|
+| `422` | `corpus_selection` names nothing; the selection or the whole corpus has no readable document; or `corpus_mode` is sent as `false` beside a selection |
+| `404` | a file or folder is not in this project (the response does not say which) |
+
+Folders are not available yet, so any `folder_ids` entry answers `404` for now.
 
 **`skip_plan_gate` defaults to `true` here and the run form sends `false`.** The default
 keeps an un-updated script on the journey it already had; the product default is the design

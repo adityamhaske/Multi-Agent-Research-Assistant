@@ -881,6 +881,39 @@ class CorpusStore:
     async def documents(self) -> list[dict]:
         return await asyncio.to_thread(self._documents_sync)
 
+    async def current_versions(self, doc_keys: list[str] | None = None) -> list[dict]:
+        """The current, non-generated version of each named logical document.
+
+        `None` names every one — the whole corpus, as a corpus-only run without an explicit
+        selection reads it. A key that has no current uploaded version is simply absent
+        from the result; the caller decides whether that is an error. Shape is the
+        selection record's (internal/rfcs/V3.1-corpus-scope.md §8.2).
+        """
+        return await asyncio.to_thread(self._current_versions_sync, doc_keys)
+
+    def _current_versions_sync(self, doc_keys: list[str] | None) -> list[dict]:
+        query = (
+            "SELECT id, doc_key, version, sha256, filename FROM corpus_documents "
+            "WHERE origin != 'generated' AND superseded_at IS NULL"
+        )
+        params: tuple = ()
+        if doc_keys is not None:
+            query += " AND doc_key IN (SELECT value FROM json_each(?))"
+            params = (json.dumps(sorted(set(doc_keys))),)
+        with self._connect() as conn:
+            rows = conn.execute(query + " ORDER BY filename, id", params).fetchall()
+        return [
+            {
+                "document_id": r[0],
+                "doc_key": r[1],
+                "version": r[2],
+                "sha256": r[3],
+                "filename": r[4],
+                "path": r[4],
+            }
+            for r in rows
+        ]
+
     def _documents_sync(self) -> list[dict]:
         with self._connect() as conn:
             rows = conn.execute(
