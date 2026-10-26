@@ -29,6 +29,9 @@ _MEDIA_TYPES = {
     # Honest about what the bytes are, so a downloaded file opens correctly. Safe only
     # because it is never served inline — see `download_headers`.
     "html": "text/html; charset=utf-8",
+    "code": "text/plain; charset=utf-8",
+    "csv": "text/csv; charset=utf-8",
+    "ipynb": "application/x-ipynb+json",
 }
 
 
