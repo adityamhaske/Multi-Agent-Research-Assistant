@@ -225,6 +225,7 @@ async def project_run(db: AsyncSession, run: ResearchRun) -> dict:
             "corpus_selection": run.corpus_selection,
             "corpus_id": run.corpus_id,
             "corpus_version": run.corpus_version,
+            "offline": run.offline,
             "demo": run.demo,
             "skip_plan_gate": run.skip_plan_gate,
             "model_routing": run.model_routing,
@@ -424,7 +425,7 @@ async def create_run(
     # A corpus-only run reads a frozen set of document versions, resolved here and never
     # again (internal/rfcs/V3.1-corpus-scope.md §8.2). Refused before the row exists: an
     # empty or unresolvable selection must never start, and must never widen to the corpus.
-    corpus_mode = body.corpus_mode or body.corpus_selection is not None
+    corpus_mode = body.corpus_mode or body.corpus_selection is not None or body.offline
     if body.corpus_selection is not None and "corpus_mode" in body.model_fields_set:
         if not body.corpus_mode:
             raise Unprocessable(
@@ -453,6 +454,7 @@ async def create_run(
         depth=body.depth,
         corpus_mode=corpus_mode,
         corpus_selection=selection,
+        offline=body.offline,
         skip_plan_gate=body.skip_plan_gate,
         topic_seeds=body.topic_seeds,
         outline_template=body.outline_template,

@@ -179,6 +179,7 @@ artifact — and the report is a rendering of it. See
   "depth": "fast | balanced | comprehensive",
   "corpus_mode": false,
   "corpus_selection": null,
+  "offline": false,
   "skip_plan_gate": true,
   "topic_seeds": null,
   "outline_template": null,
@@ -202,6 +203,13 @@ corpus, resolved and stored the same way. Refusals, all before the run exists:
 | `404` | a file or folder is not in this project (the response does not say which) |
 
 Folders are not available yet, so any `folder_ids` entry answers `404` for now.
+
+**`offline: true`** asks for every model call to stay on this computer. It implies corpus-only
+research (the whole project corpus when no `corpus_selection` is given). It is a separate
+guarantee from `corpus_selection`, which limits where evidence comes from and says nothing
+about where model calls go. The run is created either way; if any role is routed to a cloud
+provider, or to an Ollama or custom endpoint that is not on this machine, the run fails before
+any model is called, with an error starting `offline_unavailable:` that names each role.
 
 **`skip_plan_gate` defaults to `true` here and the run form sends `false`.** The default
 keeps an un-updated script on the journey it already had; the product default is the design
@@ -229,7 +237,7 @@ marker is broken are opposite findings.
 The whole run graph in one response: `run`, `plans`, `sources`, `evidence`, `revisions`,
 `claims`, `claim_evidence_links`, `contradictions`, `reviews`, `artifact`.
 
-`run.corpus_selection` is the frozen selection a corpus-only run was created with (the request
+`run.offline` says whether the run asked for the Offline guarantee. `run.corpus_selection` is the frozen selection a corpus-only run was created with (the request
 and the exact document versions it resolved to); `run.corpus_id` and `run.corpus_version` are
 the corpus state the run opened. All three are `null` on a web run and on runs created before
 file selections existed, which read their project's whole corpus.

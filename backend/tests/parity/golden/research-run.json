@@ -34,6 +34,7 @@
         "corpus_selection": null,
         "corpus_id": null,
         "corpus_version": null,
+        "offline": false,
         "demo": true,
         "skip_plan_gate": false,
         "model_routing": {
@@ -136,6 +137,7 @@
         "corpus_selection": null,
         "corpus_id": null,
         "corpus_version": null,
+        "offline": false,
         "demo": true,
         "skip_plan_gate": false,
         "model_routing": {
@@ -574,6 +576,7 @@
         "corpus_selection": null,
         "corpus_id": null,
         "corpus_version": null,
+        "offline": false,
         "demo": true,
         "skip_plan_gate": false,
         "model_routing": {
@@ -1296,6 +1299,7 @@
         "corpus_selection": null,
         "corpus_id": null,
         "corpus_version": null,
+        "offline": false,
         "demo": true,
         "skip_plan_gate": false,
         "model_routing": {

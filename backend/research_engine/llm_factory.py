@@ -274,6 +274,14 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
 def get_llm(role: str) -> BaseChatModel:
     """Return the chat model for an agent role."""
     cfg = get_run_config()
+    if cfg.offline and cfg.llm_mode != "fake":
+        # The backstop behind the runner's pre-start check: no client for a non-local
+        # route is ever built in an Offline run, whatever path reached here.
+        from research_engine import offline
+
+        refused = offline.refusal(cfg, custom_base_url=api_key_for("custom_base_url"))
+        if refused:
+            raise ValueError(refused)
     if cfg.llm_mode == "fake":
         # Same scripted plumbing either way; `demo` only picks the content a user reads
         # (docs/17 §6.1). Test fixtures stay the default so existing assertions hold.

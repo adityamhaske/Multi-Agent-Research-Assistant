@@ -33,12 +33,17 @@ from typing import Literal
 
 from langgraph.types import Command
 
-from research_engine import events, llm_factory
+from research_engine import events, llm_factory, offline
 from research_engine.cache import reset_cache, set_cache
 from research_engine.corpus import reset_corpus, set_corpus
 from research_engine.graph import build_graph
 from research_engine.ports import Cache, Corpus, EventSink
-from research_engine.runconfig import RunConfig, reset_run_config, set_run_config
+from research_engine.runconfig import (
+    RunConfig,
+    get_run_config,
+    reset_run_config,
+    set_run_config,
+)
 
 #: Two of these are pauses, not ends. `awaiting_plan` is the research design gate
 #: (internal/07 Phase 4) and `awaiting_approval` is the draft review gate — they are
@@ -193,6 +198,13 @@ async def _drive(
 ) -> RunOutcome:
     config = {"configurable": {"thread_id": session_id}}
     with _installed(run_config, provider_keys, event_sink, cache, corpus):
+        # Before the graph, so an Offline run that cannot stay offline makes no model call
+        # at all — on a start and on every resume, since both enter here.
+        refused = offline.refusal(
+            get_run_config(), custom_base_url=llm_factory.api_key_for("custom_base_url")
+        )
+        if refused:
+            return RunOutcome(status="failed", error=refused)
         graph = build_graph(checkpointer)
         result = await graph.ainvoke(payload, config)
         # An async checkpointer requires the async state getter; the sync `get_state()`
