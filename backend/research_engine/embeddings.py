@@ -42,9 +42,10 @@ _LOCAL_HOSTS = frozenset(
 def is_local_endpoint(base_url: str) -> bool:
     """True when `base_url` points at this machine.
 
-    Corpus-only mode claims **zero** network calls (docs/12 M10). The query embedding is
-    the one model call retrieval makes, so whether that endpoint is local is the whole
-    difference between an airgapped run and a run that quietly phones a provider. One
+    Corpus-only mode promises that retrieval stays on this machine (docs/12 M10). The query
+    embedding is the one model call retrieval makes, so whether that endpoint is local is
+    the whole difference between local retrieval and retrieval that quietly phones a
+    provider. (The agents' own model calls are a separate axis, governed by routing.) One
     implementation, used by every Embeddings adapter on both hosts — the alternative is
     the duplicated-predicate failure `AGENTS.md` documents.
     """
@@ -138,7 +139,7 @@ class FakeEmbeddings:
 
 
 class LocalEmbeddings:
-    """Embeddings from a local OpenAI-compatible server — the airgapped tier's client.
+    """Embeddings from a local OpenAI-compatible server — the local-retrieval client.
 
     The desktop host cannot use the server's `app/adapters.py` implementations (they
     import `app.config`, and the PyInstaller bundle excludes the redis they drag in),

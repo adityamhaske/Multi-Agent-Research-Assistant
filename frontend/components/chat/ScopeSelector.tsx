@@ -15,6 +15,9 @@ import type { ChatScope } from "@/lib/types";
  * answer is still written by a model, which is off-machine unless chat is routed to a
  * local one. Claiming more than that here is exactly the kind of unverifiable statement
  * this product exists to refuse.
+ *
+ * "Uploaded documents", not "this project's": the desktop keeps one corpus for the whole
+ * app (AGENTS.md, report chat), so a per-project claim is false on one of the two hosts.
  */
 
 type Option = { value: ChatScope; label: string; detail: string };
@@ -29,7 +32,7 @@ const OPTIONS: Option[] = [
     value: "corpus",
     label: "My corpus",
     detail:
-      "Only documents you uploaded to this project. No web search, and your question is never embedded off this machine.",
+      "Only your uploaded documents — this project's on a server; on the desktop app every project shares one corpus. No web search, and indexing stays on this machine — but your question and the excerpts still go to the provider chat uses, a cloud one unless you chose a local model.",
   },
   {
     value: "web",

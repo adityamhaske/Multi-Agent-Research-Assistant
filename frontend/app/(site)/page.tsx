@@ -92,7 +92,7 @@ const CLAIMS = [
   },
   {
     title: "Your corpus never has to leave",
-    body: "Airgapped corpus mode makes zero network calls, and local models mean an unpublished manuscript stays on your machine.",
+    body: "Corpus-only mode takes evidence only from your documents, with web search off and indexing on a local model. The research models still see your question and excerpts, so choose local models too and an unpublished manuscript stays on your machine.",
   },
 ] as const;
 

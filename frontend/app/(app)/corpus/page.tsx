@@ -215,7 +215,7 @@ export default function CorpusPage() {
           Corpus Management
         </h1>
         <p className="mb-6 max-w-2xl text-sm leading-relaxed text-text-muted">
-          Upload documents to restrict research to an airgapped local corpus. Scoped to{" "}
+          Upload documents to restrict research to a local corpus. Scoped to{" "}
           <strong className="font-semibold text-text-primary">{active?.name}</strong>. Approved
           reports in this project are automatically saved here too and marked{" "}
           <span className="border border-border bg-bg-elevated px-1.5 py-0.2 font-mono text-[0.6875rem] font-semibold uppercase tracking-wider text-text-secondary">Generated</span>{" "}
@@ -442,7 +442,7 @@ export default function CorpusPage() {
               <div className="border-t border-border/60 pt-3">
                 <div className="flex items-center gap-1.5 text-xs text-text-muted font-mono">
                   <span className="h-2 w-2 rounded-full bg-success" aria-hidden />
-                  Airgapped Local Storage
+                  Local Storage
                 </div>
                 <p className="mt-1 text-[length:var(--text-micro)] text-text-muted leading-relaxed">
                   Documents are embedded and stored locally in this project&apos;s corpus database.

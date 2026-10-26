@@ -23,7 +23,7 @@ const AGENT_ROLES = [
   {
     role: "EXECUTOR",
     tag: "RETRIEVAL",
-    blurb: "Executes parallel web searches (Tavily/Brave/DDG) & airgapped corpus lookups with strict SSRF-safe page fetching.",
+    blurb: "Executes parallel web searches (Tavily/Brave/DDG) & local corpus lookups with strict SSRF-safe page fetching.",
   },
   {
     role: "CRITIC",
@@ -41,7 +41,7 @@ const METHODOLOGY_STEPS = [
   {
     num: "01",
     title: "Scope & Parameterize",
-    desc: "Specify your research question, select depth (Fast, Balanced, Comprehensive), or restrict queries to an uploaded airgapped document corpus.",
+    desc: "Specify your research question, select depth (Fast, Balanced, Comprehensive), or restrict queries to an uploaded document corpus.",
   },
   {
     num: "02",
@@ -254,10 +254,10 @@ export default function LoginPage() {
                 <div className="border border-border bg-bg-surface p-5 space-y-2">
                   <div className="flex items-center gap-2 font-mono text-xs font-semibold text-text-primary">
                     <span className="text-accent">AXIOM III:</span>
-                    <span>SELF-HOSTED, BYOK &amp; AIRGAPPED LOCAL CORPUS PRIVACY</span>
+                    <span>SELF-HOSTED, BYOK &amp; LOCAL CORPUS</span>
                   </div>
                   <p className="text-xs leading-relaxed text-text-secondary">
-                    Zero SaaS lock-in or telemetry. Deploy locally with Docker or run completely offline with Ollama local LLMs and local document embeddings.
+                    Zero SaaS lock-in or telemetry. Deploy locally with Docker, and run the research models and document indexing on Ollama if you want both on your machine.
                     Bring Your Own Key (BYOK) for Anthropic, Google Gemini, OpenAI, or OpenRouter with hardware keychain and encrypted-at-rest storage.
                   </p>
                 </div>
@@ -351,9 +351,9 @@ export default function LoginPage() {
                       <td className="py-2 pl-4 text-text-primary">Fail-closed Page Reader</td>
                     </tr>
                     <tr>
-                      <td className="py-2 pr-4 font-medium text-text-primary">Offline Execution</td>
-                      <td className="py-2 px-4">Ollama / Local Embeddings</td>
-                      <td className="py-2 pl-4 text-text-primary">100% Airgapped Corpus Capable</td>
+                      <td className="py-2 pr-4 font-medium text-text-primary">Local Execution</td>
+                      <td className="py-2 px-4">Ollama models / local indexing</td>
+                      <td className="py-2 pl-4 text-text-primary">Local corpus; research models local only if you choose Ollama</td>
                     </tr>
                   </tbody>
                 </table>

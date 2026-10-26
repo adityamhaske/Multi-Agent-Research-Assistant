@@ -206,7 +206,7 @@ async def _execute(
 
                 if session.corpus_mode:
                     embedder = await adapters.embeddings_for(ports["provider_keys"])
-                    # Egress guard: require local embedder for airgapped mode
+                    # Egress guard: corpus mode requires a local embedder
                     if not (
                         embedder.model_id.startswith("ollama:")
                         or embedder.model_id.startswith("local:")

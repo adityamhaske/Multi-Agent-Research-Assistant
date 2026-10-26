@@ -1,7 +1,7 @@
 """
 Corpus endpoints (docs/12 M10).
 
-Manages project-scoped airgapped corpora. Each project has its own SQLite database
+Manages project-scoped local corpora. Each project has its own SQLite database
 for isolating documents and embeddings.
 """
 

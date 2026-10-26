@@ -23,7 +23,9 @@ Shipped and in use:
   their shipped prompts, and every run and its bundle record the instructions it ran on.
 - **Projects, corpus, and project memory** — only human-approved research enters memory;
   isolation is a SQL predicate.
-- **Airgapped corpus mode** — research over your own documents with zero network calls.
+- **Corpus-only mode** — research whose evidence comes only from your own documents, with
+  web search off and a local indexing model required. The research models still receive
+  the question and excerpts on whatever provider they use.
 - **Bring your own key** — Google, Anthropic, OpenAI, OpenRouter, and any OpenAI-compatible
   endpoint, encrypted at rest and isolated per run.
 - **Local models** through Ollama, including local embeddings.

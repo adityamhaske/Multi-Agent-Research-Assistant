@@ -1,5 +1,5 @@
 """
-The airgapped corpus: a closed document set as the run's only evidence source
+The local corpus: a closed document set as the run's only evidence source
 (docs/12 M10, docs/13 §8).
 
 Two things live here:
@@ -527,7 +527,7 @@ class CorpusStore:
         # never opens a socket. That made corpus mode's zero-egress claim rest entirely on
         # the host having configured a *local* embedder, and nothing checked: with
         # EMBEDDINGS_PROVIDER=google|openai the server embedded every corpus query through
-        # a hosted API while docs/12 M10 advertised "no network calls at all, verified by
+        # a hosted API while docs/12 M10 advertised a run with no egress at all, "verified by
         # test". The test could not catch it either — it injects a FakeEmbeddings, so the
         # one call that egresses was the one call stubbed out. Enforce, don't trust.
         self._require_local_embedder_in_corpus_mode()
@@ -535,9 +535,9 @@ class CorpusStore:
         return await asyncio.to_thread(self._search_sync, query_vector, max_results)
 
     def _require_local_embedder_in_corpus_mode(self) -> None:
-        """Refuse to embed off-machine while claiming to be airgapped (docs/12 M10).
+        """Refuse to embed off-machine while promising local retrieval (docs/12 M10).
 
-        Only corpus-only mode makes the zero-egress promise, so this is silent otherwise:
+        Only corpus-only mode promises local retrieval, so this is silent otherwise:
         a hosted embedder is perfectly correct for ordinary project memory.
         """
         if not get_run_config().corpus_mode:
@@ -545,7 +545,7 @@ class CorpusStore:
         if getattr(self._embedder, "is_local", False):
             return
         raise EmbeddingsUnavailable(
-            f"Corpus-only mode guarantees zero network calls, but the configured "
+            f"Corpus-only mode keeps retrieval on this machine, but the configured "
             f"embeddings provider '{self._embedder.model_id}' is remote — every corpus "
             f"search would send the query off this machine. Set EMBEDDINGS_PROVIDER=ollama "
             f"with a local OLLAMA_BASE_URL, or run without corpus-only mode."

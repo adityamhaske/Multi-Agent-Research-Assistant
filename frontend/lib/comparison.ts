@@ -113,13 +113,16 @@ export const ROWS: ComparisonRow[] = [
     elicit: "no",
   },
   {
-    dimension: "Zero network calls, guaranteed",
+    dimension: "Evidence only from your own documents, retrieved on your machine",
     ours: "yes",
     notebooklm: "no",
     scholar: "no",
     perplexity: "no",
     elicit: "no",
-    note: "Airgapped corpus mode, with a test that does not stub what would egress.",
+    note:
+      "Corpus-only mode: evidence from your uploads only, web search off, local indexing " +
+      "model required. The question and excerpts still go to the provider each research " +
+      "model uses — a cloud provider unless you choose local models.",
   },
   {
     dimension: "Runs on local models",
@@ -226,11 +229,13 @@ export const MECHANISMS: Mechanism[] = [
     source: "research_engine/verify_bundle.py",
   },
   {
-    claim: "Your unpublished manuscript never leaves the machine",
+    claim: "Your unpublished manuscript can stay on your machine",
     how:
       "Corpus mode delegates retrieval exclusively to the local store, refuses every " +
       "non-corpus URL, and fails closed — an embedder that does not declare itself local is " +
-      "treated as remote and rejected.",
+      "treated as remote and rejected. That keeps the evidence local, not the run: the " +
+      "excerpts still reach the planner, executor, critic and synthesizer, so the manuscript " +
+      "stays local only when all four run on local models. Corpus mode does not check.",
     why:
       "A cloud product structurally cannot offer this. With embargoed data, patient records " +
       "or an unpublished draft, “upload it to Google” is not a decision you are allowed to " +
@@ -258,7 +263,7 @@ export const AUDIENCES: Audience[] = [
     who: "Researcher with confidential or embargoed data",
     verdict: "Use this",
     elsewhere: false,
-    why: "The only option here that is genuinely airgapped.",
+    why: "The only option here whose evidence and models can all run on your own machine.",
   },
   {
     who: "Anyone whose institution forbids cloud upload",
