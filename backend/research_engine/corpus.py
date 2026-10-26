@@ -1103,6 +1103,27 @@ class CorpusStore:
                 conn.execute("UPDATE corpus_meta SET version = version + 1")
         return cursor.rowcount > 0
 
+    async def extracted(self, doc_id: str) -> dict | None:
+        """One version's canonical text, segments and mode — what its citations quote."""
+        return await asyncio.to_thread(self._extracted_sync, doc_id)
+
+    def _extracted_sync(self, doc_id: str) -> dict | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT filename, kind, text, segments, extraction_mode FROM corpus_documents "
+                "WHERE id = ?",
+                (doc_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "filename": row[0],
+            "kind": row[1],
+            "text": row[2],
+            "segments": json.loads(row[3]) if row[3] else [],
+            "extraction_mode": row[4] or "verbatim",
+        }
+
     # -- folders (RFC V3.1 §7.1) ------------------------------------------------------
 
     async def folders(self) -> list[dict]:

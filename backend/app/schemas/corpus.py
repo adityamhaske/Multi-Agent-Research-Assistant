@@ -60,6 +60,16 @@ class CorpusStatusResponse(BaseModel):
     corpus_version: int | None = None
 
 
+class ExtractedTextResponse(BaseModel):
+    """The text a document's citations are verified against, for the citation preview."""
+
+    filename: str
+    kind: str
+    text: str
+    segments: list[list] = []
+    extraction_mode: str = "verbatim"
+
+
 class FolderResponse(BaseModel):
     id: str
     parent_id: str | None = None

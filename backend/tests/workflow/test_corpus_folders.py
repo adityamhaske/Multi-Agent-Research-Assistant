@@ -183,3 +183,27 @@ async def test_folder_routes_work_through_the_desktop_host(tmp_path):
             assert gone.status_code == 200 and gone.json()["documents_deleted"] == 1
             missing = await client.delete(f"{base}/folders/no-such-folder", headers=auth)
             assert missing.status_code == 404
+
+
+async def test_the_extracted_text_route_serves_what_citations_quote(tmp_path):
+    app = create_sidecar_app(data_dir=tmp_path, token=TOKEN, fake=True)
+    async with app.router.lifespan_context(app):
+        app.state.sidecar["corpus"].embedder = FakeEmbeddings()
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://127.0.0.1:9") as client:
+            auth = {"Authorization": f"Bearer {TOKEN}"}
+            pid = (await client.get("/api/v1/projects", headers=auth)).json()["projects"][0]["id"]
+            base = f"/api/v1/projects/{pid}/corpus"
+            up = await client.post(
+                f"{base}/documents",
+                headers=auth,
+                files={"file": ("t.csv", b"Name,Year\nNorth,2021\n", "text/csv")},
+            )
+            body = (
+                await client.get(f"{base}/documents/{up.json()['id']}/text", headers=auth)
+            ).json()
+            assert body["text"] == "Row 2 — Name: North; Year: 2021"
+            assert body["extraction_mode"] == "linearized"
+            assert body["segments"] == [[0, "row 2"]]
+            missing = await client.get(f"{base}/documents/nope/text", headers=auth)
+            assert missing.status_code == 404
