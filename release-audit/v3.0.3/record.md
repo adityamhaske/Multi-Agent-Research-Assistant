@@ -58,6 +58,7 @@ also the chat model's scope instruction.
 | v3.0.2's notes and record say #202 and #205 are on `main` | #206 | `releases.ts` (3.0.2 known), the changelog, the v3.0.2 record | release-entry tests | — | — | — | — | ✓ releases page | ✓ changelog *Process* | — | Shipped (process) |
 | Corpus-only mode described as what it enforces — evidence from the corpus, web search off, local indexing — and what it does not: the research models' provider, on every surface; chat's *My corpus* scope states the desktop's one shared corpus | #210 | README; docs/user-guide/25, 28; docs/getting-started/01, 20, 22; docs/architecture/04, 13; docs/project/10; `comparison.ts`, the landing page, the corpus, login, license and source pages, `LocalLLMCard`, `ScopeSelector`; `chat_scope.py` copy; `schemas/research.py`, `runconfig.py`, `ports.py`, `tools.py`, `embeddings.py`, `corpus.py` (the remote-embedder error message), comments in `adapters.py`, `pipeline_runner.py`, `sidecar.py` | `test_corpus_privacy_copy.py` — both claim kinds (no-network absolutes, and local indexing equated with offline), with negative controls from the old copy; fails on `main`'s copy of eight of those files, passes here; `test_corpus_egress.py` updated to the new message | ✓ | — (one error message's wording) | ✓ the scope copy is shared, and now true on both hosts | ✓ | ✓ landing page, `/why` | ✓ | ✓ two items added | Shipped |
 | `vite` 8.1.5 → 8.3.5 in the frontend lockfile, past Dependabot alert #43 (high, GHSA-587h-7wmj-h5pm) and the moderate #42 and #44 | #208 | `frontend/package-lock.json` only | CI on the PR: every required check green; merged 2026-10-26 as `119fdbc` on the release manager's instruction, during stage A (Finding 1), then lint, typecheck, tests and all three builds re-run on the release branch | — | — | ✓ same frontend (a dev dependency: the test runner and the React plugin) | — | — | ✓ changelog *Process* | — | Shipped |
+| `undici` 8.12.2 under `jsdom`, via `overrides`, past Dependabot alert #50 (high, GHSA-xjj6-f33q-929c) | #210 | `frontend/package.json` `overrides` (`jsdom` → `undici` 8.12.2, inside jsdom's own `^8.10.2`); one lock entry, still `dev: true` | `npm ci` (no engine warnings), lint, typecheck, the four greps, 504 tests and all three builds on Node 26; the standalone bundle's 11 packages unchanged; `npm audit` no longer lists `undici` | — | — | ✓ same frontend (the test environment only) | — | — | ✓ changelog *Process* | — | Shipped |
 | This release's preparation: version, notes, changelog, this record, the template's M20.03 text | #210 | `VERSION` and its carriers, `releases.ts`, the changelog, this record, `TEMPLATE.md` | `--stage ci`; release-entry tests; the full CI suite run locally (below) | — | — | — | — | ✓ releases.ts (unreleased) | ✓ | — | Shipped (process) |
 
 Deferred (merged but not part of this release's story): none.
@@ -88,11 +89,11 @@ judges; this is the local run before it.
 | `alembic upgrade head` | throwaway `pgvector/pgvector:pg16` and `redis:7-alpine` containers, CI's env | to `0027_run_prompt_provenance` |
 | Migration gate (round trip, downgrade policy, desktop column sync) | same | 59 passed, **0 skipped** |
 | `python -m pytest tests/` | same | **2159 passed, 1 skipped** (2155 before the four guard tests were added). The skip is `test_export.py::test_render_pdf_emits_a_real_pdf_where_libs_exist` — WeasyPrint's native libraries are not on this Mac; CI installs them (`libpango`) |
-| `npm ci`, `npm run lint`, `npm run typecheck` | Node 26.12.0, npm 11.20.0, on the merged lockfile (vite 8.3.5) | clean; no engine warnings |
+| `npm ci`, `npm run lint`, `npm run typecheck` | Node 26.12.0, npm 11.20.0, on the final lockfile (vite 8.3.5, undici 8.12.2) | clean; no engine warnings |
 | The four CI greps (raw HTML, hex colours, backend URLs, web storage) | `/usr/bin/grep`, the `ci.yml` commands | no match |
 | `npm test` | Node 26 | 64 files, **504 passed** |
 | `npm run build`, `npm run build:desktop`, `build:pages` (from a copy, as `pages.yml` does) | Node 26 | all three built; the export holds 34 docs pages and no governance or planning directory |
-| `npm audit --audit-level=critical` | Node 26 | exit 0: no critical. Before #208: 5 advisories, 3 high (`undici` under jsdom, `vite` under vitest and the React plugin, `zod` under the React-hooks lint plugin) and 2 moderate (`@vitest/mocker`). After: 4 — `undici` and `zod` high, `@vitest/mocker` moderate — every one in the test or lint toolchain, none in the standalone server bundle (`.next/standalone/node_modules` holds 11 entries: `@img`, `@next`, `@swc`, `client-only`, `detect-libc`, `next`, `react`, `react-dom`, `semver`, `sharp`, `styled-jsx`). See Finding 1 for the one Dependabot also reports |
+| `npm audit --audit-level=critical` | Node 26 | exit 0: no critical. Before #208: 5 advisories, 3 high (`undici` under jsdom, `vite` under vitest and the React plugin, `zod` under the React-hooks lint plugin) and 2 moderate (`@vitest/mocker`). After #208: 4 — `undici` and `zod` high, `@vitest/mocker` moderate. After the `undici` override: 3 — `zod` high, `@vitest/mocker` moderate. Every one is in the test or lint toolchain, none in the standalone server bundle (`.next/standalone/node_modules` holds 11 entries: `@img`, `@next`, `@swc`, `client-only`, `detect-libc`, `next`, `react`, `react-dom`, `semver`, `sharp`, `styled-jsx`). See Finding 1 for the one Dependabot also reports |
 | `release_audit.py --stage ci --version 3.0.3` | Python 3.14 | **24/24 PASS** |
 
 ## Desktop artifacts (M6.01)
@@ -262,9 +263,14 @@ Found while preparing stage A, separated by kind.
    fixed at 01:38:16Z. **Still open:** the rescan of the new lockfile opened alert #50 one
    second later — `undici` < 8.12.2 (high, GHSA-xjj6-f33q-929c, denial of service on
    excessive content-encodings), transitive under `jsdom`, the test environment, development
-   scope, not in the standalone bundle. No Dependabot PR exists for it yet. A18.05 will stop
-   the pre-tag audit on it as it did on #43, so it needs the same decision. The moderate
-   #45 and #46 (`@vitest/mocker`, fixed by #209) do not stop it.
+   scope, not in the standalone bundle. No Dependabot PR existed for it.
+
+   **Resolved for #50** at the release manager's choice: an `overrides` entry scoped to
+   `jsdom` pins `undici` to 8.12.2, inside jsdom's own `^8.10.2`, in this PR — the shape #199
+   used for 3.0.2. One lock entry changes, still `dev: true`; checks under Stage A results.
+   The moderate #45 and #46 (`@vitest/mocker`, fixed by #209) do not stop A18.05. `npm audit`
+   still lists `zod` < 4.6.6 (high) under the React-hooks lint plugin, which Dependabot has
+   not raised as an alert; lint-time only.
 2. **#207 is open.** It records v3.0.2's 48-hour watch (M22.05). If it merges before the
    release commit, A2.01 needs it in the scope table, as a process row.
 

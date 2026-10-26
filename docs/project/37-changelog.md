@@ -69,8 +69,9 @@ could.
 
 **Process**
 
-- `vite` 8.3.5 in the frontend's test toolchain, past a high-severity advisory (#208; a
-  development dependency, not in the server image).
+- `vite` 8.3.5 (#208) and `undici` 8.12.2 (pinned under `jsdom` with an `overrides`
+  entry) in the frontend's test toolchain, each past a high-severity advisory. Both are
+  development dependencies, in neither the server image nor the desktop app.
 - 3.0.2's flip, post-release audit and record updates (#203, #204, #206). The flip also
   corrected the download page's installed size to ~150 MB and reworded RELEASE.md's
   invalid-key check (M20.03) to describe the shipped behaviour.
