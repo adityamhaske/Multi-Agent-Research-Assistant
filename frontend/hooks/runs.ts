@@ -114,6 +114,10 @@ export function useStartV2Research() {
       question: string;
       depth?: string;
       corpus_mode?: boolean;
+      /** Files and folders the run may read; the server freezes it to exact versions. */
+      corpus_selection?: { folder_ids: string[]; doc_keys: string[] };
+      /** Every model call must stay on this computer, or the run fails before any call. */
+      offline?: boolean;
       skip_plan_gate?: boolean;
       /** One `provider:model` per role. Omitted entirely to use saved settings — an
        *  explicit `null` would be a routing the server then has to interpret. */

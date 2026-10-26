@@ -87,15 +87,22 @@ const SAMPLE_QUERY =
 export function StartResearchForm({
   onStarted,
   initialQuestion = "",
+  selection,
 }: {
   onStarted: (runId: string) => void;
   /** Seeded from `?q=`, so "ask this again" from a failed run is one click and an edit. */
   initialQuestion?: string;
+  /** Files chosen on the Corpus page (`?folders=`/`?files=`). Locks the run to them. */
+  selection?: { folder_ids: string[]; doc_keys: string[] };
 }) {
   const { activeId, active, isLoading: projectsLoading } = useActiveProject();
   const [question, setQuestion] = useState(initialQuestion);
   const [depth, setDepth] = useState<ResearchDepth>("balanced");
-  const [corpusMode, setCorpusMode] = useState(false);
+  const hasSelection = !!selection && selection.folder_ids.length + selection.doc_keys.length > 0;
+  const [corpusModeChoice, setCorpusMode] = useState(false);
+  // A selection is corpus-only research by definition, so the switch is on and locked.
+  const corpusMode = hasSelection || corpusModeChoice;
+  const [offline, setOffline] = useState(false);
   // On by default, and sent explicitly on every run.
   //
   // `POST /runs` defaults `skip_plan_gate` to `true` so that a script posting an
@@ -106,7 +113,8 @@ export function StartResearchForm({
   // That is why this is always in the body rather than omitted when true — omitting it
   // would silently inherit the script default and quietly drop the gate.
   const [planGate, setPlanGate] = useState(true);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  // Open when files were chosen, so the reader sees what the run is limited to.
+  const [showAdvanced, setShowAdvanced] = useState(hasSelection);
   // `null` until the probes answer, so the default lands once rather than flipping under
   // the cursor. `picked` is the user's own choice and always wins after that.
   const [picked, setPicked] = useState<ProviderKind | null>(null);
@@ -156,7 +164,9 @@ export function StartResearchForm({
         project_id: activeId,
         question: trimmed,
         depth,
-        corpus_mode: corpusMode,
+        corpus_mode: corpusMode || offline,
+        ...(hasSelection ? { corpus_selection: selection } : {}),
+        ...(offline ? { offline: true } : {}),
         skip_plan_gate: !planGate,
         // Omitted, not null, when nothing was chosen: the field's absence is what means
         // "resolve it from my settings", and sending an empty map would fail validation
@@ -290,15 +300,24 @@ export function StartResearchForm({
                 checked={corpusMode}
                 onChange={(e) => setCorpusMode(e.target.checked)}
                 className="mt-0.5 h-4 w-4 shrink-0 border-border accent-[var(--accent)]"
-                disabled={start.isPending}
+                disabled={start.isPending || hasSelection}
               />
               <span>
                 <span className="block text-sm font-medium text-text-primary">
-                  Restrict to uploaded corpus
+                  {hasSelection ? "Only the files you selected" : "Restrict to uploaded corpus"}
                 </span>
                 <span className="block text-xs leading-relaxed text-text-muted">
-                  No web search. Evidence comes only from this project&apos;s documents.
+                  {hasSelection
+                    ? `Evidence comes only from the ${selection!.doc_keys.length} file(s) and ${selection!.folder_ids.length} folder(s) you selected. `
+                    : "No web search. Evidence comes only from this project's documents. "}
+                  Your question and excerpts from those files are sent to the model provider
+                  you&apos;ve configured.
                 </span>
+                {hasSelection && (
+                  <Link href="/corpus" className="mt-1 block text-xs font-medium underline">
+                    Change selection
+                  </Link>
+                )}
                 {corpusMode && corpus.data && corpus.data.documents === 0 && (
                   <span className="mt-1 block text-xs font-medium" style={{ color: "var(--warning)" }}>
                     This project has no documents yet.{" "}
@@ -314,6 +333,23 @@ export function StartResearchForm({
                     {corpus.data.documents === 1 ? "" : "s"} available.
                   </span>
                 )}
+              </span>
+            </label>
+
+            <label className="flex cursor-pointer items-start gap-3 border border-border bg-bg-surface p-3 transition-colors hover:border-text-secondary">
+              <input
+                type="checkbox"
+                checked={offline}
+                onChange={(e) => setOffline(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 border-border accent-[var(--accent)]"
+                disabled={start.isPending}
+              />
+              <span>
+                <span className="block text-sm font-medium text-text-primary">Offline</span>
+                <span className="block text-xs leading-relaxed text-text-muted">
+                  Every model runs on this computer. Research refuses to start if any model is
+                  set to a cloud provider.
+                </span>
               </span>
             </label>
 

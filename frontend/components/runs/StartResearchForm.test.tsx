@@ -59,11 +59,11 @@ vi.mock("@/components/ActiveProject", () => ({
   }),
 }));
 
-function view() {
+function view(selection?: { folder_ids: string[]; doc_keys: string[] }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <StartResearchForm onStarted={vi.fn()} />
+      <StartResearchForm onStarted={vi.fn()} selection={selection} />
     </QueryClientProvider>,
   );
 }
@@ -116,6 +116,33 @@ describe("StartResearchForm", () => {
         // It is sent explicitly for exactly that reason.
         skip_plan_gate: false,
       },
+      expect.anything(),
+    );
+  });
+
+  it("sends a selection from the Corpus page, locked to corpus-only", () => {
+    view({ folder_ids: ["f1"], doc_keys: ["k1", "k2"] });
+    expect(screen.getByRole("checkbox", { name: /Only the files you selected/ })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Research question"), { target: { value: LONG } });
+    fireEvent.click(screen.getByRole("button", { name: "Start research" }));
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        corpus_mode: true,
+        corpus_selection: { folder_ids: ["f1"], doc_keys: ["k1", "k2"] },
+      }),
+      expect.anything(),
+    );
+    expect(mutate.mock.calls[0][0]).not.toHaveProperty("offline");
+  });
+
+  it("asks for Offline only when the switch is on, and that implies corpus-only", () => {
+    view();
+    fireEvent.click(screen.getByRole("button", { name: /Options/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Offline/ }));
+    fireEvent.change(screen.getByLabelText("Research question"), { target: { value: LONG } });
+    fireEvent.click(screen.getByRole("button", { name: "Start research" }));
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ offline: true, corpus_mode: true }),
       expect.anything(),
     );
   });
