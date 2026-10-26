@@ -47,7 +47,7 @@ def test_the_rejection_message_names_html_now_that_it_is_accepted():
     """The message and the accepted set are one contract. They were edited together
     once before and the message is what a user actually reads when they guess wrong."""
     with pytest.raises(ValueError) as exc:
-        kind_for("slides.pptx")
+        kind_for("archive.zip")
     assert "HTML" in str(exc.value)
 
 
