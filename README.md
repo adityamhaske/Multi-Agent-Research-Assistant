@@ -56,8 +56,11 @@ verbatim supporting snippet. A citation that *doesn't* resolve renders as a visi
   ([Agent instructions](docs/user-guide/38-agent-instructions.md))
 - **Any model, per agent** — Anthropic, Google, OpenAI, OpenRouter, any OpenAI-compatible
   endpoint, or local models through Ollama, on your own keys.
-- **Your own documents** — a corpus per project, and airgapped corpus-only research that
-  makes no network calls.
+- **Your own documents** — a corpus per project, and corpus-only research: evidence comes
+  only from your uploaded documents, web search is off, and indexing requires a local model.
+  The question and the excerpts still go to whichever provider each research model
+  (planner, executor, critic, synthesizer) is set to use — a cloud provider unless you have
+  chosen local models. A local indexing model does not make the run offline.
 - **Project memory and chat** — project chat answers from the reports you approved and cites
   them (self-hosted server).
 - **Desktop app or self-hosted** — Apple Silicon macOS, Windows and Linux builds with no

@@ -73,10 +73,13 @@ class RunConfig:
     tavily_api_key: str = ""
     brave_api_key: str = ""
 
-    # Airgapped corpus mode (docs/12 M10): evidence comes ONLY from the installed
-    # Corpus port. `retrievers.search` delegates to it exclusively and `read_webpage`
-    # refuses every non-corpus URL — no network call of any kind. A run with this set
-    # and no corpus installed fails closed rather than silently degrading to the web.
+    # Corpus-only mode (docs/12 M10): evidence comes ONLY from the installed Corpus
+    # port. `retrievers.search` delegates to it exclusively, `read_webpage` refuses every
+    # non-corpus URL, and the store refuses an embedder that is not local — so retrieval
+    # never leaves the host. The research models are NOT covered: the question and the
+    # excerpts go wherever `models` routes each role, so a local embedder alone does not
+    # make a run offline. A run with this set and no corpus installed fails closed rather
+    # than silently degrading to the web.
     corpus_mode: bool = False
 
     # SSRF guard (docs/06). Strict on server, relaxed on desktop (to allow local Ollama).

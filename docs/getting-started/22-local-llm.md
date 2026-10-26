@@ -162,11 +162,13 @@ chat never reach a model provider.
 **One caveat, stated plainly.** Ordinary research still performs **web searches** and fetches
 pages, so your *search queries* leave your machine even though your *reasoning* does not.
 
-For research where nothing leaves the machine, use **corpus-only mode**: evidence comes
-exclusively from documents you uploaded, `read_webpage` refuses every non-corpus URL, and
-the run makes no network calls of any kind. Combined with local embeddings
-(`nomic-embed-text` through the same Ollama), a fully local deployment can do private
-retrieval at zero cost and zero egress. See
+To keep the evidence local too, use **corpus-only mode** with every research model routed
+to Ollama. Corpus-only mode enforces three things: evidence comes exclusively from documents
+you uploaded; web search is off and `read_webpage` refuses every non-corpus URL; and
+indexing requires a local model (`nomic-embed-text` through the same Ollama). It does not
+enforce the fourth: the question and the excerpts go to whichever provider the planner,
+executor, critic and synthesizer are set to use, so a role on a hosted provider still sends
+them there. A local indexing model does not make the run offline. See
 [Local and self-hosted architecture](../architecture/13-local-and-self-hosted.md).
 
 ---

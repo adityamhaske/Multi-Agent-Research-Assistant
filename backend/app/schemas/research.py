@@ -24,8 +24,10 @@ class ResearchStartRequest(BaseModel):
         default=None,
         description='Role → "provider:model". Omit to use your saved settings.',
     )
-    # Airgapped corpus mode (docs/12 M10): research is performed exclusively over the
-    # installed corpus with no outbound network calls.
+    # Corpus-only mode (docs/12 M10): evidence comes exclusively from the installed
+    # corpus, web search is off, and indexing requires a local embedding model. The
+    # research models are not restricted — the question and excerpts go to whichever
+    # provider each role is routed to, so a local embedder does not make the run offline.
     corpus_mode: bool = False
     # Run with scripted models and fixture sources instead of a real provider
     # (docs/17 §6.2), so the product can be demonstrated before any key exists. Persisted

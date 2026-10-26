@@ -57,7 +57,7 @@ export default function LicensePage() {
         </h2>
         <p className="text-sm leading-relaxed text-text-secondary">
           The verification guarantees of this assistant — citation fidelity, reproducible
-          evaluations, airgapped local corpus privacy, and strict provenance — depend entirely on the
+          evaluations, local corpus privacy, and strict provenance — depend entirely on the
           code being fully inspectable and auditable.
         </p>
         <div className="flex flex-wrap gap-4 pt-2">
