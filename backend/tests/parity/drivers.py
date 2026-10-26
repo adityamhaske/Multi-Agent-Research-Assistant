@@ -150,20 +150,19 @@ def pin_local_llm_probe():
 
 @asynccontextmanager
 async def desktop_driver(data_dir: Path):
-    from desktop import sidecar as sidecar_module
+    from desktop import corpus_layout
     from desktop.sidecar import create_sidecar_app, mark_demo_seeded
 
     data_dir.mkdir(parents=True, exist_ok=True)
     mark_demo_seeded(data_dir)
 
-    # `make_corpus_store` constructs `LocalEmbeddings` on every call, and it is called in
-    # more than one place — the lifespan builds one store and the report auto-ingest builds
-    # another. Substituting the class is what makes *every* store this host opens use the
-    # same deterministic embedder; assigning to the one instance the lifespan happened to
-    # create leaves the others pointing at Ollama.
+    # The desktop's corpus locator builds its embedder through `corpus_layout.LocalEmbeddings`
+    # once, in the lifespan, and every per-project store it opens uses that instance.
+    # Substituting the class before the lifespan runs is what makes every store use the same
+    # deterministic embedder.
     shared = _embedder()
-    previous_local_embeddings = sidecar_module.LocalEmbeddings
-    sidecar_module.LocalEmbeddings = lambda **_kw: shared
+    previous_local_embeddings = corpus_layout.LocalEmbeddings
+    corpus_layout.LocalEmbeddings = lambda **_kw: shared
     previous_probe = pin_local_llm_probe()
 
     app = create_sidecar_app(data_dir=data_dir, token=TOKEN, fake=True)
@@ -183,7 +182,7 @@ async def desktop_driver(data_dir: Path):
                     run_driver=True,
                 )
             finally:
-                sidecar_module.LocalEmbeddings = previous_local_embeddings
+                corpus_layout.LocalEmbeddings = previous_local_embeddings
                 from app.services import local_llm
 
                 local_llm.probe = previous_probe

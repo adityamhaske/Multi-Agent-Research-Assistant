@@ -139,7 +139,7 @@ are the deliberate differences:
 | Report chat | Yes, same scope contract | Yes |
 | Project chat and project memory | **Absent by design** — memory is pgvector-only | Yes |
 | Durable event log | Absent; bundles record `trace_available: false` rather than an empty trace | `agent_logs` |
-| Corpus layout | One `corpus.sqlite` for the app | One file per project |
+| Corpus layout | One file per project, in the app's data folder (from 3.1) | One file per project |
 | Rate limiting | None — needs Redis and a user model, and the desktop has neither | Yes |
 | PDF export | WebView print-to-PDF | WeasyPrint, server-side |
 

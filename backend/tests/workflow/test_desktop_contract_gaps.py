@@ -50,7 +50,7 @@ async def sidecar(tmp_path):
         # not the embedder.
         from tests.dataflow.test_corpus_store import FakeEmbeddings
 
-        app.state.sidecar["corpus"]._embedder = FakeEmbeddings()  # noqa: SLF001
+        app.state.sidecar["corpus"].embedder = FakeEmbeddings()
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://127.0.0.1:9") as client:
             yield client
@@ -196,13 +196,18 @@ async def test_cancel_404s_for_an_unknown_session(sidecar):
 # ── Gaps 2–5 + download: the canonical per-project corpus contract ────────────────
 
 
-async def test_per_project_corpus_paths_reach_the_flat_store(sidecar):
-    """The whole point of the alias: one client contract, the desktop's own storage.
+async def _second_project(client: httpx.AsyncClient) -> str:
+    resp = await client.post("/api/v1/projects", headers=_auth(), json={"name": "Second"})
+    assert resp.status_code == 201, resp.text
+    return resp.json()["id"]
 
-    Uploading through the canonical per-project path must be visible through the flat
-    route the desktop has always served, because they are the same corpus.
-    """
+
+async def test_each_project_has_its_own_corpus(sidecar):
+    """RFC V3.1 B-1, the defect this used to pin as correct: every desktop project listed,
+    searched and cited every other project's documents, because the per-project routes
+    resolved to one shared store. Each project now has its own corpus file."""
     pid = await _project_id(sidecar)
+    other = await _second_project(sidecar)
 
     upload = await sidecar.post(
         f"/api/v1/projects/{pid}/corpus/documents",
@@ -212,14 +217,44 @@ async def test_per_project_corpus_paths_reach_the_flat_store(sidecar):
     assert upload.status_code == 201, upload.text
     doc_id = upload.json()["id"]
 
-    via_project = await sidecar.get(f"/api/v1/projects/{pid}/corpus/documents", headers=_auth())
-    via_flat = await sidecar.get("/api/v1/corpus/documents", headers=_auth())
-    assert via_project.status_code == 200
-    assert via_project.json() == via_flat.json()
-    assert any(d["id"] == doc_id for d in via_project.json())
+    mine = await sidecar.get(f"/api/v1/projects/{pid}/corpus/documents", headers=_auth())
+    theirs = await sidecar.get(f"/api/v1/projects/{other}/corpus/documents", headers=_auth())
+    assert any(d["id"] == doc_id for d in mine.json())
+    assert theirs.status_code == 200 and theirs.json() == []
+
+    # Nor can the other project reach it by id.
+    for method, path in (
+        ("get", f"/api/v1/projects/{other}/corpus/documents/{doc_id}/download"),
+        ("delete", f"/api/v1/projects/{other}/corpus/documents/{doc_id}"),
+    ):
+        resp = await getattr(sidecar, method)(path, headers=_auth())
+        assert resp.status_code == 404, (method, path, resp.status_code)
+    still = await sidecar.get(f"/api/v1/projects/{pid}/corpus/documents", headers=_auth())
+    assert any(d["id"] == doc_id for d in still.json()), "the other project's delete was refused"
 
 
-async def test_per_project_corpus_status_matches_the_flat_one(sidecar):
+async def test_deleting_a_project_removes_its_corpus_and_no_one_elses(sidecar, tmp_path):
+    pid = await _project_id(sidecar)
+    other = await _second_project(sidecar)
+    for project in (pid, other):
+        up = await sidecar.post(
+            f"/api/v1/projects/{project}/corpus/documents",
+            headers=_auth(),
+            files={"file": ("notes.txt", TEXT_DOC, "text/plain")},
+        )
+        assert up.status_code == 201, up.text
+
+    files = sorted(p.name for p in (tmp_path / "corpus").glob("corpus_*.sqlite"))
+    assert files == sorted([f"corpus_{pid}.sqlite", f"corpus_{other}.sqlite"])
+
+    gone = await sidecar.delete(f"/api/v1/projects/{other}", headers=_auth())
+    assert gone.status_code == 204, gone.text
+    assert not (tmp_path / "corpus" / f"corpus_{other}.sqlite").exists()
+    mine = await sidecar.get(f"/api/v1/projects/{pid}/corpus/documents", headers=_auth())
+    assert len(mine.json()) == 1, "the remaining project kept its document"
+
+
+async def test_per_project_corpus_status_has_the_server_shape(sidecar):
     pid = await _project_id(sidecar)
     await sidecar.post(
         f"/api/v1/projects/{pid}/corpus/documents",
@@ -228,25 +263,15 @@ async def test_per_project_corpus_status_matches_the_flat_one(sidecar):
     )
 
     via_project = await sidecar.get(f"/api/v1/projects/{pid}/corpus/status", headers=_auth())
-    via_flat = await sidecar.get("/api/v1/corpus/status", headers=_auth())
     assert via_project.status_code == 200
 
-    # Against the SERVER's shape, not against the other desktop route. Asserting the two
-    # desktop responses are equal only proves they are consistent with each other, which
-    # is what AGENTS.md means by "compare two implementations against themselves and call
-    # that parity" — and it is how the `{"documents": [...]}` wrapper survived review.
+    # Against the SERVER's shape, not against another desktop route. Asserting two desktop
+    # responses are equal only proves they are consistent with each other, which is what
+    # AGENTS.md means by "compare two implementations against themselves and call that
+    # parity" — and it is how the `{"documents": [...]}` wrapper survived review.
     assert set(via_project.json()) == set(CorpusStatusResponse.model_fields)
     assert via_project.json()["documents"] == 1
     assert via_project.json()["chunks"] >= 1
-
-    # The flat route is desktop-only in its *path* — one `corpus.sqlite` for the whole app
-    # rather than one file per project — and identical in its body. It used to carry an
-    # extra `corpus_only` field for a persistent airgap switch that nothing in `frontend/`
-    # could set or read, and that was the only input to `RunConfig.corpus_mode` on this
-    # host, so the `corpus_mode` a run requested was stored and never read. The switch is
-    # gone and the desktop takes corpus mode per run, exactly as the server does.
-    assert set(via_flat.json()) == set(CorpusStatusResponse.model_fields)
-    assert via_flat.json() == via_project.json()
 
 
 async def test_upload_accepts_the_multipart_body_the_browser_sends(sidecar):
@@ -293,7 +318,7 @@ async def test_delete_through_the_canonical_path_removes_the_document(sidecar):
     )
     assert delete.status_code == 204
 
-    listed = await sidecar.get("/api/v1/corpus/documents", headers=_auth())
+    listed = await sidecar.get(f"/api/v1/projects/{pid}/corpus/documents", headers=_auth())
     assert not any(d["id"] == doc_id for d in listed.json())
 
 

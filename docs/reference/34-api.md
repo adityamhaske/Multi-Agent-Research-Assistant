@@ -579,8 +579,9 @@ cannot fail halfway on a model that could have been rejected when it was picked.
 
 The desktop sidecar serves the same contract with three deliberate differences: keys come
 from the OS keychain rather than a decrypted column, there is no rate-limit dependency (it
-needs Redis and a user model, and the desktop has neither), and the corpus is one file for
-the whole app.
+needs Redis and a user model, and the desktop has neither), and corpus files live in the app's
+data folder rather than under `CORPUS_DIR`. From 3.1 the desktop, like the server, keeps one
+corpus per project; the app-wide `/corpus/*` routes earlier desktop releases served are gone.
 
 It additionally exposes `/desktop/keys` (`GET`, `PUT /{provider}`, `DELETE /{provider}`,
 `PUT /custom_endpoint`) and `/models/local/{start,stop}` for supervising a local model server.

@@ -16,8 +16,7 @@ import type { ChatScope } from "@/lib/types";
  * local one. Claiming more than that here is exactly the kind of unverifiable statement
  * this product exists to refuse.
  *
- * "Uploaded documents", not "this project's": the desktop keeps one corpus for the whole
- * app (AGENTS.md, report chat), so a per-project claim is false on one of the two hosts.
+ * "This project's": from 3.1 both hosts keep one corpus per project.
  */
 
 type Option = { value: ChatScope; label: string; detail: string };
@@ -32,7 +31,7 @@ const OPTIONS: Option[] = [
     value: "corpus",
     label: "My corpus",
     detail:
-      "Only your uploaded documents — this project's on a server; on the desktop app every project shares one corpus. No web search, and indexing stays on this machine — but your question and the excerpts still go to the provider chat uses, a cloud one unless you chose a local model.",
+      "Only the documents uploaded to this project. No web search, and indexing stays on this machine — but your question and the excerpts still go to the provider chat uses, a cloud one unless you chose a local model.",
   },
   {
     value: "web",

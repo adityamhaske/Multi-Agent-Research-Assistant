@@ -188,7 +188,7 @@ async def test_a_desktop_selection_run_reaches_the_engine_scoped(monkeypatch, tm
 
     app = create_sidecar_app(data_dir=tmp_path, token=TOKEN, fake=True)
     async with app.router.lifespan_context(app):
-        app.state.sidecar["corpus"]._embedder = FakeEmbeddings()  # noqa: SLF001
+        app.state.sidecar["corpus"].embedder = FakeEmbeddings()
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://127.0.0.1:9") as client:
             auth = {"Authorization": f"Bearer {TOKEN}"}

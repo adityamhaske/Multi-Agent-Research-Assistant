@@ -36,6 +36,7 @@ import hmac
 import json
 import os
 import secrets
+import sqlite3
 import sys
 import uuid
 from collections.abc import AsyncGenerator
@@ -152,8 +153,13 @@ from app.services.session_events import lifecycle_event
 from app.services.sse import SSE_HEADERS
 from research_engine import bundle, catalog, citation_rate, outlines
 from research_engine.build_info import build_info
-from research_engine.corpus import CorpusStore
-from research_engine.embeddings import EmbeddingsUnavailable, LocalEmbeddings
+from desktop.corpus_layout import (
+    SHARED,
+    DesktopCorpusLocator,
+    MigrationRefused,
+    migrate_legacy_corpus,
+)
+from research_engine.embeddings import EmbeddingsUnavailable
 from research_engine.events import make_event
 from research_engine.graph import build_graph
 from research_engine.llm_factory import get_llm, text_of
@@ -654,21 +660,6 @@ def save_custom_endpoint(data_dir: str | Path, url: str | None) -> None:
 # executed over the open web. `app/schemas/research.py` names that exact class.
 
 
-def make_corpus_store(data_dir: str | Path) -> CorpusStore:
-    """The desktop's corpus: SQLite vectors + local embeddings via Ollama.
-
-    `LocalEmbeddings` rather than the server's adapter because `app/adapters.py`
-    imports `app.config` (and redis), neither of which belongs in the frozen bundle.
-    Same `ollama:<model>` id scheme, so a corpus indexed on one host reads as the
-    same model on the other.
-    """
-    embedder = LocalEmbeddings(
-        model=os.environ.get("CORPUS_EMBEDDINGS_MODEL", "nomic-embed-text"),
-        base_url=os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
-    )
-    return CorpusStore(Path(data_dir) / "corpus.sqlite", embedder)
-
-
 def provider_keys(data_dir: str | Path | None) -> dict[str, str]:
     """Env keys, then keychain keys (keychain wins), plus a saved custom endpoint URL."""
     env_names = {
@@ -846,32 +837,8 @@ def create_sidecar_app(
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Local user missing")
         return user
 
-    class _DesktopCorpusLocator:
-        """`CorpusLocator` for the desktop: one flat store for the whole app.
-
-        `for_project`/`ensure` ignore `project_id` on purpose — there is only ever the one
-        store, and `_corpus()` is where its not-ready-yet 503 already lived before this
-        class existed, so this calls it rather than reading `state["corpus"]` a second
-        way. `paths_to_delete`/`delete` are no-ops for the reason `delete_project`'s
-        docstring already gave: nothing here is project-scoped on disk to orphan. Keeping
-        that as the locator's own behaviour, rather than a branch in the route, is what
-        lets `delete_project` and now the corpus routes run unmodified on both hosts.
-        """
-
-        async def for_project(self, project_id, *, keys=None):  # noqa: ARG002
-            return _corpus()
-
-        async def ensure(self, project_id, *, keys=None):  # noqa: ARG002
-            return _corpus()
-
-        def paths_to_delete(self, project_id):  # noqa: ARG002
-            return []
-
-        def delete(self, project_id) -> None:  # noqa: ARG002
-            pass
-
     def get_corpus_locator() -> CorpusLocator:
-        return _DesktopCorpusLocator()
+        return app.state.sidecar["corpus"]
 
     def get_checkpoint_deleter() -> CheckpointDeleter:
         """The already-open `AsyncSqliteSaver`, wrapped to the port's plain-callable
@@ -924,10 +891,6 @@ def create_sidecar_app(
         await state["saver"].setup()
         state["_saver_cm"] = saver
         state["cache"] = SqliteCache(data_path / "cache.sqlite")
-        # The airgapped corpus (docs/12 M10). Creating the store only makes a SQLite
-        # file — no network until something ingests or searches, and even then the
-        # only call leaves for the local Ollama server.
-        state["corpus"] = make_corpus_store(data_path)
 
         # Seed the single local user and their default project on first launch.
         async with session_factory() as db:
@@ -951,6 +914,16 @@ def create_sidecar_app(
             if general is None:
                 db.add(Project(user_id=user.id, name=DEFAULT_PROJECT_NAME))
                 await db.commit()
+
+        # One corpus file per project, as on the server; a pre-3.1 shared store moves to
+        # its own project first, before anything can read or write it. A refused move
+        # leaves the shared store in force and says why (desktop/corpus_layout.py).
+        try:
+            layout = await migrate_legacy_corpus(data_path, session_factory, user.id)
+        except (MigrationRefused, sqlite3.Error) as e:
+            logger.error("corpus_legacy_migration_refused", error=str(e))
+            layout, state["corpus_warning"] = SHARED, f"Documents were not moved: {e}"
+        state["corpus"] = DesktopCorpusLocator(data_path, layout)
 
         # First launch: leave a finished demo report waiting, so the app opens on what it
         # produces rather than an empty form and a request for an API key (docs/17 §6.1).
@@ -1320,7 +1293,7 @@ def create_sidecar_app(
             from app.services.report_corpus import ingest_report
 
             await ingest_report(
-                make_corpus_store(app.state.data_dir),
+                await app.state.sidecar["corpus"].ensure(session.project_id),
                 report_id=str(session.id),
                 report_markdown=outcome.final_report,
             )
@@ -1445,7 +1418,7 @@ def create_sidecar_app(
             "event_sink": sink,
             "cache": sidecar["cache"],
             "run_config": config,
-            "corpus": sidecar["corpus"],
+            "corpus": await sidecar["corpus"].for_project(session.project_id),
         }
         try:
             if approved is None and plan is None:
@@ -1570,7 +1543,7 @@ def create_sidecar_app(
                     "prompt_overrides": prompt_overrides,
                     **run_execution.row_overrides(run),
                 }
-                question, depth = run.question, run.depth
+                question, depth, project_id = run.question, run.depth, run.project_id
                 run_routing = run.model_routing
                 await run_lifecycle.set_status(db, run, "RUNNING")
                 await db.commit()
@@ -1608,21 +1581,22 @@ def create_sidecar_app(
                     run.model_routing = dict(config.models)
                     await db.commit()
 
+            store = await sidecar["corpus"].for_project(project_id) if config.corpus_mode else None
             ports = {
                 "event_sink": sink,
                 "cache": sidecar["cache"],
                 "run_config": config,
-                "corpus": run_execution.corpus_port_for(sidecar["corpus"], config) if config.corpus_mode else None,
+                "corpus": run_execution.corpus_port_for(store, config) if store else None,
             }
             # The same snapshot the server takes in `run_execution._corpus_port`, through
             # the same function object rather than a second copy of the rule — this is a
             # two-host contract, and AGENTS.md records what happens to those kept in step
             # by discipline. Guarded on corpus mode for the same reason the server guards
             # it: a web run read no corpus and must not claim one.
-            if overrides["corpus_mode"]:
+            if store is not None:
                 async with session_factory() as db:
                     row = await db.get(ResearchRun, run_id)
-                    await run_execution.record_corpus_snapshot(db, row, sidecar["corpus"])
+                    await run_execution.record_corpus_snapshot(db, row, store)
                     await db.commit()
             # Captured around the graph, not rebuilt afterwards: the composed prompt only
             # exists while the run's frozen config is installed. Server counterpart:
@@ -1923,10 +1897,7 @@ def create_sidecar_app(
                 report=session.final_report,
                 report_sources=session.sources or [],
                 memory_excerpts=None,
-                # One store for the whole app (`make_corpus_store`), unlike the server's
-                # per-project file — the reason this is a lambda over existing state
-                # rather than a path built from `session.project_id`.
-                store_factory=lambda: app.state.sidecar["corpus"],
+                store_factory=lambda: app.state.sidecar["corpus"].open_existing(session.project_id),
             )
         except EmbeddingsUnavailable as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
@@ -2512,69 +2483,16 @@ def create_sidecar_app(
             for provider in ("google", "anthropic", "openai", "openrouter", "custom")
         }
 
-    # -- corpus (airgapped mode, docs/12 M10) -----------------------------------
-
-    def _corpus() -> CorpusStore:
-        store = app.state.sidecar.get("corpus")
-        if store is None:  # pragma: no cover — lifespan installs it before serving
-            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="Corpus not ready.")
-        return store
-
-    # `_document_response` and `_corpus_status_response` used to be shaped here, by hand,
-    # against the server's field names from memory. They are `corpus_ingest`'s job now —
-    # one mapping, both hosts.
-
-    @api.post("/corpus/documents", status_code=201)
-    async def upload_document(request: Request, filename: str):
-        """Ingest one PDF/MD/TXT into the corpus.
-
-        Raw bytes in the body, name in the query — deliberately not multipart, so the
-        frozen bundle needs no python-multipart. Errors stay fail-closed: an
-        unsupported format or an unreachable embedding server is a 4xx/5xx, never a
-        silent skip.
-        """
-        return await corpus_ingest.ingest_document(_corpus(), filename, await request.body())
-
-    @api.get("/corpus/documents", response_model=list[DocumentResponse])
-    async def list_corpus_documents():
-        return [corpus_ingest.document_response(d) for d in await _corpus().documents()]
-
-    @api.delete("/corpus/documents/{doc_id}", status_code=204)
-    async def delete_corpus_document(doc_id: str):
-        if not await _corpus().delete(doc_id):
-            raise HTTPException(status.HTTP_404_NOT_FOUND, detail=corpus_ingest.DOCUMENT_NOT_FOUND)
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-    @api.get("/corpus/status", response_model=CorpusStatusResponse)
-    async def corpus_status():
-        return corpus_ingest.status_response(await _corpus().status())
-
-    # -- canonical per-project corpus contract (M1.5) ---------------------------
+    # -- the per-project corpus contract ----------------------------------------
     #
-    # The flat `/corpus/*` routes above are the desktop's *internal* shape: this host
-    # keeps one `corpus.sqlite` for the whole app rather than one file per project. That
-    # is a real infrastructure difference and it stays.
-    #
-    # What was wrong is that the difference leaked into the client. The Corpus page and
-    # the report preview call `/projects/{id}/corpus/...` — the server's shape — with no
-    # `isDesktop` branch, so on desktop the document list, status panel, upload, delete
-    # and preview all 404'd. Both hosts had a complete corpus implementation and they
-    # never met (M1, `KNOWN_DESKTOP_GAPS`).
-    #
-    # So the per-project path is the **canonical product contract** and both hosts serve
-    # it. Here it resolves to the one flat store, which is exactly the "same contract,
-    # different internals" split the parity harness is meant to protect. Adding a branch
-    # to the frontend instead would have taught it about a storage decision it has no
-    # business knowing.
+    # Both hosts serve `/projects/{id}/corpus/...`, and from 3.1 both keep one corpus file
+    # per project (`desktop/corpus_layout.py`), so the project id really picks the store.
+    # Up to 3.0.x this host had one shared store and these routes resolved to it, which is
+    # how every desktop project saw every other project's documents (RFC V3.1 B-1). The
+    # flat `/corpus/*` routes that exposed that shared store are gone with it.
     #
     # `resolve_project` (the server's, case-insensitive on the default project — see
-    # projects.py) still runs and still 404s on an unknown project, matching the server's
-    # authorization boundary — the project id is not *used* to pick a store, but
-    # answering for a project that does not exist would be a different contract.
-    #
-    # All five routes below delegate. `_corpus()`'s not-ready-yet 503 and the flat routes'
-    # own store access above are unaffected — `_DesktopCorpusLocator` calls `_corpus()`
-    # itself rather than reading `state["corpus"]` a second way.
+    # projects.py) still runs and 404s on a project that is not the user's.
 
     @api.get("/projects/{project_id}/corpus/documents", response_model=list[DocumentResponse])
     @delegates_to("app.api.v1.corpus:list_documents")
@@ -2743,11 +2661,10 @@ def create_sidecar_app(
         if body.decision == "APPROVED":
             # `submit_report_review` already tried its own server-side corpus ingest and
             # swallowed it (app/api/v1/runs.py::_ingest_report_into_corpus) — it imports
-            # `app.config`/`app.adapters`, which `make_corpus_store`'s own docstring
-            # documents as excluded from this bundle, so that attempt always fails cleanly
-            # here and never completes the save. This is the completion: desktop's actual,
-            # bundle-safe path, using the same flat `corpus.sqlite` every other desktop
-            # corpus route writes to (AGENTS.md — one store for the whole app, by design).
+            # `app.config`/`app.adapters`, which are excluded from this bundle, so that
+            # attempt always fails cleanly here and never completes the save. This is the
+            # completion: desktop's bundle-safe path, into the run's own project corpus.
+            from app.models.research import ResearchRun
             from app.models.revision import Revision
             from app.services.report_corpus import ingest_report
 
@@ -2764,7 +2681,9 @@ def create_sidecar_app(
             )
             if revision is not None:
                 await ingest_report(
-                    make_corpus_store(app.state.data_dir),
+                    await app.state.sidecar["corpus"].ensure(
+                        (await db.get(ResearchRun, run_id)).project_id
+                    ),
                     report_id=str(run_id),
                     report_markdown=revision.report_markdown,
                 )

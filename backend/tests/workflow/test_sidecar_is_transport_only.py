@@ -71,7 +71,7 @@ SIDECAR = Path(__file__).resolve().parents[2] / "desktop" / "sidecar.py"
 #: supervision and logging bootstrap for a process that is not itself an HTTP handler), and
 #: 2,850 before that, itself down from 3,015 before plan phase 7 began delegating session
 #: routes. Small headroom above the current count, not a target to grow into.
-CEILING = 3058
+CEILING = 2977
 
 
 def test_sidecar_has_not_grown_past_its_ratchet():
