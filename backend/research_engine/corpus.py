@@ -207,6 +207,28 @@ def segment_label(segments: list, start: int, end: int) -> str:
     return first
 
 
+class FolderNotFound(LookupError):
+    """A folder id that is not in this corpus."""
+
+
+def _folder_name(name: str) -> str:
+    """A folder name as stored: trimmed, NFC, one path component, and not empty."""
+    import unicodedata
+
+    cleaned = unicodedata.normalize("NFC", (name or "").strip())
+    if (
+        not cleaned
+        or cleaned in (".", "..")
+        or "/" in cleaned
+        or "\\" in cleaned
+        or "\0" in cleaned
+    ):
+        raise ValueError(f"{name!r} is not a usable folder name.")
+    if len(cleaned) > 255:
+        raise ValueError("Folder names are limited to 255 characters.")
+    return cleaned
+
+
 # ── The store ────────────────────────────────────────────────────────────────────
 
 _SCHEMA = """
@@ -266,8 +288,34 @@ CREATE TABLE IF NOT EXISTS corpus_meta (
 );
 """
 
+#: Folders and which documents are in them (RFC V3.1 §7.1). Membership binds to `doc_key`,
+#: the logical document, so a new version keeps its folders; the same document may sit in
+#: several folders, which is one document and several memberships. A document with no
+#: membership is listed at the root — every document from before folders existed.
+_FOLDER_SCHEMA = """
+CREATE TABLE IF NOT EXISTS corpus_folders (
+    id         TEXT PRIMARY KEY,
+    parent_id  TEXT REFERENCES corpus_folders(id) ON DELETE CASCADE,
+    name       TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_corpus_folder_name
+    ON corpus_folders (parent_id, name) WHERE parent_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_corpus_folder_root_name
+    ON corpus_folders (name) WHERE parent_id IS NULL;
+CREATE TABLE IF NOT EXISTS corpus_memberships (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_key      TEXT NOT NULL,
+    folder_id    TEXT NOT NULL REFERENCES corpus_folders(id) ON DELETE CASCADE,
+    display_name TEXT NOT NULL,
+    added_at     TEXT NOT NULL,
+    UNIQUE (folder_id, doc_key)
+);
+CREATE INDEX IF NOT EXISTS idx_corpus_membership_doc ON corpus_memberships (doc_key);
+"""
+
 #: Corpus file schema this build writes. Bumped when `_migrate` gains a step.
-_SCHEMA_VERSION = 2
+_SCHEMA_VERSION = 3
 
 
 class UnknownDocumentKey(LookupError):
@@ -379,6 +427,9 @@ class CorpusStore:
             conn.execute("ALTER TABLE corpus_documents ADD COLUMN segments TEXT")
         if "extraction_mode" not in have:
             conn.execute("ALTER TABLE corpus_documents ADD COLUMN extraction_mode TEXT")
+        # New tables only, so a 3.0.x binary opening this file never reads them, and the
+        # two unique indexes it re-creates on every open are untouched (RFC §7.1).
+        conn.executescript(_FOLDER_SCHEMA)
 
     @property
     def embedder(self) -> Embeddings:
@@ -1051,6 +1102,214 @@ class CorpusStore:
             if cursor.rowcount:
                 conn.execute("UPDATE corpus_meta SET version = version + 1")
         return cursor.rowcount > 0
+
+    # -- folders (RFC V3.1 §7.1) ------------------------------------------------------
+
+    async def folders(self) -> list[dict]:
+        return await asyncio.to_thread(self._folders_sync)
+
+    def _folders_sync(self) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT id, parent_id, name FROM corpus_folders ORDER BY name, id"
+            ).fetchall()
+        return [{"id": r[0], "parent_id": r[1], "name": r[2]} for r in rows]
+
+    async def memberships(self) -> list[dict]:
+        return await asyncio.to_thread(self._memberships_sync)
+
+    def _memberships_sync(self) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT doc_key, folder_id, display_name FROM corpus_memberships ORDER BY id"
+            ).fetchall()
+        return [{"doc_key": r[0], "folder_id": r[1], "display_name": r[2]} for r in rows]
+
+    async def create_folder(self, name: str, parent_id: str | None = None) -> str:
+        return await asyncio.to_thread(self._create_folder_sync, name, parent_id)
+
+    def _create_folder_sync(self, name: str, parent_id: str | None) -> str:
+        name = _folder_name(name)
+        with self._connect() as conn:
+            if (
+                parent_id is not None
+                and not conn.execute(
+                    "SELECT 1 FROM corpus_folders WHERE id = ?", (parent_id,)
+                ).fetchone()
+            ):
+                raise FolderNotFound(parent_id)
+            existing = conn.execute(
+                "SELECT id FROM corpus_folders WHERE name = ? AND parent_id IS ?",
+                (name, parent_id),
+            ).fetchone()
+            if existing:
+                return existing[0]
+            folder_id = str(uuid.uuid4())
+            conn.execute(
+                "INSERT INTO corpus_folders (id, parent_id, name, created_at) VALUES (?, ?, ?, ?)",
+                (folder_id, parent_id, name, datetime.now(UTC).isoformat()),
+            )
+            conn.execute("UPDATE corpus_meta SET version = version + 1")
+        return folder_id
+
+    async def ensure_folder_path(self, components: list[str]) -> str | None:
+        """The folder at `components` (creating any that are missing), or None for the root."""
+        parent: str | None = None
+        for component in components:
+            parent = await self.create_folder(component, parent)
+        return parent
+
+    async def update_folder(
+        self,
+        folder_id: str,
+        *,
+        name: str | None = None,
+        parent_id: str | None = ...,
+    ) -> None:
+        await asyncio.to_thread(self._update_folder_sync, folder_id, name, parent_id)
+
+    def _update_folder_sync(self, folder_id: str, name, parent_id) -> None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT parent_id, name FROM corpus_folders WHERE id = ?", (folder_id,)
+            ).fetchone()
+            if row is None:
+                raise FolderNotFound(folder_id)
+            new_parent = row[0] if parent_id is ... else parent_id
+            new_name = row[1] if name is None else _folder_name(name)
+            if new_parent is not None:
+                if not conn.execute(
+                    "SELECT 1 FROM corpus_folders WHERE id = ?", (new_parent,)
+                ).fetchone():
+                    raise FolderNotFound(new_parent)
+                if new_parent in self._descendants(conn, [folder_id]):
+                    raise ValueError(
+                        "A folder cannot be moved into itself or one of its subfolders."
+                    )
+            clash = conn.execute(
+                "SELECT 1 FROM corpus_folders WHERE name = ? AND parent_id IS ? AND id != ?",
+                (new_name, new_parent, folder_id),
+            ).fetchone()
+            if clash:
+                raise ValueError(f"A folder named {new_name!r} already exists there.")
+            conn.execute(
+                "UPDATE corpus_folders SET name = ?, parent_id = ? WHERE id = ?",
+                (new_name, new_parent, folder_id),
+            )
+            conn.execute("UPDATE corpus_meta SET version = version + 1")
+
+    @staticmethod
+    def _descendants(conn, folder_ids: list[str]) -> set[str]:
+        """The folders and every folder beneath them."""
+        if not folder_ids:
+            return set()
+        rows = conn.execute(
+            "WITH RECURSIVE sub(id) AS ("
+            "  SELECT value FROM json_each(?) "
+            "  UNION SELECT f.id FROM corpus_folders f JOIN sub ON f.parent_id = sub.id"
+            ") SELECT id FROM sub",
+            (json.dumps(folder_ids),),
+        ).fetchall()
+        return {r[0] for r in rows}
+
+    async def delete_folder(self, folder_id: str) -> dict:
+        return await asyncio.to_thread(self._delete_folder_sync, folder_id)
+
+    def _delete_folder_sync(self, folder_id: str) -> dict:
+        """Remove a folder, its subfolders and their memberships, in one transaction.
+
+        A document that was in one of them and is now in no folder at all is deleted with
+        every version — it was only ever filed there. A document still in another folder
+        stays, and a document that was never in any folder is never touched. Runs that cited
+        a deleted document keep their persisted evidence; reopening it answers
+        `document_unavailable` (RFC §7.1).
+        """
+        with self._connect() as conn:
+            if not conn.execute(
+                "SELECT 1 FROM corpus_folders WHERE id = ?", (folder_id,)
+            ).fetchone():
+                raise FolderNotFound(folder_id)
+            doomed = self._descendants(conn, [folder_id])
+            ids = json.dumps(sorted(doomed))
+            keys = {
+                r[0]
+                for r in conn.execute(
+                    "SELECT DISTINCT doc_key FROM corpus_memberships "
+                    "WHERE folder_id IN (SELECT value FROM json_each(?))",
+                    (ids,),
+                )
+            }
+            conn.execute(
+                "DELETE FROM corpus_memberships WHERE folder_id IN (SELECT value FROM json_each(?))",
+                (ids,),
+            )
+            conn.execute(
+                "DELETE FROM corpus_folders WHERE id IN (SELECT value FROM json_each(?))", (ids,)
+            )
+            orphaned = [
+                key
+                for key in keys
+                if not conn.execute(
+                    "SELECT 1 FROM corpus_memberships WHERE doc_key = ?", (key,)
+                ).fetchone()
+            ]
+            removed = 0
+            for key in orphaned:
+                removed += conn.execute(
+                    "DELETE FROM corpus_documents WHERE doc_key = ?", (key,)
+                ).rowcount
+            conn.execute("UPDATE corpus_meta SET version = version + 1")
+        return {
+            "folders_deleted": len(doomed),
+            "documents_deleted": len(orphaned),
+            "versions_deleted": removed,
+        }
+
+    async def add_membership(self, doc_key: str, folder_id: str, display_name: str) -> None:
+        await asyncio.to_thread(self._add_membership_sync, doc_key, folder_id, display_name)
+
+    def _add_membership_sync(self, doc_key: str, folder_id: str, display_name: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO corpus_memberships "
+                "(doc_key, folder_id, display_name, added_at) VALUES (?, ?, ?, ?)",
+                (doc_key, folder_id, display_name, datetime.now(UTC).isoformat()),
+            )
+
+    async def doc_key_of(self, doc_id: str) -> str | None:
+        return await asyncio.to_thread(self._doc_key_of_sync, doc_id)
+
+    def _doc_key_of_sync(self, doc_id: str) -> str | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT doc_key FROM corpus_documents WHERE id = ?", (doc_id,)
+            ).fetchone()
+        return row[0] if row else None
+
+    async def folder_doc_keys(self, folder_ids: list[str]) -> set[str] | None:
+        """Every logical document in these folders or beneath them; None if one is unknown."""
+        return await asyncio.to_thread(self._folder_doc_keys_sync, folder_ids)
+
+    def _folder_doc_keys_sync(self, folder_ids: list[str]) -> set[str] | None:
+        with self._connect() as conn:
+            known = {
+                r[0]
+                for r in conn.execute(
+                    "SELECT id FROM corpus_folders WHERE id IN (SELECT value FROM json_each(?))",
+                    (json.dumps(folder_ids),),
+                )
+            }
+            if known != set(folder_ids):
+                return None
+            every = self._descendants(conn, folder_ids)
+            return {
+                r[0]
+                for r in conn.execute(
+                    "SELECT DISTINCT doc_key FROM corpus_memberships "
+                    "WHERE folder_id IN (SELECT value FROM json_each(?))",
+                    (json.dumps(sorted(every)),),
+                )
+            }
 
     async def status(self) -> dict:
         return await asyncio.to_thread(self._status_sync)
