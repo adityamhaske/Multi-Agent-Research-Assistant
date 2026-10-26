@@ -92,7 +92,7 @@ async def search(query: str, max_results: int = 5) -> list[SearchResult]:
     if get_run_config().corpus_mode:
         # Corpus-only: the port answers exclusively. NoCorpus raises, and the raise is
         # deliberate — an airgapped run with no corpus must fail visibly, not fall
-        # through to the web chain (docs/12 M10 DoD: no network calls at all).
+        # through to the web chain (docs/12 M10 DoD: no retrieval egress).
         return await get_corpus().search(query, max_results)
 
     cfg = get_run_config()

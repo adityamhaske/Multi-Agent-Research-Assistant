@@ -315,7 +315,7 @@ class HostedEmbeddings:
         self._api_key = api_key
 
     # A hosted provider is a network call by definition. This is the adapter that made
-    # corpus-only mode's "no network calls at all" claim untrue whenever a deployment set
+    # corpus-only mode's no-egress claim untrue whenever a deployment set
     # EMBEDDINGS_PROVIDER=google|openai: the query embedding at corpus.py::search left the
     # machine on every corpus search. The airgap guard now refuses it outright.
     is_local = False

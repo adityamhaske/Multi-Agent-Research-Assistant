@@ -153,7 +153,7 @@ async def test_corpus_mode_refuses_a_remote_embedder(tmp_path, no_egress):
 
     token = set_run_config(RunConfig(llm_mode="fake", corpus_mode=True))
     try:
-        with pytest.raises(EmbeddingsUnavailable, match="zero network calls"):
+        with pytest.raises(EmbeddingsUnavailable, match="keeps retrieval on this machine"):
             await store.search("photovoltaic sunlight", max_results=1)
     finally:
         reset_run_config(token)

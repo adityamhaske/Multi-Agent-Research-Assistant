@@ -163,7 +163,7 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | **Phase 20 — Final End-to-End Production Smoke Test** | | |
 | M20.01 | PENDING | The web/self-hosted journey on the Phase 10 stack, **with a real provider at least once** (fake mode… — evidence: |
 | M20.02 | PENDING | The desktop journey on each platform (M7.08, M8.06, M9.01/M9.02), with a real provider or Ollama — evidence: |
-| M20.03 | PENDING | Negative paths on the published build: an invalid provider key is refused before it is stored; a run… — evidence: |
+| M20.03 | PENDING | Negative paths on the published build: an invalid provider key is reported as rejected by its provider as… — evidence: |
 | M20.04 | PENDING | Every `[n]` in the final report resolves on hover to a source and its snippet; an unresolved one renders… — evidence: |
 | **Phase 21 — Release Approval** | | |
 | M21.01 | PENDING | Every WARN and UNAVAILABLE in the published audit has a written disposition in the record — evidence: |
