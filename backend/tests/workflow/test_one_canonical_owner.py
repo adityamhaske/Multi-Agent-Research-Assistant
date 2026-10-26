@@ -76,6 +76,10 @@ SHARED_OWNERSHIP: dict[str, str] = {
     "GET /projects/{project_id}/corpus/documents/{doc_id}/download": "app.api.v1.corpus",
     "DELETE /projects/{project_id}/corpus/documents/{doc_id}": "app.api.v1.corpus",
     "GET /projects/{project_id}/corpus/status": "app.api.v1.corpus",
+    "GET /projects/{project_id}/corpus/tree": "app.api.v1.corpus",
+    "POST /projects/{project_id}/corpus/folders": "app.api.v1.corpus",
+    "PATCH /projects/{project_id}/corpus/folders/{folder_id}": "app.api.v1.corpus",
+    "DELETE /projects/{project_id}/corpus/folders/{folder_id}": "app.api.v1.corpus",
     # The four models routes with no BYOK/keychain dependency — each only needed
     # `current_user`/`user` for the auth gate, never to resolve a stored key, so there
     # was no host-specific mechanism to work around in the first place.

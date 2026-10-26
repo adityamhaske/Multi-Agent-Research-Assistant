@@ -58,3 +58,46 @@ class CorpusStatusResponse(BaseModel):
     # lives in the data can.
     corpus_id: str | None = None
     corpus_version: int | None = None
+
+
+class FolderResponse(BaseModel):
+    id: str
+    parent_id: str | None = None
+    name: str
+
+
+class MembershipResponse(BaseModel):
+    doc_key: str
+    folder_id: str
+    display_name: str
+
+
+class CorpusTreeResponse(BaseModel):
+    """Folders, documents, and which document is in which folder (RFC V3.1 §7.1).
+
+    Flat lists rather than a nested tree, so the client builds the tree once and the shape
+    stays the same on both hosts. A document with no membership sits at the root.
+    """
+
+    folders: list[FolderResponse]
+    documents: list[DocumentResponse]
+    memberships: list[MembershipResponse]
+
+
+class FolderCreateRequest(BaseModel):
+    name: str
+    parent_id: str | None = None
+
+
+class FolderUpdateRequest(BaseModel):
+    """`name` renames; `parent_id` moves (null moves to the root). Omit a field to keep it."""
+
+    name: str | None = None
+    parent_id: str | None = None
+    move: bool = False
+
+
+class FolderDeleteResponse(BaseModel):
+    folders_deleted: int
+    documents_deleted: int
+    versions_deleted: int

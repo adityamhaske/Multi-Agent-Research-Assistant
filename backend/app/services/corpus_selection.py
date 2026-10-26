@@ -25,11 +25,6 @@ class SelectionError(ValueError):
         self.code = code
 
 
-#: Folders arrive with the folder model (PR-14). Until then no folder id resolves, and a
-#: request naming one is refused as not found rather than silently ignored.
-_NO_FOLDERS: dict[str, list[str]] = {}
-
-
 async def freeze_selection(
     store: Any,
     *,
@@ -48,15 +43,20 @@ async def freeze_selection(
     if not whole_corpus and not folder_ids and not doc_keys:
         raise SelectionError("selection_empty", "Select at least one file or folder.")
 
-    unknown_folders = [f for f in folder_ids if f not in _NO_FOLDERS]
-    if unknown_folders:
-        # Says how many, never which: an id that exists in another project and one that
-        # exists nowhere must look the same from here.
-        raise SelectionError(
-            "selection_not_found", "Some selected files or folders are not in this project."
-        )
+    folder_keys: set[str] = set()
+    if folder_ids:
+        # Folders expand to every document in them and beneath them, now — the selection
+        # records documents, so a file added to the folder later is not in this run.
+        found = await store.folder_doc_keys(folder_ids) if store is not None else None
+        if found is None:
+            # Never says which: an id that exists in another project and one that exists
+            # nowhere must look the same from here.
+            raise SelectionError(
+                "selection_not_found", "Some selected files or folders are not in this project."
+            )
+        folder_keys = found
 
-    requested_keys = sorted(set(doc_keys))
+    requested_keys = sorted(set(doc_keys) | folder_keys)
     if store is None:
         resolved: list[dict] = []
     else:
@@ -64,7 +64,9 @@ async def freeze_selection(
 
     if not whole_corpus:
         found = {item["doc_key"] for item in resolved}
-        if set(requested_keys) - found:
+        # Every file named explicitly must resolve; a folder may hold documents with no
+        # current version, which simply are not in the selection.
+        if set(doc_keys) - found:
             raise SelectionError(
                 "selection_not_found",
                 "Some selected files are not in this project, or have no current version.",

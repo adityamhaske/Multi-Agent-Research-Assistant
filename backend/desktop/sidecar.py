@@ -85,7 +85,15 @@ from app.models.user import User
 from app.ports import CheckpointDeleter, CorpusLocator, TerminalEventEmitter
 from app.schemas.auth import ConnectionVerdict, UsageResponse, UserPreferences, UserResponse
 from app.schemas.capabilities import DESKTOP, Capabilities
-from app.schemas.corpus import CorpusStatusResponse, DocumentResponse
+from app.schemas.corpus import (
+    CorpusStatusResponse,
+    CorpusTreeResponse,
+    DocumentResponse,
+    FolderCreateRequest,
+    FolderDeleteResponse,
+    FolderResponse,
+    FolderUpdateRequest,
+)
 from app.schemas.models import (
     CatalogResponse,
     CustomEndpointStatusResponse,
@@ -2524,21 +2532,48 @@ def create_sidecar_app(
         project_id: uuid.UUID,
         file: UploadFile,
         doc_key: str | None = Form(default=None),
+        relative_path: str | None = Form(default=None),
         db: AsyncSession = Depends(get_db),
         user: User = Depends(get_local_user),
     ):
-        """Multipart, matching the server — this is the canonical client contract.
-
-        The flat route above takes raw bytes with the name in the query string, chosen so
-        the frozen bundle would not need `python-multipart`. That saving is not available
-        here: the browser sends a `FormData`, and teaching the frontend to encode
-        differently for one host is precisely the leak this section removes.
-        `python-multipart` is already a hard backend dependency; the PyInstaller spec now
-        names it explicitly because nothing else in the sidecar's import graph pulls it in.
-        """
+        """Multipart, matching the server — the browser sends a `FormData` on both hosts.
+        `python-multipart` is named in the PyInstaller spec because nothing else in the
+        sidecar's import graph pulls it in."""
         from app.api.v1.corpus import upload_document
 
-        return await upload_document(project_id, file, doc_key, db, user, get_corpus_locator())
+        return await upload_document(
+            project_id, file, doc_key, relative_path, db, user, get_corpus_locator()
+        )
+
+    # Folders: thin delegates to the server's handlers, same paths and bodies.
+
+    @api.get("/projects/{project_id}/corpus/tree", response_model=CorpusTreeResponse)
+    @delegates_to("app.api.v1.corpus:get_tree")
+    async def project_corpus_tree(project_id: uuid.UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_local_user)):
+        from app.api.v1.corpus import get_tree
+
+        return await get_tree(project_id, db, user, get_corpus_locator())
+
+    @api.post("/projects/{project_id}/corpus/folders", response_model=FolderResponse, status_code=201)
+    @delegates_to("app.api.v1.corpus:create_folder")
+    async def create_project_corpus_folder(project_id: uuid.UUID, body: FolderCreateRequest, db: AsyncSession = Depends(get_db), user: User = Depends(get_local_user)):
+        from app.api.v1.corpus import create_folder
+
+        return await create_folder(project_id, body, db, user, get_corpus_locator())
+
+    @api.patch("/projects/{project_id}/corpus/folders/{folder_id}", response_model=FolderResponse)
+    @delegates_to("app.api.v1.corpus:update_folder")
+    async def update_project_corpus_folder(project_id: uuid.UUID, folder_id: str, body: FolderUpdateRequest, db: AsyncSession = Depends(get_db), user: User = Depends(get_local_user)):
+        from app.api.v1.corpus import update_folder
+
+        return await update_folder(project_id, folder_id, body, db, user, get_corpus_locator())
+
+    @api.delete("/projects/{project_id}/corpus/folders/{folder_id}", response_model=FolderDeleteResponse)
+    @delegates_to("app.api.v1.corpus:delete_folder")
+    async def delete_project_corpus_folder(project_id: uuid.UUID, folder_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_local_user)):
+        from app.api.v1.corpus import delete_folder
+
+        return await delete_folder(project_id, folder_id, db, user, get_corpus_locator())
 
     @api.delete("/projects/{project_id}/corpus/documents/{doc_id}", status_code=204)
     @delegates_to("app.api.v1.corpus:delete_document")

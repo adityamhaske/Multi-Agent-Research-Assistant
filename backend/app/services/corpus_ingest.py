@@ -61,10 +61,47 @@ def clean_upload(filename: str | None, data: bytes) -> str:
     return name
 
 
+#: Bounds on an uploaded relative path (RFC V3.1 §13): deep enough for any real folder tree,
+#: shallow enough that a crafted path cannot grow the folder table without limit.
+MAX_PATH_DEPTH = 32
+MAX_COMPONENT_CHARS = 255
+
+
+def folder_components(relative_path: str | None) -> list[str]:
+    """The folders a relative upload path names, outermost first — never a filesystem path.
+
+    `Thesis/Ch2/data.xlsx` → `["Thesis", "Ch2"]`. Split on both separators; empty, `.` and
+    `..` components refused rather than resolved, so no path can climb out of the corpus or
+    name the same folder two ways. Unicode is NFC-normalised so a name typed on two systems
+    lands in one folder. These are folder *names* stored as data; nothing touches a disk.
+    """
+    import unicodedata
+
+    if not relative_path:
+        return []
+    parts = [unicodedata.normalize("NFC", p) for p in relative_path.replace("\\", "/").split("/")]
+    if any(not p.strip() or p.strip() in (".", "..") or "\0" in p for p in parts):
+        raise Invalid("The folder path contains an empty, '.' or '..' part.")
+    folders = [p.strip() for p in parts[:-1]]
+    if len(folders) > MAX_PATH_DEPTH:
+        raise Invalid(f"Folders are limited to {MAX_PATH_DEPTH} levels deep.")
+    if any(len(p) > MAX_COMPONENT_CHARS for p in folders):
+        raise Invalid(f"Folder names are limited to {MAX_COMPONENT_CHARS} characters.")
+    return folders
+
+
 async def ingest_document(
-    store, filename: str, data: bytes, doc_key: str | None = None
+    store,
+    filename: str,
+    data: bytes,
+    doc_key: str | None = None,
+    relative_path: str | None = None,
 ) -> DocumentResponse:
     """Validate, ingest, and answer in the shared shape.
+
+    With `relative_path`, the document is also filed in that folder path, creating any
+    folder that does not exist. The same bytes uploaded into a second folder are one
+    document with a second membership, not a second copy (RFC V3.1 §7.1).
 
     Both failure mappings are here rather than at the call sites. An unsupported format is
     the caller's mistake (`Invalid`); an unreachable embedding server is not
@@ -80,6 +117,7 @@ async def ingest_document(
 
     try:
         name = clean_upload(filename, data)
+        folders = folder_components(relative_path)
         result = await store.ingest(name, data, doc_key=doc_key)
     except UnknownDocumentKey as e:
         # 422 rather than 400, and refused rather than absorbed: the request was
@@ -96,6 +134,11 @@ async def ingest_document(
     except EmbeddingsUnavailable as e:
         metrics.observe_ingest("unavailable")
         raise DependencyUnavailable(str(e)) from e
+    if folders and result.doc_id and result.doc_id != "skip":
+        folder_id = await store.ensure_folder_path(folders)
+        key = result.doc_key or await store.doc_key_of(result.doc_id)
+        if key and folder_id:
+            await store.add_membership(key, folder_id, name)
     # A document the store already held is `skipped` — a success that indexed nothing, so
     # it must not add to the byte total a throughput figure is computed from.
     metrics.observe_ingest("skipped" if result.skipped else "ingested", byte_count=len(data))

@@ -202,7 +202,7 @@ corpus, resolved and stored the same way. Refusals, all before the run exists:
 | `422` | `corpus_selection` names nothing; the selection or the whole corpus has no readable document; or `corpus_mode` is sent as `false` beside a selection |
 | `404` | a file or folder is not in this project (the response does not say which) |
 
-Folders are not available yet, so any `folder_ids` entry answers `404` for now.
+A folder in `folder_ids` selects every document in it and in its subfolders, resolved at that moment: a file added to the folder later is not part of the run.
 
 **`offline: true`** asks for every model call to stay on this computer. It implies corpus-only
 research (the whole project corpus when no `corpus_selection` is given). It is a separate
@@ -506,11 +506,19 @@ Prefix `/projects/{project_id}/corpus`.
 
 | Method | Path | Notes |
 |---|---|---|
-| `POST` | `/documents` | Multipart upload. Accepted kinds: `pdf`, `html`, `md`, `txt` |
+| `POST` | `/documents` | Multipart upload: `file`, optional `doc_key` (a new version of that document), optional `relative_path` (files it into that folder path, creating folders as needed). Accepted extensions are `documents.FORMATS`; anything else is `400`, naming them |
 | `GET` | `/documents` | `[{id, filename, chunks, created_at, size_bytes, downloadable}]` |
 | `GET` | `/documents/{doc_id}/download` | The original bytes |
 | `DELETE` | `/documents/{doc_id}` | `204` |
 | `GET` | `/status` | `{documents, chunks, chunks_by_model, current_model}` |
+| `GET` | `/tree` | `{folders: [{id, parent_id, name}], documents: [...], memberships: [{doc_key, folder_id, display_name}]}`. A document with no membership sits at the root |
+| `POST` | `/folders` | `{name, parent_id?}` → `201 {id, parent_id, name}`. An existing folder of that name there is returned, not duplicated |
+| `PATCH` | `/folders/{folder_id}` | `{name?}` renames; `{move: true, parent_id}` moves (`null` = root). `400` on a name clash or a move into itself |
+| `DELETE` | `/folders/{folder_id}` | Removes it and its subfolders: `{folders_deleted, documents_deleted, versions_deleted}`. A document filed **only** there is deleted with every version; one also in another folder, or never in a folder, is untouched |
+
+A `relative_path` is folder names, never a filesystem path: `.`, `..` and empty parts are
+refused, at most 32 levels deep, 255 characters a name. The same file uploaded into two folders
+is one document with two memberships.
 
 `downloadable` is `false` for documents ingested before originals were retained; the UI keys
 its affordance off it rather than assuming every row has a file.
