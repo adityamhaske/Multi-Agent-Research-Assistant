@@ -125,8 +125,8 @@ what each check proves and what none of them do.
 ./start.sh --fake
 ```
 
-Fake mode runs the real graph with scripted models and fixture retrievers. It makes no
-network calls and costs nothing, so it is the honest way to see the shape of the product —
+Fake mode runs the real graph with scripted models and fixture retrievers. It calls no
+model or search provider and costs nothing, so it is the honest way to see the shape of the product —
 the gates, the live feed, the citation chips, the export — before deciding whether to spend
 anything.
 

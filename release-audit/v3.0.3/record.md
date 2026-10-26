@@ -35,6 +35,18 @@ above the one that shadowed them, with the same paths and bodies. No route is ad
 reshaped, and there is no migration, ORM model or bundle-format change (A19.02). The 3.1
 corpus work is not in this release.
 
+Added to scope on 2026-10-25 with the release manager's approval, relayed by the planning
+session: **the corpus privacy-copy correction**. Eight surfaces promised that a corpus-only
+run sent nothing over the network, and the login page called local indexing "offline"; the
+code enforces only that the evidence and its retrieval stay local. Per the owner's
+follow-up, every surface keeps four things separate — evidence from the uploaded corpus;
+web search off; indexing on a local model; and the question and excerpts going to whichever
+provider each research model (planner, executor, critic, synthesizer) uses, a cloud
+provider unless local models were chosen — and none implies that local indexing makes a run
+offline. Correcting an overclaim is a fix, so it is eligible for a patch. It changes no
+behaviour except one error message's wording and the corpus chat scope's text, which is
+also the chat model's scope instruction.
+
 | Feature / fix | PRs | Implementation | Tests | UI | API | Desktop | Docs | Website | Release notes | Known limitations | Status |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | Desktop research on Ollama, or a Custom Endpoint, with no API key: the run is no longer refused, Settings offers local models, the endpoint URL saves, and the Local LLM default skips chat-only models (3.0.2 Finding 14) | #202 | `research_engine/local.py` `providers_missing_a_key`, `usable_providers` (one rule for the CLI and the desktop); `sidecar.py` `provider_keys`, route order; `ProviderPicker.tsx` | `test_desktop_local_models_without_a_key.py` (7 cases; five failed before the fix — v3.0.2 record, Finding 14); `ProviderPicker.test.tsx`; sidecar ratchet tests | ✓ Settings → Models, the run form | ✓ the desktop's catalog answer and custom-endpoint routes; no shape change | ✓ desktop-only — packaged check at stage B (X1) | ✓ docs/22, docs/23 already describe it; AGENTS.md row added | — | ✓ | — | Shipped (source); packaged PENDING |
@@ -44,11 +56,17 @@ corpus work is not in this release.
 | v3.0.2 offered for download (the previous release's flip): `unreleased` dropped, dated, download page's installed size corrected to ~150 MB, RELEASE.md's M7.02, M15.01 and M20.03 text corrected | #203 | `releases.ts`, the changelog, `download/page.tsx`, RELEASE.md, the v3.0.2 record | the published and post-release audits | ✓ | — | — | ✓ RELEASE.md | ✓ | ✓ changelog *Process* | — | Shipped (process) |
 | v3.0.2's post-release audit committed | #204 | `release-audit/v3.0.2/post-release.json`, the v3.0.2 record | — | — | — | — | — | — | ✓ changelog *Process* | — | Shipped (process) |
 | v3.0.2's notes and record say #202 and #205 are on `main` | #206 | `releases.ts` (3.0.2 known), the changelog, the v3.0.2 record | release-entry tests | — | — | — | — | ✓ releases page | ✓ changelog *Process* | — | Shipped (process) |
+| Corpus-only mode described as what it enforces — evidence from the corpus, web search off, local indexing — and what it does not: the research models' provider, on every surface; chat's *My corpus* scope states the desktop's one shared corpus | #210 | README; docs/user-guide/25, 28; docs/getting-started/01, 20, 22; docs/architecture/04, 13; docs/project/10; `comparison.ts`, the landing page, the corpus, login, license and source pages, `LocalLLMCard`, `ScopeSelector`; `chat_scope.py` copy; `schemas/research.py`, `runconfig.py`, `ports.py`, `tools.py`, `embeddings.py`, `corpus.py` (the remote-embedder error message), comments in `adapters.py`, `pipeline_runner.py`, `sidecar.py` | `test_corpus_privacy_copy.py` — both claim kinds (no-network absolutes, and local indexing equated with offline), with negative controls from the old copy; fails on `main`'s copy of eight of those files, passes here; `test_corpus_egress.py` updated to the new message | ✓ | — (one error message's wording) | ✓ the scope copy is shared, and now true on both hosts | ✓ | ✓ landing page, `/why` | ✓ | ✓ two items added | Shipped |
 | This release's preparation: version, notes, changelog, this record, the template's M20.03 text | #210 | `VERSION` and its carriers, `releases.ts`, the changelog, this record, `TEMPLATE.md` | `--stage ci`; release-entry tests; the full CI suite run locally (below) | — | — | — | — | ✓ releases.ts (unreleased) | ✓ | — | Shipped (process) |
 
 Deferred (merged but not part of this release's story): none.
 
 ### Evaluation (A2.03, M2.04)
+
+The corpus scope's copy in `chat_scope.py` is also the text of the chat model's
+`RETRIEVAL SCOPE` instruction, so this release changes one sentence a chat model reads. It is
+not an A2.03 path and the release evaluation does not exercise chat; the change narrows what
+the instruction claims and asks the model to do nothing new.
 
 No quality path changed since v3.0.2 — `git diff --stat v3.0.2 HEAD` over A2.03's
 `QUALITY_PATHS` (prompts, prompt composition, graph, routing rules, retrievers, tools, claims,
@@ -120,7 +138,7 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M0.01 | PASS | Create the release record — Created 2026-10-25 from TEMPLATE.md on `release/v3.0.3`, cut from `origin/main` at `41b7bf4`, before any version carrier changed |
 | M0.02 | PASS | Freeze the scope: list every feature and fix in the record's Scope table, each with its PR numbers — Scope table above: every first-parent merge in `v3.0.2..41b7bf4` — #200, #201, #202, #203, #204, #205, #206 (`git log --first-parent --oneline v3.0.2..origin/main`; all merge commits) — plus this release's own PR, #210. Nothing deferred |
 | M0.03 | PASS | Choose the version number and record why: major for a breaking change (API contract, bundle format a… — Patch — reasoning under Scope: four fixes and release bookkeeping; no route added or reshaped, no migration, model or bundle-format change (A19.02) |
-| M0.04 | PASS | Carry forward known limitations: start this release's `known` from the previous release's, and remove an… — `known` starts from 3.0.2's 22 items. Three removed with their fixes as evidence: the sign-in limit (#200, `test_login_rate_limit.py`), the Appearance hydration error (#201, `AppearanceSection.test.tsx`), desktop keyless research (#202, `test_desktop_local_models_without_a_key.py`). Two reworded to stay true: doubled evidence now says "before 3.0.2", and the citation-support item names 3.0.2's run, since nothing it measured changed. The other 17 carried unchanged; 19 in all. Details under Known issues |
+| M0.04 | PASS | Carry forward known limitations: start this release's `known` from the previous release's, and remove an… — `known` starts from 3.0.2's 22 items. Three removed with their fixes as evidence: the sign-in limit (#200, `test_login_rate_limit.py`), the Appearance hydration error (#201, `AppearanceSection.test.tsx`), desktop keyless research (#202, `test_desktop_local_models_without_a_key.py`). Two reworded to stay true: doubled evidence now says "before 3.0.2", and the citation-support item names 3.0.2's run, since nothing it measured changed. The other 17 carried unchanged. Two added with the privacy-copy correction: corpus-only mode does not keep model calls local, and desktop projects share one corpus. 21 in all. Details under Known issues |
 | **Phase 1 — Repository / Version Consistency** | | |
 | M1.01 | PASS | Bump and derive, in this order: `VERSION`; the new `releases.ts` entry at the top with `unreleased: true`… — `VERSION` 3.0.3; the 3.0.3 entry at the top of `releases.ts` with `unreleased: true`, written before `sync_version.py`; `sync_version.py` reported drift in `main.py`, `tauri.conf.json` and `Cargo.toml`; `--write` → "consistent across 4 files"; `cargo update -p research-desktop` → Cargo.lock 3.0.3; changelog `## v3.0.3 — unreleased` with **Known**. `--stage ci`: 24/24 PASS |
 | M1.02 | PASS | Search for stale references the scanner cannot see: images and screenshots with text in them, the… — `git grep` for 3.0.2/v3.0.2, `releases/download/`, `ghcr.io/…:<tag>`: every hit is incident history (RELEASE.md's table, AGENTS.md, comments in `stamp_image.py`, `start.sh` and `release_checks`), a test fixture, an npm package that happens to be at 3.0.2, or a URL template built from `releases.ts`; no `ghcr.io` tag is pinned anywhere; the OpenGraph image names no version |
@@ -128,7 +146,7 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | **Phase 2 — Feature Completeness** | | |
 | M2.01 | PASS | Fill the feature matrix in the record for every scope row: Implementation · Tests · UI · API · Desktop ·… — Matrix under Scope. Every fix row is Shipped on source evidence; #202's packaged-desktop column and #201's published-image check are confirmed at stage B (Extra checks) |
 | M2.02 | PENDING | For every feature on both hosts, confirm the desktop really has it: the route exists and behaves… — #202 is desktop-only and makes the desktop match what the server and CLI already did; it is satisfied only by the packaged app (Extra checks X1). #200 is server-only by design (the desktop has no sign-in). #201 and #205 are the same frontend on every host |
-| M2.03 | PASS | Read the `releases.ts` entry and the changelog entry against the matrix: `improved` states user-visible… — Read against the matrix: `improved` states user-visible effects only, one item per fix (four for #202's four defects); `known` is 3.0.2's minus the three fixed, two reworded to stay true; each summary compresses its list and adds nothing (A1.05 PASS; `releases.test.ts` bounds) |
+| M2.03 | PASS | Read the `releases.ts` entry and the changelog entry against the matrix: `improved` states user-visible… — Read against the matrix: `improved` states user-visible effects only, one item per fix (four for #202's four defects, two for the privacy-copy correction); `known` is 3.0.2's minus the three fixed, two reworded to stay true, plus the two limitations the corrected copy now states; each summary compresses its list and adds nothing (A1.05 PASS; `releases.test.ts` bounds) |
 | M2.04 | N/A | If A2.03 fails: run the release evaluation (`docs/developers/08-testing-and-evaluation.md`, "The release… — A2.03 does not require it: no quality path changed since v3.0.2 (`git diff --stat v3.0.2 HEAD` over `QUALITY_PATHS` is empty). #202 changes which runs the desktop refuses up front and the run form's default Local LLM, not what a run does with a model |
 | **Phase 3 — Automated Testing** | | |
 | M3.01 | PENDING | Explain every re-run: any required job on the release commit that passed only on a retry is recorded with… — Read on the release commit's CI, Desktop and Pages runs once the release PR merges |
@@ -176,11 +194,11 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | **Phase 11 — GitHub Release Verification** | | |
 | M11.01 | PENDING | Add the hand-written summary at the top of the Release body (what changed for users, the macOS… — Stage B, after the tag creates the Release |
 | **Phase 12 — Documentation Verification** | | |
-| M12.01 | PASS | For each scope row, the docs describe what shipped — on both hosts, with desktop differences stated… — #200: docs/06 §4, docs/34 and docs/36 already state "5 failures per 15 min per account", which is now true. #202: docs/23 and docs/22 already describe Ollama as a keyless path on the desktop, which is now true; nothing documented the bug. #201, #205: no doc describes them. Desktop differences: #202 is the desktop catching up with the server. Unrelated, pre-existing: Finding 3 |
+| M12.01 | PASS | For each scope row, the docs describe what shipped — on both hosts, with desktop differences stated… — #200: docs/06 §4, docs/34 and docs/36 already state "5 failures per 15 min per account", which is now true. #202: docs/23 and docs/22 already describe Ollama as a keyless path on the desktop, which is now true; nothing documented the bug. #201, #205: no doc describes them. Privacy copy: every doc that described corpus-only mode now states what it enforces (Scope table), and docs/28 states the desktop's shared corpus. Desktop differences: #202 is the desktop catching up with the server; the desktop's one corpus is now stated wherever per-project scope was claimed in copy this release touched (not on the corpus page — Finding 8). Unrelated, pre-existing: Finding 3 |
 | M12.02 | N/A | Configuration: every environment variable added, renamed or removed since the previous release (`git diff… — No environment variable added, renamed or removed: `git diff v3.0.2 HEAD -- backend/app/config.py .env.example` is empty, and `research_engine/local.py`'s diff adds two functions and reads no new variable |
-| M12.03 | PASS | Search the docs for removed or renamed features, commands and routes named in the diff (`git diff --stat… — Nothing removed or renamed; the custom-endpoint routes keep their paths (#202). `git grep` for the 3.0.2 workaround ("Custom Endpoint key", "No provider key found") finds it only in the 3.0.2 notes, where it belongs |
+| M12.03 | PASS | Search the docs for removed or renamed features, commands and routes named in the diff (`git diff --stat… — Nothing removed or renamed; the custom-endpoint routes keep their paths (#202). `git grep` for the 3.0.2 workaround ("Custom Endpoint key", "No provider key found") finds it only in the 3.0.2 notes, where it belongs. For the privacy copy: `git grep -i` over `docs/`, `frontend/`, `backend/app`, `backend/research_engine` and the README for "network call", "zero network", "airgap", "air-gap", "nothing leaves", "never leaves" and "offline": every absolute corpus claim rewritten; what remains is the bundle verifier being offline (true), the guard's name ("airgap guard"), history comments saying the old claim was false, and honest negations |
 | M12.04 | N/A | Architecture docs (`docs/architecture/02`, `04`) match the graph's nodes and gates — Graph nodes and gates unchanged — no change to `graph.py` since v3.0.2 |
-| M12.05 | PENDING | Known limitations agree across `releases.ts` `known`, the changelog **Known**, the Release body and the… — `releases.ts` known (19 items) and the changelog's **Known** (3.0.3's own four plus 3.0.1's, carried) agree on this branch; the Release body is written at stage B |
+| M12.05 | PENDING | Known limitations agree across `releases.ts` `known`, the changelog **Known**, the Release body and the… — `releases.ts` known (21 items) and the changelog's **Known** (3.0.3's own six plus 3.0.1's, carried) agree on this branch; the Release body is written at stage B |
 | **Phase 13 — README Verification** | | |
 | M13.01 | PASS | Read the README top to bottom against the release: the feature list (nothing unreleased, nothing removed),… — README unchanged since v3.0.2 (`git diff --stat v3.0.2 HEAD -- README.md` is empty). Its features, platforms and commands are unaffected by four fixes; the measured claim is A1.14 (PASS) |
 | **Phase 14 — Landing Page Verification** | | |
@@ -219,7 +237,7 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M22.03 | PENDING | Load `/`, `/why`, `/docs`, `/download`, `/releases` on a phone and a desktop browser with the cache disabled — PENDING — stage C, after the flip PR deploys; the five pages must log no 404 for `/api/v1/projects` (#205, Extra checks X4) |
 | M22.04 | PENDING | In an installed copy of the **previous** desktop release, Settings → About → *Check for updates* reports… — PENDING — stage C, after the flip PR deploys; an installed 3.0.2 must report 3.0.3 |
 | M22.05 | PENDING | For 48 hours, watch issues and discussions for install or launch reports; any release-blocking report… — PENDING — stage C, after the flip PR deploys |
-| M22.06 | PASS | Every incident found during this release becomes a check: an `A…` check (preferred) or an `M…` item, plus… — Incidents table below: one found in preparation (the template's stale M20.03 text), fixed in this PR |
+| M22.06 | PASS | Every incident found during this release becomes a check: an `A…` check (preferred) or an `M…` item, plus… — Incidents table below: the template's stale M20.03 text, and the corpus privacy overclaim — each fixed in this PR, the second with a test |
 
 ## Findings
 
@@ -269,6 +287,16 @@ Found while preparing stage A, separated by kind.
    and `lib/comparison.ts` (v3.0.2 Finding 16) — the release manager's call.
 7. Two historical release dates disagree with their tags (A16.03 WARN): v1.0.0 and v1.0.2.
 
+**Found while correcting the privacy copy, not fixed**
+
+8. **The corpus management page says the corpus is "Scoped to" the active project, which is
+   false on the desktop app**, where every project shares one `corpus.sqlite`. Not one of the
+   privacy surfaces this release was asked to correct, and not an egress claim; the shared
+   corpus is now a stated known limitation. Follow-up: say so on the page itself, desktop only.
+9. `internal/12_Launch_Plan.md` (the "docs/12 M10" the code cites) still records the absolute
+   claim as an enforced milestone. It is not published; the code comments that cite it now
+   say what M10 enforces.
+
 ## Extra checks this release needs
 
 A patch of four fixes, each found by 3.0.2's release checks. Each must be seen fixed on the
@@ -284,22 +312,29 @@ A patch of four fixes, each found by 3.0.2's release checks. Each must be seen f
 - **X3 (M4.02).** On the published images, six correct sign-ins to one account within 15
   minutes all succeed; five failures then lock it, the right password included; an unknown
   address answers exactly as a wrong password does.
+- **X5 (M14.02, M5.01).** On the live site after the flip, `/why`'s comparison row and claim
+  and the landing page's privacy card carry the corrected copy; in the published app, the
+  run form's corpus help and chat's *My corpus* scope do.
 - **X4 (M22.03).** On the live site after the flip, `/`, `/why`, `/docs`, `/download` and
   `/releases` request nothing from `/api/v1/` (3.0.2's M22.03 saw one 404 on each).
 
 ## Known issues shipped with this release
 
-Everything in `frontend/lib/releases.ts` v3.0.3 `known` (19 items): 3.0.2's 22, less the three
+Everything in `frontend/lib/releases.ts` v3.0.3 `known` (21 items): 3.0.2's 22, less the three
 this release fixes — the sign-in limit counting successes (#200), the Appearance page's
 hydration error (#201) and the desktop refusing keyless research (#202). Two are reworded to
 stay true of 3.0.3: the doubled-evidence item says "before 3.0.2" where it said "before this
 release", and the citation-support item names 3.0.2's run, which still describes this code.
-The changelog's **Known** carries the same set (this release's own four lines, and 3.0.1's).
+Two are new, stated by the privacy-copy correction: corpus-only mode keeps the evidence local
+but does not stop model calls from leaving the machine, and on the desktop app every project
+shares one corpus. Both were true of every earlier release; they were never written down.
+The changelog's **Known** carries the same set (this release's own six lines, and 3.0.1's).
 
 ## Incidents found during this release, and the check each became (M22.06)
 
 | Incident | Check added |
 |---|---|
+| Corpus-only mode was promised, on eight surfaces, to send nothing over the network, and local indexing was labelled "offline"; the code enforces local evidence only, and the egress test proves only the retrieval half because it runs with scripted models | `tests/workflow/test_corpus_privacy_copy.py`: both claim kinds on every published and user-facing surface, with negative controls; it fails on `main`'s copy |
 | The record template's M20.03 row kept the wording RELEASE.md had dropped (Finding 4) | Fixed in this PR. No new check: `test_the_record_template_starts_with_a_row_for_every_manual_check` compares IDs, and the row text is a copy for the reader |
 
 ## Release approval

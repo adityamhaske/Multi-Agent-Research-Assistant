@@ -52,6 +52,20 @@ could.
 - **The public site fetches nothing** (#205). `ActiveProjectProvider` sat in the root
   providers, so from 2.0.1 on every page of the GitHub Pages site requested
   `/api/v1/projects` and logged a 404. The `(app)` layout provides it now.
+- **Corpus-only mode is described as what it enforces.** The comparison table, the landing
+  page, the README, the user guides, the local-model guide, the architecture docs, the
+  request schema and the engine's docstrings and error message promised a corpus-only run
+  sent nothing over the network, and the login page called local indexing "offline". The
+  code enforces three things: evidence only from the installed corpus; web search off, with
+  `read_webpage` refusing every non-corpus URL; and indexing on a local model
+  (`corpus.py::_require_local_embedder_in_corpus_mode`). It does not check the fourth —
+  where the planner, executor, critic and synthesizer send the question and excerpts — and
+  `test_corpus_egress.py` runs with scripted models, so it proves the retrieval half only.
+  Every surface now states the four separately, and none presents local indexing as
+  running offline. `tests/workflow/test_corpus_privacy_copy.py` fails if either kind of
+  claim returns. Chat's *My corpus* scope, whose copy is also the model's instruction, no
+  longer says "only the documents uploaded to this project": on the desktop app every
+  project shares one corpus.
 
 **Process**
 
@@ -61,6 +75,12 @@ could.
 
 **Known**
 
+- Corpus-only mode keeps the evidence local but does not stop model calls from leaving the
+  machine: the question and retrieved excerpts go to whichever provider the planner,
+  executor, critic and synthesizer are set to use — a cloud provider unless you have chosen
+  local models. A local indexing model does not change that; corpus mode does not check.
+- On the desktop app every project shares one corpus (`corpus.sqlite`), so corpus-only
+  research and chat's *My corpus* scope draw on documents uploaded under any project.
 - Research saved before 3.0.2 keeps its duplicated evidence rows after a rework; see 3.0.2
   below.
 - `MAX_COST_PER_SESSION_USD` does nothing on `openrouter` and `custom` routes:

@@ -33,7 +33,7 @@ from app.models.user import User
 #: repository keeps rediscovering. The sidecar now imports this set instead.
 #:
 #: Project memory is the one feature absent on desktop by design (docs/12 M10): the
-#: airgapped corpus has its own SQLite store and local embeddings.
+#: local corpus has its own SQLite store and local embeddings.
 POSTGRES_ONLY_TABLES = frozenset(
     {
         MemoryChunk.__tablename__,

@@ -133,8 +133,13 @@ Documents preview in place from the corpus list rather than downloading. PDFs re
 browser's own sandboxed viewer; everything else is fetched and rendered by the client
 without leaving the page.
 
-**Corpus-only mode** is the airgapped tier: evidence comes exclusively from the corpus,
-page fetching refuses every non-corpus URL, and the run makes zero network calls. Corpus
+**Corpus-only mode** keeps the *evidence* local: it comes exclusively from the uploaded
+corpus, web search is off and page fetching refuses every non-corpus URL, and indexing
+requires a local model. It does not keep the *research models* local: the question and the
+excerpts go to whichever provider the planner, executor, critic and synthesizer are set to
+use — a cloud provider unless you have chosen local models. A local indexing model does not
+make the run offline. On the desktop app every project shares one corpus, so a corpus-only
+run there draws on documents uploaded under any project. Corpus
 hits carry `corpus://` locations, and the synthesizer turns them into ordinary `[n]`
 citations whose snippets resolve back to the exact character range in the source document —
 so citation provenance is *more* exact on a closed corpus than on the open web.

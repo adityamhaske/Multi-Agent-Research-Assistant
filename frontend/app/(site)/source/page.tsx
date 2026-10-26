@@ -32,7 +32,7 @@ const MODULES = [
   {
     layer: "Desktop Sidecar",
     path: "desktop",
-    role: "Tauri v2 native desktop shell wrapping an embedded Python sidecar with local SQLite checkpoints and airgapped corpus processing.",
+    role: "Tauri v2 native desktop shell wrapping an embedded Python sidecar with local SQLite checkpoints and local corpus processing.",
     docs: "/docs/getting-started/desktop-app",
   },
   {
