@@ -57,6 +57,7 @@ also the chat model's scope instruction.
 | v3.0.2's post-release audit committed | #204 | `release-audit/v3.0.2/post-release.json`, the v3.0.2 record | — | — | — | — | — | — | ✓ changelog *Process* | — | Shipped (process) |
 | v3.0.2's notes and record say #202 and #205 are on `main` | #206 | `releases.ts` (3.0.2 known), the changelog, the v3.0.2 record | release-entry tests | — | — | — | — | ✓ releases page | ✓ changelog *Process* | — | Shipped (process) |
 | Corpus-only mode described as what it enforces — evidence from the corpus, web search off, local indexing — and what it does not: the research models' provider, on every surface; chat's *My corpus* scope states the desktop's one shared corpus | #210 | README; docs/user-guide/25, 28; docs/getting-started/01, 20, 22; docs/architecture/04, 13; docs/project/10; `comparison.ts`, the landing page, the corpus, login, license and source pages, `LocalLLMCard`, `ScopeSelector`; `chat_scope.py` copy; `schemas/research.py`, `runconfig.py`, `ports.py`, `tools.py`, `embeddings.py`, `corpus.py` (the remote-embedder error message), comments in `adapters.py`, `pipeline_runner.py`, `sidecar.py` | `test_corpus_privacy_copy.py` — both claim kinds (no-network absolutes, and local indexing equated with offline), with negative controls from the old copy; fails on `main`'s copy of eight of those files, passes here; `test_corpus_egress.py` updated to the new message | ✓ | — (one error message's wording) | ✓ the scope copy is shared, and now true on both hosts | ✓ | ✓ landing page, `/why` | ✓ | ✓ two items added | Shipped |
+| `vite` 8.1.5 → 8.3.5 in the frontend lockfile, past Dependabot alert #43 (high, GHSA-587h-7wmj-h5pm) and the moderate #42 and #44 | #208 | `frontend/package-lock.json` only | CI on the PR: every required check green; merged 2026-10-26 as `119fdbc` on the release manager's instruction, during stage A (Finding 1), then lint, typecheck, tests and all three builds re-run on the release branch | — | — | ✓ same frontend (a dev dependency: the test runner and the React plugin) | — | — | ✓ changelog *Process* | — | Shipped |
 | This release's preparation: version, notes, changelog, this record, the template's M20.03 text | #210 | `VERSION` and its carriers, `releases.ts`, the changelog, this record, `TEMPLATE.md` | `--stage ci`; release-entry tests; the full CI suite run locally (below) | — | — | — | — | ✓ releases.ts (unreleased) | ✓ | — | Shipped (process) |
 
 Deferred (merged but not part of this release's story): none.
@@ -76,21 +77,22 @@ evaluation nor a waiver. The notes say citation support was last measured for 3.
 
 ### Stage A results (on `release/v3.0.3`, before the PR)
 
-Run on 2026-10-25 on this branch's tree (Apple Silicon), with the commands CI runs (root
+Run on 2026-10-25/26 on this branch's tree (Apple Silicon) — last on its final state, after
+the privacy-copy correction and the merge of `main` with #208 — with the commands CI runs (root
 AGENTS.md, "What CI actually enforces"). CI on the PR and on the release commit is what A3.01
 judges; this is the local run before it.
 
 | Suite | Environment | Result |
 |---|---|---|
-| `ruff check` / `ruff format --check` over `app/ research_engine/ tests/ evals/` | Python 3.14.8, fresh venv from `requirements.txt` | clean; 300 files formatted |
+| `ruff check` / `ruff format --check` over `app/ research_engine/ tests/ evals/` | Python 3.14.8, fresh venv from `requirements.txt` | clean; 301 files formatted |
 | `alembic upgrade head` | throwaway `pgvector/pgvector:pg16` and `redis:7-alpine` containers, CI's env | to `0027_run_prompt_provenance` |
 | Migration gate (round trip, downgrade policy, desktop column sync) | same | 59 passed, **0 skipped** |
-| `python -m pytest tests/` | same | **2155 passed, 1 skipped** in 17 min 43 s. The skip is `test_export.py::test_render_pdf_emits_a_real_pdf_where_libs_exist` — WeasyPrint's native libraries are not on this Mac; CI installs them (`libpango`) |
-| `npm ci`, `npm run lint`, `npm run typecheck` | Node 26.12.0, npm 11.20.0 | clean; no engine warnings |
+| `python -m pytest tests/` | same | **2159 passed, 1 skipped** (2155 before the four guard tests were added). The skip is `test_export.py::test_render_pdf_emits_a_real_pdf_where_libs_exist` — WeasyPrint's native libraries are not on this Mac; CI installs them (`libpango`) |
+| `npm ci`, `npm run lint`, `npm run typecheck` | Node 26.12.0, npm 11.20.0, on the merged lockfile (vite 8.3.5) | clean; no engine warnings |
 | The four CI greps (raw HTML, hex colours, backend URLs, web storage) | `/usr/bin/grep`, the `ci.yml` commands | no match |
 | `npm test` | Node 26 | 64 files, **504 passed** |
 | `npm run build`, `npm run build:desktop`, `build:pages` (from a copy, as `pages.yml` does) | Node 26 | all three built; the export holds 34 docs pages and no governance or planning directory |
-| `npm audit --audit-level=critical` | Node 26 | exit 0: no critical. 5 advisories, 3 high (`undici` under jsdom, `vite` under vitest and the React plugin, `zod` under the React-hooks lint plugin) and 2 moderate (`@vitest/mocker`) — every one in the test or lint toolchain, none in the standalone server bundle (`.next/standalone/node_modules` holds 11 entries: `@img`, `@next`, `@swc`, `client-only`, `detect-libc`, `next`, `react`, `react-dom`, `semver`, `sharp`, `styled-jsx`). See Finding 1 for the one Dependabot also reports |
+| `npm audit --audit-level=critical` | Node 26 | exit 0: no critical. Before #208: 5 advisories, 3 high (`undici` under jsdom, `vite` under vitest and the React plugin, `zod` under the React-hooks lint plugin) and 2 moderate (`@vitest/mocker`). After: 4 — `undici` and `zod` high, `@vitest/mocker` moderate — every one in the test or lint toolchain, none in the standalone server bundle (`.next/standalone/node_modules` holds 11 entries: `@img`, `@next`, `@swc`, `client-only`, `detect-libc`, `next`, `react`, `react-dom`, `semver`, `sharp`, `styled-jsx`). See Finding 1 for the one Dependabot also reports |
 | `release_audit.py --stage ci --version 3.0.3` | Python 3.14 | **24/24 PASS** |
 
 ## Desktop artifacts (M6.01)
@@ -136,7 +138,7 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 |---|---|---|
 | **Phase 0 — Release Scope Freeze** | | |
 | M0.01 | PASS | Create the release record — Created 2026-10-25 from TEMPLATE.md on `release/v3.0.3`, cut from `origin/main` at `41b7bf4`, before any version carrier changed |
-| M0.02 | PASS | Freeze the scope: list every feature and fix in the record's Scope table, each with its PR numbers — Scope table above: every first-parent merge in `v3.0.2..41b7bf4` — #200, #201, #202, #203, #204, #205, #206 (`git log --first-parent --oneline v3.0.2..origin/main`; all merge commits) — plus this release's own PR, #210. Nothing deferred |
+| M0.02 | PASS | Freeze the scope: list every feature and fix in the record's Scope table, each with its PR numbers — Scope table above: every first-parent merge in `v3.0.2..41b7bf4` — #200, #201, #202, #203, #204, #205, #206 (`git log --first-parent --oneline v3.0.2..origin/main`; all merge commits), then #208, merged during stage A on the release manager's instruction — plus this release's own PR, #210. Nothing deferred |
 | M0.03 | PASS | Choose the version number and record why: major for a breaking change (API contract, bundle format a… — Patch — reasoning under Scope: four fixes and release bookkeeping; no route added or reshaped, no migration, model or bundle-format change (A19.02) |
 | M0.04 | PASS | Carry forward known limitations: start this release's `known` from the previous release's, and remove an… — `known` starts from 3.0.2's 22 items. Three removed with their fixes as evidence: the sign-in limit (#200, `test_login_rate_limit.py`), the Appearance hydration error (#201, `AppearanceSection.test.tsx`), desktop keyless research (#202, `test_desktop_local_models_without_a_key.py`). Two reworded to stay true: doubled evidence now says "before 3.0.2", and the citation-support item names 3.0.2's run, since nothing it measured changed. The other 17 carried unchanged. Two added with the privacy-copy correction: corpus-only mode does not keep model calls local, and desktop projects share one corpus. 21 in all. Details under Known issues |
 | **Phase 1 — Repository / Version Consistency** | | |
@@ -254,6 +256,15 @@ Found while preparing stage A, separated by kind.
    scope, so the pre-tag audit stops until #208 merges or the alert is dismissed with a reason.
    **The release manager's call**, as #183-#185 were for 3.0.2; if merged, each joins the scope
    table here before the pre-tag run (A2.01).
+
+   **Resolved for #43:** the release manager chose to merge #208, which went in on 2026-10-26
+   as `119fdbc` (all required checks green) and is in the scope table; GitHub marked #43
+   fixed at 01:38:16Z. **Still open:** the rescan of the new lockfile opened alert #50 one
+   second later — `undici` < 8.12.2 (high, GHSA-xjj6-f33q-929c, denial of service on
+   excessive content-encodings), transitive under `jsdom`, the test environment, development
+   scope, not in the standalone bundle. No Dependabot PR exists for it yet. A18.05 will stop
+   the pre-tag audit on it as it did on #43, so it needs the same decision. The moderate
+   #45 and #46 (`@vitest/mocker`, fixed by #209) do not stop it.
 2. **#207 is open.** It records v3.0.2's 48-hour watch (M22.05). If it merges before the
    release commit, A2.01 needs it in the scope table, as a process row.
 

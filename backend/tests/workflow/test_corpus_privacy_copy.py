@@ -120,7 +120,7 @@ def test_the_patterns_catch_each_shape_of_the_old_claim():
         "Combined with local embeddings (`nomic-embed-text` through the same Ollama), a fully "
         "local deployment can do private retrieval at zero cost and zero " + "egress.",
         "run completely " + "offline with Ollama local LLMs and local document embeddings.",
-        '<td>Offline ' + 'Execution</td>\n<td className="py-2 px-4">Ollama / Local Embeddings</td>',
+        "<td>Offline " + 'Execution</td>\n<td className="py-2 px-4">Ollama / Local Embeddings</td>',
         "a local indexing model makes the run " + "offline",
     ]
     for sentence in planted:
