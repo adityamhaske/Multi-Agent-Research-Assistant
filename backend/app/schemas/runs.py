@@ -45,6 +45,10 @@ class CreateRunRequest(BaseModel):
     #: A selected-files run. Setting it implies corpus mode; sending it with an explicit
     #: `corpus_mode: false` is refused rather than guessed at.
     corpus_selection: CorpusSelectionRequest | None = None
+    #: Offline: every model call must stay on this machine, or the run refuses to start.
+    #: Separate from the selection, which limits evidence, not where model calls go. Implies
+    #: corpus mode — an Offline run never reads the web.
+    offline: bool = False
     skip_plan_gate: bool = True
     topic_seeds: list | None = None
     outline_template: str | None = None

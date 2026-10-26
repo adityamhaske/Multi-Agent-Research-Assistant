@@ -88,6 +88,7 @@ async def create_run(
     outline_template: str | None = None,
     model_routing: dict | None = None,
     corpus_selection: dict | None = None,
+    offline: bool = False,
 ) -> ResearchRun:
     """Open a new run. `owner_id` is denormalised so every authorization is single-table."""
     run = ResearchRun(
@@ -104,6 +105,7 @@ async def create_run(
         outline_template=outline_template,
         model_routing=model_routing,
         corpus_selection=corpus_selection,
+        offline=offline,
         cost_usd=0,
         tokens_input=0,
         tokens_output=0,

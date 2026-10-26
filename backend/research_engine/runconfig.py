@@ -89,6 +89,11 @@ class RunConfig:
     # user preference.
     corpus_allowed_ids: frozenset[str] | None = None
 
+    # Offline (internal/rfcs/V3.1-corpus-scope.md §6.2): every model call stays on this
+    # machine. Enforced by `research_engine.offline` before the graph starts and again in
+    # `llm_factory._build`; always paired with `corpus_mode`, which keeps out the web.
+    offline: bool = False
+
     # SSRF guard (docs/06). Strict on server, relaxed on desktop (to allow local Ollama).
     enforce_ssrf_guards: bool = True
 

@@ -43,6 +43,7 @@ CONTROL_PLANE_FIELDS = (
     "enforce_ssrf_guards",
     "corpus_mode",
     "corpus_allowed_ids",
+    "offline",
     "demo",
     "llm_mode",
     "max_critic_loops",

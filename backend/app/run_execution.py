@@ -165,21 +165,7 @@ async def run_config_for_run(db: AsyncSession, run: ResearchRun) -> RunConfig:
         run.prompt_overrides_status = OVERRIDES_UNUSABLE
         await db.flush()
 
-    overrides |= {
-        "prompt_overrides": prompt_overrides,
-        "skip_plan_gate": bool(run.skip_plan_gate),
-        "topic_seeds": tuple(run.topic_seeds or ()),
-        "outline_template": run.outline_template,
-        # Installing the corpus port (`execute_run`, below) only decides what `get_corpus()`
-        # answers. This is what makes the engine *ask* it: `retrievers.search` and
-        # `tools.read_webpage` both branch on this field and neither can see a database, so
-        # a run recorded as airgapped researched the open web until this line existed.
-        # Desktop counterpart: `sidecar._drive_run`, which has always carried it.
-        "corpus_mode": bool(run.corpus_mode),
-        # The frozen selection, read off the row — never re-resolved. Desktop counterpart:
-        # `sidecar._drive_run`, through the same function.
-        "corpus_allowed_ids": selection_ids_for_run(run),
-    }
+    overrides |= {"prompt_overrides": prompt_overrides, **row_overrides(run)}
     # The demo rule, shared with the session worker and both desktop drivers — see
     # `app/services/run_config.py` for why it is one branch and why it has to be one home.
     config, needs_stamp = apply_demo_rule(
@@ -615,6 +601,27 @@ async def execute_run(
     finally:
         await close_redis_pool()
         await engine.dispose()
+
+
+def row_overrides(run: ResearchRun) -> dict:
+    """The `RunConfig` fields a run reads off its own row — one home for both run builders.
+
+    `run_config_for_run` here and `sidecar._drive_run` on the desktop both call this, so a
+    field added to the row reaches the engine on both hosts or on neither. That second hop,
+    row → `RunConfig`, is the one AGENTS.md records being forgotten: `corpus_mode` was on
+    the row while the server researched the open web, because installing the corpus port
+    only decides what `get_corpus()` answers — `retrievers.search` and
+    `tools.read_webpage` branch on this config and cannot see a database.
+    """
+    return {
+        "skip_plan_gate": bool(run.skip_plan_gate),
+        "topic_seeds": tuple(run.topic_seeds or ()),
+        "outline_template": run.outline_template,
+        "corpus_mode": bool(run.corpus_mode),
+        # Frozen at creation, read off the row, never re-resolved.
+        "corpus_allowed_ids": selection_ids_for_run(run),
+        "offline": bool(run.offline),
+    }
 
 
 def selection_ids_for_run(run: ResearchRun) -> frozenset[str] | None:

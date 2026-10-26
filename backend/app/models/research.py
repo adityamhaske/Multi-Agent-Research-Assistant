@@ -178,6 +178,13 @@ class ResearchRun(Base):
     #: predating selections — those read the whole corpus, as they always did.
     corpus_selection: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
 
+    #: The Offline guarantee was requested (internal/rfcs/V3.1-corpus-scope.md §6.2): the
+    #: engine refuses to run unless every model route is local. Recorded so a finished run,
+    #: its report and its bundle can say which guarantee it ran under.
+    offline: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Cancellation state is durable and on the row, not a TTL'd cache key.
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

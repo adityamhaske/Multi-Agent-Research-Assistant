@@ -167,7 +167,7 @@ async def test_the_run_builders_share_one_selection_rule():
     import desktop.sidecar as sidecar_mod
 
     source = sidecar_mod.__loader__.get_source(sidecar_mod.__name__)
-    assert "run_execution.selection_ids_for_run(run)" in source
+    assert "run_execution.row_overrides(run)" in source
     assert "run_execution.corpus_port_for(" in source
 
 
