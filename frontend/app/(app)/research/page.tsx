@@ -47,7 +47,12 @@ function ResearchSkeleton() {
 function ResearchPageInner() {
   const router = useRouter();
   // Seeded by "Ask this question again" on a failed run. Read once, into form state.
-  const seeded = useSearchParams()?.get("q") ?? "";
+  const params = useSearchParams();
+  const seeded = params?.get("q") ?? "";
+  // A selection made on the Corpus page arrives as ids in the URL (never web storage); the
+  // server resolves and freezes it when the run is created.
+  const list = (key: string) => (params?.get(key) ?? "").split(",").filter(Boolean);
+  const selection = { folder_ids: list("folders"), doc_keys: list("files") };
   // `activeId` is undefined while the switcher loads; scoped fetches hold off on that.
   const { activeId: projectId, active, isLoading: projectsLoading } = useActiveProject();
   const { data: runs, isLoading, isError, refetch } = useRuns(projectId ?? null);
@@ -81,6 +86,7 @@ function ResearchPageInner() {
 
         <StartResearchForm
           initialQuestion={seeded}
+          selection={selection}
           onStarted={(runId) => router.push(`/research/run?id=${runId}`)}
         />
       </section>

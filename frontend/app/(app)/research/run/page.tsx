@@ -17,6 +17,7 @@ import { shouldOpenStream } from "@/lib/sessionStream";
 import { runStatusMeta } from "@/lib/runStatus";
 import { isTab, type Tab } from "@/lib/runTabs";
 import type { RunGraph } from "@/lib/types";
+import { RunScopePanel } from "@/components/runs/RunScopePanel";
 
 /**
  * One research run, from question to verified artifact.
@@ -250,6 +251,8 @@ function RunHeader({ graph, live }: { graph: RunGraph; live: boolean }) {
           {meta.sentence}
         </p>
       </div>
+
+      <RunScopePanel run={graph.run} />
 
       {/* Error Callout if Failed */}
       {isFailed && graph.run.error_message && (

@@ -513,6 +513,21 @@ export interface Run {
   status: RunStatus;
   depth: string;
   corpus_mode: boolean;
+  /** The frozen selection a corpus run was created with (RFC V3.1 §8.2). */
+  corpus_selection?: {
+    resolved: { document_id: string; filename: string; path: string; version: number }[];
+    corpus_version?: number | null;
+  } | null;
+  offline?: boolean;
+  /** A selected-files run's claim-by-claim check (RFC V3.1 §9.6). */
+  grounding_report?: {
+    status: "complete" | "unmeasured" | "no_evidence";
+    claims_supported?: number;
+    claims_rejected?: number;
+    claims_unmeasured?: number;
+    units_repaired?: number;
+    units_dropped?: number;
+  } | null;
   demo: boolean;
   skip_plan_gate: boolean;
   model_routing: Record<string, string> | null;
