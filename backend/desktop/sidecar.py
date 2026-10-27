@@ -173,7 +173,7 @@ from research_engine.events import make_event
 from research_engine.graph import build_graph
 from research_engine.llm_factory import get_llm, text_of
 from research_engine.local import SqliteCache, load_env_file
-from research_engine.local import providers_missing_a_key, usable_providers
+from research_engine.local import providers_missing_a_key, run_limits_from_env, usable_providers
 from research_engine.prompt_composition import recording_provenance, system_prompt
 from research_engine.routing_rules import validate as validate_routing_rule
 from research_engine.runconfig import (
@@ -739,30 +739,28 @@ def sidecar_run_config(
             "or export e.g. GOOGLE_API_KEY before launching."
         )
 
-    def _int_env(name: str, default: int) -> int:
-        try:
-            return int(os.environ.get(name) or default)
-        except ValueError:
-            return default
-
-    def _float_env(name: str, default: float) -> float:
-        try:
-            return float(os.environ.get(name) or default)
-        except ValueError:
-            return default
-
     return RunConfig(
         llm_mode="real",
         models=models,
         provider_keys=keys,
         tavily_api_key=os.environ.get("TAVILY_API_KEY", ""),
         brave_api_key=os.environ.get("BRAVE_API_KEY", ""),
-        enforce_ssrf_guards=False,
-        max_critic_loops=_int_env("MAX_CRITIC_LOOPS", 2),
-        max_cost_per_session_usd=_float_env("MAX_COST_PER_SESSION_USD", 0.50),
-        max_wallclock_seconds=_int_env("MAX_WALLCLOCK_SECONDS", 600),
-        max_parallel_tasks=_int_env("MAX_PARALLEL_TASKS", 4),
+        enforce_ssrf_guards=_ENFORCE_SSRF_GUARDS,
+        **run_limits_from_env(),
     )
+
+
+#: A desktop user's endpoints are on their own machine (Ollama 11434, OmniRoute 20128),
+#: which the production port allowlist refuses; runs and the Settings probe share this.
+_ENFORCE_SSRF_GUARDS = False
+
+
+def endpoint_probe_config(data_dir: str | Path) -> RunConfig:
+    """The URL and key a run here would dial. This host has no process `RunConfig`, so the
+    probe read an empty default and Settings said "No endpoint configured" after Save URL
+    (v3.0.3 record, Finding 14)."""
+    keys = provider_keys(data_dir)
+    return RunConfig(llm_mode="real", provider_keys=keys, enforce_ssrf_guards=_ENFORCE_SSRF_GUARDS)
 
 
 # ── App factory ──────────────────────────────────────────────────────────────────
@@ -2320,17 +2318,15 @@ def create_sidecar_app(
     @api.get("/models/custom/status", response_model=CustomEndpointStatusResponse)
     @delegates_to("app.api.v1.models:custom_endpoint_status")
     async def custom_status(user: User = Depends(get_local_user)):
-        """Second home of the server's `GET /models/custom/status`.
-
-        A prior version of this docstring said it had to be restated because the server
-        handler `Depends(get_current_user)`, which "needs the JWT stack this host does
-        not have" — the reasoning every other delegated route in this file already
-        disproves: the desktop never triggers `Depends`, it calls the handler directly
-        and passes its own `user`, exactly like `list_projects` does above.
-        """
+        """The server's handler, called directly with this host's `user` — plus the config
+        its probe reads, which this host has no process-wide copy of."""
         from app.api.v1.models import custom_endpoint_status
 
-        return await custom_endpoint_status(user)
+        token = set_run_config(endpoint_probe_config(app.state.data_dir))
+        try:
+            return await custom_endpoint_status(user)
+        finally:
+            reset_run_config(token)
 
     @api.get("/models/prompt-defaults", response_model=PromptDefaultsResponse)
     @delegates_to("app.api.v1.models:get_prompt_defaults")
