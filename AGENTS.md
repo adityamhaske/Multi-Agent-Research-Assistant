@@ -338,7 +338,15 @@ replaced; check the shape you got back, not just the absence of an exception.
 - **Every run limit is `0 = unlimited`, and `0` is the default** — cost, wallclock, and
   `max_input_tokens`. **The rule has two homes** — `graph._over_budget` *and*
   `graph._BudgetGuard.exceeded`; a zero limit reads as "already exceeded" to a naive `>=`,
-  which skips every task at zero spend. Change both.
+  which skips every task at zero spend. Change both. **Reading the limits from the
+  environment has one home**, `research_engine/local.py::run_limits_from_env`, used by the
+  CLI and the desktop alike: the desktop once restated them as a 600 s and $0.50 cap and
+  never read `MAX_INPUT_TOKENS`, and stopped a local-model run mid-research.
+- **The desktop has no process `RunConfig` outside a run.** The server builds one for its
+  whole process; the sidecar sets one per run and per chat. Anything that reads
+  `get_run_config()` from a plain route — `custom_endpoint.probe` reading the endpoint's URL
+  and key — gets the empty default there, so Settings said "No endpoint configured" right
+  after one was saved. Such a route installs `sidecar.endpoint_probe_config` for the call.
 - A guard that fires must say which one, and by how much — `failer_node` reports the
   breach reason; a bare "budget or loop limit exceeded" forces a source read to learn
   which of three numbers was crossed.

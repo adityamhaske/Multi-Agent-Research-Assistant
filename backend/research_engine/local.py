@@ -141,24 +141,6 @@ def run_config_from_env(*, fake: bool) -> RunConfig:
             f"Export it, or run with --fake for a keyless demo."
         )
 
-    # Budget overrides. The defaults mirror app/config.py, but a local model can be an
-    # order of magnitude slower than a hosted one — the 600s wallclock cap tuned for
-    # Gemini timed out three of ten Ollama runs at 685–709s (docs/12 M5). Hosts set the
-    # cap that fits their model; the engine itself never reads the environment.
-    def _int_env(name: str, default: int) -> int:
-        raw = os.environ.get(name)
-        try:
-            return int(raw) if raw else default
-        except ValueError:
-            return default
-
-    def _float_env(name: str, default: float) -> float:
-        raw = os.environ.get(name)
-        try:
-            return float(raw) if raw else default
-        except ValueError:
-            return default
-
     return RunConfig(
         llm_mode="real",
         models=models,
@@ -177,15 +159,42 @@ def run_config_from_env(*, fake: bool) -> RunConfig:
         # variable here lets one file serve both without editing it per-context.
         ollama_base_url=os.environ.get("OLLAMA_BASE_URL")
         or RunConfig.__dataclass_fields__["ollama_base_url"].default,
-        # 0 = unlimited (docs/04 §6). Defaults match `app/config.py` — the server and local
-        # paths are the pair AGENTS.md warns drifts; change both, or the CLI, evals and
-        # desktop silently enforce different ceilings than the API.
-        max_critic_loops=_int_env("MAX_CRITIC_LOOPS", 2),
-        max_cost_per_session_usd=_float_env("MAX_COST_PER_SESSION_USD", 0.0),
-        max_wallclock_seconds=_int_env("MAX_WALLCLOCK_SECONDS", 0),
-        max_input_tokens=_int_env("MAX_INPUT_TOKENS", 0),
-        max_parallel_tasks=_int_env("MAX_PARALLEL_TASKS", 4),
+        **run_limits_from_env(),
     )
+
+
+def run_limits_from_env() -> dict:
+    """Every per-run limit, from the environment, for the CLI and the desktop alike.
+
+    0 = unlimited (docs/04 §6), and the defaults are `app/config.py`'s — the server and
+    local paths are the pair AGENTS.md warns drifts. The desktop once restated these with a
+    600 s wallclock and a $0.50 spend cap, and never read `MAX_INPUT_TOKENS`: a local model
+    can be an order of magnitude slower than a hosted one, and that cap stopped a Fast run
+    on the desktop's default local model mid-research (v3.0.3 record, Finding 13). A host
+    that wants a ceiling sets the variable; the engine itself never reads the environment.
+    """
+
+    def _int_env(name: str, default: int) -> int:
+        raw = os.environ.get(name)
+        try:
+            return int(raw) if raw else default
+        except ValueError:
+            return default
+
+    def _float_env(name: str, default: float) -> float:
+        raw = os.environ.get(name)
+        try:
+            return float(raw) if raw else default
+        except ValueError:
+            return default
+
+    return {
+        "max_critic_loops": _int_env("MAX_CRITIC_LOOPS", 2),
+        "max_cost_per_session_usd": _float_env("MAX_COST_PER_SESSION_USD", 0.0),
+        "max_wallclock_seconds": _int_env("MAX_WALLCLOCK_SECONDS", 0),
+        "max_input_tokens": _int_env("MAX_INPUT_TOKENS", 0),
+        "max_parallel_tasks": _int_env("MAX_PARALLEL_TASKS", 4),
+    }
 
 
 _SCHEMA = """
