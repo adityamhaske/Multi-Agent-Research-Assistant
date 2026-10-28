@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import toast from "react-hot-toast";
 
 import { DocumentPreview } from "@/components/preview/DocumentPreview";
+import { ApiError } from "@/lib/api";
+import { downloadFile } from "@/lib/download";
 
 /**
  * A right-hand drawer that shows a corpus document without leaving the page
@@ -24,6 +27,7 @@ export function PreviewDrawer({
   filename,
   downloadable,
   subtitle,
+  page = null,
 }: {
   open: boolean;
   onClose: () => void;
@@ -32,6 +36,8 @@ export function PreviewDrawer({
   downloadable: boolean;
   /** Optional context line — e.g. which citation opened this. */
   subtitle?: string;
+  /** The cited page, which a PDF opens at. */
+  page?: number | null;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
@@ -104,6 +110,15 @@ export function PreviewDrawer({
               <a
                 href={url}
                 download={filename}
+                // An anchor for its semantics, a fetch for its bytes: a link cannot carry the
+                // desktop's bearer token, so a plain click was a 401 there (lib/download.ts).
+                onClick={(e) => {
+                  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                  e.preventDefault();
+                  downloadFile(url, filename).catch((err: Error) =>
+                    toast.error(err instanceof ApiError ? err.message : "Download failed."),
+                  );
+                }}
                 className="border border-border px-2 py-1 font-mono text-xs text-text-secondary hover:border-accent hover:text-accent"
               >
                 Download
@@ -120,7 +135,12 @@ export function PreviewDrawer({
         </div>
 
         <div className="min-h-0 flex-1">
-          <DocumentPreview url={url} filename={filename} downloadable={downloadable} />
+          <DocumentPreview
+            url={url}
+            filename={filename}
+            downloadable={downloadable}
+            page={page}
+          />
         </div>
       </div>
     </div>

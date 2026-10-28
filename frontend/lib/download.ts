@@ -20,14 +20,35 @@ import { apiBase, authHeaders, isDesktop } from "./desktop";
  * a file. This only intercepts the plain click.
  */
 export async function downloadExport(path: string, filename: string): Promise<void> {
-  const res = await fetch(`${apiBase()}${path}`, {
+  await downloadFile(`${apiBase()}${path}`, filename);
+}
+
+/**
+ * The same, for a URL that already carries the host's API base — a corpus document's
+ * download link, which the drawer renders as an anchor for the same reasons as above.
+ */
+export async function downloadFile(url: string, filename: string): Promise<void> {
+  const blob = await fetchFile(url);
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+/** A file's bytes, fetched the way this host authenticates. Throws `ApiError` on failure. */
+export async function fetchFile(url: string): Promise<Blob> {
+  const res = await fetch(url, {
     credentials: isDesktop ? "omit" : "include",
     cache: "no-store",
     headers: authHeaders(),
   });
 
   if (!res.ok) {
-    let detail = res.statusText || `Export failed (${res.status})`;
+    let detail = res.statusText || `Download failed (${res.status})`;
     try {
       const body = (await res.clone().json()) as { detail?: unknown };
       if (typeof body?.detail === "string") detail = body.detail;
@@ -37,13 +58,5 @@ export async function downloadExport(path: string, filename: string): Promise<vo
     throw new ApiError(res.status, detail);
   }
 
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  return res.blob();
 }

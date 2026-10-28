@@ -118,6 +118,7 @@ export function ReportView({ session }: { session: SessionDetail }) {
           filename={preview.filename}
           downloadable
           subtitle={preview.page ? `Cited from page ${preview.page}` : "Cited from your corpus"}
+          page={preview.page}
         />
       )}
 
