@@ -3,7 +3,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
-import { documentUrl, kindForFilename } from "@/components/preview/DocumentPreview";
+import {
+  citedDocumentPath,
+  citedDocumentUrl,
+  kindForFilename,
+} from "@/components/preview/DocumentPreview";
 import { PreviewDrawer } from "@/components/preview/PreviewDrawer";
 import { apiFetch } from "@/lib/api";
 import type { CorpusLocator } from "@/lib/corpusLocator";
@@ -29,15 +33,19 @@ function labelAt(segments: [number, string][], offset: number): string | null {
  * (RFC V3.1 §12). Text is rendered as text, never as markup, so a document cannot inject
  * anything into the page. A linearized document says so beside the quote.
  */
-export function CitedPassage({ projectId, locator }: { projectId: string; locator: CorpusLocator }) {
+export function CitedPassage({
+  owner,
+  locator,
+}: {
+  /** The run or session that cited it: `/runs/{id}` or `/research/{id}`. */
+  owner: string;
+  locator: CorpusLocator;
+}) {
   const mark = useRef<HTMLElement>(null);
   const [original, setOriginal] = useState(false);
   const { data, error, isLoading } = useQuery({
-    queryKey: ["corpus", projectId, "text", locator.documentId],
-    queryFn: () =>
-      apiFetch<Extracted>(
-        `/projects/${projectId}/corpus/documents/${encodeURIComponent(locator.documentId)}/text`,
-      ),
+    queryKey: ["cited-document", owner, locator.documentId],
+    queryFn: () => apiFetch<Extracted>(citedDocumentPath(owner, locator.documentId)),
   });
   useEffect(() => {
     mark.current?.scrollIntoView({ block: "center" });
@@ -79,7 +87,7 @@ export function CitedPassage({ projectId, locator }: { projectId: string; locato
         <PreviewDrawer
           open
           onClose={() => setOriginal(false)}
-          url={documentUrl(projectId, locator.documentId)}
+          url={citedDocumentUrl(owner, locator.documentId)}
           filename={data.filename}
           downloadable
           subtitle={locator.page ? `Cited from page ${locator.page}` : "Cited from your corpus"}

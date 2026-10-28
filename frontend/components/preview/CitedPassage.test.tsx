@@ -7,7 +7,8 @@ import { CitedPassage } from "./CitedPassage";
 
 /**
  * A corpus citation in place (RFC V3.1 §12, AC-20): the extracted text with the cited span
- * marked, and — for a PDF — the original opened at the cited page.
+ * marked, and — for a PDF — the original opened at the cited page. Both come through the
+ * run's own cited-documents route (§7.3), never the project's corpus.
  */
 
 const TEXT = "Intro text. The cited sentence is here. Closing text.";
@@ -34,7 +35,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 function respond(filename: string) {
   fetchMock.mockImplementation(async (url: string) =>
-    url.endsWith("/text")
+    !url.endsWith("/download")
       ? new Response(JSON.stringify(extracted(filename)), {
           headers: { "content-type": "application/json" },
         })
@@ -47,7 +48,7 @@ function renderPassage(page: number | null) {
   render(
     <QueryClientProvider client={client}>
       <CitedPassage
-        projectId="p1"
+        owner="/runs/r1"
         locator={{ documentId: "doc-1", page, start: 12, end: 39 }}
       />
     </QueryClientProvider>,
@@ -55,10 +56,11 @@ function renderPassage(page: number | null) {
 }
 
 describe("CitedPassage", () => {
-  it("marks the cited span in the extracted text", async () => {
+  it("marks the cited span in the text the run's own route returns", async () => {
     respond("paper.pdf");
     renderPassage(3);
     expect(await screen.findByText("The cited sentence is here.")).toHaveProperty("tagName", "MARK");
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/runs\/r1\/cited-documents\/doc-1$/);
   });
 
   it("opens the original PDF at the cited page", async () => {
@@ -70,7 +72,7 @@ describe("CitedPassage", () => {
     const object = await screen.findByLabelText("paper.pdf (PDF preview)");
     expect(object.getAttribute("data")).toBe("blob:cited#page=3");
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/projects/p1/corpus/documents/doc-1/download"),
+      expect.stringContaining("/runs/r1/cited-documents/doc-1/download"),
       expect.objectContaining({ cache: "no-store" }),
     );
   });

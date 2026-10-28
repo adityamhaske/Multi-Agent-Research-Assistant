@@ -39,9 +39,9 @@ function SourceCard({
   claimCount,
   focused,
   onInspectEvidence,
-  projectId,
+  runId,
 }: {
-  projectId: string;
+  runId: string;
   source: RunSource;
   cited: boolean;
   /** Versions of earlier drafts that cited this source when the report does not. */
@@ -152,7 +152,7 @@ function SourceCard({
       </div>
       {corpus && showPassage && (
         <div className="mt-2">
-          <CitedPassage projectId={projectId} locator={corpus} />
+          <CitedPassage owner={`/runs/${runId}`} locator={corpus} />
         </div>
       )}
     </li>
@@ -225,7 +225,7 @@ export function SourcesPanel({
       claimCount={claimsBySource.get(s.id)?.size ?? 0}
       focused={focus === s.id}
       onInspectEvidence={onInspectEvidence}
-      projectId={graph.run.project_id}
+      runId={graph.run.id}
     />
   );
 

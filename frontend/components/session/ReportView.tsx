@@ -10,7 +10,7 @@ import { formatCost, formatDuration, formatNumber } from "@/lib/format";
 import type { SessionDetail } from "@/lib/types";
 
 import { PreviewDrawer } from "@/components/preview/PreviewDrawer";
-import { documentUrl } from "@/components/preview/DocumentPreview";
+import { citedDocumentUrl } from "@/components/preview/DocumentPreview";
 import { Disclosure } from "@/components/ui/Disclosure";
 
 import { ChatPanel } from "./ChatPanel";
@@ -114,7 +114,7 @@ export function ReportView({ session }: { session: SessionDetail }) {
         <PreviewDrawer
           open
           onClose={() => setPreview(null)}
-          url={documentUrl(session.project_id, preview.id)}
+          url={citedDocumentUrl(`/research/${session.session_id}`, preview.id)}
           filename={preview.filename}
           downloadable
           subtitle={preview.page ? `Cited from page ${preview.page}` : "Cited from your corpus"}
