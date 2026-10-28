@@ -30,8 +30,9 @@ from app.models.agent_log import AgentLog
 from app.models.audit_log import AuditLog
 from app.models.session import Session, SessionStatus
 from app.models.user import User
-from app.ports import TerminalEventEmitter
+from app.ports import CorpusLocator, TerminalEventEmitter
 from app.run_dispatch import SessionDispatcher
+from app.schemas.corpus import ExtractedTextResponse
 from app.schemas.research import (
     ApprovalRequest,
     OutlineSectionSchema,
@@ -45,9 +46,18 @@ from app.schemas.research import (
     SessionListResponse,
     SessionSummary,
 )
-from app.services import checkpoints, export, memory, model_routing, usage
+from app.services import (
+    checkpoints,
+    cited_documents,
+    corpus_ingest,
+    export,
+    memory,
+    model_routing,
+    usage,
+)
+from app.services.document_headers import download_headers, media_type_for
 from app.services.event_stream import sse_frames
-from app.services.host_ports import get_terminal_event_emitter
+from app.services.host_ports import get_corpus_locator, get_terminal_event_emitter
 from app.services.sse import SSE_HEADERS
 from app.workers.dispatch import get_session_dispatcher
 from research_engine import bundle
@@ -197,6 +207,62 @@ async def get_session(
 ):
     session = await _authorized_session(db, session_id, current_user.id)
     return SessionDetail.model_validate(session)
+
+
+async def _cited_session_store(db, session_id, document_id, current_user, corpus, also_in):
+    """A session's twin of `runs._cited_store`. Sessions record no corpus identity and no
+    selection, so the only rules that apply are ownership and "a source it recorded"."""
+    session = await _authorized_session(db, session_id, current_user.id)
+    store = await cited_documents.store_holding(
+        corpus,
+        document_id,
+        cited=cited_documents.recorded_ids(
+            s.get("url") for s in (session.sources or []) if isinstance(s, dict)
+        ),
+        hashes={},
+        corpus_id=None,
+        projects=[session.project_id, *also_in],
+    )
+    if store is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=corpus_ingest.DOCUMENT_NOT_FOUND)
+    return store
+
+
+@router.get("/{session_id}/cited-documents/{document_id}", response_model=ExtractedTextResponse)
+async def get_cited_document_text(
+    session_id: uuid.UUID,
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    corpus: CorpusLocator = Depends(get_corpus_locator),
+    also_in: list[uuid.UUID] = Depends(cited_documents.no_other_projects),
+):
+    """The extracted text of one document version this session cited (RFC V3.1 §7.3)."""
+    store = await _cited_session_store(db, session_id, document_id, current_user, corpus, also_in)
+    found = await store.extracted(document_id)
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=corpus_ingest.DOCUMENT_NOT_FOUND)
+    return ExtractedTextResponse(**found)
+
+
+@router.get("/{session_id}/cited-documents/{document_id}/download")
+async def download_cited_document(
+    session_id: uuid.UUID,
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    corpus: CorpusLocator = Depends(get_corpus_locator),
+    also_in: list[uuid.UUID] = Depends(cited_documents.no_other_projects),
+):
+    """The original file of one document version this session cited."""
+    store = await _cited_session_store(db, session_id, document_id, current_user, corpus, also_in)
+    found = await store.blob(document_id)
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=corpus_ingest.DOCUMENT_NOT_FOUND)
+    data, filename, kind = found
+    return Response(
+        content=data, media_type=media_type_for(kind), headers=download_headers(kind, filename)
+    )
 
 
 @router.get("/{session_id}/stream")
