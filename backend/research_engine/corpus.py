@@ -1307,6 +1307,17 @@ class CorpusStore:
             ).fetchone()
         return row[0] if row else None
 
+    async def sha256_of(self, doc_id: str) -> str | None:
+        """The stored hash of one version, or `None` if this store has no such version."""
+        return await asyncio.to_thread(self._sha256_of_sync, doc_id)
+
+    def _sha256_of_sync(self, doc_id: str) -> str | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT sha256 FROM corpus_documents WHERE id = ?", (doc_id,)
+            ).fetchone()
+        return row[0] if row else None
+
     async def folder_doc_keys(self, folder_ids: list[str]) -> set[str] | None:
         """Every logical document in these folders or beneath them; None if one is unknown."""
         return await asyncio.to_thread(self._folder_doc_keys_sync, folder_ids)

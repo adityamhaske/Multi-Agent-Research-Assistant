@@ -31,7 +31,13 @@ from pathlib import Path
 
 SIDECAR = Path(__file__).resolve().parents[2] / "desktop" / "sidecar.py"
 
-#: 3,059 lines as of PR-11: `PATCH /auth/me` refuses a preference by raising the server's own
+#: 3,071 lines as of PR-3b's cited-document routes (RFC V3.1 §7.3): four wrappers over
+#: `app.api.v1.runs`/`research` `get_cited_document_text`/`download_cited_document`, which
+#: hold every rule. The one thing each adds is this host's extra place to look, the
+#: "Documents from before 3.1" project (`corpus_layout.legacy_project_id`), which only this
+#: host has. Raised deliberately for those four routes.
+#: Was 3,016 (ceiling 3,020) before them.
+#: Was 3,059 as of PR-11: `PATCH /auth/me` refuses a preference by raising the server's own
 #: `RequestValidationError` (`app.services.error_responses.body_validation_error`, scope freeze
 #: §7) instead of building a smaller body by hand, which removed the hand-built one.
 #: Was 3,063 as of PR-10's `GET /models/prompt-defaults`: an eight-line wrapper that
@@ -71,7 +77,7 @@ SIDECAR = Path(__file__).resolve().parents[2] / "desktop" / "sidecar.py"
 #: supervision and logging bootstrap for a process that is not itself an HTTP handler), and
 #: 2,850 before that, itself down from 3,015 before plan phase 7 began delegating session
 #: routes. Small headroom above the current count, not a target to grow into.
-CEILING = 3020
+CEILING = 3071
 
 
 def test_sidecar_has_not_grown_past_its_ratchet():
