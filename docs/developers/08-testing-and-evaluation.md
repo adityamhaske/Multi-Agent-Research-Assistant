@@ -189,6 +189,35 @@ measured, committed result either side of it. Hybrid retrieval was built and mea
 exactly this and did not beat it, so it was rejected — see
 [the roadmap](../project/10-roadmap.md).
 
+#### Retrieval over selected files
+
+```bash
+python -m evals.selection_retrieval           # measure and print
+python -m evals.selection_retrieval --write   # also record a write-once result file
+```
+
+A run over selected files searches only those files (`ScopedCorpus.search`). This eval
+checks two things about that path, on the same embedder:
+
+- **Leakage.** The share of retrieved chunks from a file outside the selection. **The target
+  is exactly 0**, and the command exits non-zero when any query leaks. The dataset
+  (`evals/datasets/selection-retrieval/`) is built so a leak has something to find: one
+  fixture of every shipped format plus the corpus above, where unselected files often
+  answer the query better, and two selections leave out an identical copy of the chosen
+  file.
+- **The per-file hit cap.** A selection takes `max(1, ceil(k / files))` hits from each file,
+  where every search used to take one. It is measured against one hit per file. Document
+  rankings are identical by construction, so the measure is **passage recall**: whether
+  every passage a question needs comes back, judged by verbatim anchors.
+
+The recorded result (`backend/evals/results/retrieval-2026-10-28-selection-local.json`,
+`ollama:nomic-embed-text`, 16 queries, 35 documents):
+
+| | leakage (max) | passages per query | passage recall | nDCG@5 |
+|---|---|---|---|---|
+| per-file cap | **0.000** (0 of 16 queries) | 2.81 | **1.000** | 0.963 |
+| one hit per file | — | 1.94 | 0.458 | 0.963 |
+
 ### Unmeasured is not zero
 
 The rule the whole harness is built around, and the reason it exists at all.
