@@ -167,6 +167,9 @@ class Validation:
     retries: int = 0
     estimated_usd: float = 0.0
     failure: str | None = None
+    #: Which run limit stopped checking, and by how much — the claims only carry the cause
+    #: `budget_exhausted`, and a guard that fires must say which one (AGENTS.md).
+    budget_breach: str | None = None
 
     def counts(self) -> dict:
         rejected = {cause: 0 for cause in REJECTION_CAUSES}
@@ -420,6 +423,7 @@ async def call_model(purpose: str, human: str, *, budget: Budget, result: Valida
     """
     breach = budget.breach()
     if breach:
+        result.budget_breach = breach
         raise BudgetExhausted(breach)
     role = purpose.split(".", 1)[0]
     model = get_llm(role)
