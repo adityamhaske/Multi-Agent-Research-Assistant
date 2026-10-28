@@ -343,9 +343,20 @@ class _InProcessDispatcher:
             config = await run_execution.run_config_for_run(db, run)
             question, depth = run.question, run.depth
             await run_lifecycle.set_status(db, run, "RUNNING")
+            ports = {"run_config": config, "event_sink": self._sink}
+            if run.corpus_mode:
+                # `execute_run::_corpus_port` without its embedder guard, which accepts only
+                # an `ollama:`/`local:` model id and so would refuse the pinned fake. Without
+                # this a corpus run here had no store installed at all, and every corpus run
+                # on the "server" host failed with no evidence.
+                from app import adapters
+
+                store = await adapters.ServerCorpusLocator().for_project(run.project_id)
+                if store is not None:
+                    ports["corpus"] = run_execution.corpus_port_for(store, config)
+                    await run_execution.record_corpus_snapshot(db, run, store)
             await db.commit()
 
-        ports = {"run_config": config, "event_sink": self._sink}
         # Mirrors `execute_run`, which wraps the graph so `system_prompt` can record what it
         # composed. This class restates that function's body rather than calling it, so every
         # responsibility `execute_run` gains has to be added here too — the harness is a third

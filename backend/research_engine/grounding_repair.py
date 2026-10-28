@@ -159,8 +159,15 @@ async def ground(
             try:
                 rewritten = await _rewrite(unit, validation, budget, ledger)
             except BudgetExhausted as exc:
+                # The same form as every other unmeasured ending, so a limit crossed in a
+                # repair still says which cause it was (§9.9, AC-43), not only the breach.
                 return _finish(
-                    body, sources, validation, ledger, status=UNMEASURED, failure=exc.reason
+                    body,
+                    sources,
+                    validation,
+                    ledger,
+                    status=UNMEASURED,
+                    failure=f"grounding_unmeasured: budget_exhausted ({exc.reason})",
                 )
             except Exception as exc:  # noqa: BLE001 — a failed rewrite is an unmeasured cause
                 return _finish(
@@ -183,6 +190,8 @@ async def ground(
     assert validation is not None
     if validation.unparsed_lines or any(c.state == UNMEASURED for c in validation.claims):
         causes = sorted({c.cause for c in validation.claims if c.state == UNMEASURED and c.cause})
+        if "budget_exhausted" in causes and validation.budget_breach:
+            causes[causes.index("budget_exhausted")] += f" ({validation.budget_breach})"
         if validation.unparsed_lines:
             causes.append("unparsed_content")
         return _finish(

@@ -308,6 +308,27 @@ Every check the standalone verifier ran over this run's bundle, with its verdict
 code path `python -m research_engine.verify_bundle` uses, so the answer here and the answer
 offline cannot disagree.
 
+### `GET /runs/{id}/cited-documents/{document_id}`
+
+One document version this run cited, wherever it is stored now: its extracted text, the same
+shape as `GET /projects/{id}/corpus/documents/{doc_id}/text`. `…/download` returns the
+original file, with the corpus download route's headers. Each project's documents are
+private to it, so a report in one project can quote a document that now lives in another.
+On the desktop, every document uploaded before 3.1 is in the project "Documents from before
+3.1". This route is how such a citation still opens, and it grants nothing else
+(internal/rfcs/V3.1-corpus-scope.md §7.3):
+
+- **Only what the run cited.** `document_id` must be a corpus source the run recorded. Where
+  the run's selection pinned a hash, the stored version must still match it.
+- **Located from the run, not the request.** The run's own project is searched. On the
+  desktop, the legacy project is searched too. When the run recorded which corpus it read,
+  any other corpus is skipped.
+- **`404` for everything else**, with the same body as a missing document. There is no
+  listing, no search, and no other version of the same file.
+
+`GET /research/{id}/cited-documents/{document_id}` (and `…/download`) is the session twin,
+with the same rules on the session's recorded sources.
+
 ### Exports
 
 | Method | Path | Returns |

@@ -166,6 +166,7 @@ from desktop.corpus_layout import (
     SHARED,
     DesktopCorpusLocator,
     MigrationRefused,
+    legacy_project_id,
     migrate_legacy_corpus,
 )
 from research_engine.embeddings import EmbeddingsUnavailable
@@ -2888,6 +2889,60 @@ def create_sidecar_app(
         from app.api.v1.runs import get_verification
 
         return await get_verification(run_id, db, user)
+
+    # Reopening what a run or session cited (RFC V3.1 §7.3). The one desktop difference is
+    # where else to look: the "Documents from before 3.1" project, from the migration record.
+    @api.get("/runs/{run_id}/cited-documents/{document_id}", response_model=ExtractedTextResponse)
+    @delegates_to("app.api.v1.runs:get_cited_document_text")
+    async def v2_cited_text(
+        run_id: uuid.UUID,
+        document_id: str,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.runs import get_cited_document_text as handler
+
+        extra = await legacy_project_id(db)
+        return await handler(run_id, document_id, db, user, get_corpus_locator(), extra)
+
+    @api.get("/runs/{run_id}/cited-documents/{document_id}/download")
+    @delegates_to("app.api.v1.runs:download_cited_document")
+    async def v2_cited_download(
+        run_id: uuid.UUID,
+        document_id: str,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.runs import download_cited_document as handler
+
+        extra = await legacy_project_id(db)
+        return await handler(run_id, document_id, db, user, get_corpus_locator(), extra)
+
+    @api.get("/research/{session_id}/cited-documents/{document_id}", response_model=ExtractedTextResponse)
+    @delegates_to("app.api.v1.research:get_cited_document_text")
+    async def session_cited_text(
+        session_id: uuid.UUID,
+        document_id: str,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.research import get_cited_document_text as handler
+
+        extra = await legacy_project_id(db)
+        return await handler(session_id, document_id, db, user, get_corpus_locator(), extra)
+
+    @api.get("/research/{session_id}/cited-documents/{document_id}/download")
+    @delegates_to("app.api.v1.research:download_cited_document")
+    async def session_cited_download(
+        session_id: uuid.UUID,
+        document_id: str,
+        db: AsyncSession = Depends(get_db),
+        user: User = Depends(get_local_user),
+    ):
+        from app.api.v1.research import download_cited_document as handler
+
+        extra = await legacy_project_id(db)
+        return await handler(session_id, document_id, db, user, get_corpus_locator(), extra)
 
     app.include_router(api)
     return app

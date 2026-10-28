@@ -69,3 +69,24 @@ describe("PreviewDrawer keyboard contract", () => {
     ).toBe(true);
   });
 });
+
+describe("PreviewDrawer download", () => {
+  it("downloads through an authenticated fetch rather than following the link", async () => {
+    // A link cannot carry the desktop's bearer token, so a plain click was a 401 there.
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(["bytes"]),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("URL", { ...URL, createObjectURL: () => "blob:dl", revokeObjectURL: vi.fn() });
+    renderDrawer();
+    fetchMock.mockClear();
+
+    const link = screen.getByRole("link", { name: "Download" });
+    expect(link).toHaveAttribute("href", "/api/d/1"); // still a link: middle-click, copy link
+    await userEvent.click(link);
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/d/1", expect.objectContaining({ cache: "no-store" }));
+  });
+});

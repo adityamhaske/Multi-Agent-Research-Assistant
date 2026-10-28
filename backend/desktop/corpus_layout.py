@@ -214,6 +214,19 @@ async def _set_meta(db, key: str, value: str) -> None:
     )
 
 
+async def legacy_project_id(db) -> list[uuid.UUID]:
+    """The project the pre-3.1 shared corpus moved into, as the one extra place a historical
+    citation may be reopened from (`app/services/cited_documents.py`). Empty when nothing
+    was migrated. The route grants nothing else in that project."""
+    raw = await _meta(db, MIGRATION_KEY)
+    if not raw:
+        return []
+    try:
+        return [uuid.UUID(json.loads(raw)["project_id"])]
+    except KeyError, TypeError, ValueError:
+        return []
+
+
 def _remove(path: Path) -> None:
     for suffix in _SQLITE_SIDECARS:
         path.with_name(path.name + suffix).unlink(missing_ok=True)

@@ -44,6 +44,11 @@ SHARED_OWNERSHIP: dict[str, str] = {
     "POST /runs/{run_id}/unarchive": "app.api.v1.runs",
     "GET /runs/{run_id}/bundle.json": "app.api.v1.runs",
     "GET /runs/{run_id}/verification": "app.api.v1.runs",
+    # RFC V3.1 §7.3. The desktop passes one argument the server does not, its legacy project.
+    "GET /runs/{run_id}/cited-documents/{document_id}": "app.api.v1.runs",
+    "GET /runs/{run_id}/cited-documents/{document_id}/download": "app.api.v1.runs",
+    "GET /research/{session_id}/cited-documents/{document_id}": "app.api.v1.research",
+    "GET /research/{session_id}/cited-documents/{document_id}/download": "app.api.v1.research",
     # The session surface, delegated in Phase 7. The desktop restated all of this — roughly
     # 700 lines — and the two copies were kept in step by a note in AGENTS.md.
     "POST /research": "app.api.v1.research",

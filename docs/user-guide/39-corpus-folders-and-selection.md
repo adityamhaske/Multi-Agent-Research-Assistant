@@ -104,4 +104,6 @@ claims as checked. The checking calls count against the same spending limit as t
 ## Opening a citation
 
 In a report's sources, **Open where it's cited** shows the file's text with the cited passage
-highlighted and named by its page, sheet and row, slide, cell or line.
+highlighted and named by its page, sheet and row, slide, cell or line. For a PDF, **Open the
+PDF at page N** opens the original file at the cited page, in a viewer that supports jumping
+to a page; any other viewer opens it at the first page.

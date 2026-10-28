@@ -61,13 +61,15 @@ from app.run_dispatch import RunDispatcher
 # Request bodies live in app/schemas/runs.py so the desktop sidecar can import the exact
 # same contract without this module's `app.config` chain (#50). Re-exported here: this
 # is where the routes and their tests have always referred to them.
+from app.schemas.corpus import ExtractedTextResponse
 from app.schemas.runs import (  # noqa: F401  (re-export)
     CreateRunRequest,
     PlanReviewRequest,
     ReportReviewRequest,
 )
-from app.services import model_routing
+from app.services import cited_documents, corpus_ingest, model_routing
 from app.services.corpus_selection import SelectionError, freeze_selection
+from app.services.document_headers import download_headers, media_type_for
 from app.services.event_stream import sse_frames
 from app.services.host_ports import get_corpus_locator
 from app.services.sse import SSE_HEADERS
@@ -875,6 +877,62 @@ async def get_verification(
 
 
 # ── SSE ───────────────────────────────────────────────────────────────────────────
+
+
+async def _cited_store(db, run_id, document_id, current_user, corpus, also_in):
+    run = await _run_or_404(db, run_id, current_user.id)
+    urls = (
+        await db.execute(select(Source.url).where(Source.run_id == run.id, Source.kind == "CORPUS"))
+    ).scalars()
+    store = await cited_documents.store_holding(
+        corpus,
+        document_id,
+        cited=cited_documents.recorded_ids(urls),
+        hashes=cited_documents.recorded_hashes(run.corpus_selection),
+        corpus_id=run.corpus_id,
+        projects=[run.project_id, *also_in],
+    )
+    if store is None:
+        raise NotFound(corpus_ingest.DOCUMENT_NOT_FOUND)
+    return store
+
+
+@router.get("/{run_id}/cited-documents/{document_id}", response_model=ExtractedTextResponse)
+async def get_cited_document_text(
+    run_id: uuid.UUID,
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    corpus: CorpusLocator = Depends(get_corpus_locator),
+    also_in: list[uuid.UUID] = Depends(cited_documents.no_other_projects),
+):
+    """The extracted text of one document version this run cited, wherever it lives now
+    (RFC V3.1 §7.3; `app/services/cited_documents.py` holds the rules)."""
+    store = await _cited_store(db, run_id, document_id, current_user, corpus, also_in)
+    found = await store.extracted(document_id)
+    if found is None:
+        raise NotFound(corpus_ingest.DOCUMENT_NOT_FOUND)
+    return ExtractedTextResponse(**found)
+
+
+@router.get("/{run_id}/cited-documents/{document_id}/download")
+async def download_cited_document(
+    run_id: uuid.UUID,
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    corpus: CorpusLocator = Depends(get_corpus_locator),
+    also_in: list[uuid.UUID] = Depends(cited_documents.no_other_projects),
+):
+    """The original file of one document version this run cited, under the same rules."""
+    store = await _cited_store(db, run_id, document_id, current_user, corpus, also_in)
+    found = await store.blob(document_id)
+    if found is None:
+        raise NotFound(corpus_ingest.DOCUMENT_NOT_FOUND)
+    data, filename, kind = found
+    return Response(
+        content=data, media_type=media_type_for(kind), headers=download_headers(kind, filename)
+    )
 
 
 @router.get("/{run_id}/stream")
