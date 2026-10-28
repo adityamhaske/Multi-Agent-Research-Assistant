@@ -117,3 +117,42 @@ async def test_real_mode_is_untouched(monkeypatch):
     embedder = await adapters.embeddings_for()
 
     assert isinstance(embedder, HostedEmbeddings)
+
+
+# ── The desktop's twin (AGENTS.md, "two hosts, one contract") ─────────────────────
+
+
+async def test_a_desktop_started_with_fake_ingests_without_any_model_server(monkeypatch, tmp_path):
+    """The desktop built its embedder from local Ollama whatever `--fake` said, so a scripted
+    desktop on a machine with no Ollama — every CI runner, and the packaged-engine check —
+    could not ingest one file."""
+    import httpx
+
+    from desktop.sidecar import create_sidecar_app
+
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://127.0.0.1:9/v1")  # nothing listens here
+    app = create_sidecar_app(data_dir=tmp_path, token="t", fake=True)
+    async with app.router.lifespan_context(app):
+        assert app.state.sidecar["corpus"].embedder.model_id == FakeEmbeddings.model_id
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://127.0.0.1:9") as client:
+            auth = {"Authorization": "Bearer t"}
+            pid = (await client.post("/api/v1/projects", headers=auth, json={"name": "P"})).json()[
+                "id"
+            ]
+            up = await client.post(
+                f"/api/v1/projects/{pid}/corpus/documents",
+                headers=auth,
+                files={
+                    "file": ("notes.txt", b"Retrieval grounds answers in passages.", "text/plain")
+                },
+            )
+    assert up.status_code == 201, up.text
+
+
+def test_a_desktop_not_in_fake_mode_still_embeds_locally():
+    from desktop.corpus_layout import default_embedder
+    from research_engine.embeddings import LocalEmbeddings
+
+    assert isinstance(default_embedder(), LocalEmbeddings)
+    assert isinstance(default_embedder(fake=True), FakeEmbeddings)

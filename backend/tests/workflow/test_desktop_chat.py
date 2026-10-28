@@ -140,10 +140,12 @@ async def test_the_scope_selector_is_not_a_control_that_does_nothing(sidecar, mo
     the field, or it is a segmented control that changes what the user believes and not
     what the run reads — the "accepted by the schema, dropped on the floor" bug.
 
-    Proven through `corpus`, which needs a local embedder this test environment has not
-    got. The 400 *is* the evidence: a host that dropped the field would have grounded in
-    the report and returned 200 like the default does, so an error naming the embedding
-    server is the only outcome that can only happen if the scope reached retrieval.
+    Proven through `corpus`, with the corpus's embedder made to fail as an unreachable
+    embedding server does. The 400 *is* the evidence: a host that dropped the field would
+    have grounded in the report and returned 200 like the default does, so an error naming
+    the embedding server is the only outcome that can only happen if the scope reached
+    retrieval. Both embedder classes fail, because which one the corpus uses depends on
+    `--fake` (`corpus_layout.default_embedder`) and the proof must not.
     Asserted this way rather than through `web`, which reaches a real search API even in
     fake mode and would make the test depend on the network.
     """
@@ -156,6 +158,7 @@ async def test_the_scope_selector_is_not_a_control_that_does_nothing(sidecar, mo
         )
 
     monkeypatch.setattr(embeddings.LocalEmbeddings, "embed", _failing_embed)
+    monkeypatch.setattr(embeddings.FakeEmbeddings, "embed", _failing_embed)
     sid = await _completed_session(sidecar)
 
     resp = await sidecar.post(

@@ -154,6 +154,10 @@ locally.
   list `ollama` with no key
 - Unmeasured-vs-zero in the support rate → `evals/harness.py::judge_citation_support`
   *and* `evals/benchmark.py::calc_support_rate`
+- Fake mode's embedder → `app/adapters.py::embeddings_for` *and*
+  `desktop/corpus_layout.py::default_embedder`, both `FakeEmbeddings` under fake mode. The
+  desktop's ignored `--fake` and dialled Ollama, so no scripted desktop without Ollama (every CI
+  runner, the packaged-engine check) could ingest a file
 - Embedder locality → every `Embeddings` adapter must expose `is_local`
   (`research_engine/embeddings.py`, `app/adapters.py`); the corpus airgap guard **defaults
   to remote** for anything that does not declare itself

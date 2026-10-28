@@ -41,7 +41,7 @@ import structlog
 from sqlalchemy import select, text
 
 from research_engine.corpus import CorpusStore
-from research_engine.embeddings import LocalEmbeddings
+from research_engine.embeddings import FakeEmbeddings, LocalEmbeddings
 
 logger = structlog.get_logger()
 
@@ -62,9 +62,15 @@ SHARED, PER_PROJECT = "shared", "per_project"
 _SQLITE_SIDECARS = ("", "-wal", "-shm")
 
 
-def default_embedder():
+def default_embedder(*, fake: bool = False):
     """The desktop's corpus embedder: local Ollama, the same `ollama:<model>` id scheme as
-    the server so a corpus indexed on one host reads as the same model on the other."""
+    the server so a corpus indexed on one host reads as the same model on the other.
+
+    Under `--fake`, the in-process deterministic one, as `app.adapters.embeddings_for` gives
+    the server under `llm_mode="fake"`. A scripted run must reach no model, and without this
+    one on a machine with no Ollama could not ingest a single file."""
+    if fake:
+        return FakeEmbeddings()
     return LocalEmbeddings(
         model=os.environ.get("CORPUS_EMBEDDINGS_MODEL", "nomic-embed-text"),
         base_url=os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
@@ -78,10 +84,10 @@ class DesktopCorpusLocator:
     through another is embedded by the same model instance. Tests replace `embedder`.
     """
 
-    def __init__(self, data_dir: str | Path, layout: str = PER_PROJECT) -> None:
+    def __init__(self, data_dir: str | Path, layout: str = PER_PROJECT, *, fake: bool = False):
         self._data_dir = Path(data_dir)
         self.layout = layout
-        self.embedder = default_embedder()
+        self.embedder = default_embedder(fake=fake)
 
     def path_for(self, project_id) -> Path:
         if self.layout == SHARED:
