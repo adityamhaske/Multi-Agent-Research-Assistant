@@ -9,6 +9,7 @@ only way a user's data directory is ever recovered.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 
 import httpx
@@ -74,6 +75,35 @@ async def test_the_shared_store_moves_whole_to_one_new_project(tmp_path):
     assert _rows(moved) == before, "ids and hashes are preserved exactly"
     assert _rows(tmp_path / corpus_layout.BACKUP_FILENAME) == before, "the backup is kept"
     assert not (tmp_path / corpus_layout.LEGACY_FILENAME).exists(), "the shared store is retired"
+
+
+async def test_the_migration_record_names_the_corpus_it_moved(tmp_path):
+    """RFC §7.3 step 4: `{project_id, corpus_id, documents, chunks, backup_sha256,
+    completed_at}`. The corpus id is what ties a run's recorded `corpus_id` to the store
+    that is now the legacy project's."""
+    await _legacy_store(tmp_path)
+    with sqlite3.connect(tmp_path / corpus_layout.LEGACY_FILENAME) as conn:
+        (corpus_id,) = conn.execute("SELECT corpus_id FROM corpus_meta").fetchone()
+        (chunks,) = conn.execute("SELECT COUNT(*) FROM corpus_chunks").fetchone()
+
+    projects, _, _ = await _launch(tmp_path)
+
+    with sqlite3.connect(tmp_path / "desktop.sqlite") as conn:
+        (raw,) = conn.execute(
+            "SELECT value FROM app_meta WHERE key = ?", (corpus_layout.MIGRATION_KEY,)
+        ).fetchone()
+    record = json.loads(raw)
+    assert set(record) == {
+        "project_id",
+        "corpus_id",
+        "documents",
+        "chunks",
+        "backup_sha256",
+        "completed_at",
+    }
+    assert record["project_id"] == projects[corpus_layout.LEGACY_PROJECT_NAME]["id"]
+    assert record["corpus_id"] == corpus_id
+    assert (record["documents"], record["chunks"]) == (2, chunks)
 
 
 async def test_a_second_launch_changes_nothing(tmp_path):
