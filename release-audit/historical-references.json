@@ -220,6 +220,16 @@
       "path": "frontend/lib/features.ts",
       "text": "since: \"v3.0.0\",",
       "reason": "the release that introduced the feature (A2.02 checks it is released)"
+    },
+    {
+      "path": ".github/workflows/desktop.yml",
+      "text": "# measured tree, 143.5 MB in 3.0.3 (release-audit/v3.0.3/record.md, M7.06). The",
+      "reason": "workflow comment naming the measured release the installed-size ceiling is derived from (RFC V3.1 §11.3)"
+    },
+    {
+      "path": ".github/workflows/desktop.yml",
+      "text": "# measured 3.0.3 size (record.md): .msi 82.1 MB, .deb 138.0 MB, AppImage 191.6 MB.",
+      "reason": "workflow comment naming the measured release each installer's download ceiling is derived from (RFC V3.1 §11.3)"
     }
   ]
 }

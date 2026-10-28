@@ -405,6 +405,13 @@ jobs:
               echo "::error::sidecar tree is ${total} KiB — too small to contain the engine"
               exit 1
             fi
+            # Ceiling (RFC V3.1 §11.3): installed no more than +60 MB over the last release's
+            # measured tree, 143.5 MB in 3.0.3 (release-audit/v3.0.3/record.md, M7.06). The
+            # 3.1 parsers are the reason to have one; raise it in a reviewed change, not here.
+            if [ "$total" -gt 208896 ]; then
+              echo "::error::sidecar tree is ${total} KiB — over the 204 MB ceiling"
+              exit 1
+            fi
             exit 0
           fi
 
@@ -424,6 +431,18 @@ jobs:
           # the uncompressed one above and still an order of magnitude above the failure.
           if [ "$size" -lt 40960 ]; then
             echo "::error::$name is ${size} KiB — too small to contain the engine"
+            exit 1
+          fi
+          # Ceiling (RFC V3.1 §11.3): a download no more than +25 MB over the same installer's
+          # measured 3.0.3 size (record.md): .msi 82.1 MB, .deb 138.0 MB, AppImage 191.6 MB.
+          case "$name" in
+            *.msi) ceiling=109670 ;;       # 107.1 MB
+            *.deb) ceiling=166912 ;;       # 163.0 MB
+            *.AppImage) ceiling=221798 ;;  # 216.6 MB
+            *) ceiling=0 ;;
+          esac
+          if [ "$ceiling" -gt 0 ] && [ "$size" -gt "$ceiling" ]; then
+            echo "::error::$name is ${size} KiB — over its ${ceiling} KiB ceiling"
             exit 1
           fi
       - name: The copy actually inside the bundle reports the commit that built it

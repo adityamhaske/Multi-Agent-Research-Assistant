@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Write the v2.1.0 desktop upgrade fixture by driving a real v2.1.0 sidecar.
+Write a desktop upgrade fixture by driving the real sidecar of a released version.
 
 RG-4b / exit criterion 5 (internal/rfcs/V3.0-agentspec-scope.md §15.3, §24): a *populated*
 v2.1.0 install must upgrade to V3 — not a fresh install, and not a schema produced by taking
@@ -30,6 +30,20 @@ is (`GET /version`) and must answer version 2.1.0 at the tag's commit — stampi
 checkout first is what lets a source run answer that question at all. A fixture that
 merely resembles v2.1.0 would prove the upgrade of a database nobody has.
 
+**`--release 3.0.2`** writes `tests/fixtures/upgrade/v3.0.2-populated/` the same way, from a
+checkout of `v3.0.2`. That is RFC V3.1 AC-23's populated store: the last shared corpus a
+desktop user can hold before 3.1 moves it into a project of its own. On top of the v2.1.0
+journey it uploads every kind 3.0.2 reads (PDF, HTML, Markdown, text) under two projects,
+re-uploads one file so the store holds a superseded version, and approves a corpus-only run
+so its report is saved into the corpus as a generated document. 3.0.2 embeds with local
+Ollama even under `--fake`, as a 3.0.2 user's corpus was, so `nomic-embed-text` must be
+running.
+
+    git worktree add --detach "$TMP/v302" v3.0.2
+    (cd "$TMP/v302" && python scripts/stamp_build.py)
+    python scripts/make_upgrade_fixture.py --release 3.0.2 \\
+        --sidecar "python -m desktop.sidecar" --cwd "$TMP/v302/backend"
+
 **It never touches a real data directory.** The sidecar's default `--data-dir` is the
 user's own `~/.research-engine`; this always passes a fresh temporary one, and the
 environment is reduced to what an installed app has — no server variables, no provider
@@ -55,13 +69,19 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_OUT = ROOT / "backend" / "tests" / "fixtures" / "upgrade" / "v2.1.0"
+UPGRADE = ROOT / "backend" / "tests" / "fixtures" / "upgrade"
 
-#: What the sidecar must report before anything it writes is kept. The commit is the
-#: `v2.1.0` tag's (`git rev-parse v2.1.0^{commit}`), fixed here rather than read from git so
-#: a moved tag cannot silently change what "v2.1.0" means.
-EXPECTED_VERSION = "2.1.0"
-EXPECTED_SHA = "4580ac06e7e5ef214b55fcad580e4a40b3689f30"
+#: What the sidecar must report before anything it writes is kept, and where it goes. Each
+#: commit is its tag's (`git rev-parse vX.Y.Z^{commit}`), fixed here rather than read from git
+#: so a moved tag cannot silently change what the version means.
+RELEASES = {
+    "2.1.0": {"sha": "4580ac06e7e5ef214b55fcad580e4a40b3689f30", "out": UPGRADE / "v2.1.0"},
+    "3.0.2": {
+        "sha": "0a9de70ee90485531120856fce7f5dde4041c0aa",
+        "out": UPGRADE / "v3.0.2-populated",
+    },
+}
+FORMATS = ROOT / "backend" / "tests" / "fixtures" / "formats"
 
 QUESTION = "What are the leading approaches to long-term memory in LLM agents?"
 #: Preferences that existed in v2.1.0's `UserPreferences` (which forbids unknown keys), set
@@ -126,6 +146,32 @@ class Sidecar:
     def json(self, method: str, path: str, body: dict | None = None):
         return json.loads(self.call(method, path, body))
 
+    def upload(self, project_id: str, filename: str, data: bytes, doc_key: str | None = None):
+        """A multipart upload. `doc_key` makes it a revision of that document, which is the
+        only way 3.0.2 supersedes one; without it a re-upload is a second document."""
+        boundary = "fixture-boundary-7d1f"
+        body = b""
+        if doc_key:
+            body += (
+                f"--{boundary}\r\nContent-Disposition: form-data; name=\"doc_key\"\r\n\r\n"
+                f"{doc_key}\r\n"
+            ).encode()
+        body += (
+            f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; "
+            f'filename="{filename}"\r\nContent-Type: application/octet-stream\r\n\r\n'
+        ).encode() + data + f"\r\n--{boundary}--\r\n".encode()
+        request = urllib.request.Request(  # noqa: S310 — loopback only
+            f"{self.base}/projects/{project_id}/corpus/documents",
+            method="POST",
+            data=body,
+            headers={
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+            },
+        )
+        with urllib.request.urlopen(request, timeout=120) as response:  # noqa: S310
+            return json.loads(response.read())
+
     def await_run(self, run_id: str, wanted: str) -> None:
         for _ in range(360):
             status = self.json("GET", f"/runs/{run_id}")["run"]["status"]
@@ -175,11 +221,53 @@ def _start_run(sidecar: Sidecar, project_id: str) -> str:
     return run_id
 
 
-def _populate(sidecar: Sidecar, out: Path) -> dict:
+def _populate_corpus(sidecar: Sidecar, project_id: str) -> dict:
+    """A 3.0.2 shared corpus as a user would have it (RFC V3.1 AC-23).
+
+    The four kinds 3.0.2 reads, split across two projects: 3.0.2 put them all in one store,
+    which is what 3.1 has to move without losing or mixing any. A re-upload leaves a
+    superseded version, and an approved corpus-only run adds its report as a generated one.
+    """
+    other = sidecar.json("POST", "/projects", {"name": "Second project"})["id"]
+    uploaded, keys = {}, {}
+    for name, owner in (
+        ("paper.pdf", project_id),
+        ("page.html", project_id),
+        ("notes.md", other),
+        ("notes.txt", other),
+    ):
+        doc = sidecar.upload(owner, name, (FORMATS / name).read_bytes())
+        uploaded[name], keys[name] = doc["id"], doc["doc_key"]
+    revised = (FORMATS / "notes.txt").read_bytes() + b"Attendance fell in 2022.\n"
+    uploaded["notes.txt (v2)"] = sidecar.upload(
+        other, "notes.txt", revised, doc_key=keys["notes.txt"]
+    )["id"]
+
+    created = sidecar.json(
+        "POST",
+        "/runs",
+        {
+            "project_id": project_id,
+            "question": "How did enrolment change in 2021?",
+            "depth": "fast",
+            "corpus_mode": True,
+            "skip_plan_gate": True,
+            "dispatch": True,
+        },
+    )
+    corpus_run = created["run_id"]
+    sidecar.await_run(corpus_run, "AWAITING_REVIEW")
+    sidecar.call("POST", f"/runs/{corpus_run}/report-review", {"decision": "APPROVED"})
+    sidecar.await_run(corpus_run, "COMPLETED")
+    return {"second_project_id": other, "documents": uploaded, "corpus_run_id": corpus_run}
+
+
+def _populate(sidecar: Sidecar, out: Path, release: str) -> dict:
     version = sidecar.json("GET", "/version")
-    if version.get("version") != EXPECTED_VERSION or version.get("git_sha") != EXPECTED_SHA:
+    expected_sha = RELEASES[release]["sha"]
+    if version.get("version") != release or version.get("git_sha") != expected_sha:
         raise SystemExit(
-            f"this sidecar is {version}, not v{EXPECTED_VERSION} at {EXPECTED_SHA}. A source "
+            f"this sidecar is {version}, not v{release} at {expected_sha}. A source "
             "checkout must be stamped first (python scripts/stamp_build.py)."
         )
 
@@ -227,6 +315,7 @@ def _populate(sidecar: Sidecar, out: Path) -> dict:
     # Upgrading while a run waits at a gate is the ordinary case, not an edge one: the
     # gate can wait for days, and the app updates underneath it.
     waiting = _start_run(sidecar, project_id)
+    corpus = _populate_corpus(sidecar, project_id) if release != "2.1.0" else {}
 
     return {
         "sidecar": {"version": version["version"], "git_sha": version["git_sha"]},
@@ -237,6 +326,7 @@ def _populate(sidecar: Sidecar, out: Path) -> dict:
         "run_completed_id": completed,
         "run_awaiting_review_id": waiting,
         "preferences": PREFERENCES,
+        **corpus,
     }
 
 
@@ -270,19 +360,22 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--sidecar", required=True, help="command that starts the v2.1.0 sidecar")
+    parser.add_argument("--release", choices=sorted(RELEASES), default="2.1.0")
+    parser.add_argument("--sidecar", required=True, help="command that starts that sidecar")
     parser.add_argument("--cwd", type=Path, help="working directory (a checkout's backend/)")
-    parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--out", type=Path, help="default: the release's fixture directory")
     args = parser.parse_args()
+    release = args.release
+    args.out = args.out or RELEASES[release]["out"]
 
     command = shlex.split(args.sidecar)
     args.out.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="v210-install-") as scratch:
+    with tempfile.TemporaryDirectory(prefix=f"v{release}-install-") as scratch:
         data_dir = Path(scratch) / "data"
         data_dir.mkdir()
         sidecar = Sidecar(command, args.cwd, data_dir, Path(scratch) / "sidecar.log")
         try:
-            facts = _populate(sidecar, args.out)
+            facts = _populate(sidecar, args.out, release)
         finally:
             sidecar.stop()
         counts = _copy_databases(data_dir, args.out)
@@ -290,10 +383,10 @@ def main() -> int:
     # A source run is recognised by its working directory; a frozen binary is recorded by its
     # own digest, so the manifest names exactly which installer's engine wrote the files.
     if args.cwd:
-        launched = {"launched_as": "source checkout of the v2.1.0 tag"}
+        launched = {"launched_as": f"source checkout of the v{release} tag"}
     else:
         digest = hashlib.sha256(Path(command[0]).read_bytes()).hexdigest()
-        launched = {"launched_as": "frozen v2.1.0 binary", "binary_sha256": digest}
+        launched = {"launched_as": f"frozen v{release} binary", "binary_sha256": digest}
     manifest = {
         "generated_by": "scripts/make_upgrade_fixture.py",
         "generated_at": dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat(),
@@ -307,7 +400,7 @@ def main() -> int:
         },
     }
     (args.out / "MANIFEST.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    print(f"wrote the v{EXPECTED_VERSION} upgrade fixture to {args.out}")
+    print(f"wrote the v{release} upgrade fixture to {args.out}")
     return 0
 
 

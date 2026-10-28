@@ -180,7 +180,14 @@ DESKTOP_TAG_STEPS = {
             "Smoke — handshake, token gate, watchdog flag",
             "Smoke — the frozen binary reports the commit that built it",
             "Smoke — a run reaches a bundle the standalone verifier passes",
+            # RFC V3.1 G-1 / AC-25: the frozen engine reads every shipped format.
+            "G-1 — the frozen engine reads every shipped format as the source tree does",
         ]
+        + (
+            ["G-1 — every parser has a 3.14 wheel for every target"]
+            if os_ == "ubuntu-latest"
+            else []
+        )
         for os_ in ("ubuntu-latest", "macos-latest", "windows-latest")
     },
     "Shell (macos-latest)": [
