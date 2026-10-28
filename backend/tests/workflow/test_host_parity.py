@@ -239,9 +239,17 @@ DESKTOP_UI_CALLS: dict[str, str] = {
     "DELETE /projects/{project_id}/corpus/documents/{doc_id}": "Corpus page — delete (M1.5)",
     "GET /projects/{project_id}/corpus/status": "Corpus page, project overview (M1.5)",
     "GET /projects/{project_id}/corpus/tree": "Corpus page — folder tree and file selection (3.1)",
-    "GET /projects/{project_id}/corpus/documents/{doc_id}/text": "Run workspace — citation preview (3.1)",
     "GET /projects/{project_id}/corpus/documents/{doc_id}/download": (
-        "DocumentPreview via documentUrl(), from the Corpus page and ReportView (M1.5)"
+        "DocumentPreview via documentUrl(), from the Corpus page (M1.5)"
+    ),
+    # A citation opens through the run or session that made it, never the project's corpus:
+    # a document from before 3.1 lives in another project now (RFC V3.1 §7.3).
+    "GET /runs/{run_id}/cited-documents/{document_id}": "Run workspace — citation preview",
+    "GET /runs/{run_id}/cited-documents/{document_id}/download": (
+        "Run workspace — the cited PDF, and its Download"
+    ),
+    "GET /research/{session_id}/cited-documents/{document_id}/download": (
+        "Session report — a citation's preview drawer and its Download"
     ),
     "GET /auth/me/usage": "Settings — the usage panel (M1.5)",
     "POST /research/{session_id}/archive": "SessionCard",

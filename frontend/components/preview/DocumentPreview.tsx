@@ -281,3 +281,18 @@ export function DocumentPreview({
 export function documentUrl(projectId: string, docId: string): string {
   return `${apiBase()}/projects/${projectId}/corpus/documents/${docId}/download`;
 }
+
+/**
+ * A document a run or session cited, through the narrow route that opens exactly what it
+ * quoted wherever the file lives now (RFC V3.1 §7.3) — the per-project route above cannot
+ * reach a document that moved into "Documents from before 3.1". `owner` is `/runs/{id}` or
+ * `/research/{id}`; the path carries no API base, so `apiFetch` can take it for the text.
+ */
+export function citedDocumentPath(owner: string, docId: string): string {
+  return `${owner}/cited-documents/${encodeURIComponent(docId)}`;
+}
+
+/** The original file of a cited document, for the drawer and its Download link. */
+export function citedDocumentUrl(owner: string, docId: string): string {
+  return `${apiBase()}${citedDocumentPath(owner, docId)}/download`;
+}
