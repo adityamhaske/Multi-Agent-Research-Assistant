@@ -1,0 +1,104 @@
+{
+  "analysis.ipynb": {
+    "chars": 154,
+    "kind": "ipynb",
+    "mode": "linearized",
+    "sha256": "d77506e23ecc9199234c8c11b897a74f839e96a13a072175b68f2b588d12b46a"
+  },
+  "book.epub": {
+    "chars": 67,
+    "kind": "epub",
+    "mode": "verbatim",
+    "sha256": "35e9146ff2125ab06676876d5844584f04f359ec61845b8e11e6460d288004f6"
+  },
+  "budget.ods": {
+    "chars": 82,
+    "kind": "spreadsheet",
+    "mode": "linearized",
+    "sha256": "d0e9b525771829dcf0362f140739dcc565af01753be46b1564325edea33a3e11"
+  },
+  "budget.xls": {
+    "chars": 82,
+    "kind": "spreadsheet",
+    "mode": "linearized",
+    "sha256": "d0e9b525771829dcf0362f140739dcc565af01753be46b1564325edea33a3e11"
+  },
+  "budget.xlsx": {
+    "chars": 135,
+    "kind": "spreadsheet",
+    "mode": "linearized",
+    "sha256": "e1e4de323dc8f66f08091fdfb58f065559c553e45e0d03281a81f4a155f0715c"
+  },
+  "deck.pptx": {
+    "chars": 183,
+    "kind": "pptx",
+    "mode": "linearized",
+    "sha256": "4c57663f5f72be04a8906c14ef12bf05f554182108620c77571f4f105e296ac0"
+  },
+  "enrolment.csv": {
+    "chars": 80,
+    "kind": "csv",
+    "mode": "linearized",
+    "sha256": "ca9ace7a83a38b1642a4356ec52df06ef18f08710263f2fecefc5a0837aa8699"
+  },
+  "enrolment.tsv": {
+    "chars": 48,
+    "kind": "csv",
+    "mode": "linearized",
+    "sha256": "0aaa4b6dcb97fcde966229a5ad510d2144d9e95320714ff097bfb857deec9bde"
+  },
+  "memo.rtf": {
+    "chars": 42,
+    "kind": "rtf",
+    "mode": "linearized",
+    "sha256": "6f964752fc8f71a483bf78693b50e9604c1233c83eb4204200d8dd57a5b084bb"
+  },
+  "method.tex": {
+    "chars": 42,
+    "kind": "code",
+    "mode": "verbatim",
+    "sha256": "4774e699e7e1bcacd41d657a425c1f9bf28de6eb1374a42213091d1801ec332e"
+  },
+  "notes.md": {
+    "chars": 65,
+    "kind": "md",
+    "mode": "verbatim",
+    "sha256": "069961327091e54683e4793cbf151043d5de911a88048f581ba99625a76da4f1"
+  },
+  "notes.odt": {
+    "chars": 41,
+    "kind": "odt",
+    "mode": "linearized",
+    "sha256": "1e0d2884a3bbd3a7caa43de41db9ee4b498753cd6958989f258c1c8d9e1a49e4"
+  },
+  "notes.txt": {
+    "chars": 48,
+    "kind": "txt",
+    "mode": "verbatim",
+    "sha256": "f6874a561cdb79a75478c0df7f10988c3ab9e7670953d4f699cc80fe62d9cc89"
+  },
+  "page.html": {
+    "chars": 59,
+    "kind": "html",
+    "mode": "verbatim",
+    "sha256": "4b8f0dfcfbe26f62cc914b4f5d8e4b7ff2d34133c73f502bd8f782b30312b215"
+  },
+  "paper.pdf": {
+    "chars": 96,
+    "kind": "pdf",
+    "mode": "verbatim",
+    "sha256": "a7d9d54c7472c5cbe59e14cdd3639813f4ae42284c6b118659b8c4baabd4ace1"
+  },
+  "report.docx": {
+    "chars": 159,
+    "kind": "docx",
+    "mode": "linearized",
+    "sha256": "83f34c08b9c343587c4b4a5f9587ee88622e3661e154eec6a6a9739cb4be2a3d"
+  },
+  "stats.py": {
+    "chars": 74,
+    "kind": "code",
+    "mode": "verbatim",
+    "sha256": "f19cc784e846777e54f76510ce44024ce8c711e55d58709f7832a1eba847cf36"
+  }
+}

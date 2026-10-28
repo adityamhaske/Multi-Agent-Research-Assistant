@@ -19,6 +19,10 @@ published (RELEASE.md, phases 6-9).
     # or a binary you already located
     python scripts/check_packaged_sidecar.py --bin path/to/research-sidecar --expect-sha <sha>
 
+    # and that its parsers read every shipped format exactly as the source tree does
+    python scripts/check_packaged_sidecar.py --bin … \
+        --ingest-fixtures backend/tests/fixtures/formats
+
 **It never touches a real data directory.** The sidecar's default is `~/.research-engine`;
 this always passes a fresh temporary one, runs `--fake` (scripted models, no keys, nothing
 spent), and removes the three server variables an installed app never has — `app.config`
@@ -35,8 +39,10 @@ failure. Every Shell job once logged NOT RUN and went green.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -45,6 +51,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -172,6 +179,31 @@ class Engine:
             return payload
         return json.loads(payload) if payload else None
 
+    def upload(self, path: str, filename: str, data: bytes) -> dict:
+        """One multipart upload, the shape the Corpus page sends."""
+        boundary = uuid.uuid4().hex
+        body = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+            "Content-Type: application/octet-stream\r\n\r\n"
+        ).encode() + data + f"\r\n--{boundary}--\r\n".encode()
+        req = urllib.request.Request(
+            self.base + path,
+            data=body,
+            headers={
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:  # noqa: S310 — loopback only
+                return json.loads(resp.read())
+        except urllib.error.HTTPError as exc:
+            raise CheckFailed(
+                f"uploading {filename} answered {exc.code}: {exc.read()[:300]!r}"
+            ) from exc
+
     def stop(self) -> None:
         if self.proc.poll() is None:
             self.proc.terminate()
@@ -260,6 +292,72 @@ def journey(engine: Engine, scratch: Path, *, require_verify: bool = False) -> d
     }
 
 
+def frozen_python(directory: Path) -> str:
+    """Which interpreter the freeze carries, read off the files it packed (G-1).
+
+    The engine's `/version` names the build, not the Python inside it, and the runner's own
+    interpreter says nothing about the artifact. The tree's own file and directory names do:
+    `libpython3.14.dylib`, `libpython3.14.so.1.0`, `python314.dll`, `python3.14/lib-dynload`.
+    Reported, not judged: a layout this does not recognise reads UNKNOWN, never a guess.
+    """
+    pattern = re.compile(r"python3\.?(\d{1,2})(?!\d)", re.IGNORECASE)
+    versions = sorted(
+        {f"3.{m.group(1)}" for p in directory.rglob("*") if (m := pattern.search(p.name))},
+        key=lambda v: int(v.split(".")[1]),
+    )
+    return ", ".join(versions) if versions else f"UNKNOWN — no versioned Python file under {directory}"
+
+
+def ingest_fixtures(engine: Engine, directory: Path) -> dict:
+    """Every format fixture through the engine's own upload route, compared with the source.
+
+    `goldens.json` beside the fixtures is what the source tree's extractor produces for each
+    one (`backend/tests/task/test_format_goldens.py` keeps it so). A frozen engine carries its
+    own copy of every parser, and RFC V3.1 AC-17 asks for the same text on every build: a
+    parser the freeze is missing, or a different version of one, shows up here as a refused
+    upload or a different hash. Then one corpus-only run over the lot shows the ingested
+    documents can be searched and cited (AC-25), not only stored.
+    """
+    goldens = json.loads((directory / "goldens.json").read_text(encoding="utf-8"))
+    project = engine.request("POST", "/projects", {"name": "Packaged ingest check"})["id"]
+    formats: dict[str, dict] = {}
+    wrong: list[str] = []
+    for name, want in sorted(goldens.items()):
+        doc = engine.upload(
+            f"/projects/{project}/corpus/documents", name, (directory / name).read_bytes()
+        )
+        got = engine.request("GET", f"/projects/{project}/corpus/documents/{doc['id']}/text")
+        seen = {
+            "kind": got["kind"],
+            "mode": got["extraction_mode"],
+            "chars": len(got["text"]),
+            "sha256": hashlib.sha256(got["text"].encode("utf-8")).hexdigest(),
+        }
+        formats[name] = seen
+        if seen != want:
+            wrong.append(f"{name}: expected {want}, the engine extracted {seen}")
+    if wrong:
+        raise CheckFailed("extracted text differs from the source tree's:\n" + "\n".join(wrong))
+
+    run = engine.request(
+        "POST",
+        "/runs",
+        {
+            "project_id": project,
+            "question": "How did enrolment change in 2021?",
+            "depth": "fast",
+            "corpus_mode": True,
+            "skip_plan_gate": True,
+            "dispatch": True,
+        },
+    )["run_id"]
+    await_status(engine, run, "AWAITING_REVIEW")
+    sources = [s["url"] for s in engine.request("GET", f"/runs/{run}")["sources"]]
+    if not sources or not all(url.startswith("corpus://") for url in sources):
+        raise CheckFailed(f"the corpus-only run over the fixtures cited {sources}")
+    return {"formats": formats, "run_id": run, "cited": len(sources)}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     where = parser.add_mutually_exclusive_group(required=True)
@@ -273,6 +371,12 @@ def main(argv: list[str] | None = None) -> int:
         "--require-verify",
         action="store_true",
         help="fail, rather than report NOT RUN, when the bundle verifier cannot run here",
+    )
+    parser.add_argument(
+        "--ingest-fixtures",
+        type=Path,
+        metavar="DIR",
+        help="also upload every format fixture in DIR and compare with its goldens.json",
     )
     parser.add_argument("--startup-timeout", type=float, default=180)
     parser.add_argument("--json", type=Path, help="write the evidence here")
@@ -325,6 +429,10 @@ def main(argv: list[str] | None = None) -> int:
             else ("NOT CHECKED — no --expect-sha/--expect-version given")
         )
 
+        if args.ingest_fixtures:
+            evidence["python"] = frozen_python(binary.parent)
+            evidence["ingest"] = ingest_fixtures(engine, args.ingest_fixtures)
+            evidence["checks"]["ingest_fixtures"] = "PASS"
         if args.journey:
             evidence["journey"] = journey(engine, scratch, require_verify=args.require_verify)
             evidence["checks"]["journey"] = "PASS"
