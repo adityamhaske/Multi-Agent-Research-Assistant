@@ -306,8 +306,11 @@ async def migrate_legacy_corpus(data_dir: str | Path, session_factory, user_id) 
     _backup(backup, store)
     verify_copy(backup, store)
 
-    # Step 4: the authority point — the project row and the layout in one transaction.
-    documents = _document_count(store)
+    # Step 4: the authority point — the project row and the layout in one transaction. The
+    # record names the corpus as well as counting it, as §7.3 step 4 lists: a run that
+    # recorded this `corpus_id` read the store that is now this project's.
+    moved = _fingerprint(store)
+    documents = moved["counts"]["corpus_documents"]
     async with session_factory() as db:
         if await db.get(Project, project_id) is None:
             name = LEGACY_PROJECT_NAME
@@ -329,7 +332,9 @@ async def migrate_legacy_corpus(data_dir: str | Path, session_factory, user_id) 
             json.dumps(
                 {
                     "project_id": str(project_id),
+                    "corpus_id": moved["corpus_id"][0] if moved["corpus_id"] else None,
                     "documents": documents,
+                    "chunks": moved["counts"]["corpus_chunks"],
                     "backup_sha256": _file_sha256(backup),
                     "completed_at": datetime.now(UTC).isoformat(),
                 }
