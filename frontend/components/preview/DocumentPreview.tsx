@@ -5,14 +5,24 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { apiBase, authHeaders, isDesktop } from "@/lib/desktop";
+import { fetchFile } from "@/lib/download";
 
 /**
  * A corpus document, rendered in place (internal/07 Phase 6; req 9).
  *
  * Four types, three of which never touch the download route's rendering path at all —
  * the bytes are fetched and rendered by this component, and `fetch` ignores
- * `Content-Disposition`. Only PDF is handed to the browser, because it is the only
- * format where "render" does not mean "execute a document in our origin".
+ * `Content-Disposition`. Only PDF is handed to the browser's own viewer, because it is the
+ * only format where "render" does not mean "execute a document in our origin".
+ *
+ * **The PDF is fetched too, and that is safe only because its type is forced.** An
+ * `<object data>` pointing at the download route cannot send a header, so on the desktop,
+ * where the engine authenticates with a per-launch bearer token, every PDF preview was a
+ * 401. The bytes now come through the same authenticated fetch as every other download and
+ * reach the viewer as a `blob:` URL. A `blob:` URL is same-origin, so its type decides what
+ * the browser does with it. The Blob is always built as `application/pdf`, whatever the
+ * server said: a file named `.pdf` that is really HTML must still reach the PDF viewer, and
+ * never run as a page in our origin.
  *
  * **HTML is the dangerous one, and the boundary is the sandbox, not a sanitizer.**
  * An uploaded page was authored by whoever made the file. It goes into
@@ -147,10 +157,71 @@ function TextDocument({ url, filename, kind }: { url: string; filename: string; 
   );
 }
 
+/**
+ * A PDF in the browser's viewer, opened at `page` when a citation names one (RFC V3.1 §12).
+ * `#page=N` is the PDF open-parameter fragment that Chromium, WebView2 and Firefox's
+ * viewers honour. A viewer that ignores it still opens the document, at its first page.
+ */
+function PdfDocument({ url, filename, page }: { url: string; filename: string; page: number | null }) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let created: string | null = null;
+    fetchFile(url)
+      .then(async (blob) => {
+        if (cancelled) return;
+        created = URL.createObjectURL(new Blob([await blob.arrayBuffer()], { type: "application/pdf" }));
+        setObjectUrl(created);
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(`Could not load this document (${e.message}).`);
+      });
+    return () => {
+      cancelled = true;
+      if (created) URL.revokeObjectURL(created);
+    };
+  }, [url]);
+
+  if (error) {
+    return (
+      <Frame>
+        <p role="alert" className="text-sm" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
+      </Frame>
+    );
+  }
+  if (objectUrl === null) {
+    return (
+      <Frame>
+        <span className="text-sm text-text-muted">Loading {filename}…</span>
+      </Frame>
+    );
+  }
+  return (
+    <object
+      data={page ? `${objectUrl}#page=${page}` : objectUrl}
+      type="application/pdf"
+      className="h-full w-full"
+      aria-label={`${filename} (PDF preview)`}
+    >
+      {/* Shown when the browser has no PDF viewer, rather than a blank rectangle. */}
+      <Frame>
+        <p className="text-sm text-text-secondary">
+          Your browser can&apos;t display PDFs inline. Download it to read it.
+        </p>
+      </Frame>
+    </object>
+  );
+}
+
 export function DocumentPreview({
   url,
   filename,
   downloadable,
+  page = null,
 }: {
   /** The document's download URL. Same-origin `/api` proxy — never a hardcoded host. */
   url: string;
@@ -158,6 +229,8 @@ export function DocumentPreview({
   /** False for documents stored before originals were kept: text is searchable, but
    *  there is nothing to show. Saying so beats an empty pane. */
   downloadable: boolean;
+  /** The cited page, for formats that have pages. */
+  page?: number | null;
 }) {
   const kind = kindForFilename(filename);
 
@@ -183,21 +256,7 @@ export function DocumentPreview({
   }
 
   if (kind === "pdf") {
-    return (
-      <object
-        data={url}
-        type="application/pdf"
-        className="h-full w-full"
-        aria-label={`${filename} (PDF preview)`}
-      >
-        {/* Shown when the browser has no PDF viewer, rather than a blank rectangle. */}
-        <Frame>
-          <p className="text-sm text-text-secondary">
-            Your browser can&apos;t display PDFs inline. Download it to read it.
-          </p>
-        </Frame>
-      </object>
-    );
+    return <PdfDocument key={url} url={url} filename={filename} page={page} />;
   }
 
   return <TextDocument key={url} url={url} filename={filename} kind={kind} />;

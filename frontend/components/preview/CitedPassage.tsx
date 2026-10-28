@@ -1,8 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { documentUrl, kindForFilename } from "@/components/preview/DocumentPreview";
+import { PreviewDrawer } from "@/components/preview/PreviewDrawer";
 import { apiFetch } from "@/lib/api";
 import type { CorpusLocator } from "@/lib/corpusLocator";
 
@@ -29,6 +31,7 @@ function labelAt(segments: [number, string][], offset: number): string | null {
  */
 export function CitedPassage({ projectId, locator }: { projectId: string; locator: CorpusLocator }) {
   const mark = useRef<HTMLElement>(null);
+  const [original, setOriginal] = useState(false);
   const { data, error, isLoading } = useQuery({
     queryKey: ["corpus", projectId, "text", locator.documentId],
     queryFn: () =>
@@ -52,6 +55,9 @@ export function CitedPassage({ projectId, locator }: { projectId: string; locato
   const start = Math.max(0, Math.min(locator.start ?? 0, data.text.length));
   const end = Math.max(start, Math.min(locator.end ?? start, data.text.length));
   const where = labelAt(data.segments, start) ?? (locator.page ? `page ${locator.page}` : null);
+  // The extracted text is what the quote was checked against; the PDF is what a reader
+  // trusts. Offered only for a PDF, opened at the cited page when the locator has one.
+  const pdf = kindForFilename(data.filename) === "pdf";
   return (
     <div className="space-y-2">
       <p className="text-xs text-text-secondary">
@@ -60,6 +66,26 @@ export function CitedPassage({ projectId, locator }: { projectId: string; locato
         {data.extraction_mode === "linearized" &&
           " · quoted from a text rendering of this file's tables, slides or cells"}
       </p>
+      {pdf && (
+        <button
+          type="button"
+          onClick={() => setOriginal(true)}
+          className="text-xs text-accent hover:underline"
+        >
+          {locator.page ? `Open the PDF at page ${locator.page} →` : "Open the PDF →"}
+        </button>
+      )}
+      {pdf && original && (
+        <PreviewDrawer
+          open
+          onClose={() => setOriginal(false)}
+          url={documentUrl(projectId, locator.documentId)}
+          filename={data.filename}
+          downloadable
+          subtitle={locator.page ? `Cited from page ${locator.page}` : "Cited from your corpus"}
+          page={locator.page}
+        />
+      )}
       <pre className="max-h-96 overflow-auto whitespace-pre-wrap border border-border bg-bg-elevated p-3 text-xs leading-relaxed text-text-secondary">
         {data.text.slice(Math.max(0, start - 2000), start)}
         <mark ref={mark} className="bg-warning-soft text-text-primary">

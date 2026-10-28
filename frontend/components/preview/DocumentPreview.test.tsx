@@ -67,14 +67,54 @@ describe("DocumentPreview security boundary", () => {
     expect(screen.getByText(/onerror/)).toBeInTheDocument();
   });
 
-  it("shows a PDF through the browser's own viewer rather than fetching it", async () => {
-    render(<DocumentPreview url="/api/d/3" filename="paper.pdf" downloadable />);
+  it("hands a PDF to the browser's viewer as a PDF, whatever the server called it", async () => {
+    // A file named .pdf whose bytes are HTML, served as text/html. As a blob: URL it would
+    // be same-origin, so its type is what decides whether it runs as a page.
+    const created: Blob[] = [];
+    vi.stubGlobal("URL", {
+      ...URL,
+      createObjectURL: (blob: Blob) => {
+        created.push(blob);
+        return "blob:preview-1";
+      },
+      revokeObjectURL: vi.fn(),
+    });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(["<script>alert(1)</script>"], { type: "text/html" }),
+    });
+    render(<DocumentPreview url="/api/d/3" filename="paper.pdf" downloadable page={4} />);
 
-    const object = screen.getByLabelText("paper.pdf (PDF preview)");
-    expect(object.getAttribute("data")).toBe("/api/d/3");
+    const object = await screen.findByLabelText("paper.pdf (PDF preview)");
     expect(object.getAttribute("type")).toBe("application/pdf");
-    // The bytes are never pulled into JS — the whole point of the inline exception.
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(created).toHaveLength(1);
+    expect(created[0].type).toBe("application/pdf");
+    // Opened at the cited page.
+    expect(object.getAttribute("data")).toBe("blob:preview-1#page=4");
+  });
+
+  it("fetches a PDF the way the host authenticates, since an <object> sends no header", async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, blob: async () => new Blob(["%PDF"]) });
+    render(<DocumentPreview url="/api/d/5" filename="paper.pdf" downloadable />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/d/5");
+    expect(init).toMatchObject({ cache: "no-store" });
+    expect(init).toHaveProperty("headers");
+  });
+
+  it("says why a PDF could not load instead of an empty viewer", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: "Unauthorized",
+      clone: () => ({ json: async () => ({ detail: "Not authenticated" }) }),
+    });
+    render(<DocumentPreview url="/api/d/6" filename="paper.pdf" downloadable />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Not authenticated");
   });
 });
 
