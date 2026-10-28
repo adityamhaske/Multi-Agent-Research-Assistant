@@ -156,13 +156,13 @@ async def desktop_driver(data_dir: Path):
     data_dir.mkdir(parents=True, exist_ok=True)
     mark_demo_seeded(data_dir)
 
-    # The desktop's corpus locator builds its embedder through `corpus_layout.LocalEmbeddings`
+    # The desktop's corpus locator builds its embedder through `corpus_layout.default_embedder`
     # once, in the lifespan, and every per-project store it opens uses that instance.
-    # Substituting the class before the lifespan runs is what makes every store use the same
-    # deterministic embedder.
+    # Substituting it before the lifespan runs is what makes every store use the same
+    # deterministic embedder as the server driver's, under `--fake` or not.
     shared = _embedder()
-    previous_local_embeddings = corpus_layout.LocalEmbeddings
-    corpus_layout.LocalEmbeddings = lambda **_kw: shared
+    previous_default_embedder = corpus_layout.default_embedder
+    corpus_layout.default_embedder = lambda **_kw: shared
     previous_probe = pin_local_llm_probe()
 
     app = create_sidecar_app(data_dir=data_dir, token=TOKEN, fake=True)
@@ -182,7 +182,7 @@ async def desktop_driver(data_dir: Path):
                     run_driver=True,
                 )
             finally:
-                corpus_layout.LocalEmbeddings = previous_local_embeddings
+                corpus_layout.default_embedder = previous_default_embedder
                 from app.services import local_llm
 
                 local_llm.probe = previous_probe

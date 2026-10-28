@@ -931,7 +931,7 @@ def create_sidecar_app(
         except (MigrationRefused, sqlite3.Error) as e:
             logger.error("corpus_legacy_migration_refused", error=str(e))
             layout, state["corpus_warning"] = SHARED, f"Documents were not moved: {e}"
-        state["corpus"] = DesktopCorpusLocator(data_path, layout)
+        state["corpus"] = DesktopCorpusLocator(data_path, layout, fake=fake)
 
         # First launch: leave a finished demo report waiting, so the app opens on what it
         # produces rather than an empty form and a request for an API key (docs/17 §6.1).

@@ -163,10 +163,13 @@ def test_every_ci_call_of_the_checker_requires_the_verification():
     jobs = yaml.safe_load(DESKTOP_YML.read_text(encoding="utf-8"))["jobs"].values()
     calls = [call for job in jobs for step in job["steps"] for call in _checker_calls(step)]
 
-    # The mounted DMG, the installed .deb, the extracted AppImage and the installed .msi.
-    assert len(calls) == 4, calls
+    # The raw freeze on each OS (gate G-1's evidence), then the mounted DMG, the installed
+    # .deb, the extracted AppImage and the installed .msi.
+    assert len(calls) == 5, calls
     for call in calls:
         assert "--journey" in call and "--require-verify" in call, call
+        # RFC V3.1 AC-25: every frozen engine CI checks also reads every shipped format.
+        assert "--ingest-fixtures" in call, call
 
 
 def test_the_shell_job_installs_the_verifiers_pydantic_from_the_backend_requirements():

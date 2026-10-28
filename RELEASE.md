@@ -130,7 +130,7 @@ python scripts/release_audit.py --version X.Y.Z --post-release --download --dock
 | Tool | What it does |
 |---|---|
 | `scripts/release_audit.py` | The automated checks, by stage. `--list` prints the registry |
-| `scripts/check_packaged_sidecar.py` | Launches the engine inside an installed/mounted/extracted build with an isolated data directory, checks its token gate, version and git SHA, and with `--journey` drives a run through both gates to an exported bundle and runs the standalone verifier on it. The verification imports the repository's `verify_bundle`, so it needs the engine's Python 3.14+ and `pydantic`; without `pydantic` it reports the verification `NOT RUN` and the check still passes, unless `--require-verify` is given, which makes that a failure. CI runs it with `--require-verify` on the DMG's app, the `.deb`, the AppImage and the `.msi`; people run it the same way on the published installers (M6.02, M7.06, M8.05) |
+| `scripts/check_packaged_sidecar.py` | Launches the engine inside an installed/mounted/extracted build with an isolated data directory, checks its token gate, version and git SHA, and with `--journey` drives a run through both gates to an exported bundle and runs the standalone verifier on it. The verification imports the repository's `verify_bundle`, so it needs the engine's Python 3.14+ and `pydantic`; without `pydantic` it reports the verification `NOT RUN` and the check still passes, unless `--require-verify` is given, which makes that a failure. With `--ingest-fixtures backend/tests/fixtures/formats` it also uploads one fixture of every shipped format through the engine and compares the extracted text with `goldens.json`, the source tree's own result, then runs one corpus-only run over them (RFC V3.1 AC-17, AC-25). It records the interpreter the freeze carries, too. CI runs it with `--require-verify` and `--ingest-fixtures` on the raw freeze on each OS, the DMG's app, the `.deb`, the AppImage and the `.msi`; people run it the same way on the published installers (M6.02, M7.06, M8.05) |
 | `scripts/sync_version.py` | Derives the version carriers from `VERSION`; `--tag` is the release workflows' guard |
 | `scripts/check_packaged_upgrade.py`, `scripts/make_upgrade_fixture.py` | Upgrade a populated older desktop data directory with a packaged engine and record what happened (currently wired to the v2.1.0 fixture — see Phase 19) |
 | `release-audit/compose.published-images.yml` | Runs the **published** images on the full-stack topology, on separate volumes |
@@ -410,7 +410,7 @@ counts.
   - STOP if: any cell is blank without a `NOT RUN` reason.
 - [ ] **M6.02** On every platform, run the packaged-engine checker against the **installed** copy of the **published** installer:
   - Needs: the tag's checkout, on Python 3.14+ with `pydantic` installed (the verifier's one third-party import; `pip install -r backend/requirements.txt` covers it).
-  - Verify: `python scripts/check_packaged_sidecar.py --search <install dir> --expect-sha <tag commit> --expect-version X.Y.Z --journey --require-verify`
+  - Verify: `python scripts/check_packaged_sidecar.py --search <install dir> --expect-sha <tag commit> --expect-version X.Y.Z --journey --require-verify --ingest-fixtures backend/tests/fixtures/formats`
   - Expected: `"result": "PASS"`, `tree_mb` well above 60, `git_sha` the tag's commit, `"verify_bundle": "PASS"`. Without `--require-verify` a missing `pydantic` reads `NOT RUN` beside a `PASS` result — not evidence the bundle verifies.
   - Evidence: the JSON output (`--json`).
   - STOP if: FAIL on any platform.
@@ -443,7 +443,7 @@ downloaded copy is a Gatekeeper block that the documented command clears — nev
   - Expected: `Mach-O 64-bit executable arm64`; plain `flags=adhoc` (hardened runtime on the engine breaks library validation — AGENTS/memory trap).
   - STOP if: missing, wrong architecture, or `runtime` flag set.
 - [ ] **M7.06** The packaged engine identifies itself and completes the journey.
-  - Verify: `python3 scripts/check_packaged_sidecar.py --search <mounted app> --expect-sha <tag commit> --expect-version X.Y.Z --journey --require-verify`, set up as M6.02 says.
+  - Verify: `python3 scripts/check_packaged_sidecar.py --search <mounted app> --expect-sha <tag commit> --expect-version X.Y.Z --journey --require-verify --ingest-fixtures backend/tests/fixtures/formats`, set up as M6.02 says.
   - Expected: PASS, `"verify_bundle": "PASS"`.
   - STOP if: FAIL.
 - [ ] **M7.07** First launch as a user: drag to Applications; open it *without* the command and confirm the block is the unidentified-developer kind; run `xattr -dr com.apple.quarantine "/Applications/Research Assistant.app"`; open it.
@@ -470,7 +470,7 @@ and a real user profile are only seen on a real machine.
   - STOP if: install fails or the version is wrong.
 - [ ] **M8.04** Launch: the window opens without a crash; Task Manager shows `research-sidecar.exe`; no firewall prompt (the engine binds 127.0.0.1 only).
   - STOP if: crash, blank window, or an inbound-firewall prompt.
-- [ ] **M8.05** `python scripts\check_packaged_sidecar.py --search "C:\Program Files\Research Assistant" --expect-sha <tag commit> --expect-version X.Y.Z --journey --require-verify` passes, set up as M6.02 says.
+- [ ] **M8.05** `python scripts\check_packaged_sidecar.py --search "C:\Program Files\Research Assistant" --expect-sha <tag commit> --expect-version X.Y.Z --journey --require-verify --ingest-fixtures backend/tests/fixtures/formats` passes, set up as M6.02 says.
   - STOP if: FAIL.
 - [ ] **M8.06** The Phase 20 desktop journey on Windows (M20.02), from a user whose profile path has a space; exports save where the dialog says.
 - [ ] **M8.07** Local storage: data under `%USERPROFILE%\.research-engine`; provider keys in Windows Credential Manager, not in a file.

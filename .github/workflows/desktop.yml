@@ -251,6 +251,49 @@ jobs:
           CHECK
           kill "$SIDECAR_PID" || true
           echo "V3 release invariants verified in the frozen app on $RUNNER_OS"
+      # RFC V3.1 gate G-1 (internal/rfcs/V3.1-corpus-scope.md §14.1): per target, the
+      # interpreter the freeze carries, the dependency set it resolved, and the frozen
+      # engine reading one fixture of every shipped format exactly as the source tree does
+      # (`goldens.json`, kept by `tests/task/test_format_goldens.py`). Uploaded as evidence;
+      # a parser that fails any of it drops its format to 3.2 (D-5) in a recorded PR.
+      - name: G-1 — the frozen engine reads every shipped format as the source tree does
+        working-directory: backend
+        shell: bash
+        run: |
+          set -e
+          mkdir -p ../g1-evidence
+          python -VV > ../g1-evidence/python-VV.txt
+          pip freeze > ../g1-evidence/pip-freeze.txt
+          BIN=dist/research-sidecar/research-sidecar
+          if [ "$RUNNER_OS" = "Windows" ]; then BIN="$BIN.exe"; fi
+          python ../scripts/check_packaged_sidecar.py --bin "$BIN" \
+            --expect-sha "$GITHUB_SHA" --journey --require-verify \
+            --ingest-fixtures tests/fixtures/formats --json ../g1-evidence/ingest-frozen.json
+      # The parsers with native code must have a CPython 3.14 wheel for every target the
+      # desktop ships to, aarch64 Linux included — a source build on a user's machine is not
+      # an install path. The pure-Python ones are downloaded too, so the record is complete.
+      - name: G-1 — every parser has a 3.14 wheel for every target
+        if: runner.os == 'Linux'
+        working-directory: backend
+        shell: bash
+        run: |
+          set -e
+          parsers=$(grep -iE '^(beautifulsoup4|lxml|pypdf|python-docx|python-calamine|striprtf)[=><]' requirements.txt)
+          for platform in manylinux2014_x86_64 manylinux2014_aarch64 macosx_11_0_arm64 win_amd64; do
+            echo "== $platform" >> ../g1-evidence/parser-wheels.txt
+            # shellcheck disable=SC2086
+            pip download --only-binary=:all: --python-version 3.14 --implementation cp \
+              --platform "$platform" --no-deps -d "../g1-wheels/$platform" $parsers \
+              2>&1 | tee -a ../g1-evidence/parser-wheels.txt
+            ls "../g1-wheels/$platform" >> ../g1-evidence/parser-wheels.txt
+          done
+      - name: Upload G-1 evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: g1-evidence-${{ matrix.os }}
+          path: g1-evidence/
+          retention-days: 90
       - name: Upload sidecar bundle
         uses: actions/upload-artifact@v7
         with:
@@ -500,7 +543,7 @@ jobs:
           trap 'hdiutil detach -quiet "$mnt" || true' EXIT
           python scripts/check_packaged_sidecar.py --search "$mnt" \
             --expect-sha "$GITHUB_SHA" --expect-version "$(tr -d '[:space:]' < VERSION)" \
-            --journey --require-verify
+            --journey --require-verify --ingest-fixtures backend/tests/fixtures/formats
       - name: The installed .deb carries a working engine that reports this commit
         if: runner.os == 'Linux'
         shell: bash
@@ -516,7 +559,7 @@ jobs:
           if [ -z "$bin" ]; then echo "::error::the installed $pkg has no research-sidecar"; exit 1; fi
           python3 scripts/check_packaged_sidecar.py --bin "$bin" \
             --expect-sha "$GITHUB_SHA" --expect-version "$(tr -d '[:space:]' < VERSION)" \
-            --journey --require-verify
+            --journey --require-verify --ingest-fixtures backend/tests/fixtures/formats
           sudo dpkg -r "$pkg"
           if [ -e "$bin" ]; then echo "::error::removing $pkg left $bin behind"; exit 1; fi
       - name: The AppImage carries a working engine that reports this commit
@@ -532,7 +575,7 @@ jobs:
           (cd "$work" && "$img" --appimage-extract > /dev/null)
           python3 scripts/check_packaged_sidecar.py --search "$work/squashfs-root" \
             --expect-sha "$GITHUB_SHA" --expect-version "$(tr -d '[:space:]' < VERSION)" \
-            --journey --require-verify
+            --journey --require-verify --ingest-fixtures backend/tests/fixtures/formats
       - name: The installed .msi carries a working engine that reports this commit
         if: runner.os == 'Windows'
         shell: pwsh
@@ -554,7 +597,7 @@ jobs:
           Write-Host "installed engine: $($sidecar.FullName)"
           python scripts/check_packaged_sidecar.py --bin $sidecar.FullName `
             --expect-sha $env:GITHUB_SHA --expect-version (Get-Content VERSION).Trim() `
-            --journey --require-verify
+            --journey --require-verify --ingest-fixtures backend/tests/fixtures/formats
           if ($LASTEXITCODE -ne 0) { throw "the installed engine failed its check" }
           $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
             '/x', "`"$($msi.FullName)`"", '/qn', '/norestart')
