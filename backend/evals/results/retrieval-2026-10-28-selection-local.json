@@ -1,0 +1,814 @@
+{
+  "status": "measured",
+  "generated_at": "2026-10-28T18:39:51+00:00",
+  "retrieval_metrics_version": 1,
+  "dataset": "selection-retrieval",
+  "dataset_version": 1,
+  "dataset_fingerprint": "56e557cd28771fe350dc58e301d45f4d623fa9fc58ffa742c75d89c61b01e83b",
+  "corpus_documents": 35,
+  "embedding_model": "ollama:nomic-embed-text",
+  "retriever": "research_engine.corpus.ScopedCorpus.search",
+  "top_k": 5,
+  "aggregate": {
+    "queries": 16,
+    "leakage": {
+      "target": 0,
+      "max": 0.0,
+      "queries_measured": 16,
+      "queries_with_no_hits": 0,
+      "queries_leaking": 0
+    },
+    "hit_cap": {
+      "after (max(1, ceil(k/n)) per file)": {
+        "recall@1": 0.8666666666666667,
+        "recall@3": 1.0,
+        "recall@5": 1.0,
+        "precision@1": 0.9375,
+        "precision@5": 0.7104166666666667,
+        "ndcg@5": 0.962500629361528,
+        "passages_per_query": 2.8125,
+        "passage_recall": 1.0
+      },
+      "before (one per file)": {
+        "recall@1": 0.8666666666666667,
+        "recall@3": 1.0,
+        "recall@5": 1.0,
+        "precision@1": 0.9375,
+        "precision@5": 0.7104166666666667,
+        "ndcg@5": 0.962500629361528,
+        "passages_per_query": 1.9375,
+        "passage_recall": 0.4583333333333333
+      }
+    }
+  },
+  "queries": [
+    {
+      "id": "s01-enrolment-two-files",
+      "query": "How much did enrolment rise in 2021?",
+      "selection": [
+        "deck.pptx",
+        "report.docx"
+      ],
+      "per_document_cap": 3,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "report.docx#0-159",
+          "deck.pptx#0-183"
+        ],
+        "passages": 2,
+        "recall": {
+          "@1": 0.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 0.7967075809905066,
+        "passage_recall": null
+      },
+      "one_per_document": {
+        "retrieved": [
+          "report.docx#0-159",
+          "deck.pptx#0-183"
+        ],
+        "passages": 2,
+        "recall": {
+          "@1": 0.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 0.7967075809905066,
+        "passage_recall": null
+      }
+    },
+    {
+      "id": "s02-staff-cost-one-sheet",
+      "query": "What did the staff line cost?",
+      "selection": [
+        "budget.xlsx"
+      ],
+      "per_document_cap": 5,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "budget.xlsx#0-135"
+        ],
+        "passages": 1,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      },
+      "one_per_document": {
+        "retrieved": [
+          "budget.xlsx#0-135"
+        ],
+        "passages": 1,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      }
+    },
+    {
+      "id": "s03-districts-sampled",
+      "query": "How many districts were sampled?",
+      "selection": [
+        "notes.odt"
+      ],
+      "per_document_cap": 5,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "notes.odt#0-41"
+        ],
+        "passages": 1,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      },
+      "one_per_document": {
+        "retrieved": [
+          "notes.odt#0-41"
+        ],
+        "passages": 1,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      }
+    },
+    {
+      "id": "s04-mean-function",
+      "query": "function that computes the arithmetic mean of a list",
+      "selection": [
+        "stats.py",
+        "analysis.ipynb"
+      ],
+      "per_document_cap": 3,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "stats.py#0-73",
+          "analysis.ipynb#0-154"
+        ],
+        "passages": 2,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 0.5
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      },
+      "one_per_document": {
+        "retrieved": [
+          "stats.py#0-73",
+          "analysis.ipynb#0-154"
+        ],
+        "passages": 2,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 0.5
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      }
+    },
+    {
+      "id": "s05-enrolment-by-district",
+      "query": "enrolment by district, North and South",
+      "selection": [
+        "enrolment.csv",
+        "deck.pptx",
+        "report.docx"
+      ],
+      "per_document_cap": 2,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "report.docx#0-159",
+          "deck.pptx#0-183",
+          "enrolment.csv#0-80"
+        ],
+        "passages": 3,
+        "recall": {
+          "@1": 0.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 0.8145672023038535,
+        "passage_recall": null
+      },
+      "one_per_document": {
+        "retrieved": [
+          "report.docx#0-159",
+          "deck.pptx#0-183",
+          "enrolment.csv#0-80"
+        ],
+        "passages": 3,
+        "recall": {
+          "@1": 0.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 0.8145672023038535,
+        "passage_recall": null
+      }
+    },
+    {
+      "id": "s06-attendance-2022",
+      "query": "What happened to attendance in 2022?",
+      "selection": [
+        "paper.pdf",
+        "notes.txt"
+      ],
+      "per_document_cap": 3,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "paper.pdf#0-96",
+          "notes.txt#0-47"
+        ],
+        "passages": 2,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      },
+      "one_per_document": {
+        "retrieved": [
+          "paper.pdf#0-96",
+          "notes.txt#0-47"
+        ],
+        "passages": 2,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      }
+    },
+    {
+      "id": "s07-solar-mirror-excluded",
+      "query": "how does a panel turn sunlight into electric current",
+      "selection": [
+        "photovoltaics.md"
+      ],
+      "per_document_cap": 5,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "photovoltaics.md#0-1040",
+          "photovoltaics.md#986-1928"
+        ],
+        "passages": 2,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      },
+      "one_per_document": {
+        "retrieved": [
+          "photovoltaics.md#0-1040"
+        ],
+        "passages": 1,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      }
+    },
+    {
+      "id": "s08-vents-among-two",
+      "query": "ecosystems around deep sea hydrothermal vents",
+      "selection": [
+        "hydrothermal-vents.md",
+        "heat-pumps.md"
+      ],
+      "per_document_cap": 3,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "hydrothermal-vents.md#0-847",
+          "heat-pumps.md#0-702"
+        ],
+        "passages": 2,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 0.5
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      },
+      "one_per_document": {
+        "retrieved": [
+          "hydrothermal-vents.md#0-847",
+          "heat-pumps.md#0-702"
+        ],
+        "passages": 2,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 0.5
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      }
+    },
+    {
+      "id": "s09-storage-among-three",
+      "query": "storing electricity in batteries for later use",
+      "selection": [
+        "battery-storage.md",
+        "nuclear-baseload.md",
+        "geothermal-power.md"
+      ],
+      "per_document_cap": 2,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "battery-storage.md#0-1178",
+          "battery-storage.md#1088-1740",
+          "nuclear-baseload.md#0-737",
+          "geothermal-power.md#0-791"
+        ],
+        "passages": 4,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 0.6666666666666666
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      },
+      "one_per_document": {
+        "retrieved": [
+          "battery-storage.md#0-1178",
+          "nuclear-baseload.md#0-737",
+          "geothermal-power.md#0-791"
+        ],
+        "passages": 3,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 0.6666666666666666
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      }
+    },
+    {
+      "id": "s10-school-origins",
+      "query": "When did the schools first open?",
+      "selection": [
+        "book.epub",
+        "memo.rtf"
+      ],
+      "per_document_cap": 3,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "book.epub#0-67",
+          "memo.rtf#0-42"
+        ],
+        "passages": 2,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 0.5
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      },
+      "one_per_document": {
+        "retrieved": [
+          "book.epub#0-67",
+          "memo.rtf#0-42"
+        ],
+        "passages": 2,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 0.5
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": null
+      }
+    },
+    {
+      "id": "s11-nothing-relevant-selected",
+      "query": "How much did enrolment rise in 2021?",
+      "selection": [
+        "stats.py"
+      ],
+      "per_document_cap": 5,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "stats.py#0-73"
+        ],
+        "passages": 1,
+        "recall": {
+          "@1": null,
+          "@3": null,
+          "@5": null
+        },
+        "precision": {
+          "@1": 0.0,
+          "@5": 0.0
+        },
+        "ndcg@5": null,
+        "passage_recall": null
+      },
+      "one_per_document": {
+        "retrieved": [
+          "stats.py#0-73"
+        ],
+        "passages": 1,
+        "recall": {
+          "@1": null,
+          "@3": null,
+          "@5": null
+        },
+        "precision": {
+          "@1": 0.0,
+          "@5": 0.0
+        },
+        "ndcg@5": null,
+        "passage_recall": null
+      }
+    },
+    {
+      "id": "s12-wide-selection",
+      "query": "how does a panel turn sunlight into electric current",
+      "selection": [
+        "photovoltaics.md",
+        "wind-turbines.md",
+        "battery-storage.md",
+        "heat-pumps.md",
+        "geothermal-power.md",
+        "nuclear-baseload.md",
+        "hydrothermal-vents.md",
+        "enrolment.csv",
+        "notes.txt",
+        "deck.pptx"
+      ],
+      "per_document_cap": 1,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "photovoltaics.md#0-1040",
+          "battery-storage.md#0-1178",
+          "hydrothermal-vents.md#0-847",
+          "geothermal-power.md#0-791",
+          "heat-pumps.md#0-702"
+        ],
+        "passages": 5,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 0.2
+        },
+        "ndcg@5": 0.8262346571285599,
+        "passage_recall": null
+      },
+      "one_per_document": {
+        "retrieved": [
+          "photovoltaics.md#0-1040",
+          "battery-storage.md#0-1178",
+          "hydrothermal-vents.md#0-847",
+          "geothermal-power.md#0-791",
+          "heat-pumps.md#0-702"
+        ],
+        "passages": 5,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 0.2
+        },
+        "ndcg@5": 0.8262346571285599,
+        "passage_recall": null
+      }
+    },
+    {
+      "id": "s13-two-sections-one-file",
+      "query": "How did enrolment and attendance change in the district this year?",
+      "selection": [
+        "district-annual-report.md"
+      ],
+      "per_document_cap": 5,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "district-annual-report.md#1015-2170",
+          "district-annual-report.md#0-1180",
+          "district-annual-report.md#2084-3273",
+          "district-annual-report.md#4115-5307",
+          "district-annual-report.md#3133-4271"
+        ],
+        "passages": 5,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": 1.0
+      },
+      "one_per_document": {
+        "retrieved": [
+          "district-annual-report.md#1015-2170"
+        ],
+        "passages": 1,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": 0.5
+      }
+    },
+    {
+      "id": "s14-staffing-and-transport",
+      "query": "What changed for staffing and school transport?",
+      "selection": [
+        "district-annual-report.md",
+        "notes.txt"
+      ],
+      "per_document_cap": 3,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "district-annual-report.md#3133-4271",
+          "district-annual-report.md#2084-3273",
+          "district-annual-report.md#4115-5307",
+          "notes.txt#0-47"
+        ],
+        "passages": 4,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 0.5
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": 1.0
+      },
+      "one_per_document": {
+        "retrieved": [
+          "district-annual-report.md#3133-4271",
+          "notes.txt#0-47"
+        ],
+        "passages": 2,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 0.5
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": 0.5
+      }
+    },
+    {
+      "id": "s15-both-runs",
+      "query": "How much did the phosphate buffer drift in each run?",
+      "selection": [
+        "lab-notebook.md"
+      ],
+      "per_document_cap": 5,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "lab-notebook.md#3085-4280",
+          "lab-notebook.md#2056-3211",
+          "lab-notebook.md#4140-5280",
+          "lab-notebook.md#5140-6308",
+          "lab-notebook.md#0-1180"
+        ],
+        "passages": 5,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": 1.0
+      },
+      "one_per_document": {
+        "retrieved": [
+          "lab-notebook.md#3085-4280"
+        ],
+        "passages": 1,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 1.0
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": 0.5
+      }
+    },
+    {
+      "id": "s16-three-passages-two-files",
+      "query": "calibration, sample preparation and errors in the buffer study",
+      "selection": [
+        "lab-notebook.md",
+        "stats.py"
+      ],
+      "per_document_cap": 3,
+      "leakage": 0.0,
+      "outside_selection": [],
+      "with_cap": {
+        "retrieved": [
+          "lab-notebook.md#0-1180",
+          "lab-notebook.md#1053-2214",
+          "lab-notebook.md#5140-6308",
+          "stats.py#0-73"
+        ],
+        "passages": 4,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 0.5
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": 1.0
+      },
+      "one_per_document": {
+        "retrieved": [
+          "lab-notebook.md#0-1180",
+          "stats.py#0-73"
+        ],
+        "passages": 2,
+        "recall": {
+          "@1": 1.0,
+          "@3": 1.0,
+          "@5": 1.0
+        },
+        "precision": {
+          "@1": 1.0,
+          "@5": 0.5
+        },
+        "ndcg@5": 1.0,
+        "passage_recall": 0.3333333333333333
+      }
+    }
+  ]
+}

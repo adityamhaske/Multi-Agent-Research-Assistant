@@ -1,0 +1,225 @@
+{
+  "dataset_version": 1,
+  "description": "Selected-files retrieval (RFC V3.1 \u00a717): each query runs against a selection of documents from a corpus where unselected documents often answer it better. The corpus is the retrieval eval's Markdown documents plus one fixture of every shipped non-Markdown format (backend/tests/fixtures/formats), ingested through the real path. Leakage is the share of retrieved chunks from outside the selection, and must be exactly 0. Grades are within the selection: 2 answers the query, 1 is related. A query with no grade-2 document measures leakage only. Queries with `passage_anchors` need more than one passage from one selected file: each anchor is verbatim text, and a passage counts as recalled when a returned chunk overlaps it. That is what the per-document hit cap can change, so it is measured with the cap and with one hit per file.",
+  "corpora": [
+    "evals/datasets/retrieval/corpus/*.md",
+    "tests/fixtures/formats/*",
+    "evals/datasets/selection-retrieval/corpus/*.md"
+  ],
+  "queries": [
+    {
+      "id": "s01-enrolment-two-files",
+      "query": "How much did enrolment rise in 2021?",
+      "selection": [
+        "deck.pptx",
+        "report.docx"
+      ],
+      "grades": {
+        "deck.pptx": 2,
+        "report.docx": 1
+      },
+      "note": "Nine unselected fixtures state the same figure more directly."
+    },
+    {
+      "id": "s02-staff-cost-one-sheet",
+      "query": "What did the staff line cost?",
+      "selection": [
+        "budget.xlsx"
+      ],
+      "grades": {
+        "budget.xlsx": 2
+      },
+      "note": "budget.ods and budget.xls hold the identical sheet and are not selected."
+    },
+    {
+      "id": "s03-districts-sampled",
+      "query": "How many districts were sampled?",
+      "selection": [
+        "notes.odt"
+      ],
+      "grades": {
+        "notes.odt": 2
+      },
+      "note": "report.docx and method.tex say the same and are not selected."
+    },
+    {
+      "id": "s04-mean-function",
+      "query": "function that computes the arithmetic mean of a list",
+      "selection": [
+        "stats.py",
+        "analysis.ipynb"
+      ],
+      "grades": {
+        "stats.py": 2
+      }
+    },
+    {
+      "id": "s05-enrolment-by-district",
+      "query": "enrolment by district, North and South",
+      "selection": [
+        "enrolment.csv",
+        "deck.pptx",
+        "report.docx"
+      ],
+      "grades": {
+        "enrolment.csv": 2,
+        "deck.pptx": 2,
+        "report.docx": 1
+      }
+    },
+    {
+      "id": "s06-attendance-2022",
+      "query": "What happened to attendance in 2022?",
+      "selection": [
+        "paper.pdf",
+        "notes.txt"
+      ],
+      "grades": {
+        "paper.pdf": 2,
+        "notes.txt": 1
+      }
+    },
+    {
+      "id": "s07-solar-mirror-excluded",
+      "query": "how does a panel turn sunlight into electric current",
+      "selection": [
+        "photovoltaics.md"
+      ],
+      "grades": {
+        "photovoltaics.md": 2
+      },
+      "note": "photovoltaics-mirror.md is the same text and is not selected."
+    },
+    {
+      "id": "s08-vents-among-two",
+      "query": "ecosystems around deep sea hydrothermal vents",
+      "selection": [
+        "hydrothermal-vents.md",
+        "heat-pumps.md"
+      ],
+      "grades": {
+        "hydrothermal-vents.md": 2
+      }
+    },
+    {
+      "id": "s09-storage-among-three",
+      "query": "storing electricity in batteries for later use",
+      "selection": [
+        "battery-storage.md",
+        "nuclear-baseload.md",
+        "geothermal-power.md"
+      ],
+      "grades": {
+        "battery-storage.md": 2,
+        "nuclear-baseload.md": 1
+      }
+    },
+    {
+      "id": "s10-school-origins",
+      "query": "When did the schools first open?",
+      "selection": [
+        "book.epub",
+        "memo.rtf"
+      ],
+      "grades": {
+        "book.epub": 2
+      }
+    },
+    {
+      "id": "s11-nothing-relevant-selected",
+      "query": "How much did enrolment rise in 2021?",
+      "selection": [
+        "stats.py"
+      ],
+      "grades": {},
+      "note": "Leakage only: the selection cannot answer, and everything that can is outside it."
+    },
+    {
+      "id": "s12-wide-selection",
+      "query": "how does a panel turn sunlight into electric current",
+      "selection": [
+        "photovoltaics.md",
+        "wind-turbines.md",
+        "battery-storage.md",
+        "heat-pumps.md",
+        "geothermal-power.md",
+        "nuclear-baseload.md",
+        "hydrothermal-vents.md",
+        "enrolment.csv",
+        "notes.txt",
+        "deck.pptx"
+      ],
+      "grades": {
+        "photovoltaics.md": 2,
+        "wind-turbines.md": 1
+      }
+    },
+    {
+      "id": "s13-two-sections-one-file",
+      "query": "How did enrolment and attendance change in the district this year?",
+      "selection": [
+        "district-annual-report.md"
+      ],
+      "grades": {
+        "district-annual-report.md": 2
+      },
+      "passage_anchors": {
+        "district-annual-report.md": [
+          "Enrolment in the North district reached 1,240 pupils in September",
+          "Attendance across the district fell from 95.1 percent to 92.4 percent"
+        ]
+      }
+    },
+    {
+      "id": "s14-staffing-and-transport",
+      "query": "What changed for staffing and school transport?",
+      "selection": [
+        "district-annual-report.md",
+        "notes.txt"
+      ],
+      "grades": {
+        "district-annual-report.md": 2
+      },
+      "passage_anchors": {
+        "district-annual-report.md": [
+          "The district hired 38 new teachers this year",
+          "A new bus route linking the eastern villages to the secondary school"
+        ]
+      }
+    },
+    {
+      "id": "s15-both-runs",
+      "query": "How much did the phosphate buffer drift in each run?",
+      "selection": [
+        "lab-notebook.md"
+      ],
+      "grades": {
+        "lab-notebook.md": 2
+      },
+      "passage_anchors": {
+        "lab-notebook.md": [
+          "In run one the phosphate buffer drifted by 0.08 pH units",
+          "In run two, at 37 degrees, the phosphate buffer drifted by 0.21 pH units"
+        ]
+      }
+    },
+    {
+      "id": "s16-three-passages-two-files",
+      "query": "calibration, sample preparation and errors in the buffer study",
+      "selection": [
+        "lab-notebook.md",
+        "stats.py"
+      ],
+      "grades": {
+        "lab-notebook.md": 2
+      },
+      "passage_anchors": {
+        "lab-notebook.md": [
+          "The pH meter was calibrated against standard buffers",
+          "Each buffer was prepared in a one-litre batch",
+          "One phosphate bottle from batch seven was opened early"
+        ]
+      }
+    }
+  ]
+}
