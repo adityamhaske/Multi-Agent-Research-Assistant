@@ -10,9 +10,12 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths:
+    paths: &gate-paths
       - scripts/gates/**
       - .github/workflows/release-gates.yml
+  # A change to a gate is checked before it merges, not discovered on release day.
+  pull_request:
+    paths: *gate-paths
 
 permissions:
   contents: read
