@@ -1,0 +1,73 @@
+{
+  "generated_by": "scripts/make_upgrade_fixture.py",
+  "generated_at": "2026-10-28T18:26:29+00:00",
+  "launched_as": "source checkout of the v3.0.2 tag",
+  "sidecar": {
+    "version": "3.0.2",
+    "git_sha": "0a9de70ee90485531120856fce7f5dde4041c0aa"
+  },
+  "demo_session_id": "00b730f9-4a21-436d-a61a-bced938ec1b6",
+  "demo_session_status": "FAILED",
+  "session_completed_id": "61b22e65-c892-439d-a46a-84479072452c",
+  "project_id": "35924c1e-fddf-41b0-b0ac-2bd7b4f45c64",
+  "run_completed_id": "077b0926-f2ce-443b-b27e-602545497a5b",
+  "run_awaiting_review_id": "8bb23ba3-2bc4-4f7b-a197-95668360538f",
+  "preferences": {
+    "retrieval_k": 6,
+    "density": "compact"
+  },
+  "second_project_id": "424b3fe8-1b98-4d97-b48c-0c6153a94341",
+  "documents": {
+    "paper.pdf": "4ce43142-3ab2-4dc1-95e4-d680aa76489e",
+    "page.html": "629d41d6-c27e-417f-ac1b-01f07e8dd8a6",
+    "notes.md": "051fd5ba-a519-4074-9cea-3905ae88525c",
+    "notes.txt": "1561fddb-ad39-49c4-b5b3-e6669133f828",
+    "notes.txt (v2)": "a432ef89-f862-466f-b3f2-42c93c9a8000"
+  },
+  "corpus_run_id": "ca60ce97-f742-4bea-a524-d2701ff571fe",
+  "row_counts": {
+    "cache.sqlite": {
+      "search_cache": 0
+    },
+    "checkpoints.sqlite": {
+      "checkpoints": 38,
+      "writes": 262
+    },
+    "corpus.sqlite": {
+      "corpus_chunks": 11,
+      "corpus_documents": 8,
+      "corpus_meta": 1
+    },
+    "desktop.sqlite": {
+      "agent_logs": 88,
+      "audit_events": 6,
+      "audit_log": 1,
+      "chat_messages": 0,
+      "chat_threads": 0,
+      "claim_annotations": 0,
+      "claim_evidence_links": 30,
+      "claims": 24,
+      "contradictions": 0,
+      "evidence": 12,
+      "projects": 3,
+      "refresh_tokens": 0,
+      "research_artifacts": 2,
+      "research_plans": 2,
+      "research_runs": 3,
+      "reviews": 4,
+      "revisions": 3,
+      "sessions": 2,
+      "sources": 7,
+      "users": 1
+    }
+  },
+  "files": {
+    "cache.sqlite": "aa057083c4ef82ea1bf47ac7e7305ec936976e9fd93e251aacadac685e4c6d49",
+    "checkpoints.sqlite": "c55c8c14c203fe93884386f5e572cb80ae1736d0e9347a6dd4cf1668dd99518c",
+    "corpus.sqlite": "8e760922aa1be66415654845a299501ba96b736cebe14576e69a808e0bf52ec1",
+    "demo_seeded.json": "d6906e858397894dd4c3d2bcfc89a2ed162df43e6c70922988ca5ca8b50fdc22",
+    "desktop.sqlite": "8c6cef35524c7484024da627f31abaa7f1ee23065c752d0a772862c9cb49c9d7",
+    "run-completed.bundle.json": "3301b9b7315ca4565177715f050022bbffe30e70ad6003e6136e0ce6c1f5dc82",
+    "session-completed.bundle.json": "69d467a0be45eba15d6c53f168d34a9288c9d8a9a07d7bfe9ac12d5ce56054f9"
+  }
+}

@@ -42,6 +42,12 @@ jobs:
       REDIS_URL: redis://localhost:6379/1
     steps:
       - uses: actions/checkout@v7
+      # The compatibility tests run the v3.0.2 code byte-for-byte from its tag (RFC V3.1
+      # AC-13, AC-24): the shipped verifier, and the shipped CorpusStore opening a 3.1 store.
+      # The default checkout is shallow and has no tags, so they used to skip here. One tag,
+      # one commit deep, is all they read.
+      - name: Fetch the v3.0.2 tag the compatibility tests read
+        run: git fetch --no-tags --depth=1 origin +refs/tags/v3.0.2:refs/tags/v3.0.2
       # The backend image's Python (`backend/Dockerfile`): no job builds the image before a
       # tag, so this job and golden-e2e are where the server's code meets its interpreter.
       # Every setup-python in every workflow moves with the image, the desktop engine's

@@ -9,7 +9,6 @@ is row → artifact, so the row is where every test starts.
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 import sys
 import uuid
@@ -26,6 +25,7 @@ from app.models.user import User
 from research_engine.bundle import compute_bundle_hash
 from research_engine.runner import RunOutcome
 from research_engine.verify_bundle import verify
+from tests.released_code import released_engine
 from tests.sqlite_support import open_db
 
 NOW = datetime(2026, 10, 25, tzinfo=UTC)
@@ -224,19 +224,7 @@ async def test_the_v3_0_2_verifier_still_verifies_a_selection_bundle(bundle, tmp
     The verifier and its imports are taken byte-for-byte from the `v3.0.2` tag and run in a
     separate interpreter, so nothing from this checkout's engine can stand in for them.
     """
-    git = shutil.which("git")
-    files = ["__init__.py", "verify_bundle.py", "bundle.py", "claims.py"]
-    old = tmp_path / "v3.0.2" / "research_engine"
-    old.mkdir(parents=True)
-    for name in files:
-        shown = subprocess.run(
-            [git or "git", "show", f"v3.0.2:backend/research_engine/{name}"],
-            capture_output=True,
-            text=True,
-        )
-        if git is None or shown.returncode != 0:
-            pytest.skip("the v3.0.2 tag is not in this checkout (shallow clone); G-4 runs it")
-        (old / name).write_text(shown.stdout, encoding="utf-8")
+    old = released_engine("v3.0.2", tmp_path / "v3.0.2") / "research_engine"
 
     path = tmp_path / "selection.bundle.json"
     path.write_text(json.dumps(bundle.model_dump(), ensure_ascii=False), encoding="utf-8")

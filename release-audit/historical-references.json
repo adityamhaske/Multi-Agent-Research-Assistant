@@ -220,6 +220,16 @@
       "path": "frontend/lib/features.ts",
       "text": "since: \"v3.0.0\",",
       "reason": "the release that introduced the feature (A2.02 checks it is released)"
+    },
+    {
+      "path": ".github/workflows/desktop.yml",
+      "text": "# last release's tree as this step measured it on the v3.0.3 tag: 147,556 KiB on",
+      "reason": "workflow comment naming the measured release each OS's installed-size ceiling is derived from (RFC V3.1 §11.3)"
+    },
+    {
+      "path": ".github/workflows/desktop.yml",
+      "text": "# installer this step measured on the v3.0.3 tag. Only Windows reaches here — the",
+      "reason": "workflow comment naming the measured release the .msi download ceiling is derived from (RFC V3.1 §11.3)"
     }
   ]
 }

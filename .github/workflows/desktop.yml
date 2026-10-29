@@ -405,6 +405,19 @@ jobs:
               echo "::error::sidecar tree is ${total} KiB — too small to contain the engine"
               exit 1
             fi
+            # Ceiling (RFC V3.1 §11.3): installed no more than +60 MB (61,440 KiB) over the
+            # last release's tree as this step measured it on the v3.0.3 tag: 147,556 KiB on
+            # macOS, 317,708 KiB on Linux, where the tree found is the AppDir's and nothing is
+            # compressed. Raise it in a reviewed change, not to let a build pass.
+            case "$RUNNER_OS" in
+              macOS) ceiling=208996 ;;
+              Linux) ceiling=379148 ;;
+              *) ceiling=0 ;;
+            esac
+            if [ "$ceiling" -gt 0 ] && [ "$total" -gt "$ceiling" ]; then
+              echo "::error::sidecar tree is ${total} KiB — over its ${ceiling} KiB ceiling"
+              exit 1
+            fi
             exit 0
           fi
 
@@ -424,6 +437,17 @@ jobs:
           # the uncompressed one above and still an order of magnitude above the failure.
           if [ "$size" -lt 40960 ]; then
             echo "::error::$name is ${size} KiB — too small to contain the engine"
+            exit 1
+          fi
+          # Ceiling (RFC V3.1 §11.3): a download no more than +25 MB (25,600 KiB) over the
+          # installer this step measured on the v3.0.3 tag. Only Windows reaches here — the
+          # other two find a loose tree above — so the .msi is the one with a number: 80,176 KiB.
+          case "$name" in
+            *.msi) ceiling=105776 ;;
+            *) ceiling=0 ;;
+          esac
+          if [ "$ceiling" -gt 0 ] && [ "$size" -gt "$ceiling" ]; then
+            echo "::error::$name is ${size} KiB — over its ${ceiling} KiB ceiling"
             exit 1
           fi
       - name: The copy actually inside the bundle reports the commit that built it

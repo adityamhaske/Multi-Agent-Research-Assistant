@@ -300,10 +300,19 @@ async def migrate_legacy_corpus(data_dir: str | Path, session_factory, user_id) 
         project_id = uuid.uuid4()
         lock.write_text(json.dumps({"project_id": str(project_id)}), encoding="utf-8")
 
-    # Step 1-2: a verified backup of the live store.
+    # Step 1-2: a verified backup of the live store. Until the commit the shared store is
+    # the authority, so a backup that fails its check was never relied on. It is made again
+    # once from the live store, and only a second failure refuses. Reusing it would refuse the
+    # move on every launch for ever (AC-37).
     if not backup.exists():
         _backup(legacy, backup)
-    verify_copy(legacy, backup)
+    try:
+        verify_copy(legacy, backup)
+    except (MigrationRefused, sqlite3.Error) as e:
+        logger.warning("corpus_legacy_backup_remade", error=str(e))
+        _remove(backup)
+        _backup(legacy, backup)
+        verify_copy(legacy, backup)
 
     # Step 3: the project's store, built from the verified backup, never the live file.
     store = data / CORPUS_DIRNAME / f"corpus_{project_id}.sqlite"
