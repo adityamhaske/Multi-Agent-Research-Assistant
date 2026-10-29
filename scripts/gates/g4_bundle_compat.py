@@ -70,6 +70,7 @@ def released_verifier(scratch: Path) -> tuple[Path, str]:
         ["git", "archive", "--format=tar", TAG, "backend/research_engine"],
         capture_output=True,
         cwd=ROOT,
+        check=False,
     )
     if done.returncode != 0:
         raise GateFailed(f"cannot read the {TAG} tag: {done.stderr.decode()[:300]}")
@@ -90,6 +91,7 @@ def verdict(engine: Path, bundle: dict, scratch: Path, name: str) -> dict:
         capture_output=True,
         text=True,
         cwd=scratch,
+        check=False,
     )
     if done.returncode != 0:
         raise GateFailed(
@@ -234,7 +236,11 @@ def _build() -> dict:
     from research_engine.build_info import build_info
 
     head = subprocess.run(
-        ["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=ROOT
+        ["git", "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        cwd=ROOT,
+        check=False,
     )
     return {**build_info().as_dict(), "checkout": head.stdout.strip()}
 
