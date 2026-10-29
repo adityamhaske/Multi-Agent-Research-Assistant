@@ -405,11 +405,17 @@ jobs:
               echo "::error::sidecar tree is ${total} KiB — too small to contain the engine"
               exit 1
             fi
-            # Ceiling (RFC V3.1 §11.3): installed no more than +60 MB over the last release's
-            # measured tree, 143.5 MB in 3.0.3 (release-audit/v3.0.3/record.md, M7.06). The
-            # 3.1 parsers are the reason to have one; raise it in a reviewed change, not here.
-            if [ "$total" -gt 208896 ]; then
-              echo "::error::sidecar tree is ${total} KiB — over the 204 MB ceiling"
+            # Ceiling (RFC V3.1 §11.3): installed no more than +60 MB (61,440 KiB) over the
+            # last release's tree as this step measured it on the v3.0.3 tag: 147,556 KiB on
+            # macOS, 317,708 KiB on Linux, where the tree found is the AppDir's and nothing is
+            # compressed. Raise it in a reviewed change, not to let a build pass.
+            case "$RUNNER_OS" in
+              macOS) ceiling=208996 ;;
+              Linux) ceiling=379148 ;;
+              *) ceiling=0 ;;
+            esac
+            if [ "$ceiling" -gt 0 ] && [ "$total" -gt "$ceiling" ]; then
+              echo "::error::sidecar tree is ${total} KiB — over its ${ceiling} KiB ceiling"
               exit 1
             fi
             exit 0
@@ -433,12 +439,11 @@ jobs:
             echo "::error::$name is ${size} KiB — too small to contain the engine"
             exit 1
           fi
-          # Ceiling (RFC V3.1 §11.3): a download no more than +25 MB over the same installer's
-          # measured 3.0.3 size (record.md): .msi 82.1 MB, .deb 138.0 MB, AppImage 191.6 MB.
+          # Ceiling (RFC V3.1 §11.3): a download no more than +25 MB (25,600 KiB) over the
+          # installer this step measured on the v3.0.3 tag. Only Windows reaches here — the
+          # other two find a loose tree above — so the .msi is the one with a number: 80,176 KiB.
           case "$name" in
-            *.msi) ceiling=109670 ;;       # 107.1 MB
-            *.deb) ceiling=166912 ;;       # 163.0 MB
-            *.AppImage) ceiling=221798 ;;  # 216.6 MB
+            *.msi) ceiling=105776 ;;
             *) ceiling=0 ;;
           esac
           if [ "$ceiling" -gt 0 ] && [ "$size" -gt "$ceiling" ]; then
