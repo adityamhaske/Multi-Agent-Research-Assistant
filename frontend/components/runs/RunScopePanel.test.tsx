@@ -34,6 +34,54 @@ describe("RunScopePanel", () => {
     expect(screen.getByText("Offline")).toBeInTheDocument();
   });
 
+  // AC-9: the run page shows the counts recorded on the row, not counts of its own.
+  it("shows the recorded grounding counts, and why a run without a clean record stopped", () => {
+    const { rerender } = render(
+      <RunScopePanel
+        run={run({
+          corpus_mode: true,
+          grounding_report: {
+            status: "complete",
+            claims_supported: 6,
+            claims_rejected: 1,
+            units_dropped: 2,
+          },
+        } as Partial<Run>)}
+      />,
+    );
+    expect(
+      screen.getByText(
+        /6 supported, 1 kept out of the answer, 2 passage\(s\) removed/,
+      ),
+    ).toBeInTheDocument();
+
+    rerender(
+      <RunScopePanel
+        run={run({
+          corpus_mode: true,
+          grounding_report: { status: "unmeasured", claims_unmeasured: 3 },
+        } as Partial<Run>)}
+      />,
+    );
+    expect(
+      screen.getByText(
+        /3 claim\(s\) could not be checked, so the report was not offered/,
+      ),
+    ).toBeInTheDocument();
+
+    rerender(
+      <RunScopePanel
+        run={run({
+          corpus_mode: true,
+          grounding_report: { status: "no_evidence" },
+        } as Partial<Run>)}
+      />,
+    );
+    expect(
+      screen.getByText(/Nothing was answered from outside them/),
+    ).toBeInTheDocument();
+  });
+
   it("says nothing for a run that searched the web", () => {
     const { container } = render(<RunScopePanel run={run({})} />);
     expect(container).toBeEmptyDOMElement();
