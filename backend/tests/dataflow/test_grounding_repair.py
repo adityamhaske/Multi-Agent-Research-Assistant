@@ -156,7 +156,8 @@ async def test_validation_cost_is_recorded_apart_from_research_cost(judge):
     )
     cost = result.report["validation_cost"]
     assert cost["calls"] >= 2 and cost["tokens_in"] > 0
-    assert set(cost) >= {"estimated_usd", "actual_usd", "calls", "retries", "repairs"}
+    assert set(cost) >= {"estimated_usd", "actual_usd", "calls", "retries", "repairs", "seconds"}
+    assert cost["seconds"] >= 0, "the check's own wall time, for gate G-5"
 
 
 # ── The approval route decides on the row (AC-42) ─────────────────────────────────
