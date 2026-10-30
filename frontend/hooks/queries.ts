@@ -870,6 +870,49 @@ export function useUploadDocument() {
   });
 }
 
+/** Rename (`name`) or move (`parentId`, null for the top level) a corpus folder. Only the
+ *  folder row changes, so document ids — and every citation of them — stay stable. */
+export function useUpdateFolder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      projectId,
+      folderId,
+      ...change
+    }: { projectId: string; folderId: string } & (
+      | { name: string }
+      | { parentId: string | null }
+    )) =>
+      apiFetch<{ id: string; parent_id: string | null; name: string }>(
+        `/projects/${projectId}/corpus/folders/${folderId}`,
+        {
+          method: "PATCH",
+          body:
+            "name" in change ? { name: change.name } : { parent_id: change.parentId, move: true },
+        },
+      ),
+    onSuccess: (_, { projectId }) => {
+      qc.invalidateQueries({ queryKey: ["corpus", projectId] });
+    },
+  });
+}
+
+/** Delete a folder, its subfolders, and the files filed nowhere else. The response is the
+ *  server's own count of what went, which the page reports rather than its own estimate. */
+export function useDeleteFolder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, folderId }: { projectId: string; folderId: string }) =>
+      apiFetch<{ folders_deleted: number; documents_deleted: number; versions_deleted: number }>(
+        `/projects/${projectId}/corpus/folders/${folderId}`,
+        { method: "DELETE" },
+      ),
+    onSuccess: (_, { projectId }) => {
+      qc.invalidateQueries({ queryKey: ["corpus", projectId] });
+    },
+  });
+}
+
 export function useDeleteDocument() {
   const qc = useQueryClient();
   return useMutation({

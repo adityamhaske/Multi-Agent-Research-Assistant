@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { FolderDialog, type FolderAction } from "@/components/corpus/FolderDialog";
 import {
   buildTree,
   filterTree,
@@ -13,6 +14,7 @@ import {
   type CorpusTree as Tree,
   type FolderNode,
   type TreeDocument,
+  type TreeFolder,
 } from "@/lib/corpusTree";
 
 /**
@@ -23,8 +25,11 @@ import {
  * ARIA tree pattern: the list is `role="tree"`, every row a `treeitem` with `aria-level`,
  * folders `aria-expanded`, and checkboxes `aria-checked="mixed"` when partly selected.
  */
-export function CorpusTree({ tree }: { tree: Tree }) {
+export function CorpusTree({ tree, projectId }: { tree: Tree; projectId: string }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [acting, setActing] = useState<{ folder: TreeFolder; action: FolderAction } | null>(
+    null,
+  );
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<Set<string>>(new Set());
   const { roots, loose } = useMemo(() => buildTree(tree), [tree]);
@@ -95,6 +100,19 @@ export function CorpusTree({ tree }: { tree: Tree }) {
             onChange={() => setSelected((s) => toggleFolder(node, s))}
           />
           <span className="font-semibold text-text-primary">{node.folder.name}</span>
+          <span className="ml-auto flex gap-1">
+            {(["rename", "move", "delete"] as const).map((action) => (
+              <button
+                key={action}
+                type="button"
+                className="btn btn-ghost px-1.5 py-0.5 text-xs"
+                aria-label={`${action[0].toUpperCase()}${action.slice(1)} ${node.folder.name}`}
+                onClick={() => setActing({ folder: node.folder, action })}
+              >
+                {action[0].toUpperCase() + action.slice(1)}
+              </button>
+            ))}
+          </span>
         </div>
         {expanded && (
           <ul role="group" className="ml-6">
@@ -121,6 +139,15 @@ export function CorpusTree({ tree }: { tree: Tree }) {
           onChange={(e) => setQuery(e.target.value)}
         />
       </div>
+      {acting && (
+        <FolderDialog
+          projectId={projectId}
+          tree={tree}
+          folder={acting.folder}
+          action={acting.action}
+          onClose={() => setActing(null)}
+        />
+      )}
       <ul role="tree" aria-label="Corpus folders and files" aria-multiselectable="true">
         {shown.map((n) => renderFolder(n, 1))}
         {looseShown.map((d) => renderDoc(d, 1))}

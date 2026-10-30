@@ -178,6 +178,9 @@ export default function CorpusPage() {
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
+  // Read inside the upload loop, so a ref: state would be the value captured when it began.
+  const stop = useRef(false);
+  const [stopping, setStopping] = useState(false);
 
   if (!activeId) {
     return (
@@ -202,11 +205,25 @@ export default function CorpusPage() {
     });
     setQueue(items);
     setBusy(true);
+    stop.current = false;
+    setStopping(false);
 
     let added = 0;
     let failed = 0;
+    let stopped = 0;
     for (const item of items) {
       if (item.state === "skipped") continue;
+      // Stopping waits for the file in flight: a half-sent upload is never ingested, so the
+      // one already going either lands whole or fails, and nothing after it is sent.
+      if (stop.current) {
+        stopped += 1;
+        setQueue((q) =>
+          q.map((x) =>
+            x.key === item.key ? { ...x, state: "skipped", detail: "stopped before upload" } : x,
+          ),
+        );
+        continue;
+      }
       setQueue((q) => q.map((x) => (x.key === item.key ? { ...x, state: "uploading" } : x)));
       try {
         await upload.mutateAsync({
@@ -225,6 +242,7 @@ export default function CorpusPage() {
     }
 
     setBusy(false);
+    setStopping(false);
     refetchStatus();
     const skipped = items.filter((i) => i.state === "skipped").length;
     if (added) toast.success(`Added ${added} document${added === 1 ? "" : "s"}`);
@@ -235,6 +253,7 @@ export default function CorpusPage() {
           .join(", "),
       );
     }
+    if (stopped) toast(`Stopped: ${stopped} not uploaded`);
   };
 
   const fromInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -360,7 +379,7 @@ export default function CorpusPage() {
 
         {tree && (
           <div className="mb-8">
-            <CorpusTree tree={tree} />
+            <CorpusTree tree={tree} projectId={activeId} />
           </div>
         )}
 
@@ -371,6 +390,19 @@ export default function CorpusPage() {
               <span className="font-mono text-xs font-semibold uppercase tracking-wider text-text-secondary">
                 Upload queue ({doneCount}/{queue.length} completed)
               </span>
+              {busy && (
+                <button
+                  type="button"
+                  disabled={stopping}
+                  onClick={() => {
+                    stop.current = true;
+                    setStopping(true);
+                  }}
+                  className="font-mono text-xs text-text-muted transition-colors hover:text-text-primary disabled:opacity-60"
+                >
+                  {stopping ? "Stopping after this file…" : "Stop uploading"}
+                </button>
+              )}
               {!busy && (
                 <button
                   type="button"

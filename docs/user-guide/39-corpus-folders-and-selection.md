@@ -44,12 +44,16 @@ password-protected, are refused with the reason.
 ## Folders
 
 Choose **Choose folder**, or drop a folder onto the Corpus page, and its subfolders come with
-it. The same file in two folders is stored once and listed in both. Folders can be renamed and
-moved without changing anything that cites their files.
+it. Files upload one at a time; **Stop uploading** lets the file being sent finish and sends
+nothing after it. The same file in two folders is stored once and listed in both.
 
-Deleting a folder removes the files filed **only** there, with every version; a file also in
-another folder stays. Research that cited a deleted file keeps the quotes it gathered, but the
-file itself can no longer be opened from it.
+Each folder in **Choose files to research** has **Rename**, **Move** and **Delete**. Renaming or
+moving a folder changes nothing that cites its files.
+
+Deleting a folder removes its subfolders and the files filed **only** there, with every version;
+a file also in another folder stays. Before anything is deleted, the confirmation says how many
+files will go. Research that cited a deleted file keeps the quotes it gathered, but the file
+itself can no longer be opened from it.
 
 Each project has its own corpus, on the desktop app as on a server. Documents uploaded to the
 desktop app before projects had separate corpora were moved to a project named **Documents from

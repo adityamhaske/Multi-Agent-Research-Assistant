@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import toast from "react-hot-toast";
 
 import { DocumentPreview } from "@/components/preview/DocumentPreview";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import { ApiError } from "@/lib/api";
 import { downloadFile } from "@/lib/download";
 
@@ -16,9 +17,8 @@ import { downloadFile } from "@/lib/download";
  * moment a reader stops checking sources. The drawer keeps the list, the report and the
  * evidence on screen behind it.
  *
- * Focus is moved into the drawer on open and returned to whatever opened it on close,
- * and Escape closes. Without that a keyboard user lands in a dialog they cannot leave,
- * and a screen-reader user is never told anything appeared.
+ * Keyboard behaviour is `useDialogFocus`'s: without it a keyboard user lands in a dialog
+ * they cannot leave, and a screen-reader user is never told anything appeared.
  */
 export function PreviewDrawer({
   open,
@@ -40,45 +40,8 @@ export function PreviewDrawer({
   page?: number | null;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const returnFocusRef = useRef<HTMLElement | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    returnFocusRef.current = document.activeElement as HTMLElement | null;
-    panelRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      // `aria-modal="true"` tells assistive tech that everything outside is inert.
-      // Without a trap that is a lie: a keyboard user tabs straight out of the dialog
-      // into a page their screen reader has been told does not exist. Cycle instead.
-      const panel = panelRef.current;
-      if (!panel) return;
-      const focusable = panel.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input, select, textarea, iframe, object, [tabindex]:not([tabindex="-1"])',
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const active = document.activeElement;
-      if (e.shiftKey && (active === first || active === panel)) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      // Return focus to the row or citation that opened this, not to the top of the page.
-      returnFocusRef.current?.focus?.();
-    };
-  }, [open, onClose]);
+  useDialogFocus(open, onClose, panelRef);
 
   if (!open) return null;
 

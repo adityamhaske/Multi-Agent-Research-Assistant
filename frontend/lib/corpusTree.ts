@@ -148,3 +148,44 @@ export function filterTree(roots: FolderNode[], query: string): FolderNode[] {
   };
   return roots.map(walk).filter((n): n is FolderNode => n !== null);
 }
+
+/** A folder and every folder beneath it. */
+export function subtreeIds(tree: CorpusTree, folderId: string): Set<string> {
+  const ids = new Set([folderId]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const f of tree.folders) {
+      if (f.parent_id && ids.has(f.parent_id) && !ids.has(f.id)) {
+        ids.add(f.id);
+        grew = true;
+      }
+    }
+  }
+  return ids;
+}
+
+/** What deleting a folder removes, for the confirmation to state before it happens
+ *  (RFC V3.1 §7.1): its subfolders, and the files filed nowhere outside it. A file also
+ *  in another folder only loses this membership. Counted over every membership, generated
+ *  reports included, because the server deletes by the same rule. */
+export function folderDeletion(
+  tree: CorpusTree,
+  folderId: string,
+): { subfolders: number; files: number } {
+  const inside = subtreeIds(tree, folderId);
+  const here = new Set<string>();
+  const elsewhere = new Set<string>();
+  for (const m of tree.memberships) (inside.has(m.folder_id) ? here : elsewhere).add(m.doc_key);
+  let files = 0;
+  for (const key of here) if (!elsewhere.has(key)) files += 1;
+  return { subfolders: inside.size - 1, files };
+}
+
+/** Where a folder may move: anywhere except into itself or a folder beneath it. */
+export function moveTargets(tree: CorpusTree, folderId: string): TreeFolder[] {
+  const blocked = subtreeIds(tree, folderId);
+  return tree.folders
+    .filter((f) => !blocked.has(f.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}

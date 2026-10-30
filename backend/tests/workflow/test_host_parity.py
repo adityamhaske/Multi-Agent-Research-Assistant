@@ -239,6 +239,10 @@ DESKTOP_UI_CALLS: dict[str, str] = {
     "DELETE /projects/{project_id}/corpus/documents/{doc_id}": "Corpus page — delete (M1.5)",
     "GET /projects/{project_id}/corpus/status": "Corpus page, project overview (M1.5)",
     "GET /projects/{project_id}/corpus/tree": "Corpus page — folder tree and file selection (3.1)",
+    "PATCH /projects/{project_id}/corpus/folders/{folder_id}": "Corpus page — rename or move a folder",
+    "DELETE /projects/{project_id}/corpus/folders/{folder_id}": (
+        "Corpus page — delete a folder, after a confirmation stating what goes"
+    ),
     "GET /projects/{project_id}/corpus/documents/{doc_id}/download": (
         "DocumentPreview via documentUrl(), from the Corpus page (M1.5)"
     ),
