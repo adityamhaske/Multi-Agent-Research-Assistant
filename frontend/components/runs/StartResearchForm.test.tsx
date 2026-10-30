@@ -135,6 +135,19 @@ describe("StartResearchForm", () => {
     expect(mutate.mock.calls[0][0]).not.toHaveProperty("offline");
   });
 
+  // AC-11 (RFC V3.1 §6.3): "only these files" limits the evidence, not where the models run.
+  // Every route here is a cloud route, so the card must say excerpts reach the provider and
+  // must not borrow any of the Offline switch's words.
+  it("says a selection on cloud routes still sends excerpts to the provider", () => {
+    view({ folder_ids: [], doc_keys: ["k1"] });
+    const card = screen
+      .getByRole("checkbox", { name: /Only the files you selected/ })
+      .closest("label")!.textContent!;
+    expect(card).toMatch(/excerpts from those files are sent to the model provider/);
+    expect(card).not.toMatch(/offline|on this computer|private|never leave|stays? local/i);
+    expect(screen.getByRole("checkbox", { name: /Offline/ })).not.toBeChecked();
+  });
+
   it("asks for Offline only when the switch is on, and that implies corpus-only", () => {
     view();
     fireEvent.click(screen.getByRole("button", { name: /Options/ }));
