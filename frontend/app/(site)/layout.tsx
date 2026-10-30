@@ -1,4 +1,7 @@
+import { JsonLd } from "@/components/site/JsonLd";
 import { SiteFooter, SiteHeader } from "@/components/site/SiteChrome";
+import { personSchema } from "@/lib/author";
+import { isPagesBuild } from "@/lib/pages-build";
 
 /**
  * The public site: landing, positioning, docs, download.
@@ -16,6 +19,8 @@ export default function SiteLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col bg-bg-base">
+      {/* Every public page names its author; only the Pages build is meant to be indexed. */}
+      {isPagesBuild && <JsonLd data={personSchema()} />}
       <SiteHeader />
       <div className="flex-1">{children}</div>
       <SiteFooter />

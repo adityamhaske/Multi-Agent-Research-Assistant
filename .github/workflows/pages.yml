@@ -109,6 +109,10 @@ jobs:
             echo "serving as a project page under /${{ github.event.repository.name }}/"
           fi
 
+      - name: Read the commit date for the sitemap
+        id: lastmod
+        run: echo "iso=$(git log -1 --format=%cI)" >> "$GITHUB_OUTPUT"
+
       - name: Build the static site
         working-directory: /tmp/pages/frontend
         env:
@@ -122,6 +126,10 @@ jobs:
           # the sitemap pointing at one origin while every page's own canonical tag points
           # at another is the same class of bug the base-path mismatch above already is.
           NEXT_PUBLIC_SITE_URL: ${{ steps.site.outputs.site_url }}
+          # Commit date of the revision being published — the sitemap's `<lastmod>`
+          # (`frontend/app/sitemap.ts`). Read in the step above rather than here because it
+          # needs `git`, which the staged copy under /tmp does not have.
+          NEXT_PUBLIC_SITE_LASTMOD: ${{ steps.lastmod.outputs.iso }}
         run: npm run build:pages
 
       - name: Stamp the export with what it was built from
@@ -177,6 +185,12 @@ jobs:
             echo "robots.txt disallows crawling — NEXT_PUBLIC_PAGES did not reach the build step"
             exit 1
           fi
+          # Without a commit date the sitemap silently drops <lastmod> and still deploys green.
+          grep -q "<lastmod>" "$out/sitemap.xml" || { echo "sitemap.xml has no <lastmod>"; exit 1; }
+          test -s "$out/llms.txt" || { echo "missing or empty: llms.txt"; exit 1; }
+          # The social card must be a real PNG at a .png path: the file-convention version
+          # exported extension-less and was served as application/octet-stream.
+          test "$(head -c 4 "$out/og.png" | tail -c 3)" = "PNG" || { echo "og.png is missing or not a PNG"; exit 1; }
           if ! grep -q "${{ steps.site.outputs.site_url }}" "$out/sitemap.xml"; then
             echo "sitemap.xml does not reference the resolved site_url (${{ steps.site.outputs.site_url }})"
             exit 1

@@ -1,0 +1,11 @@
+# Multi-Agent Research Assistant
+
+> Open-source multi-agent research platform by Aditya Mhaske. Planner, Researcher, Critic and Synthesizer agents with human-in-the-loop approval, per-claim citations, and BYOK support. Built with LangGraph, FastAPI, Next.js.
+
+## Links
+
+- Website: https://adityamhaske.github.io/Multi-Agent-Research-Assistant/
+- Docs: https://adityamhaske.github.io/Multi-Agent-Research-Assistant/docs/
+- Download: https://adityamhaske.github.io/Multi-Agent-Research-Assistant/download/
+- Source: https://github.com/adityamhaske/Multi-Agent-Research-Assistant
+- Author: https://adityamhaske.com (Aditya Mhaske, Software Engineer)

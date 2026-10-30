@@ -19,12 +19,40 @@ export const dynamic = "force-static";
  * everything there is the safe default; a self-hosted deployment that wants indexing can
  * front it with its own robots.txt, the same way it already fronts it with its own domain.
  */
+/**
+ * AI and answer-engine crawlers named explicitly. `User-agent: *` already allows them, but
+ * a crawler obeys the most specific group that names it, and several operators (and the
+ * people auditing a site against their published lists) look for their own token — an
+ * explicit group is unambiguous where the wildcard is merely implied. Training crawlers
+ * (GPTBot, CCBot, Google-Extended, Applebot-Extended, anthropic-ai) and retrieval/search
+ * agents (OAI-SearchBot, ChatGPT-User, Claude-SearchBot, PerplexityBot, DuckAssistBot) are
+ * allowed alike: the project is open source and wants to be found and quoted accurately.
+ */
+const AI_CRAWLERS = [
+  "GPTBot",
+  "OAI-SearchBot",
+  "ChatGPT-User",
+  "ClaudeBot",
+  "Claude-SearchBot",
+  "anthropic-ai",
+  "PerplexityBot",
+  "Google-Extended",
+  "Applebot-Extended",
+  "Amazonbot",
+  "meta-externalagent",
+  "DuckAssistBot",
+  "CCBot",
+];
+
 export default function robots(): MetadataRoute.Robots {
   if (!isPagesBuild) {
     return { rules: { userAgent: "*", disallow: "/" } };
   }
   return {
-    rules: { userAgent: "*", allow: "/" },
+    rules: [
+      { userAgent: "*", allow: "/" },
+      { userAgent: AI_CRAWLERS, allow: "/" },
+    ],
     sitemap: `${siteUrl}/sitemap.xml`,
   };
 }

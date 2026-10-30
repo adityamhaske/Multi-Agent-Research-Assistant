@@ -1,8 +1,7 @@
 import { ImageResponse } from "next/og";
 
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
-export const alt = "Multi-Agent Research Assistant — cited research you can actually verify";
+import { OG_IMAGE } from "@/lib/pages-build";
+
 // This image has no dynamic input (no params, no request data) so it is always safe to
 // render once at build time — but the desktop export (`output: "export"`) does not infer
 // that on its own; without this it fails the build outright, the same as `sitemap.ts`.
@@ -11,9 +10,12 @@ export const dynamic = "force-static";
 /**
  * Branded social-preview card for every page under the public site (`app/(site)/`).
  *
- * A file-convention route Next resolves at build time — same static-export mechanism as
- * `robots.ts`/`sitemap.ts` — so it needs no server and applies to `/`, `/why`, `/docs` and
- * every doc page beneath it without each one setting its own `openGraph.images`.
+ * A route handler at a path that ends in `.png`, referenced from `metadata.openGraph.images`
+ * (root layout and `pageUrls`). **Not** the `opengraph-image.tsx` file convention: under a
+ * static export that convention emits an extension-less file (`/opengraph-image-<hash>`),
+ * which GitHub Pages serves as `application/octet-stream`. The URL resolved, but Facebook,
+ * LinkedIn and Slack reject an image whose Content-Type is not `image/*` — so the card was
+ * dead everywhere while `curl` said 200. A `.png` path gets `image/png` from the host.
  *
  * Generated from JSX via Satori, not a checked-in PNG, so it cannot drift from the palette
  * in `globals.css` the way a hand-exported image would — the same "generated, not
@@ -25,7 +27,7 @@ export const dynamic = "force-static";
  * static image cannot follow the viewer's OS theme, so it commits to one deliberately
  * high-contrast look rather than picking either theme literally.
  */
-export default function OpengraphImage() {
+export function GET() {
   return new ImageResponse(
     (
       <div
@@ -87,6 +89,6 @@ export default function OpengraphImage() {
         </div>
       </div>
     ),
-    { ...size },
+    { width: OG_IMAGE.width, height: OG_IMAGE.height },
   );
 }

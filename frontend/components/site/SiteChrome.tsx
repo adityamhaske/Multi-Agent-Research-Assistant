@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AUTHOR_NAME, AUTHOR_URL } from "@/lib/author";
 import { isPagesBuild } from "@/lib/pages-build";
+import { REPOSITORY_URL } from "@/lib/releases";
 
 /**
  * Header and footer for the public site (`app/(site)/`).
@@ -80,6 +82,14 @@ export function SiteHeader({ eyebrow }: { eyebrow?: string }) {
               {item.label}
             </Link>
           ))}
+          <a
+            href={REPOSITORY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-8 items-center px-2.5 font-mono text-xs text-text-secondary transition-colors hover:text-text-primary"
+          >
+            GitHub ↗
+          </a>
         </nav>
         {isPagesBuild ? (
           // The static site has no app to open.
@@ -108,7 +118,15 @@ export function SiteFooter() {
     <footer className="mt-16 border-t border-border px-4 py-8 sm:px-6">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="font-mono text-[0.6875rem] text-text-muted">
-          Self-hostable · bring your own key · MIT licensed
+          Self-hostable · bring your own key · MIT licensed ·{" "}
+          Built by{" "}
+          <a
+            href={AUTHOR_URL}
+            rel="noopener noreferrer"
+            className="text-text-secondary underline-offset-2 transition-colors hover:text-text-primary hover:underline"
+          >
+            {AUTHOR_NAME}
+          </a>
         </p>
         <nav aria-label="Footer" className="flex flex-wrap items-center gap-4">
           {NAV.map((item) => (
