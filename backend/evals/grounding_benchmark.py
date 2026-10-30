@@ -50,6 +50,11 @@ THRESHOLDS = {"false_accept": 0.02, "false_accept_wilson_upper": 0.05,
 QUESTION = "What do the cited documents say?"
 
 
+#: Who made the reference labels, from `labels.json`. Since amendment A-1 (2026-10-29) an LLM
+#: judge, which makes G-6 agreement with that judge rather than accuracy against a person.
+LABELLER: dict = {}
+
+
 class Unmeasurable(RuntimeError):
     """No honest measurement is possible. Never turned into a number."""
 
@@ -63,7 +68,10 @@ def load() -> tuple[list[dict], dict[str, str]]:
     path = SET / "labels.json"
     if not path.exists():
         raise Unmeasurable("no labels.json: the reference labels have not been made yet")
-    labels = json.loads(path.read_text(encoding="utf-8"))["labels"]
+    record = json.loads(path.read_text(encoding="utf-8"))
+    labels = record["labels"]
+    global LABELLER
+    LABELLER = record.get("labeller") or {"kind": "person"}
     missing = [i["id"] for i in items if i["id"] not in labels]
     if missing:
         raise Unmeasurable(f"{len(missing)} claims have no reference label, e.g. {missing[:5]}")
@@ -185,6 +193,11 @@ async def run(limit: int | None = None) -> dict:
     config = run_config_from_env(fake=False)
     if config.llm_mode == "fake":
         raise Unmeasurable("LLM_MODE is fake: scripted verdicts would measure the script")
+    if LABELLER.get("route") and LABELLER["route"] == config.model_for("critic"):
+        raise Unmeasurable(
+            f"the checker runs on {LABELLER['route']}, the model that made the reference "
+            "labels: a checker scored against itself is not evidence"
+        )
     token = set_run_config(config)
     try:
         chosen = items[:limit] if limit else items
@@ -204,6 +217,7 @@ async def run(limit: int | None = None) -> dict:
         # asked for, and says so, rather than presenting it as a pinned model.
         "routing_is_alias": "/auto" in route or ":auto/" in route,
         "preflight": bool(limit),
+        "reference_labels": LABELLER,
         "thresholds": THRESHOLDS,
         "result": score(rows, labels),
         "calls": sum(r["calls"] for r in rows),
