@@ -129,6 +129,7 @@ async def one_run(store, ids: list[str], size: int, question: str, config, **lim
         "check_tokens_in": vc.get("tokens_in"),
         "check_tokens_out": vc.get("tokens_out"),
         "check_cost_usd": vc.get("actual_usd"),
+        "check_retries": vc.get("retries"),
         "units_repaired": report.get("units_repaired"),
         "units_dropped": report.get("units_dropped"),
         "grounding_status": report.get("status"),
@@ -177,6 +178,10 @@ def summarise(rows: list[dict], priced: bool) -> dict:
         "by_selection_size": by_size,
         "budget": list(budget.values()),
         "runs_with_a_repair": sum(1 for r in rows if (r["units_repaired"] or 0) > 0),
+        # Retried checking calls (429s, timeouts, outages), apart from repairs: a provider
+        # that throttles adds latency without adding a single rewrite.
+        "check_retries_total": sum(r["check_retries"] or 0 for r in rows),
+        "runs_with_a_retry": sum(1 for r in rows if (r["check_retries"] or 0) > 0),
         "runs_with_a_failed_reverification": sum(1 for r in rows if (r["units_dropped"] or 0) > 0),
     }
 

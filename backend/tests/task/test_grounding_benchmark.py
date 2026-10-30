@@ -116,3 +116,30 @@ def test_without_labels_there_is_no_measurement(tmp_path, monkeypatch):
     (tmp_path / "items.json").write_text('{"items": [{"id": "g001"}]}', encoding="utf-8")
     with pytest.raises(gb.Unmeasurable, match="no labels.json"):
         gb.load()
+
+
+def test_slices_break_the_aggregate_down_without_hiding_unmeasured():
+    items = {
+        "a": {"claim": "Enrolment rose 12% in 2021.", "snippets": [{"kind": "docx"}]},
+        "b": {"claim": "Visitors rose.", "snippets": [{"kind": "docx"}]},
+        "c": {"claim": "Both rose 5%.", "snippets": [{"kind": "csv"}, {"kind": "pdf"}]},
+        "d": {"claim": "It opened in March 2023.", "snippets": [{"kind": "csv"}]},
+    }
+    labels = {"a": "supported", "b": "not_supported", "c": "contradicted", "d": "supported"}
+    rows = [
+        {"id": "a", "verdict": "supported"},
+        {"id": "b", "verdict": "supported"},  # a false accept, in docx
+        {"id": "c", "verdict": "not_supported"},
+        {"id": "d", "verdict": "unmeasured"},
+    ]
+    s = gb.slices(rows, labels, items)
+
+    docx = s["by_document_kind"]["docx"]
+    assert docx["false_accept"] == 1.0 and docx["false_reject"] == 0.0
+    assert s["by_document_kind"]["csv"]["unmeasured"] == 1
+    assert s["by_document_kind"]["csv"]["false_reject"] is None, "nothing measured is no number"
+    assert s["multi_source"]["claims"] == 1
+    assert s["multi_source"]["recall"]["contradicted"] == 0.0
+    assert s["numeric_or_date"]["claims"] == 3, "a percentage, a year, a month"
+    assert s["no_number_or_date"]["claims"] == 1
+    assert all(v["indicative_only"] for v in s["by_document_kind"].values())

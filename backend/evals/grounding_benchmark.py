@@ -14,7 +14,10 @@ Measured, as §17 defines them:
   share the checker called supported, with the upper bound of its 95% Wilson interval;
 - **false-reject**: of the claims labelled `supported`, the share it did not call supported;
 - `contradicted` recall;
-- the unmeasured share, reported apart and outside every denominator above.
+- the unmeasured share, reported apart and outside every denominator above;
+- the same per document kind, for multi-source claims, and for claims stating a number or
+  a date, with each label's own recall. Thresholds apply to the aggregate; the slices show
+  where a miss comes from, and any under 20 claims is marked indicative.
 
 Thresholds (D-23): false-accept ≤ 2% with a Wilson upper bound ≤ 5%, false-reject ≤ 15%,
 unmeasured ≤ 5%. Above 5% unmeasured, the run is **invalid**: it is re-run, never reported
@@ -35,6 +38,7 @@ import argparse
 import asyncio
 import json
 import math
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -174,6 +178,65 @@ def score(rows: list[dict], labels: dict[str, str]) -> dict:
     return out
 
 
+#: A slice this small reports its numbers, but they are indicative, not a finding.
+INDICATIVE_BELOW = 20
+_NUMERIC = re.compile(
+    r"\d|\b(january|february|march|april|may|june|july|august|september|october|november"
+    r"|december|percent|million|thousand)\b",
+    re.IGNORECASE,
+)
+
+
+def _slice(rows: list[dict], labels: dict[str, str]) -> dict:
+    measured = [r for r in rows if r["verdict"] != "unmeasured"]
+    by_label = {lab: [r for r in measured if labels[r["id"]] == lab] for lab in LABELS}
+    negatives = by_label["not_supported"] + by_label["contradicted"]
+
+    def share(k, n):
+        return k / n if n else None
+
+    return {
+        "claims": len(rows),
+        "unmeasured": len(rows) - len(measured),
+        "indicative_only": len(rows) < INDICATIVE_BELOW,
+        "false_accept": share(sum(r["verdict"] == "supported" for r in negatives), len(negatives)),
+        "false_reject": share(
+            sum(r["verdict"] != "supported" for r in by_label["supported"]),
+            len(by_label["supported"]),
+        ),
+        # Each label's own recall: the share of claims a person gave that label which the
+        # checker gave it too, so a checker good on easy supported claims and poor on the
+        # adversarial ones cannot hide inside one aggregate.
+        "recall": {
+            lab: share(sum(r["verdict"] == lab for r in rs), len(rs))
+            for lab, rs in by_label.items()
+        },
+    }
+
+
+def slices(rows: list[dict], labels: dict[str, str], items: dict[str, dict]) -> dict:
+    """The aggregate, broken down the ways it could otherwise hide a weakness: each
+    document kind (single-snippet claims, by the kind of their snippet), claims citing
+    several sources, and claims that state a number or a date. Thresholds stay on the
+    aggregate (D-23); these say where a miss, or a near miss, comes from."""
+    single = [r for r in rows if len(items[r["id"]]["snippets"]) == 1]
+    kinds = sorted({items[r["id"]]["snippets"][0]["kind"] for r in single})
+    return {
+        "by_document_kind": {
+            k: _slice([r for r in single if items[r["id"]]["snippets"][0]["kind"] == k], labels)
+            for k in kinds
+        },
+        "multi_source": _slice([r for r in rows if len(items[r["id"]]["snippets"]) > 1], labels),
+        "single_source": _slice(single, labels),
+        "numeric_or_date": _slice(
+            [r for r in rows if _NUMERIC.search(items[r["id"]]["claim"])], labels
+        ),
+        "no_number_or_date": _slice(
+            [r for r in rows if not _NUMERIC.search(items[r["id"]]["claim"])], labels
+        ),
+    }
+
+
 def _slug(route: str) -> str:
     return "".join(c if c.isalnum() else "-" for c in route).strip("-").lower() or "unknown"
 
@@ -206,6 +269,7 @@ async def run(limit: int | None = None) -> dict:
         "preflight": bool(limit),
         "thresholds": THRESHOLDS,
         "result": score(rows, labels),
+        "slices": slices(rows, labels, {i["id"]: i for i in chosen}),
         "calls": sum(r["calls"] for r in rows),
         "tokens_in": sum(r["tokens_in"] for r in rows),
         "tokens_out": sum(r["tokens_out"] for r in rows),
@@ -251,6 +315,13 @@ async def main() -> int:
     print(f"false-reject       {_pct(r['false_reject'])}")
     print(f"contradicted recall {_pct(r['contradicted_recall'])}")
     print(f"meets threshold    {r.get('meets_threshold')}")
+    sl = result["slices"]
+    rows = [(f"kind {k}", v) for k, v in sl["by_document_kind"].items()]
+    rows += [(k.replace("_", " "), sl[k]) for k in ("multi_source", "numeric_or_date")]
+    for name, v in rows:
+        mark = " (indicative)" if v["indicative_only"] else ""
+        print(f"  {name:<22} n={v['claims']:<4} false-accept {_pct(v['false_accept'])}"
+              f"  false-reject {_pct(v['false_reject'])}{mark}")  # fmt: skip
     if args.write:
         path = _result_path(datetime.now(UTC).date().isoformat(), result["critic_routing"])
         path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

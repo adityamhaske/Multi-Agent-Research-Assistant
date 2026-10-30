@@ -42,7 +42,10 @@ async def test_a_selection_run_reports_its_check_apart_from_its_research(store):
         assert r["check_calls"] >= 1 and r["check_seconds"] is not None
         assert 0 <= r["check_seconds"] <= r["wall_seconds"]
 
+    assert all(r["check_retries"] == 0 for r in rows), "a scripted checker never retries"
+
     summary = cc.summarise(rows, priced=False)
+    assert summary["check_retries_total"] == 0 and summary["runs_with_a_retry"] == 0
     assert summary["cost_measured"] is False
     assert all(v["check_cost_usd_median"] is None for v in summary["by_selection_size"].values())
     p50 = summary["latency_p50"]
