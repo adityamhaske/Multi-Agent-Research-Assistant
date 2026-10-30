@@ -136,7 +136,9 @@ def _backup(src: Path, dst: Path) -> None:
     with contextlib.closing(sqlite3.connect(src)) as source:
         with contextlib.closing(sqlite3.connect(tmp)) as target:
             source.backup(target)
-    with open(tmp, "rb") as fh:
+    # Writable, not "rb": Windows' fsync (_commit) refuses a read-only handle with EBADF,
+    # which every launch upgrading a pre-3.1 store hit before the move could begin.
+    with open(tmp, "r+b") as fh:
         os.fsync(fh.fileno())
     os.replace(tmp, dst)
 
@@ -247,7 +249,9 @@ async def migrate_legacy_corpus(data_dir: str | Path, session_factory, user_id) 
     | `per_project`, project store missing/damaged | rebuild from the backup, or refuse to serve|
 
     A failed check leaves `shared` in force and raises `MigrationRefused`; the caller keeps
-    the app running on the shared store with a visible warning.
+    the app running on the shared store with a visible warning. It treats an `OSError` from
+    the copy (a full disk, a locked file, a platform refusing a call) the same way, because a
+    move that cannot run must never stop the engine starting.
     """
     from app.models.project import Project
 

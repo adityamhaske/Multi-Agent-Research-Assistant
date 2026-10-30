@@ -10,7 +10,9 @@ only way a user's data directory is ever recovered.
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import sys
 
 import httpx
 import pytest
@@ -188,3 +190,45 @@ async def test_a_fresh_install_has_no_legacy_project(tmp_path):
     projects, _, warning = await _launch(tmp_path)
     assert corpus_layout.LEGACY_PROJECT_NAME not in projects
     assert warning is None
+
+
+def _windows_fsync(real):
+    """`os.fsync` as Windows behaves: `_commit` refuses a read-only descriptor with EBADF.
+    The backend suite runs on Linux, where fsync accepts any descriptor, so without this the
+    move passed here and failed on every Windows desktop at launch."""
+    import errno
+    import fcntl
+
+    def fsync(fd):
+        if fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE == os.O_RDONLY:
+            raise OSError(errno.EBADF, "Bad file descriptor")
+        return real(fd)
+
+    return fsync
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="emulates Windows from POSIX descriptor flags")
+async def test_the_move_completes_where_fsync_needs_a_writable_handle(tmp_path, monkeypatch):
+    before = await _legacy_store(tmp_path)
+    monkeypatch.setattr(corpus_layout.os, "fsync", _windows_fsync(os.fsync))
+
+    projects, docs, warning = await _launch(tmp_path)
+
+    assert warning is None, warning
+    assert docs[corpus_layout.LEGACY_PROJECT_NAME] == sorted(i for i, _ in before)
+
+
+async def test_an_os_error_during_the_move_keeps_the_shared_store_and_the_app_starts(
+    tmp_path, monkeypatch
+):
+    before = await _legacy_store(tmp_path)
+
+    def locked(_src, _dst):
+        raise PermissionError(13, "The process cannot access the file")
+
+    monkeypatch.setattr(corpus_layout, "_backup", locked)
+    projects, docs, warning = await _launch(tmp_path)
+
+    assert warning and "cannot access the file" in warning
+    assert corpus_layout.LEGACY_PROJECT_NAME not in projects
+    assert docs["General"] == sorted(i for i, _ in before), "still served from the shared store"

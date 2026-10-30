@@ -928,7 +928,7 @@ def create_sidecar_app(
         # leaves the shared store in force and says why (desktop/corpus_layout.py).
         try:
             layout = await migrate_legacy_corpus(data_path, session_factory, user.id)
-        except (MigrationRefused, sqlite3.Error) as e:
+        except (MigrationRefused, sqlite3.Error, OSError) as e:
             logger.error("corpus_legacy_migration_refused", error=str(e))
             layout, state["corpus_warning"] = SHARED, f"Documents were not moved: {e}"
         state["corpus"] = DesktopCorpusLocator(data_path, layout, fake=fake)
