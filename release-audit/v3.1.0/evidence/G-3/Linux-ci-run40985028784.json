@@ -1,0 +1,83 @@
+{
+  "gate": "G-3",
+  "generated_at": "2026-10-30T01:19:57Z",
+  "platform": "linux",
+  "installer": {
+    "name": "Research.Assistant_3.0.2_amd64.AppImage",
+    "sha256": "2c7cff61bd5ec149641d3434c68de06c35cb601591104e62b3cfc8cb3ac12f20",
+    "matches_SHA256SUMS": true
+  },
+  "binary": "/home/runner/work/_temp/rel302/squashfs-root/usr/lib/Research Assistant/sidecar/research-sidecar",
+  "directories": {
+    "migrated": {
+      "result": "PASS",
+      "version": {
+        "version": "3.0.2",
+        "git_sha": "0a9de70ee90485531120856fce7f5dde4041c0aa",
+        "dirty": false,
+        "contract_version": "fdcd9fceecf4f347",
+        "built_at": "2026-10-19T18:44:15+00:00"
+      },
+      "projects": [
+        "Documents from before 3.1",
+        "General",
+        "Made in 3.1",
+        "Second project",
+        "Upgrade fixture"
+      ],
+      "documents_listed": 0,
+      "search": null,
+      "log_tail": "{\"ready\": true, \"host\": \"127.0.0.1\", \"port\": 40881, \"token\": \"REDACTED\"}"
+    },
+    "restored": {
+      "result": "PASS",
+      "version": {
+        "version": "3.0.2",
+        "git_sha": "0a9de70ee90485531120856fce7f5dde4041c0aa",
+        "dirty": false,
+        "contract_version": "fdcd9fceecf4f347",
+        "built_at": "2026-10-19T18:44:15+00:00"
+      },
+      "projects": [
+        "Documents from before 3.1",
+        "General",
+        "Made in 3.1",
+        "Second project",
+        "Upgrade fixture"
+      ],
+      "documents_listed": 8,
+      "search": {
+        "run_id": "23d6ee38-aee6-4c9c-936f-dc5af9d59473",
+        "cited": [
+          "4ce43142-3ab2-4dc1-95e4-d680aa76489e",
+          "629d41d6-c27e-417f-ac1b-01f07e8dd8a6",
+          "a432ef89-f862-466f-b3f2-42c93c9a8000"
+        ]
+      },
+      "log_tail": "{\"ready\": true, \"host\": \"127.0.0.1\", \"port\": 46639, \"token\": \"REDACTED\"}"
+    },
+    "corpus31": {
+      "result": "PASS",
+      "version": {
+        "version": "3.0.2",
+        "git_sha": "0a9de70ee90485531120856fce7f5dde4041c0aa",
+        "dirty": false,
+        "contract_version": "fdcd9fceecf4f347",
+        "built_at": "2026-10-19T18:44:15+00:00"
+      },
+      "projects": [
+        "General"
+      ],
+      "documents_listed": 7,
+      "search": {
+        "run_id": "7ea6edc4-30b7-4889-8fe2-a14bf7e732d7",
+        "cited": [
+          "5f6a95c6-2006-4d16-8387-b940395a23ef",
+          "8053151d-3d73-4e7a-ab87-c50df25016e4"
+        ]
+      },
+      "log_tail": "{\"ready\": true, \"host\": \"127.0.0.1\", \"port\": 39563, \"token\": \"REDACTED\"}\n{\"session_id\": \"fe253dc2-7c0f-4e64-9491-cd506c866e2f\", \"event\": \"sidecar_demo_seeded\", \"level\": \"info\", \"timestamp\": \"2026-10-30T01:20:05.989039Z\"}"
+    }
+  },
+  "result": "PASS"
+}
