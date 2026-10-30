@@ -1,8 +1,9 @@
 """The G-6 reference labels, made by an LLM judge (V3.1-scope-freeze.md, amendment A-1).
 
 RFC §17 asked for a person to label the 425 claims. The owner decided on 2026-10-29 to label
-them with Claude Haiku 5.5 as a judge instead. G-6 therefore measures **agreement between
-the shipped checker and Haiku 5.5**, not accuracy against a person. Every result built on
+them with an LLM judge instead: Claude Sonnet 4.5, served through OmniRoute's Kiro connection,
+chosen on a 30-claim trial against Haiku 4.5 (see amendment A-1). G-6 therefore measures **agreement between the
+shipped checker and that judge**, not accuracy against a person. Every result built on
 these labels says so (`labels.json`'s `labeller` block, copied into the benchmark result).
 
 What keeps the judge a reference rather than a second opinion of the checker:
@@ -18,7 +19,7 @@ What keeps the judge a reference rather than a second opinion of the checker:
   claim without a reference. The benchmark then refuses until it is labelled, so a
   judge's failure can never become a label.
 
-    python -m evals.grounding_judge                   # every claim, on custom:github/claude-haiku-5.5
+    python -m evals.grounding_judge                   # every claim, on custom:kiro/claude-sonnet-4.5
     python -m evals.grounding_judge --only-missing    # re-ask only the claims still unlabelled
 """
 
@@ -37,9 +38,12 @@ from evals.harness import gateway_routing
 from research_engine.runconfig import reset_run_config, set_run_config
 
 SET = Path(__file__).resolve().parent / "datasets" / "grounding" / "v1"
-DEFAULT_ROUTE = "custom:github/claude-haiku-5.5"
+DEFAULT_ROUTE = "custom:kiro/claude-sonnet-4.5"
 LABELS = ("supported", "not_supported", "contradicted")
-DECISION = 'owner, 2026-10-29: "use haiku 5.5 to do this, use LLM as judge"'
+DECISION = (
+    'owner, 2026-10-29: "use haiku 5.5 to do this, use LLM as judge"; no Haiku 5.5 route '
+    'answered, then "Use Kiro Haiku 4.5", then "use any cheap and best model"'
+)
 
 #: The labelling page's instructions (G-6 Claim Labels), word for word, plus the answer form.
 RUBRIC = """You label one claim against the snippets it cites. Judge from the snippets alone, \
