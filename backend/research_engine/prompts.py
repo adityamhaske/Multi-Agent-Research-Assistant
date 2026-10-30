@@ -119,7 +119,8 @@ Answer for every claim."""
 # Claim-level grounding for selected-files runs (internal/rfcs/V3.1-corpus-scope.md §9).
 # All four are PROTECTED: they decide what counts as supported, and a user who could
 # rewrite them would grade their own report. None asks the model to decide anything the
-# code can check — spans, citation numbers and quantities are verified in
+# code can check — each quote is located in the sentence (the span is measured, never
+# taken from the model), and citation numbers and quantities are verified in
 # `research_engine/grounding.py` after the model answers.
 
 CLAIM_DECOMPOSE_PROMPT = f"""You split sentences from a research report into atomic claims.
@@ -129,12 +130,15 @@ semicolon usually holds several.
 
 For every numbered sentence, return its claims. For each claim give:
 - "text": the claim as a standalone assertion;
-- "span": [start, end], character offsets of the claim's words inside the sentence as given;
+- "quote": the words of the sentence this claim rests on, as one unbroken stretch copied
+  exactly, with nothing added, skipped or changed. Quotes of one sentence must not overlap:
+  when two claims share words (a subject both clauses describe), give those words to one
+  quote only;
 - "cites": the citation numbers from that sentence's own [n] markers that the claim relies on;
 - "calculation": null, or when the claim states a value computed from others (a difference,
   sum, ratio or percentage change), {{"op": "add" | "subtract" | "multiply" | "divide" |
   "percent_change", "operands": [<value>, <value>], "result": <value>}}, values as written.
-Every number, date, name and quoted phrase in a sentence must fall inside some claim's span.
+Every number, date, name and quoted phrase in a sentence must fall inside some claim's quote.
 A sentence that asserts nothing returns an empty list.
 
 Return ONLY a JSON array: [{{"sentence": 1, "claims": [...]}}, ...]. Cover every sentence.
