@@ -1,11 +1,11 @@
 {
  "g001": {
-  "category": "wrong_period",
+  "category": "wrong_subject",
   "written_as": "not_supported"
  },
  "g002": {
-  "category": "paraphrase",
-  "written_as": "supported"
+  "category": "wrong_number",
+  "written_as": "contradicted"
  },
  "g003": {
   "category": "wrong_number",
@@ -16,251 +16,251 @@
   "written_as": "not_supported"
  },
  "g005": {
-  "category": "rounding",
-  "written_as": "supported"
- },
- "g006": {
-  "category": "one_of_two_missing",
-  "written_as": "not_supported"
- },
- "g007": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g008": {
-  "category": "opposite_direction",
-  "written_as": "contradicted"
- },
- "g009": {
-  "category": "one_of_two_missing",
-  "written_as": "not_supported"
- },
- "g010": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g011": {
-  "category": "stated_cause",
-  "written_as": "supported"
- },
- "g012": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g013": {
-  "category": "relevant_not_supporting",
-  "written_as": "not_supported"
- },
- "g014": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g015": {
   "category": "compound_invented_clause",
   "written_as": "not_supported"
  },
- "g016": {
-  "category": "rounding",
+ "g006": {
+  "category": "computed_or_unit",
   "written_as": "supported"
  },
+ "g007": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g008": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g009": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g010": {
+  "category": "computed_or_unit",
+  "written_as": "supported"
+ },
+ "g011": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g012": {
+  "category": "one_of_two_missing",
+  "written_as": "not_supported"
+ },
+ "g013": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g014": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g015": {
+  "category": "added_inference",
+  "written_as": "not_supported"
+ },
+ "g016": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
  "g017": {
-  "category": "parenthetical",
+  "category": "compound_invented_clause",
   "written_as": "not_supported"
  },
  "g018": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g019": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g020": {
   "category": "rounding",
   "written_as": "supported"
  },
- "g021": {
-  "category": "needs_both_sources",
+ "g019": {
+  "category": "paraphrase",
   "written_as": "supported"
  },
+ "g020": {
+  "category": "stated_cause",
+  "written_as": "supported"
+ },
+ "g021": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
  "g022": {
-  "category": "parenthetical",
+  "category": "added_inference",
   "written_as": "not_supported"
  },
  "g023": {
-  "category": "paraphrase",
-  "written_as": "supported"
+  "category": "parenthetical",
+  "written_as": "not_supported"
  },
  "g024": {
   "category": "paraphrase",
   "written_as": "supported"
  },
  "g025": {
-  "category": "one_of_two_missing",
-  "written_as": "not_supported"
- },
- "g026": {
-  "category": "paraphrase",
+  "category": "needs_both_sources",
   "written_as": "supported"
  },
+ "g026": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
  "g027": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g028": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g029": {
   "category": "added_inference",
   "written_as": "not_supported"
  },
- "g030": {
-  "category": "stated_cause",
-  "written_as": "supported"
- },
- "g031": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g032": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g033": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g034": {
-  "category": "one_of_two_missing",
-  "written_as": "not_supported"
- },
- "g035": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g036": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g037": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
- },
- "g038": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g039": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g040": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g041": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g042": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
- },
- "g043": {
-  "category": "relevant_not_supporting",
-  "written_as": "not_supported"
- },
- "g044": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g045": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g046": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g047": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g048": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
- },
- "g049": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g050": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g051": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
- },
- "g052": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
- },
- "g053": {
-  "category": "rounding",
-  "written_as": "supported"
- },
- "g054": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g055": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g056": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g057": {
-  "category": "computed_or_unit",
-  "written_as": "supported"
- },
- "g058": {
+ "g028": {
   "category": "opposite_direction",
   "written_as": "contradicted"
  },
- "g059": {
+ "g029": {
   "category": "wrong_subject",
   "written_as": "not_supported"
  },
- "g060": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g061": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g062": {
+ "g030": {
   "category": "wrong_number",
   "written_as": "contradicted"
  },
- "g063": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g064": {
+ "g031": {
   "category": "paraphrase",
   "written_as": "supported"
  },
- "g065": {
+ "g032": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
+ "g033": {
+  "category": "needs_both_sources",
+  "written_as": "supported"
+ },
+ "g034": {
+  "category": "needs_both_sources",
+  "written_as": "supported"
+ },
+ "g035": {
+  "category": "rounding",
+  "written_as": "supported"
+ },
+ "g036": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g037": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g038": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
+ "g039": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g040": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g041": {
+  "category": "one_of_two_missing",
+  "written_as": "not_supported"
+ },
+ "g042": {
+  "category": "added_inference",
+  "written_as": "not_supported"
+ },
+ "g043": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g044": {
+  "category": "opposite_direction",
+  "written_as": "contradicted"
+ },
+ "g045": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g046": {
+  "category": "added_inference",
+  "written_as": "not_supported"
+ },
+ "g047": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
+ "g048": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g049": {
   "category": "compound_invented_clause",
   "written_as": "not_supported"
  },
- "g066": {
+ "g050": {
+  "category": "needs_both_sources",
+  "written_as": "supported"
+ },
+ "g051": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g052": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g053": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g054": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g055": {
   "category": "one_of_two_missing",
+  "written_as": "not_supported"
+ },
+ "g056": {
+  "category": "rounding",
+  "written_as": "supported"
+ },
+ "g057": {
+  "category": "added_inference",
+  "written_as": "not_supported"
+ },
+ "g058": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g059": {
+  "category": "stated_cause",
+  "written_as": "supported"
+ },
+ "g060": {
+  "category": "rounding",
+  "written_as": "supported"
+ },
+ "g061": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g062": {
+  "category": "added_inference",
+  "written_as": "not_supported"
+ },
+ "g063": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g064": {
+  "category": "rounding",
+  "written_as": "supported"
+ },
+ "g065": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g066": {
+  "category": "compound_invented_clause",
   "written_as": "not_supported"
  },
  "g067": {
@@ -272,56 +272,56 @@
   "written_as": "supported"
  },
  "g069": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g070": {
   "category": "rounding",
   "written_as": "supported"
  },
- "g071": {
+ "g070": {
   "category": "wrong_number",
   "written_as": "contradicted"
  },
+ "g071": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
  "g072": {
-  "category": "wrong_subject",
+  "category": "wrong_computation",
   "written_as": "not_supported"
  },
  "g073": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g074": {
-  "category": "computed_or_unit",
-  "written_as": "supported"
- },
- "g075": {
   "category": "wrong_number",
   "written_as": "contradicted"
  },
+ "g074": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g075": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
  "g076": {
+  "category": "needs_both_sources",
+  "written_as": "supported"
+ },
+ "g077": {
   "category": "opposite_direction",
   "written_as": "contradicted"
  },
- "g077": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
  "g078": {
-  "category": "added_inference",
+  "category": "wrong_period",
   "written_as": "not_supported"
  },
  "g079": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
+  "category": "rounding",
+  "written_as": "supported"
  },
  "g080": {
-  "category": "parenthetical",
+  "category": "wrong_subject",
   "written_as": "not_supported"
  },
  "g081": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
+  "category": "wrong_number",
+  "written_as": "contradicted"
  },
  "g082": {
   "category": "wrong_period",
@@ -332,243 +332,243 @@
   "written_as": "not_supported"
  },
  "g084": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
+  "category": "wrong_computation",
+  "written_as": "not_supported"
  },
  "g085": {
   "category": "added_inference",
   "written_as": "not_supported"
  },
  "g086": {
-  "category": "wrong_subject",
+  "category": "parenthetical",
   "written_as": "not_supported"
  },
  "g087": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g088": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g089": {
   "category": "wrong_subject",
   "written_as": "not_supported"
  },
- "g090": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g091": {
+ "g088": {
   "category": "rounding",
   "written_as": "supported"
  },
- "g092": {
-  "category": "wrong_computation",
-  "written_as": "not_supported"
- },
- "g093": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
- },
- "g094": {
-  "category": "stated_cause",
-  "written_as": "supported"
- },
- "g095": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g096": {
-  "category": "needs_both_sources",
-  "written_as": "supported"
- },
- "g097": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g098": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g099": {
-  "category": "rounding",
-  "written_as": "supported"
- },
- "g100": {
-  "category": "opposite_direction",
-  "written_as": "contradicted"
- },
- "g101": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
- },
- "g102": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g103": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g104": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g105": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g106": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g107": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g108": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g109": {
+ "g089": {
   "category": "relevant_not_supporting",
   "written_as": "not_supported"
  },
- "g110": {
+ "g090": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g091": {
   "category": "added_inference",
   "written_as": "not_supported"
  },
- "g111": {
+ "g092": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g093": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g094": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g095": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g096": {
+  "category": "one_of_two_enough",
+  "written_as": "supported"
+ },
+ "g097": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
+ "g098": {
+  "category": "added_inference",
+  "written_as": "not_supported"
+ },
+ "g099": {
+  "category": "added_inference",
+  "written_as": "not_supported"
+ },
+ "g100": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g101": {
+  "category": "computed_or_unit",
+  "written_as": "supported"
+ },
+ "g102": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g103": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
+ "g104": {
   "category": "parenthetical",
   "written_as": "not_supported"
  },
- "g112": {
-  "category": "computed_or_unit",
+ "g105": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g106": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g107": {
+  "category": "rounding",
   "written_as": "supported"
  },
+ "g108": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g109": {
+  "category": "rounding",
+  "written_as": "supported"
+ },
+ "g110": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g111": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g112": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
  "g113": {
-  "category": "added_inference",
+  "category": "compound_invented_clause",
   "written_as": "not_supported"
  },
  "g114": {
-  "category": "computed_or_unit",
-  "written_as": "supported"
+  "category": "relevant_not_supporting",
+  "written_as": "not_supported"
  },
  "g115": {
-  "category": "added_inference",
-  "written_as": "not_supported"
+  "category": "paraphrase",
+  "written_as": "supported"
  },
  "g116": {
   "category": "paraphrase",
   "written_as": "supported"
  },
  "g117": {
-  "category": "rounding",
+  "category": "paraphrase",
   "written_as": "supported"
  },
  "g118": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g119": {
-  "category": "one_of_two_enough",
-  "written_as": "supported"
- },
- "g120": {
-  "category": "one_of_two_enough",
-  "written_as": "supported"
- },
- "g121": {
-  "category": "rounding",
-  "written_as": "supported"
- },
- "g122": {
   "category": "wrong_number",
   "written_as": "contradicted"
  },
- "g123": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g124": {
+ "g119": {
   "category": "opposite_direction",
   "written_as": "contradicted"
  },
- "g125": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g126": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g127": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g128": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g129": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g130": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g131": {
+ "g120": {
   "category": "wrong_subject",
   "written_as": "not_supported"
  },
- "g132": {
-  "category": "stated_cause",
+ "g121": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
+ "g122": {
+  "category": "one_of_two_enough",
   "written_as": "supported"
  },
- "g133": {
+ "g123": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g124": {
+  "category": "added_inference",
+  "written_as": "not_supported"
+ },
+ "g125": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g126": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g127": {
   "category": "wrong_period",
   "written_as": "not_supported"
  },
- "g134": {
-  "category": "compound_invented_clause",
+ "g128": {
+  "category": "stated_cause",
+  "written_as": "supported"
+ },
+ "g129": {
+  "category": "rounding",
+  "written_as": "supported"
+ },
+ "g130": {
+  "category": "wrong_period",
   "written_as": "not_supported"
  },
+ "g131": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g132": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g133": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
+ "g134": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
  "g135": {
-  "category": "relevant_not_supporting",
+  "category": "added_inference",
   "written_as": "not_supported"
  },
  "g136": {
-  "category": "rounding",
-  "written_as": "supported"
+  "category": "added_inference",
+  "written_as": "not_supported"
  },
  "g137": {
   "category": "wrong_subject",
   "written_as": "not_supported"
  },
  "g138": {
-  "category": "one_of_two_enough",
-  "written_as": "supported"
+  "category": "parenthetical",
+  "written_as": "not_supported"
  },
  "g139": {
-  "category": "one_of_two_enough",
-  "written_as": "supported"
+  "category": "wrong_subject",
+  "written_as": "not_supported"
  },
  "g140": {
   "category": "paraphrase",
   "written_as": "supported"
  },
  "g141": {
-  "category": "relevant_not_supporting",
+  "category": "parenthetical",
   "written_as": "not_supported"
  },
  "g142": {
-  "category": "wrong_subject",
+  "category": "compound_invented_clause",
   "written_as": "not_supported"
  },
  "g143": {
-  "category": "wrong_period",
+  "category": "wrong_subject",
   "written_as": "not_supported"
  },
  "g144": {
@@ -576,40 +576,40 @@
   "written_as": "not_supported"
  },
  "g145": {
-  "category": "rounding",
+  "category": "paraphrase",
   "written_as": "supported"
  },
  "g146": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
+  "category": "one_of_two_enough",
+  "written_as": "supported"
  },
  "g147": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
+  "category": "opposite_direction",
+  "written_as": "contradicted"
  },
  "g148": {
-  "category": "rounding",
-  "written_as": "supported"
+  "category": "added_inference",
+  "written_as": "not_supported"
  },
  "g149": {
   "category": "added_inference",
   "written_as": "not_supported"
  },
  "g150": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g151": {
   "category": "parenthetical",
   "written_as": "not_supported"
  },
+ "g151": {
+  "category": "relevant_not_supporting",
+  "written_as": "not_supported"
+ },
  "g152": {
-  "category": "paraphrase",
-  "written_as": "supported"
+  "category": "added_inference",
+  "written_as": "not_supported"
  },
  "g153": {
-  "category": "needs_both_sources",
-  "written_as": "supported"
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
  },
  "g154": {
   "category": "wrong_period",
@@ -620,151 +620,151 @@
   "written_as": "supported"
  },
  "g156": {
-  "category": "stated_cause",
-  "written_as": "supported"
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
  },
  "g157": {
-  "category": "compound_invented_clause",
+  "category": "wrong_subject",
   "written_as": "not_supported"
  },
  "g158": {
-  "category": "parenthetical",
+  "category": "one_of_two_missing",
   "written_as": "not_supported"
  },
  "g159": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g160": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g161": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g162": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g163": {
-  "category": "relevant_not_supporting",
-  "written_as": "not_supported"
- },
- "g164": {
   "category": "parenthetical",
   "written_as": "not_supported"
  },
- "g165": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g166": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g167": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g168": {
-  "category": "relevant_not_supporting",
-  "written_as": "not_supported"
- },
- "g169": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g170": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g171": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g172": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g173": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g174": {
-  "category": "stated_cause",
-  "written_as": "supported"
- },
- "g175": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g176": {
-  "category": "relevant_not_supporting",
-  "written_as": "not_supported"
- },
- "g177": {
+ "g160": {
   "category": "opposite_direction",
   "written_as": "contradicted"
  },
- "g178": {
+ "g161": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g162": {
   "category": "opposite_direction",
   "written_as": "contradicted"
  },
- "g179": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g180": {
-  "category": "opposite_direction",
-  "written_as": "contradicted"
- },
- "g181": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
- },
- "g182": {
-  "category": "stated_cause",
-  "written_as": "supported"
- },
- "g183": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g184": {
+ "g163": {
   "category": "needs_both_sources",
   "written_as": "supported"
  },
- "g185": {
+ "g164": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g165": {
+  "category": "computed_or_unit",
+  "written_as": "supported"
+ },
+ "g166": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
+ "g167": {
   "category": "stated_cause",
   "written_as": "supported"
  },
- "g186": {
+ "g168": {
   "category": "paraphrase",
   "written_as": "supported"
  },
- "g187": {
+ "g169": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g170": {
   "category": "paraphrase",
   "written_as": "supported"
+ },
+ "g171": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
+ "g172": {
+  "category": "stated_cause",
+  "written_as": "supported"
+ },
+ "g173": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g174": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g175": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g176": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g177": {
+  "category": "rounding",
+  "written_as": "supported"
+ },
+ "g178": {
+  "category": "stated_cause",
+  "written_as": "supported"
+ },
+ "g179": {
+  "category": "opposite_direction",
+  "written_as": "contradicted"
+ },
+ "g180": {
+  "category": "added_inference",
+  "written_as": "not_supported"
+ },
+ "g181": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g182": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g183": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g184": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g185": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g186": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g187": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
  },
  "g188": {
   "category": "paraphrase",
   "written_as": "supported"
  },
  "g189": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
+  "category": "wrong_number",
+  "written_as": "contradicted"
  },
  "g190": {
-  "category": "wrong_subject",
+  "category": "relevant_not_supporting",
   "written_as": "not_supported"
  },
  "g191": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
+  "category": "needs_both_sources",
+  "written_as": "supported"
  },
  "g192": {
-  "category": "relevant_not_supporting",
+  "category": "compound_invented_clause",
   "written_as": "not_supported"
  },
  "g193": {
@@ -772,15 +772,15 @@
   "written_as": "not_supported"
  },
  "g194": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g195": {
-  "category": "wrong_period",
+  "category": "added_inference",
   "written_as": "not_supported"
  },
+ "g195": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
  "g196": {
-  "category": "rounding",
+  "category": "paraphrase",
   "written_as": "supported"
  },
  "g197": {
@@ -788,159 +788,159 @@
   "written_as": "supported"
  },
  "g198": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g199": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g200": {
   "category": "one_of_two_enough",
   "written_as": "supported"
  },
+ "g199": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g200": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
  "g201": {
-  "category": "added_inference",
+  "category": "wrong_period",
   "written_as": "not_supported"
  },
  "g202": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
+  "category": "computed_or_unit",
+  "written_as": "supported"
  },
  "g203": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g204": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g205": {
   "category": "parenthetical",
   "written_as": "not_supported"
  },
- "g206": {
-  "category": "needs_both_sources",
+ "g204": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g205": {
+  "category": "stated_cause",
   "written_as": "supported"
  },
+ "g206": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
  "g207": {
-  "category": "compound_invented_clause",
+  "category": "parenthetical",
   "written_as": "not_supported"
  },
  "g208": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
+  "category": "paraphrase",
+  "written_as": "supported"
  },
  "g209": {
-  "category": "paraphrase",
+  "category": "rounding",
   "written_as": "supported"
  },
  "g210": {
-  "category": "paraphrase",
+  "category": "stated_cause",
   "written_as": "supported"
  },
  "g211": {
-  "category": "wrong_period",
+  "category": "one_of_two_missing",
   "written_as": "not_supported"
  },
  "g212": {
-  "category": "needs_both_sources",
-  "written_as": "supported"
+  "category": "parenthetical",
+  "written_as": "not_supported"
  },
  "g213": {
   "category": "added_inference",
   "written_as": "not_supported"
  },
  "g214": {
-  "category": "added_inference",
-  "written_as": "not_supported"
+  "category": "paraphrase",
+  "written_as": "supported"
  },
  "g215": {
   "category": "paraphrase",
   "written_as": "supported"
  },
  "g216": {
-  "category": "stated_cause",
-  "written_as": "supported"
- },
- "g217": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g218": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
- },
- "g219": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g220": {
   "category": "parenthetical",
   "written_as": "not_supported"
  },
- "g221": {
+ "g217": {
   "category": "wrong_number",
   "written_as": "contradicted"
  },
- "g222": {
-  "category": "wrong_computation",
-  "written_as": "not_supported"
- },
- "g223": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g224": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g225": {
-  "category": "computed_or_unit",
-  "written_as": "supported"
- },
- "g226": {
-  "category": "stated_cause",
-  "written_as": "supported"
- },
- "g227": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g228": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
- },
- "g229": {
-  "category": "stated_cause",
-  "written_as": "supported"
- },
- "g230": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
- },
- "g231": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
- },
- "g232": {
+ "g218": {
   "category": "paraphrase",
   "written_as": "supported"
  },
- "g233": {
-  "category": "rounding",
+ "g219": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g220": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g221": {
+  "category": "wrong_computation",
+  "written_as": "not_supported"
+ },
+ "g222": {
+  "category": "added_inference",
+  "written_as": "not_supported"
+ },
+ "g223": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g224": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g225": {
+  "category": "one_of_two_enough",
   "written_as": "supported"
  },
- "g234": {
-  "category": "rounding",
+ "g226": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g227": {
+  "category": "added_inference",
+  "written_as": "not_supported"
+ },
+ "g228": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g229": {
+  "category": "paraphrase",
   "written_as": "supported"
+ },
+ "g230": {
+  "category": "stated_cause",
+  "written_as": "supported"
+ },
+ "g231": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g232": {
+  "category": "relevant_not_supporting",
+  "written_as": "not_supported"
+ },
+ "g233": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g234": {
+  "category": "added_inference",
+  "written_as": "not_supported"
  },
  "g235": {
   "category": "one_of_two_missing",
   "written_as": "not_supported"
  },
  "g236": {
-  "category": "wrong_period",
+  "category": "wrong_subject",
   "written_as": "not_supported"
  },
  "g237": {
@@ -948,303 +948,303 @@
   "written_as": "not_supported"
  },
  "g238": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g239": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g240": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g241": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
- },
- "g242": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g243": {
-  "category": "opposite_direction",
-  "written_as": "contradicted"
- },
- "g244": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g245": {
-  "category": "wrong_computation",
-  "written_as": "not_supported"
- },
- "g246": {
   "category": "added_inference",
   "written_as": "not_supported"
  },
- "g247": {
+ "g239": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
+ "g240": {
+  "category": "added_inference",
+  "written_as": "not_supported"
+ },
+ "g241": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g242": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
+ "g243": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g244": {
+  "category": "wrong_computation",
+  "written_as": "not_supported"
+ },
+ "g245": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g246": {
   "category": "parenthetical",
   "written_as": "not_supported"
+ },
+ "g247": {
+  "category": "stated_cause",
+  "written_as": "supported"
  },
  "g248": {
   "category": "paraphrase",
   "written_as": "supported"
  },
  "g249": {
-  "category": "one_of_two_enough",
-  "written_as": "supported"
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
  },
  "g250": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g251": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g252": {
   "category": "wrong_period",
   "written_as": "not_supported"
  },
- "g253": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g254": {
+ "g251": {
   "category": "wrong_number",
   "written_as": "contradicted"
  },
- "g255": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
+ "g252": {
+  "category": "stated_cause",
+  "written_as": "supported"
  },
- "g256": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g257": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g258": {
+ "g253": {
   "category": "wrong_subject",
   "written_as": "not_supported"
  },
- "g259": {
+ "g254": {
   "category": "rounding",
   "written_as": "supported"
  },
+ "g255": {
+  "category": "opposite_direction",
+  "written_as": "contradicted"
+ },
+ "g256": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g257": {
+  "category": "added_inference",
+  "written_as": "not_supported"
+ },
+ "g258": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
+ "g259": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
  "g260": {
-  "category": "paraphrase",
-  "written_as": "supported"
+  "category": "parenthetical",
+  "written_as": "not_supported"
  },
  "g261": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
+  "category": "added_inference",
+  "written_as": "not_supported"
  },
  "g262": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
+  "category": "stated_cause",
+  "written_as": "supported"
  },
  "g263": {
   "category": "paraphrase",
   "written_as": "supported"
  },
  "g264": {
-  "category": "wrong_subject",
+  "category": "wrong_period",
   "written_as": "not_supported"
  },
  "g265": {
-  "category": "one_of_two_enough",
-  "written_as": "supported"
- },
- "g266": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g267": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g268": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g269": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g270": {
-  "category": "rounding",
-  "written_as": "supported"
- },
- "g271": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g272": {
-  "category": "needs_both_sources",
-  "written_as": "supported"
- },
- "g273": {
   "category": "wrong_number",
   "written_as": "contradicted"
  },
- "g274": {
-  "category": "paraphrase",
+ "g266": {
+  "category": "computed_or_unit",
   "written_as": "supported"
  },
- "g275": {
-  "category": "paraphrase",
+ "g267": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
+ "g268": {
+  "category": "one_of_two_enough",
   "written_as": "supported"
+ },
+ "g269": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g270": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g271": {
+  "category": "stated_cause",
+  "written_as": "supported"
+ },
+ "g272": {
+  "category": "computed_or_unit",
+  "written_as": "supported"
+ },
+ "g273": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g274": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g275": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
  },
  "g276": {
   "category": "paraphrase",
   "written_as": "supported"
  },
  "g277": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g278": {
-  "category": "wrong_number",
+  "category": "opposite_direction",
   "written_as": "contradicted"
  },
+ "g278": {
+  "category": "needs_both_sources",
+  "written_as": "supported"
+ },
  "g279": {
-  "category": "computed_or_unit",
+  "category": "stated_cause",
   "written_as": "supported"
  },
  "g280": {
-  "category": "opposite_direction",
-  "written_as": "contradicted"
+  "category": "parenthetical",
+  "written_as": "not_supported"
  },
  "g281": {
-  "category": "one_of_two_enough",
-  "written_as": "supported"
- },
- "g282": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g283": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g284": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g285": {
-  "category": "computed_or_unit",
-  "written_as": "supported"
- },
- "g286": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g287": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g288": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g289": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g290": {
-  "category": "opposite_direction",
-  "written_as": "contradicted"
- },
- "g291": {
-  "category": "needs_both_sources",
-  "written_as": "supported"
- },
- "g292": {
-  "category": "stated_cause",
-  "written_as": "supported"
- },
- "g293": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g294": {
   "category": "one_of_two_missing",
   "written_as": "not_supported"
  },
- "g295": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g296": {
-  "category": "stated_cause",
-  "written_as": "supported"
- },
- "g297": {
-  "category": "relevant_not_supporting",
-  "written_as": "not_supported"
- },
- "g298": {
+ "g282": {
   "category": "added_inference",
   "written_as": "not_supported"
  },
- "g299": {
-  "category": "wrong_computation",
-  "written_as": "not_supported"
+ "g283": {
+  "category": "opposite_direction",
+  "written_as": "contradicted"
  },
- "g300": {
-  "category": "stated_cause",
-  "written_as": "supported"
- },
- "g301": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g302": {
+ "g284": {
   "category": "compound_invented_clause",
   "written_as": "not_supported"
  },
- "g303": {
-  "category": "wrong_number",
+ "g285": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g286": {
+  "category": "added_inference",
+  "written_as": "not_supported"
+ },
+ "g287": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g288": {
+  "category": "opposite_direction",
   "written_as": "contradicted"
  },
- "g304": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g305": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g306": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g307": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g308": {
+ "g289": {
   "category": "needs_both_sources",
   "written_as": "supported"
  },
- "g309": {
+ "g290": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g291": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g292": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g293": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g294": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g295": {
+  "category": "needs_both_sources",
+  "written_as": "supported"
+ },
+ "g296": {
   "category": "one_of_two_missing",
   "written_as": "not_supported"
  },
- "g310": {
+ "g297": {
   "category": "computed_or_unit",
   "written_as": "supported"
+ },
+ "g298": {
+  "category": "computed_or_unit",
+  "written_as": "supported"
+ },
+ "g299": {
+  "category": "stated_cause",
+  "written_as": "supported"
+ },
+ "g300": {
+  "category": "added_inference",
+  "written_as": "not_supported"
+ },
+ "g301": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g302": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g303": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g304": {
+  "category": "opposite_direction",
+  "written_as": "contradicted"
+ },
+ "g305": {
+  "category": "stated_cause",
+  "written_as": "supported"
+ },
+ "g306": {
+  "category": "computed_or_unit",
+  "written_as": "supported"
+ },
+ "g307": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g308": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g309": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g310": {
+  "category": "added_inference",
+  "written_as": "not_supported"
  },
  "g311": {
-  "category": "computed_or_unit",
-  "written_as": "supported"
+  "category": "relevant_not_supporting",
+  "written_as": "not_supported"
  },
  "g312": {
-  "category": "stated_cause",
+  "category": "paraphrase",
   "written_as": "supported"
  },
  "g313": {
@@ -1252,299 +1252,299 @@
   "written_as": "not_supported"
  },
  "g314": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g315": {
-  "category": "one_of_two_missing",
-  "written_as": "not_supported"
- },
- "g316": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g317": {
-  "category": "wrong_number",
+  "category": "opposite_direction",
   "written_as": "contradicted"
  },
- "g318": {
+ "g315": {
+  "category": "rounding",
+  "written_as": "supported"
+ },
+ "g316": {
   "category": "stated_cause",
   "written_as": "supported"
  },
+ "g317": {
+  "category": "one_of_two_missing",
+  "written_as": "not_supported"
+ },
+ "g318": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
  "g319": {
-  "category": "computed_or_unit",
+  "category": "stated_cause",
   "written_as": "supported"
  },
  "g320": {
-  "category": "wrong_period",
+  "category": "relevant_not_supporting",
   "written_as": "not_supported"
  },
  "g321": {
-  "category": "paraphrase",
-  "written_as": "supported"
+  "category": "added_inference",
+  "written_as": "not_supported"
  },
  "g322": {
   "category": "paraphrase",
   "written_as": "supported"
  },
  "g323": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
+  "category": "wrong_number",
+  "written_as": "contradicted"
  },
  "g324": {
-  "category": "relevant_not_supporting",
+  "category": "added_inference",
   "written_as": "not_supported"
  },
  "g325": {
-  "category": "stated_cause",
-  "written_as": "supported"
+  "category": "added_inference",
+  "written_as": "not_supported"
  },
  "g326": {
   "category": "paraphrase",
   "written_as": "supported"
  },
  "g327": {
-  "category": "added_inference",
+  "category": "relevant_not_supporting",
   "written_as": "not_supported"
  },
  "g328": {
-  "category": "parenthetical",
+  "category": "wrong_subject",
   "written_as": "not_supported"
  },
  "g329": {
-  "category": "rounding",
-  "written_as": "supported"
+  "category": "added_inference",
+  "written_as": "not_supported"
  },
  "g330": {
-  "category": "stated_cause",
-  "written_as": "supported"
- },
- "g331": {
-  "category": "one_of_two_missing",
-  "written_as": "not_supported"
- },
- "g332": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g333": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g334": {
-  "category": "stated_cause",
-  "written_as": "supported"
- },
- "g335": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g336": {
-  "category": "needs_both_sources",
-  "written_as": "supported"
- },
- "g337": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g338": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g339": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g340": {
   "category": "opposite_direction",
   "written_as": "contradicted"
  },
- "g341": {
-  "category": "one_of_two_missing",
-  "written_as": "not_supported"
- },
- "g342": {
-  "category": "one_of_two_enough",
+ "g331": {
+  "category": "needs_both_sources",
   "written_as": "supported"
  },
- "g343": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
- },
- "g344": {
-  "category": "wrong_computation",
-  "written_as": "not_supported"
- },
- "g345": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g346": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g347": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g348": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g349": {
+ "g332": {
   "category": "wrong_period",
   "written_as": "not_supported"
  },
- "g350": {
+ "g333": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
+ "g334": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g335": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g336": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g337": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
+ },
+ "g338": {
   "category": "parenthetical",
   "written_as": "not_supported"
  },
- "g351": {
+ "g339": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g340": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g341": {
   "category": "compound_invented_clause",
   "written_as": "not_supported"
  },
- "g352": {
+ "g342": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g343": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
+ "g344": {
+  "category": "rounding",
+  "written_as": "supported"
+ },
+ "g345": {
+  "category": "opposite_direction",
+  "written_as": "contradicted"
+ },
+ "g346": {
+  "category": "rounding",
+  "written_as": "supported"
+ },
+ "g347": {
+  "category": "opposite_direction",
+  "written_as": "contradicted"
+ },
+ "g348": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g349": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g350": {
   "category": "wrong_number",
   "written_as": "contradicted"
+ },
+ "g351": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g352": {
+  "category": "one_of_two_enough",
+  "written_as": "supported"
  },
  "g353": {
   "category": "wrong_period",
   "written_as": "not_supported"
  },
  "g354": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g355": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g356": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g357": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g358": {
-  "category": "wrong_computation",
-  "written_as": "not_supported"
- },
- "g359": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g360": {
   "category": "one_of_two_enough",
   "written_as": "supported"
  },
- "g361": {
-  "category": "needs_both_sources",
-  "written_as": "supported"
+ "g355": {
+  "category": "wrong_period",
+  "written_as": "not_supported"
  },
- "g362": {
+ "g356": {
   "category": "wrong_subject",
   "written_as": "not_supported"
  },
- "g363": {
-  "category": "rounding",
-  "written_as": "supported"
- },
- "g364": {
-  "category": "opposite_direction",
-  "written_as": "contradicted"
- },
- "g365": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g366": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g367": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g368": {
-  "category": "opposite_direction",
-  "written_as": "contradicted"
- },
- "g369": {
+ "g357": {
   "category": "wrong_subject",
   "written_as": "not_supported"
  },
- "g370": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
+ "g358": {
+  "category": "one_of_two_enough",
+  "written_as": "supported"
  },
- "g371": {
-  "category": "relevant_not_supporting",
-  "written_as": "not_supported"
- },
- "g372": {
-  "category": "opposite_direction",
-  "written_as": "contradicted"
- },
- "g373": {
-  "category": "opposite_direction",
-  "written_as": "contradicted"
- },
- "g374": {
-  "category": "wrong_period",
-  "written_as": "not_supported"
- },
- "g375": {
+ "g359": {
   "category": "parenthetical",
   "written_as": "not_supported"
  },
- "g376": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g377": {
+ "g360": {
   "category": "stated_cause",
   "written_as": "supported"
  },
- "g378": {
-  "category": "parenthetical",
+ "g361": {
+  "category": "wrong_period",
   "written_as": "not_supported"
  },
- "g379": {
+ "g362": {
   "category": "paraphrase",
   "written_as": "supported"
  },
- "g380": {
-  "category": "parenthetical",
+ "g363": {
+  "category": "one_of_two_missing",
   "written_as": "not_supported"
  },
- "g381": {
+ "g364": {
   "category": "needs_both_sources",
   "written_as": "supported"
  },
- "g382": {
+ "g365": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g366": {
   "category": "wrong_number",
   "written_as": "contradicted"
  },
- "g383": {
+ "g367": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g368": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g369": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g370": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g371": {
+  "category": "rounding",
+  "written_as": "supported"
+ },
+ "g372": {
+  "category": "stated_cause",
+  "written_as": "supported"
+ },
+ "g373": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g374": {
+  "category": "opposite_direction",
+  "written_as": "contradicted"
+ },
+ "g375": {
+  "category": "computed_or_unit",
+  "written_as": "supported"
+ },
+ "g376": {
+  "category": "stated_cause",
+  "written_as": "supported"
+ },
+ "g377": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
+ "g378": {
+  "category": "one_of_two_enough",
+  "written_as": "supported"
+ },
+ "g379": {
+  "category": "stated_cause",
+  "written_as": "supported"
+ },
+ "g380": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g381": {
   "category": "wrong_subject",
   "written_as": "not_supported"
  },
- "g384": {
+ "g382": {
+  "category": "rounding",
+  "written_as": "supported"
+ },
+ "g383": {
   "category": "added_inference",
   "written_as": "not_supported"
  },
- "g385": {
+ "g384": {
   "category": "wrong_number",
   "written_as": "contradicted"
  },
+ "g385": {
+  "category": "wrong_subject",
+  "written_as": "not_supported"
+ },
  "g386": {
-  "category": "added_inference",
+  "category": "wrong_period",
   "written_as": "not_supported"
  },
  "g387": {
-  "category": "opposite_direction",
+  "category": "wrong_number",
   "written_as": "contradicted"
  },
  "g388": {
@@ -1552,40 +1552,40 @@
   "written_as": "supported"
  },
  "g389": {
-  "category": "rounding",
-  "written_as": "supported"
+  "category": "opposite_direction",
+  "written_as": "contradicted"
  },
  "g390": {
-  "category": "stated_cause",
-  "written_as": "supported"
- },
- "g391": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g392": {
-  "category": "wrong_subject",
-  "written_as": "not_supported"
- },
- "g393": {
   "category": "computed_or_unit",
   "written_as": "supported"
  },
- "g394": {
-  "category": "stated_cause",
-  "written_as": "supported"
- },
- "g395": {
-  "category": "paraphrase",
-  "written_as": "supported"
- },
- "g396": {
+ "g391": {
   "category": "one_of_two_enough",
   "written_as": "supported"
  },
- "g397": {
-  "category": "stated_cause",
+ "g392": {
+  "category": "compound_invented_clause",
+  "written_as": "not_supported"
+ },
+ "g393": {
+  "category": "paraphrase",
   "written_as": "supported"
+ },
+ "g394": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g395": {
+  "category": "relevant_not_supporting",
+  "written_as": "not_supported"
+ },
+ "g396": {
+  "category": "parenthetical",
+  "written_as": "not_supported"
+ },
+ "g397": {
+  "category": "relevant_not_supporting",
+  "written_as": "not_supported"
  },
  "g398": {
   "category": "wrong_period",
@@ -1596,64 +1596,64 @@
   "written_as": "not_supported"
  },
  "g400": {
-  "category": "rounding",
-  "written_as": "supported"
+  "category": "added_inference",
+  "written_as": "not_supported"
  },
  "g401": {
-  "category": "opposite_direction",
-  "written_as": "contradicted"
+  "category": "parenthetical",
+  "written_as": "not_supported"
  },
  "g402": {
-  "category": "added_inference",
+  "category": "relevant_not_supporting",
   "written_as": "not_supported"
  },
  "g403": {
-  "category": "added_inference",
+  "category": "relevant_not_supporting",
   "written_as": "not_supported"
  },
  "g404": {
-  "category": "wrong_period",
+  "category": "compound_invented_clause",
   "written_as": "not_supported"
  },
  "g405": {
-  "category": "wrong_subject",
+  "category": "compound_invented_clause",
   "written_as": "not_supported"
  },
  "g406": {
-  "category": "paraphrase",
-  "written_as": "supported"
+  "category": "parenthetical",
+  "written_as": "not_supported"
  },
  "g407": {
-  "category": "opposite_direction",
-  "written_as": "contradicted"
+  "category": "added_inference",
+  "written_as": "not_supported"
  },
  "g408": {
-  "category": "computed_or_unit",
+  "category": "rounding",
   "written_as": "supported"
  },
  "g409": {
-  "category": "one_of_two_enough",
-  "written_as": "supported"
+  "category": "one_of_two_missing",
+  "written_as": "not_supported"
  },
  "g410": {
-  "category": "added_inference",
-  "written_as": "not_supported"
+  "category": "wrong_number",
+  "written_as": "contradicted"
  },
  "g411": {
   "category": "paraphrase",
   "written_as": "supported"
  },
  "g412": {
-  "category": "parenthetical",
+  "category": "compound_invented_clause",
   "written_as": "not_supported"
  },
  "g413": {
-  "category": "added_inference",
+  "category": "parenthetical",
   "written_as": "not_supported"
  },
  "g414": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
+  "category": "paraphrase",
+  "written_as": "supported"
  },
  "g415": {
   "category": "paraphrase",
@@ -1668,35 +1668,35 @@
   "written_as": "not_supported"
  },
  "g418": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
- },
- "g419": {
-  "category": "wrong_number",
-  "written_as": "contradicted"
- },
- "g420": {
   "category": "paraphrase",
   "written_as": "supported"
  },
+ "g419": {
+  "category": "rounding",
+  "written_as": "supported"
+ },
+ "g420": {
+  "category": "wrong_number",
+  "written_as": "contradicted"
+ },
  "g421": {
-  "category": "compound_invented_clause",
-  "written_as": "not_supported"
- },
- "g422": {
-  "category": "added_inference",
-  "written_as": "not_supported"
- },
- "g423": {
   "category": "wrong_period",
   "written_as": "not_supported"
  },
+ "g422": {
+  "category": "stated_cause",
+  "written_as": "supported"
+ },
+ "g423": {
+  "category": "paraphrase",
+  "written_as": "supported"
+ },
  "g424": {
-  "category": "parenthetical",
-  "written_as": "not_supported"
+  "category": "one_of_two_enough",
+  "written_as": "supported"
  },
  "g425": {
-  "category": "compound_invented_clause",
+  "category": "wrong_computation",
   "written_as": "not_supported"
  }
 }

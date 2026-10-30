@@ -1,0 +1,4252 @@
+{
+ "g001": {
+  "label": "not_supported",
+  "reason": "The claim states Greyhaven but the snippet reports Holmport, which are different subjects.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4613"
+  }
+ },
+ "g002": {
+  "label": "contradicted",
+  "reason": "The snippet states leakage fell from 23% to 14%, not to 4%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2268"
+  }
+ },
+ "g003": {
+  "label": "contradicted",
+  "reason": "The snippet states Route 7 ridership grew 15% in 2022, not 51%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2023"
+  }
+ },
+ "g004": {
+  "label": "not_supported",
+  "reason": "The first part about computer sessions is directly stated in snippet [1], but the snippets provide no information about the East district hiring teachers.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2673"
+  }
+ },
+ "g005": {
+  "label": "not_supported",
+  "reason": "The claim states Market Street monitor fell 12%, but snippet [1] only mentions Park Lane's 21% fall and does not provide any data about Market Street.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2578"
+  }
+ },
+ "g006": {
+  "label": "supported",
+  "reason": "The snippet states fresh produce rose from 19% in 2021 to 31% in 2023, which is a 12 percentage point increase.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2603"
+  }
+ },
+ "g007": {
+  "label": "supported",
+  "reason": "The snippet directly states that free computer sessions at the Central Library fell 12% in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2160"
+  }
+ },
+ "g008": {
+  "label": "not_supported",
+  "reason": "The claim about volunteers is stated in snippet [1], but the claim about paid staff giving 18,400 hours is not stated in any snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4823"
+  }
+ },
+ "g009": {
+  "label": "contradicted",
+  "reason": "The snippet states the 92% retention rate occurred in 2023, not 2021 as the claim asserts.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2839"
+  }
+ },
+ "g010": {
+  "label": "supported",
+  "reason": "The snippet states 48 turbines of 3.6 MW each, which multiplies to 172.8 MW total capacity.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2265"
+  }
+ },
+ "g011": {
+  "label": "not_supported",
+  "reason": "The snippet states drug spending rose 3.4% in 2024 at \"the hospital,\" but the claim refers to \"the community trust,\" which is a different subject.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4566"
+  }
+ },
+ "g012": {
+  "label": "not_supported",
+  "reason": "The claim states crab landings rose 26% in 2023 at Greyhaven (supported by snippet 1) but also states ridership on Route 7 grew 15% in 2022, which no snippet mentions.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4973"
+  }
+ },
+ "g013": {
+  "label": "supported",
+  "reason": "The snippet directly states that the Southside food bank opened a second site in September 2023, which is exactly what the claim asserts.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2150"
+  }
+ },
+ "g014": {
+  "label": "supported",
+  "reason": "The snippet directly states that mackerel landings at Holmport rose 9% in 2023, matching all components of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2299"
+  }
+ },
+ "g015": {
+  "label": "not_supported",
+  "reason": "The snippets state the 38% offer rate for international applicants in 2024, but do not mention any change in how it was counted or provide a causal explanation.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2595"
+  }
+ },
+ "g016": {
+  "label": "not_supported",
+  "reason": "The claim states \"Central Library reopened 7\" which is incomplete and not stated in the snippet, while the Harbour branch information is fully supported.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2666"
+  }
+ },
+ "g017": {
+  "label": "not_supported",
+  "reason": "The claim states Hillcrest clinic saw 12,840 patients, but no snippet mentions Hillcrest or provides any figure for a second clinic.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2527"
+  }
+ },
+ "g018": {
+  "label": "supported",
+  "reason": "The snippet states applications rose 17%, which is approximately one-sixth (16.67%), making the claim's \"about a sixth\" a fair approximation of the stated figure.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2604"
+  }
+ },
+ "g019": {
+  "label": "supported",
+  "reason": "The snippet states the Maritime Museum had a 23% rise in visitors in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2175"
+  }
+ },
+ "g020": {
+  "label": "supported",
+  "reason": "The snippet states exactly what the claim asserts: first-year retention reached 92% in 2023 after a mentoring scheme started.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4378"
+  }
+ },
+ "g021": {
+  "label": "contradicted",
+  "reason": "The snippet states potholes repaired in Barton fell 8% in 2023, but the claim states 18%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2411"
+  }
+ },
+ "g022": {
+  "label": "not_supported",
+  "reason": "The snippet states retention reached 92% after a mentoring scheme started, but the claim attributes it to lowered tuition fees, which the snippet does not mention.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2741"
+  }
+ },
+ "g023": {
+  "label": "not_supported",
+  "reason": "The claim adds \"the largest in the region\" which is not stated in the snippet about volunteer hours.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4518"
+  }
+ },
+ "g024": {
+  "label": "supported",
+  "reason": "The snippet directly states that cod landings at Greyhaven fell 18% in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4391"
+  }
+ },
+ "g025": {
+  "label": "supported",
+  "reason": "Both parts of the claim are directly stated: 40 fields across three counties in snippet [1], and the Science Museum's 5% visitor rise in 2023 in snippet [2].",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3297"
+  }
+ },
+ "g026": {
+  "label": "not_supported",
+  "reason": "The snippet states catering costs changed by 0.0% in 2024, but the claim asserts this occurred in 2022, a different period.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2512"
+  }
+ },
+ "g027": {
+  "label": "not_supported",
+  "reason": "The claim adds a causal explanation (\"because of a change in how it was counted\") that snippet [1] does not provide.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2418"
+  }
+ },
+ "g028": {
+  "label": "contradicted",
+  "reason": "The snippet states curtailment rose to 6 percent, but the claim states it fell to 6 percent.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2107"
+  }
+ },
+ "g029": {
+  "label": "not_supported",
+  "reason": "The snippet states the Maritime Museum had a 23% rise in visitors in 2023, but the claim is about the Science Museum.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2370"
+  }
+ },
+ "g030": {
+  "label": "contradicted",
+  "reason": "The snippet states the drift was 0.21 pH units, but the claim states 0.12 pH units for the same run, temperature, and buffer.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2658"
+  }
+ },
+ "g031": {
+  "label": "supported",
+  "reason": "The snippets state that visitors to the Art Gallery fell 9% in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2107"
+  }
+ },
+ "g032": {
+  "label": "contradicted",
+  "reason": "The snippet states free computer sessions fell 12% in 2023, but the claim states 21%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2002"
+  }
+ },
+ "g033": {
+  "label": "supported",
+  "reason": "Both parts of the claim are directly stated in the snippets: snippet [1] gives the 34 percent capacity factor for Hollow Ridge in 2022, and snippet [2] gives the 81% on-time performance for Route 12 in 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2640"
+  }
+ },
+ "g034": {
+  "label": "supported",
+  "reason": "Both parts of the claim are directly stated in the snippets—e-book loans in snippet 1 and drug spending change in snippet 2.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2285"
+  }
+ },
+ "g035": {
+  "label": "supported",
+  "reason": "The snippet states 3,120 households, and \"about 3,100\" is an approximate wording that fairly describes this figure.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2406"
+  }
+ },
+ "g036": {
+  "label": "not_supported",
+  "reason": "The claim states 2021 but the snippet only provides data for 2022, a different year.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2458"
+  }
+ },
+ "g037": {
+  "label": "not_supported",
+  "reason": "The snippet states Carlow's resurfacing rose 40% in 2023, but does not mention whether Carlow had weekend hours or was the only one with them.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2759"
+  }
+ },
+ "g038": {
+  "label": "contradicted",
+  "reason": "The snippet states the median waiting time fell to 21 minutes, not 12 minutes.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2344"
+  }
+ },
+ "g039": {
+  "label": "not_supported",
+  "reason": "The claim adds that the engineering faculty is \"now run by a charity,\" which is not stated in the snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4494"
+  }
+ },
+ "g040": {
+  "label": "not_supported",
+  "reason": "The claim includes \"rated best in the county\" which is not stated in the snippet that only mentions the number and capacity of turbines.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2511"
+  }
+ },
+ "g041": {
+  "label": "not_supported",
+  "reason": "The claim makes two assertions but only the wind farm generation figure is stated in the snippets; the nitrogen runoff reduction is not mentioned.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2521"
+  }
+ },
+ "g042": {
+  "label": "contradicted",
+  "reason": "The snippet states crab landings rose 26% because new pots were trialled, not because prices fell.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2129"
+  }
+ },
+ "g043": {
+  "label": "supported",
+  "reason": "The snippet directly states the exact claim about mean NO2 concentration at the Market Street monitor in 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4458"
+  }
+ },
+ "g044": {
+  "label": "contradicted",
+  "reason": "The snippet states mackerel landings at Holmport rose 9% in 2023, but the claim states they fell 9%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4403"
+  }
+ },
+ "g045": {
+  "label": "supported",
+  "reason": "The snippet directly states that the Riverside clinic saw 18,240 patients in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=1961"
+  }
+ },
+ "g046": {
+  "label": "not_supported",
+  "reason": "The claim adds a causal explanation (\"because of a change in how it was counted\") that the snippet does not provide.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4241"
+  }
+ },
+ "g047": {
+  "label": "contradicted",
+  "reason": "The snippet states resurfacing in Carlow rose 40% in 2023, not 4%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=1998"
+  }
+ },
+ "g048": {
+  "label": "not_supported",
+  "reason": "The claim states Dunmore opened in 1962, but the snippet does not mention when Dunmore opened.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2319"
+  }
+ },
+ "g049": {
+  "label": "not_supported",
+  "reason": "The claim states Hollow Ridge rose to 16 percent, but snippet [1] does not mention Hollow Ridge or provide any figure for it.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2398"
+  }
+ },
+ "g050": {
+  "label": "supported",
+  "reason": "Both parts of the claim (Maritime Museum visitors rose 23% in 2023, and Carlow resurfacing rose 40% in 2023) are directly stated in snippets [1] and [2] respectively.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2762"
+  }
+ },
+ "g051": {
+  "label": "not_supported",
+  "reason": "The claim about law faculty (4% fall) is stated in snippet [1], but the claim about engineering faculty (14% fall) is not mentioned in any snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2469"
+  }
+ },
+ "g052": {
+  "label": "not_supported",
+  "reason": "The snippet states the 3,120 households figure and the winter 2023 timeframe, but does not mention any rating or ranking in the county.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4984"
+  }
+ },
+ "g053": {
+  "label": "not_supported",
+  "reason": "The claim adds \"at the network's monitors (the only one with weekend hours)\" which is not stated in the snippet that only mentions the ozone peak value and date.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2512"
+  }
+ },
+ "g054": {
+  "label": "supported",
+  "reason": "The snippet directly states the exact figure and year given in the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3640"
+  }
+ },
+ "g055": {
+  "label": "not_supported",
+  "reason": "The claim about e-book loans is supported by snippet [1], but the claim about drug spending at the hospital is not mentioned in any snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2297"
+  }
+ },
+ "g056": {
+  "label": "supported",
+  "reason": "The snippet states 96,500 e-book loans in 2023, which the claim accurately describes as \"nearly 100,000.\"",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2145"
+  }
+ },
+ "g057": {
+  "label": "not_supported",
+  "reason": "The snippet states that 38 teachers were hired but does not mention any change in counting methodology as the reason.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4139"
+  }
+ },
+ "g058": {
+  "label": "not_supported",
+  "reason": "The snippet states Fairley's rooftop solar installations fell 6% in 2023, but does not mention the charity operator.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2289"
+  }
+ },
+ "g059": {
+  "label": "supported",
+  "reason": "The snippet states all parts of the claim: Greyhaven, cod landings, fell 18%, 2023, and that a quota was cut.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2395"
+  }
+ },
+ "g060": {
+  "label": "supported",
+  "reason": "The snippet states battery installations in Dunmore rose 61% in 2023, and \"about 60%\" fairly describes 61%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2153"
+  }
+ },
+ "g061": {
+  "label": "supported",
+  "reason": "The snippet directly states that the East district hired 38 new teachers in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2160"
+  }
+ },
+ "g062": {
+  "label": "contradicted",
+  "reason": "The claim attributes the NO2 reduction to a factory closure, but the snippet attributes it to a low-traffic scheme beginning.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2332"
+  }
+ },
+ "g063": {
+  "label": "supported",
+  "reason": "The snippet directly states that crab landings at Greyhaven rose 26% in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2882"
+  }
+ },
+ "g064": {
+  "label": "supported",
+  "reason": "The snippet states school visits to the Science Museum rose 31% in 2023, which matches \"nearly a third.\"",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2381"
+  }
+ },
+ "g065": {
+  "label": "contradicted",
+  "reason": "The snippet states Route 7 ridership grew 15% in 2022, but the claim asserts this occurred in 2019.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2392"
+  }
+ },
+ "g066": {
+  "label": "not_supported",
+  "reason": "The claim states treatment works fell to 4%, but the snippet only mentions network leakage falling to 14% and says nothing about treatment works.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2663"
+  }
+ },
+ "g067": {
+  "label": "not_supported",
+  "reason": "The snippet states catering costs changed by 0.0% in 2024, but does not give any reason or cause for this change.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2404"
+  }
+ },
+ "g068": {
+  "label": "supported",
+  "reason": "The snippet directly states that volunteers gave 14,800 hours in 2023, which matches the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2139"
+  }
+ },
+ "g069": {
+  "label": "supported",
+  "reason": "The claim states \"about 300,000 people\" which is a reasonable approximation of the snippet's stated figure of 310,000 people.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4264"
+  }
+ },
+ "g070": {
+  "label": "contradicted",
+  "reason": "The snippet states the farm generated 412 gigawatt hours in 2022, not 214 gigawatt hours.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2309"
+  }
+ },
+ "g071": {
+  "label": "supported",
+  "reason": "The snippet states that potholes repaired in Ashby rose 27% in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2084"
+  }
+ },
+ "g072": {
+  "label": "contradicted",
+  "reason": "The snippet states North district enrolment rose from 1,104 to 1,241 pupils in 2021, which is an increase of 137 pupils, not 173.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2327"
+  }
+ },
+ "g073": {
+  "label": "contradicted",
+  "reason": "The claim states 5.7% but the snippet gives 7.5% for missed appointments at Riverside clinic in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2293"
+  }
+ },
+ "g074": {
+  "label": "contradicted",
+  "reason": "The claim states Market Street monitor, but the snippet refers to Park Lane monitor with the same percentage and time period.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4435"
+  }
+ },
+ "g075": {
+  "label": "not_supported",
+  "reason": "The snippet states the 21-minute median waiting time was at Hillcrest clinic, not Riverside clinic.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2459"
+  }
+ },
+ "g076": {
+  "label": "supported",
+  "reason": "Both parts of the claim are directly stated in their respective snippets with no additional unsupported elements.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2131"
+  }
+ },
+ "g077": {
+  "label": "contradicted",
+  "reason": "The snippet states visitors rose 23% in 2023, but the claim states they fell 23%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2242"
+  }
+ },
+ "g078": {
+  "label": "contradicted",
+  "reason": "The claim states 2010 but the snippet gives the figure for 2020, a different year.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2314"
+  }
+ },
+ "g079": {
+  "label": "supported",
+  "reason": "The snippet states attendance in the South district fell to 91.8% in 2022, and the claim describes this as \"roughly 92%,\" which is a fair approximate description of the stated figure.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2389"
+  }
+ },
+ "g080": {
+  "label": "not_supported",
+  "reason": "The claim refers to the Harbour branch, but the snippet reports on the Central Library, which is a different location.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2422"
+  }
+ },
+ "g081": {
+  "label": "contradicted",
+  "reason": "The claim states a drift of 0.8 pH units, but snippet [1] states the drift was 0.08 pH units.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2440"
+  }
+ },
+ "g082": {
+  "label": "contradicted",
+  "reason": "The snippet states the 12% rise occurred in 2023, but the claim asserts it happened in 2021.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2313"
+  }
+ },
+ "g083": {
+  "label": "not_supported",
+  "reason": "The claim states a figure for business use (124 litres per person per day) that is not mentioned in the snippet, which only provides the household figure.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4556"
+  }
+ },
+ "g084": {
+  "label": "not_supported",
+  "reason": "The snippet states the drift in run two was 0.21 pH units, but does not provide the drift value for run one, making it impossible to calculate the difference of 0.31 units claimed.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=5132"
+  }
+ },
+ "g085": {
+  "label": "not_supported",
+  "reason": "The snippet states patient numbers increased 9% but does not mention any change in counting methodology as the cause.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2300"
+  }
+ },
+ "g086": {
+  "label": "not_supported",
+  "reason": "The snippet states first-year retention reached 92% in 2023, but does not mention the institution being run by a charity.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2147"
+  }
+ },
+ "g087": {
+  "label": "contradicted",
+  "reason": "The snippet states that the South district fell to 91.8% in 2022, but the claim asserts this figure for the East district.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2647"
+  }
+ },
+ "g088": {
+  "label": "supported",
+  "reason": "The snippet states the farm generated 412 gigawatt hours in 2022, which is just over 400 gigawatt hours.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2214"
+  }
+ },
+ "g089": {
+  "label": "not_supported",
+  "reason": "The snippets discuss a branch reopening but provide no information about loan figures or changes at the Central Library in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2560"
+  }
+ },
+ "g090": {
+  "label": "not_supported",
+  "reason": "The claim attributes 6,450 vaccinations to \"the county hospital\" but the snippet states this figure is for \"the county's two clinics,\" which are different entities.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2997"
+  }
+ },
+ "g091": {
+  "label": "not_supported",
+  "reason": "The snippet states loans rose 8% but does not mention any change in counting methodology as the reason.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2287"
+  }
+ },
+ "g092": {
+  "label": "contradicted",
+  "reason": "The claim states the yield was in 2021, but the snippet states it was in 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2193"
+  }
+ },
+ "g093": {
+  "label": "supported",
+  "reason": "The snippet directly states the Eastbrook reservoir was completed in 1958 with a capacity of 42 million cubic metres, matching the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2251"
+  }
+ },
+ "g094": {
+  "label": "not_supported",
+  "reason": "The claim states North district had 31 pupils but no snippet provides information about the North district's class size.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2170"
+  }
+ },
+ "g095": {
+  "label": "not_supported",
+  "reason": "The spreadsheet states Barton gritting runs fell 15% in 2023, but does not mention Carlow at all.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2498"
+  }
+ },
+ "g096": {
+  "label": "supported",
+  "reason": "Snippet [1] directly states that the city's bus fleet covered 4.2 million kilometres in 2022, matching the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2486"
+  }
+ },
+ "g097": {
+  "label": "contradicted",
+  "reason": "The snippet states South district attendance was 91.8% in 2022, but the claim asserts 89.1%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2109"
+  }
+ },
+ "g098": {
+  "label": "not_supported",
+  "reason": "The snippet states the expansion and the 310,000 figure but does not mention any change in counting methodology as the reason.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2457"
+  }
+ },
+ "g099": {
+  "label": "contradicted",
+  "reason": "The snippets state school visits rose 31% because free coach travel began, not because of a new café.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2139"
+  }
+ },
+ "g100": {
+  "label": "not_supported",
+  "reason": "The claim states \"purchases\" but the snippet refers to \"donations,\" which are different things.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2386"
+  }
+ },
+ "g101": {
+  "label": "supported",
+  "reason": "The claim states 412,000 megawatt hours but the snippet states 412 gigawatt hours, which equals 412,000 megawatt hours (1 GWh = 1,000 MWh), so this is a unit conversion of the same figure.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2885"
+  }
+ },
+ "g102": {
+  "label": "not_supported",
+  "reason": "The claim is about Ashby, but the snippet reports the 8% fall for Barton, not Ashby.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2627"
+  }
+ },
+ "g103": {
+  "label": "contradicted",
+  "reason": "The snippet states ozone peaked at 182 micrograms per cubic metre on 19 July 2022, not 128.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2299"
+  }
+ },
+ "g104": {
+  "label": "not_supported",
+  "reason": "The snippet states potholes repaired in Barton fell 8% in 2023, but does not mention Barton being rated best in the county.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2351"
+  }
+ },
+ "g105": {
+  "label": "not_supported",
+  "reason": "The first part about 40 fields across three counties is stated, but the snippets do not mention any follow-up survey or the number 14.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2607"
+  }
+ },
+ "g106": {
+  "label": "not_supported",
+  "reason": "The claim adds the description \"the largest in the region\" which is not stated in the snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2073"
+  }
+ },
+ "g107": {
+  "label": "supported",
+  "reason": "The snippet states nursing staff costs rose 6.1% in 2024, and the claim describes this as \"about 6%\", which is a fair approximation.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2576"
+  }
+ },
+ "g108": {
+  "label": "contradicted",
+  "reason": "The snippets state the 15% fall in Barton gritting runs occurred in 2023, not 2021.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2291"
+  }
+ },
+ "g109": {
+  "label": "supported",
+  "reason": "The snippet states 14,800 hours, which \"nearly 15,000\" fairly describes as an approximate wording.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4139"
+  }
+ },
+ "g110": {
+  "label": "supported",
+  "reason": "The snippet states twelve bottles were set aside as controls and kept at four degrees, which matches all elements of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2386"
+  }
+ },
+ "g111": {
+  "label": "not_supported",
+  "reason": "The snippet states PM2.5 exceeded the daily limit on 9 days in 2022, but does not specify this was at the Park Lane monitor.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2238"
+  }
+ },
+ "g112": {
+  "label": "contradicted",
+  "reason": "The claim states the rise occurred in 2022, but the snippet states it occurred in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2360"
+  }
+ },
+ "g113": {
+  "label": "not_supported",
+  "reason": "The first part matches snippet [1] exactly, but the claim states the community trust rose 16.1% while no snippet mentions the community trust at all.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2642"
+  }
+ },
+ "g114": {
+  "label": "not_supported",
+  "reason": "The snippet discusses attendance in the South district in 2022, not enrolment in the North district in 2021.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2222"
+  }
+ },
+ "g115": {
+  "label": "supported",
+  "reason": "The snippet directly states the exact claim about average class size in the West district in 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2001"
+  }
+ },
+ "g116": {
+  "label": "supported",
+  "reason": "The snippet directly states that first-year retention reached 92% in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2092"
+  }
+ },
+ "g117": {
+  "label": "supported",
+  "reason": "The snippet directly states that the county's two clinics gave 6,450 flu vaccinations in the 2023 season, matching the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2236"
+  }
+ },
+ "g118": {
+  "label": "contradicted",
+  "reason": "The snippet states mackerel landings at Holmport rose 9% in 2023, but the claim states 19%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2156"
+  }
+ },
+ "g119": {
+  "label": "contradicted",
+  "reason": "The snippet states cod landings at Greyhaven fell 18% in 2023, not rose 18%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2204"
+  }
+ },
+ "g120": {
+  "label": "not_supported",
+  "reason": "The snippet states that Hollow Ridge wind farm had a 34 percent capacity factor in 2022, but the claim refers to Coast Point wind farm, which is a different subject.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4678"
+  }
+ },
+ "g121": {
+  "label": "contradicted",
+  "reason": "The snippet states nitrogen runoff fell 18% on plots with cover crops, not 8%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=5067"
+  }
+ },
+ "g122": {
+  "label": "supported",
+  "reason": "The claim states the reservoir's completion year (1958) and capacity (42 million cubic metres), both of which are directly stated in snippet [1].",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2743"
+  }
+ },
+ "g123": {
+  "label": "supported",
+  "reason": "The snippet states that attendance in the South district fell to 91.8% in 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4597"
+  }
+ },
+ "g124": {
+  "label": "not_supported",
+  "reason": "The snippet states drug spending rose 3.4% in 2024 but does not give any cause or reason for the increase.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2374"
+  }
+ },
+ "g125": {
+  "label": "supported",
+  "reason": "The claim that ridership on Route 7 grew 15% in 2022 is directly stated in snippet [1].",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2012"
+  }
+ },
+ "g126": {
+  "label": "supported",
+  "reason": "The snippet directly states that rooftop solar installations in Elton rose 12% in 2023, matching all elements of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2308"
+  }
+ },
+ "g127": {
+  "label": "contradicted",
+  "reason": "The snippet states the 8% fall occurred in 2023, but the claim says it occurred in 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2323"
+  }
+ },
+ "g128": {
+  "label": "supported",
+  "reason": "The snippet states all parts of the claim: the Maritime Museum had visitors that rose 23% in 2023 due to the shipwreck exhibition.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2772"
+  }
+ },
+ "g129": {
+  "label": "supported",
+  "reason": "The snippet states 18,240 patients, and the claim's \"about 18,000\" is an approximate wording that fairly describes this stated figure.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2511"
+  }
+ },
+ "g130": {
+  "label": "contradicted",
+  "reason": "The claim states the expansion occurred in 1984, but snippet [1] states it was expanded in 1994.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2157"
+  }
+ },
+ "g131": {
+  "label": "not_supported",
+  "reason": "The claim adds that Riverside clinic is \"rated best in the county,\" which is not stated in the snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2204"
+  }
+ },
+ "g132": {
+  "label": "supported",
+  "reason": "The snippet directly states that drug spending at the hospital rose 3.4% in 2024, matching all parts of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2204"
+  }
+ },
+ "g133": {
+  "label": "contradicted",
+  "reason": "The snippet states wheat yielded 7.9 tonnes per hectare in 2022, but the claim states 9.7 tonnes per hectare.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3094"
+  }
+ },
+ "g134": {
+  "label": "contradicted",
+  "reason": "The snippet states nursing staff costs rose 6.1% in 2024, but the claim states 16.1%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2272"
+  }
+ },
+ "g135": {
+  "label": "not_supported",
+  "reason": "The claim adds a causal explanation (\"because of a change in how it was counted\") that snippet [1] does not provide.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2229"
+  }
+ },
+ "g136": {
+  "label": "contradicted",
+  "reason": "The snippet attributes the 18% fall in nitrogen runoff to roots holding soil over winter, not to less fertilizer being applied.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2109"
+  }
+ },
+ "g137": {
+  "label": "contradicted",
+  "reason": "The snippet reports a 9% rise in mackerel landings at Holmport in 2023, but the claim states Greyhaven.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2228"
+  }
+ },
+ "g138": {
+  "label": "not_supported",
+  "reason": "The snippet states the 38% offer rate for international applicants in 2024, but does not mention anything about being \"rated best in the county.\"",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2675"
+  }
+ },
+ "g139": {
+  "label": "not_supported",
+  "reason": "The snippet reports a 6% fall in rooftop solar installations for Fairley in 2023, not Elton.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4718"
+  }
+ },
+ "g140": {
+  "label": "supported",
+  "reason": "The snippet states that school visits to the Science Museum rose 31% in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=1988"
+  }
+ },
+ "g141": {
+  "label": "not_supported",
+  "reason": "The snippet states wheat on rain-fed plots yielded 5.2 tonnes per hectare in 2022, but does not mention they were \"rated best in the county.\"",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2360"
+  }
+ },
+ "g142": {
+  "label": "not_supported",
+  "reason": "The claim states Route 12 grew 51%, but no snippet provides any ridership figure for Route 12.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2141"
+  }
+ },
+ "g143": {
+  "label": "not_supported",
+  "reason": "The snippet states on-time performance for Route 12, but the claim refers to Route 7.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2094"
+  }
+ },
+ "g144": {
+  "label": "not_supported",
+  "reason": "The snippet states battery installations in Dunmore rose 61% in 2023 but does not give any reason or cause for the increase.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2594"
+  }
+ },
+ "g145": {
+  "label": "supported",
+  "reason": "The snippet directly states that loans at the Central Library rose 8% in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2173"
+  }
+ },
+ "g146": {
+  "label": "supported",
+  "reason": "The claim exactly matches snippet [1], which states the same figure for e-book loans in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2373"
+  }
+ },
+ "g147": {
+  "label": "contradicted",
+  "reason": "The snippet states battery installations rose 61% in Dunmore in 2023, while the claim states they fell 61%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2821"
+  }
+ },
+ "g148": {
+  "label": "contradicted",
+  "reason": "The snippet states nursing staff costs rose 6.1% due to the national pay award, not because more agency nurses were hired.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2276"
+  }
+ },
+ "g149": {
+  "label": "not_supported",
+  "reason": "The claim adds a causal explanation (\"because of a change in how it was counted\") that snippet [1] does not provide.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2269"
+  }
+ },
+ "g150": {
+  "label": "not_supported",
+  "reason": "The snippet states Hollow Ridge had a 34% capacity factor in 2022, but the claim adds that it was \"the only one with weekend hours,\" which is not mentioned in the snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2387"
+  }
+ },
+ "g151": {
+  "label": "not_supported",
+  "reason": "The snippet discusses Park Lane monitor data, not Market Street monitor data, so it does not state the claimed figure for Market Street.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2550"
+  }
+ },
+ "g152": {
+  "label": "not_supported",
+  "reason": "The snippet states that twelve control bottles were kept at four degrees, but does not mention any change in how it was counted as the reason.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4231"
+  }
+ },
+ "g153": {
+  "label": "not_supported",
+  "reason": "The claim about engineering (17% rise for 2024) is stated in snippet [1], but the claim about law faculty (7% rise) is not mentioned in any snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2749"
+  }
+ },
+ "g154": {
+  "label": "contradicted",
+  "reason": "The snippet states the 61% rise in battery installations in Dunmore occurred in 2023, but the claim says it happened in 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2270"
+  }
+ },
+ "g155": {
+  "label": "supported",
+  "reason": "The claim exactly matches the snippet, stating the same crop, plot type, yield figure, and year.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2634"
+  }
+ },
+ "g156": {
+  "label": "not_supported",
+  "reason": "The snippets state Fairley fell 6% in 2023, but do not mention Elton at all.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2140"
+  }
+ },
+ "g157": {
+  "label": "contradicted",
+  "reason": "The claim states Tris buffer drifted by 0.21 pH units, but the snippet states phosphate buffer drifted by 0.21 pH units.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4554"
+  }
+ },
+ "g158": {
+  "label": "not_supported",
+  "reason": "The claim states resurfacing in Carlow rose 40% in 2023, but the snippet only mentions the Maritime Museum visitors rising 23% in 2023 and provides no information about resurfacing in Carlow.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3470"
+  }
+ },
+ "g159": {
+  "label": "not_supported",
+  "reason": "The snippet states nitrogen runoff fell 18% on plots with cover crops, but does not mention that these plots opened in 1962.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4927"
+  }
+ },
+ "g160": {
+  "label": "contradicted",
+  "reason": "The snippet states herring landings at Holmport fell 3% in 2023, which is the opposite direction from the claim's assertion of a 3% rise.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2663"
+  }
+ },
+ "g161": {
+  "label": "not_supported",
+  "reason": "The claim adds \"the only one with weekend hours\" which is not stated in the snippet about the phosphate buffer's pH drift.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3183"
+  }
+ },
+ "g162": {
+  "label": "contradicted",
+  "reason": "The snippet states Route 7 ridership grew 15% in 2022, which is the opposite direction from the claim's assertion of a 15% shrinkage.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2971"
+  }
+ },
+ "g163": {
+  "label": "supported",
+  "reason": "Both parts of the claim are directly stated in the snippets—snippet [1] gives the 12% fall in computer sessions, and snippet [2] gives the 38 new teachers hired.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2665"
+  }
+ },
+ "g164": {
+  "label": "contradicted",
+  "reason": "The snippet states Dunmore had a 44% rise in rooftop solar installations in 2023, not Elton.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3233"
+  }
+ },
+ "g165": {
+  "label": "supported",
+  "reason": "The snippet states 7.9 tonnes per hectare, which converts to 790 tonnes per square kilometre (since 1 km² = 100 hectares, so 7.9 × 100 = 790).",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2558"
+  }
+ },
+ "g166": {
+  "label": "contradicted",
+  "reason": "The snippet states first-year retention reached 92% in 2023, not 82%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2297"
+  }
+ },
+ "g167": {
+  "label": "supported",
+  "reason": "The claim matches the snippet exactly, stating the same clinic, percentage, year, and cause (text reminders).",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3097"
+  }
+ },
+ "g168": {
+  "label": "supported",
+  "reason": "The claim states missed appointments dropped to 7.5% in 2023, which matches the figure in snippet [1], though the claim omits the mention of text reminders as the cause.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2615"
+  }
+ },
+ "g169": {
+  "label": "not_supported",
+  "reason": "The claim states 2019 but the snippet gives the figure for 2022, which is a different time period.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2629"
+  }
+ },
+ "g170": {
+  "label": "supported",
+  "reason": "The snippet directly states the exact claim about the bus fleet covering 4.2 million kilometres in 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2247"
+  }
+ },
+ "g171": {
+  "label": "contradicted",
+  "reason": "The snippet states the slope range was 98-101%, while the claim states it was 95-99%, which are different ranges for the same measure.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2536"
+  }
+ },
+ "g172": {
+  "label": "supported",
+  "reason": "The snippet states that crab landings at Greyhaven rose 26% in 2023 after new pots were trialled, which matches every part of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2241"
+  }
+ },
+ "g173": {
+  "label": "not_supported",
+  "reason": "The claim about Northside (3,120 households in winter 2023) is stated in snippet [1], but the Southside figure (2,130) is not mentioned in any snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2883"
+  }
+ },
+ "g174": {
+  "label": "not_supported",
+  "reason": "The claim states engineering faculty applications fell 4%, but the snippet reports a 4% fall for the law faculty, not engineering.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2393"
+  }
+ },
+ "g175": {
+  "label": "supported",
+  "reason": "Snippet [1] directly states that the Hollow Ridge wind farm's capacity factor was 34 percent in 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2288"
+  }
+ },
+ "g176": {
+  "label": "not_supported",
+  "reason": "The claim states 2021 but the snippet reports 18,240 patients in 2023, which is a different year.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2563"
+  }
+ },
+ "g177": {
+  "label": "supported",
+  "reason": "The snippet states loans rose 8% in 2023, which is under 10%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2003"
+  }
+ },
+ "g178": {
+  "label": "not_supported",
+  "reason": "The claim states curtailment rose \"after\" the grid link was congested, but the snippet states it rose \"when\" the grid link was congested, which indicates simultaneity rather than a causal sequence.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2589"
+  }
+ },
+ "g179": {
+  "label": "contradicted",
+  "reason": "The snippet states applications fell 4%, while the claim states they rose 4%, which is the opposite direction for the same measure.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2207"
+  }
+ },
+ "g180": {
+  "label": "not_supported",
+  "reason": "The snippet states the generation figure but does not mention any change in counting methodology as a cause.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2238"
+  }
+ },
+ "g181": {
+  "label": "contradicted",
+  "reason": "The snippet states that the East district, not the West district, hired 38 new teachers in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2124"
+  }
+ },
+ "g182": {
+  "label": "supported",
+  "reason": "The snippet directly states that potholes repaired in Barton fell 8% in 2023, matching all elements of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2232"
+  }
+ },
+ "g183": {
+  "label": "not_supported",
+  "reason": "The claim adds a descriptive clause \"rated best in the county\" that is not stated in the snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2291"
+  }
+ },
+ "g184": {
+  "label": "contradicted",
+  "reason": "The claim states seven days but the snippet states fourteen days for the same drift measurement.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2184"
+  }
+ },
+ "g185": {
+  "label": "supported",
+  "reason": "The snippet directly states that rooftop solar installations in Fairley fell 6% in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3310"
+  }
+ },
+ "g186": {
+  "label": "not_supported",
+  "reason": "The first snippet states Coast Point has 48 turbines of 3.6 megawatts each, but no snippet mentions Hollow Ridge wind farm or its 84 turbines.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2631"
+  }
+ },
+ "g187": {
+  "label": "contradicted",
+  "reason": "The snippet states the 38% offer rate was for international applicants, but the claim says it was for home applicants.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2319"
+  }
+ },
+ "g188": {
+  "label": "supported",
+  "reason": "The snippet directly states that twelve bottles were set aside as controls and kept at four degrees, matching all parts of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2279"
+  }
+ },
+ "g189": {
+  "label": "contradicted",
+  "reason": "The snippet states e-book loans reached 96,500 in 2023, not 69,500.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4244"
+  }
+ },
+ "g190": {
+  "label": "not_supported",
+  "reason": "The snippets state volunteer hours for 2023 but do not mention the number of households served in winter 2023 or any other period.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2533"
+  }
+ },
+ "g191": {
+  "label": "supported",
+  "reason": "The claim combines two unrelated statements that are each fully stated in their respective snippets.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2538"
+  }
+ },
+ "g192": {
+  "label": "not_supported",
+  "reason": "The first snippet states the hospital catering costs changed by 0.0% in 2024, but no snippet provides information about the community trust's catering costs change.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2573"
+  }
+ },
+ "g193": {
+  "label": "not_supported",
+  "reason": "The claim states two figures but only one snippet is provided, which confirms the hospital's 3.4% rise but gives no information about the community trust's 4.3% rise.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2773"
+  }
+ },
+ "g194": {
+  "label": "contradicted",
+  "reason": "The snippet states curtailment rose because the grid link was congested, but the claim states it was because turbines were taken offline for repairs.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2330"
+  }
+ },
+ "g195": {
+  "label": "contradicted",
+  "reason": "The snippet states Riverside saw 18,240 patients in 2023, not 12,840.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2144"
+  }
+ },
+ "g196": {
+  "label": "supported",
+  "reason": "The snippet directly states that the Millford treatment works was expanded in 1994 to serve 310,000 people, matching the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2164"
+  }
+ },
+ "g197": {
+  "label": "supported",
+  "reason": "The claim states roots held the soil as the reason for the 18% reduction, which matches what snippet [1] explicitly states.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3888"
+  }
+ },
+ "g198": {
+  "label": "supported",
+  "reason": "Snippet [1] directly states that free computer sessions at the Central Library fell 12% in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4062"
+  }
+ },
+ "g199": {
+  "label": "not_supported",
+  "reason": "The claim refers to Coast Point wind farm, but the snippet states the figure is for Hollow Ridge wind farm.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=5783"
+  }
+ },
+ "g200": {
+  "label": "contradicted",
+  "reason": "The claim states the Millford reservoir had 42 million cubic metres capacity in 1958, but the snippet refers to the Eastbrook reservoir with those same figures.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4590"
+  }
+ },
+ "g201": {
+  "label": "contradicted",
+  "reason": "The snippet states the capacity factor was 34 percent in 2022, but the claim asserts it was 34 percent in 2021, which is a different year.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2552"
+  }
+ },
+ "g202": {
+  "label": "not_supported",
+  "reason": "The snippet gives the drift for run two (0.21 pH units) but does not state the drift for run one, so the difference of 0.13 units cannot be verified.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2514"
+  }
+ },
+ "g203": {
+  "label": "not_supported",
+  "reason": "The claim adds the detail about weekend hours, which is not mentioned in the snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2281"
+  }
+ },
+ "g204": {
+  "label": "contradicted",
+  "reason": "The snippet states herring landings at Holmport fell 3% in 2023, but the claim asserts this occurred in 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2038"
+  }
+ },
+ "g205": {
+  "label": "not_supported",
+  "reason": "The snippet states the sessions fell 12% \"as\" more visitors brought laptops, but the claim changes this to \"after,\" which implies temporal sequence rather than the causal relationship stated in the snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3311"
+  }
+ },
+ "g206": {
+  "label": "contradicted",
+  "reason": "The snippet states the capacity was 42 million cubic metres, while the claim states 24 million cubic metres.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2281"
+  }
+ },
+ "g207": {
+  "label": "not_supported",
+  "reason": "The snippet states the pH meter's slope stayed between 98 and 101 percent across all calibrations this month, but does not mention anything about the pH meter being run by a charity.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2780"
+  }
+ },
+ "g208": {
+  "label": "supported",
+  "reason": "The snippet states the Harbour branch reopened in March 2023 after an 11-month refurbishment, which matches the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2119"
+  }
+ },
+ "g209": {
+  "label": "supported",
+  "reason": "The snippet states 6,450 flu vaccinations, and the claim's \"about 6,500\" is an approximate wording that fairly describes this figure.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2349"
+  }
+ },
+ "g210": {
+  "label": "supported",
+  "reason": "The snippet states that rooftop solar installations in Dunmore rose 44% in 2023 after a council grant, matching every part of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2454"
+  }
+ },
+ "g211": {
+  "label": "not_supported",
+  "reason": "The claim makes two assertions, but only the field sampling is stated in the snippets; the Science Museum visitor increase is not mentioned.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2575"
+  }
+ },
+ "g212": {
+  "label": "not_supported",
+  "reason": "The snippet states drug spending at the hospital rose 3.4% in 2024, but does not mention when the hospital opened.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4198"
+  }
+ },
+ "g213": {
+  "label": "contradicted",
+  "reason": "The snippet states cod landings fell 18% because a quota was cut, but the claim states the reason was harbour dredging.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2455"
+  }
+ },
+ "g214": {
+  "label": "supported",
+  "reason": "The snippet directly states that on-time performance on Route 12 was 81% in 2022, matching the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2249"
+  }
+ },
+ "g215": {
+  "label": "supported",
+  "reason": "The snippet directly states the exact figure and context given in the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2424"
+  }
+ },
+ "g216": {
+  "label": "not_supported",
+  "reason": "The claim adds that Route 12 is \"the only one with weekend hours,\" which is not stated in the snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2841"
+  }
+ },
+ "g217": {
+  "label": "contradicted",
+  "reason": "The snippet states loans rose 8% in 2023, but the claim states 18%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2156"
+  }
+ },
+ "g218": {
+  "label": "supported",
+  "reason": "The snippet states the exact figure and timeframe claimed.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2192"
+  }
+ },
+ "g219": {
+  "label": "not_supported",
+  "reason": "The claim states two specific peak values (182 for the network and 128 for Market Street monitor), but the snippet only confirms the 182 figure without mentioning Market Street's 128.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2842"
+  }
+ },
+ "g220": {
+  "label": "not_supported",
+  "reason": "The claim states West district hired 83 teachers, but no snippet provides any information about West district hiring.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2242"
+  }
+ },
+ "g221": {
+  "label": "contradicted",
+  "reason": "The claim states 420,000 kilometres but the snippet states 4.2 million kilometres, which equals 4,200,000 kilometres.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2474"
+  }
+ },
+ "g222": {
+  "label": "contradicted",
+  "reason": "The snippet states the reason for the 27% rise was \"the wet winter,\" not a new contractor starting.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2451"
+  }
+ },
+ "g223": {
+  "label": "contradicted",
+  "reason": "The snippet states free computer sessions fell 12% in 2023, but the claim asserts this occurred in 2021.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2223"
+  }
+ },
+ "g224": {
+  "label": "contradicted",
+  "reason": "The claim states the 21% fall occurred between 2016 and 2019, but snippet [1] states it occurred between 2019 and 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2730"
+  }
+ },
+ "g225": {
+  "label": "supported",
+  "reason": "Snippet [1] directly states that catering costs at the hospital changed by 0.0% in 2024, matching all elements of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2711"
+  }
+ },
+ "g226": {
+  "label": "not_supported",
+  "reason": "The snippet states the Northside food bank served 3,120 households, but the claim is about the Southside food bank.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2151"
+  }
+ },
+ "g227": {
+  "label": "not_supported",
+  "reason": "The snippet states the Harbour branch reopened after an 11-month refurbishment in March 2023, but does not mention any reason related to how it was counted.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4118"
+  }
+ },
+ "g228": {
+  "label": "contradicted",
+  "reason": "The snippet states the East district hired 38 new teachers in 2023, but the claim says 2021, which is a different year.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2332"
+  }
+ },
+ "g229": {
+  "label": "supported",
+  "reason": "The snippet directly states the exact claim about wheat yield on rain-fed plots in 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2382"
+  }
+ },
+ "g230": {
+  "label": "supported",
+  "reason": "The snippet directly states that gritting runs in Barton fell 15% in 2023 due to a mild December, matching all elements of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2290"
+  }
+ },
+ "g231": {
+  "label": "supported",
+  "reason": "The snippet states rooftop solar installations in Dunmore rose 44% in 2023, which matches the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2235"
+  }
+ },
+ "g232": {
+  "label": "not_supported",
+  "reason": "The snippet discusses total bus fleet kilometers in 2022 but does not mention Route 7 or ridership growth percentages.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2452"
+  }
+ },
+ "g233": {
+  "label": "not_supported",
+  "reason": "The claim states two figures that are both found in the snippets: the Art Gallery fell 9% in 2023 (stated in snippet 1), and while the Maritime Museum's 19% fall is not provided in the given snippets, I can only judge based on what is cited.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3205"
+  }
+ },
+ "g234": {
+  "label": "not_supported",
+  "reason": "The snippet states the mean NO2 value but does not mention any reason for it or any change in counting methodology.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4328"
+  }
+ },
+ "g235": {
+  "label": "not_supported",
+  "reason": "The first part about the wind farm's 34% capacity factor in 2022 is stated in snippet [1], but the second part about Route 12's on-time performance is not mentioned in any snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2734"
+  }
+ },
+ "g236": {
+  "label": "contradicted",
+  "reason": "The snippet states curtailment rose to 6 percent at Coast Point, not Hollow Ridge.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3921"
+  }
+ },
+ "g237": {
+  "label": "not_supported",
+  "reason": "The claim states the irrigated plots are \"the largest in the region,\" but the snippet does not mention plot size or any regional comparison.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2548"
+  }
+ },
+ "g238": {
+  "label": "contradicted",
+  "reason": "The snippet states the rise was after heating costs climbed, not because of a new school opening nearby.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3996"
+  }
+ },
+ "g239": {
+  "label": "contradicted",
+  "reason": "The snippets state visitors rose 23% in 2023, but the claim states 32%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2212"
+  }
+ },
+ "g240": {
+  "label": "not_supported",
+  "reason": "The claim adds a causal explanation (\"because of a change in how it was counted\") that snippet [1] does not provide.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2413"
+  }
+ },
+ "g241": {
+  "label": "supported",
+  "reason": "The claim omits the causal clause \"after the low-traffic scheme began\" but otherwise matches the snippet's statement about the 21% fall in mean NO2 at Park Lane between 2019 and 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2618"
+  }
+ },
+ "g242": {
+  "label": "contradicted",
+  "reason": "The snippet states twelve control bottles were kept at four degrees, but the claim states twenty control bottles.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2204"
+  }
+ },
+ "g243": {
+  "label": "supported",
+  "reason": "The snippet directly states that median waiting time at the Hillcrest clinic fell to 21 minutes in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2301"
+  }
+ },
+ "g244": {
+  "label": "contradicted",
+  "reason": "The snippet states fresh produce rose from 19% in 2021 to 31% in 2023, which is a 12 percentage point increase, not 21.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2401"
+  }
+ },
+ "g245": {
+  "label": "not_supported",
+  "reason": "The claim about the county hospital giving 4,650 vaccinations is not stated in the provided snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2253"
+  }
+ },
+ "g246": {
+  "label": "not_supported",
+  "reason": "The snippet states the Harbour branch reopened in March 2023 after an 11-month refurbishment, but does not mention it being run by a charity.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2514"
+  }
+ },
+ "g247": {
+  "label": "supported",
+  "reason": "The snippet states that rooftop solar installations in Fairley fell 6% in 2023 because the installer closed, which matches all parts of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3303"
+  }
+ },
+ "g248": {
+  "label": "supported",
+  "reason": "The snippet states nursing staff costs at the hospital rose 6.1% in 2024.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2119"
+  }
+ },
+ "g249": {
+  "label": "not_supported",
+  "reason": "The snippet states Route 12 was 81% in 2022, but does not mention Route 7's performance at all.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2305"
+  }
+ },
+ "g250": {
+  "label": "not_supported",
+  "reason": "The claim states 2023 intake but the snippet refers to 2024 intake, which is a different period.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2173"
+  }
+ },
+ "g251": {
+  "label": "contradicted",
+  "reason": "The snippet states applications rose 17% for the 2024 intake, while the claim states 7%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2331"
+  }
+ },
+ "g252": {
+  "label": "supported",
+  "reason": "The snippet states the hospital's nursing staff costs rose 6.1% in 2024 due to the national pay award, matching all parts of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2353"
+  }
+ },
+ "g253": {
+  "label": "not_supported",
+  "reason": "The snippet reports a 12% rise in rooftop solar installations for Elton in 2023, but the claim is about Dunmore, which is not mentioned in the snippets.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2510"
+  }
+ },
+ "g254": {
+  "label": "supported",
+  "reason": "The snippet states energy costs fell 11.2% in 2024, and \"about 11%\" is a fair approximate description of 11.2%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2613"
+  }
+ },
+ "g255": {
+  "label": "contradicted",
+  "reason": "The snippet states free computer sessions fell 12% in 2023, while the claim states they rose 12%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2217"
+  }
+ },
+ "g256": {
+  "label": "not_supported",
+  "reason": "The claim about the bus fleet covering 4.2 million kilometres is stated in snippet [1], but the claim about the tram fleet covering 2.4 million kilometres is not mentioned in any snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4214"
+  }
+ },
+ "g257": {
+  "label": "contradicted",
+  "reason": "The snippet states the Art Gallery visitors fell 9% in 2023 because the east wing was closed, not because ticket prices went up.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2394"
+  }
+ },
+ "g258": {
+  "label": "contradicted",
+  "reason": "The claim states 14 fields were sampled, but snippet [1] explicitly states 40 fields were sampled across three counties.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2140"
+  }
+ },
+ "g259": {
+  "label": "not_supported",
+  "reason": "The snippet states that the North district rose by 12.4% in 2021, but the claim refers to the South district.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2196"
+  }
+ },
+ "g260": {
+  "label": "not_supported",
+  "reason": "The snippets state that crab landings at Greyhaven rose 26% in 2023, but do not mention that Greyhaven is run by a charity.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2743"
+  }
+ },
+ "g261": {
+  "label": "not_supported",
+  "reason": "The snippet states the drift occurred but does not provide any cause or reason for it, while the claim asserts it was \"because of a change in how it was counted.\"",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2630"
+  }
+ },
+ "g262": {
+  "label": "supported",
+  "reason": "The snippet directly states that school visits to the Science Museum rose 31% in 2023 because free coach travel began.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2218"
+  }
+ },
+ "g263": {
+  "label": "supported",
+  "reason": "The claim states curtailment rose to 6 percent in 2022, which matches exactly what snippet [1] states.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2416"
+  }
+ },
+ "g264": {
+  "label": "contradicted",
+  "reason": "The claim states the vaccinations were given in the 2021 season, but the snippet states they were given in the 2023 season.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2600"
+  }
+ },
+ "g265": {
+  "label": "contradicted",
+  "reason": "The claim states 31 pupils but the snippet states 27 pupils for the same district and year.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2492"
+  }
+ },
+ "g266": {
+  "label": "supported",
+  "reason": "The claim states 4,200,000 kilometres, which equals the 4.2 million kilometres stated in snippet [1] for the same subject and period.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3806"
+  }
+ },
+ "g267": {
+  "label": "contradicted",
+  "reason": "The snippet states visitors to the Art Gallery fell 9% in 2023, not 19%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2162"
+  }
+ },
+ "g268": {
+  "label": "not_supported",
+  "reason": "Snippet [1] states that ozone peaked at 182 micrograms per cubic metre on 19 July 2022, but does not specify that this was at the network's monitors.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2490"
+  }
+ },
+ "g269": {
+  "label": "contradicted",
+  "reason": "The snippet states the 38% offer rate was in 2024, while the claim asserts it was in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2862"
+  }
+ },
+ "g270": {
+  "label": "not_supported",
+  "reason": "The snippet states Ashby's potholes repaired rose 27% in 2023, but does not confirm that Ashby is \"the only one with weekend hours.\"",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2325"
+  }
+ },
+ "g271": {
+  "label": "supported",
+  "reason": "The snippet states that potholes repaired in Ashby rose 27% in 2023 due to the wet winter, matching all parts of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4009"
+  }
+ },
+ "g272": {
+  "label": "supported",
+  "reason": "The snippet states leakage fell from 23% to 14%, which is a 9 percentage point decrease (23 - 14 = 9) between 2010 and 2020.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2557"
+  }
+ },
+ "g273": {
+  "label": "contradicted",
+  "reason": "The snippet states nitrogen runoff fell 18% on plots *with* cover crops, but the claim states it fell on plots *without* cover crops.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2906"
+  }
+ },
+ "g274": {
+  "label": "not_supported",
+  "reason": "The claim states South district rose 21.4%, but no snippet provides any figure for the South district's enrolment change.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2843"
+  }
+ },
+ "g275": {
+  "label": "not_supported",
+  "reason": "The first figure (1.15 dollars average in 2022) is stated in snippet [1], but the Route 7 figure (1.51) is not mentioned in any snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4412"
+  }
+ },
+ "g276": {
+  "label": "supported",
+  "reason": "The snippet directly states that the Northside food bank served 3,120 households in the winter of 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=1982"
+  }
+ },
+ "g277": {
+  "label": "contradicted",
+  "reason": "The snippet states enrolment in the North district rose 12.4% in 2021, not fell.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2103"
+  }
+ },
+ "g278": {
+  "label": "supported",
+  "reason": "Both parts of the claim are directly stated in the snippets: snippet [1] states catering costs changed by 0.0% in 2024, and snippet [2] states wheat on rain-fed plots yielded 5.2 tonnes per hectare in 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2760"
+  }
+ },
+ "g279": {
+  "label": "supported",
+  "reason": "The claim exactly matches the statement in snippet [1], including the specific percentage decrease, location, timeframe, and context about the low-traffic scheme.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2614"
+  }
+ },
+ "g280": {
+  "label": "not_supported",
+  "reason": "The claim adds that the Market Street monitor was \"rated best in the county,\" which is not stated in the snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2124"
+  }
+ },
+ "g281": {
+  "label": "not_supported",
+  "reason": "The claim about the study's control bottles is not mentioned in any snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2343"
+  }
+ },
+ "g282": {
+  "label": "contradicted",
+  "reason": "The snippets state energy costs fell 11.2% in 2024 because a new boiler was fitted, not because wards were closed.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2214"
+  }
+ },
+ "g283": {
+  "label": "contradicted",
+  "reason": "The snippet states school visits rose 31% in 2023, while the claim states they fell 31%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3145"
+  }
+ },
+ "g284": {
+  "label": "not_supported",
+  "reason": "The claim states both Dunmore (61%) and Fairley (16%), but the snippet only provides data for Dunmore's 61% rise in battery installations for 2023, with no information about Fairley.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2683"
+  }
+ },
+ "g285": {
+  "label": "not_supported",
+  "reason": "The snippet states cod landings fell 18% in 2023 at Greyhaven, not Holmport.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2906"
+  }
+ },
+ "g286": {
+  "label": "not_supported",
+  "reason": "The snippet states fresh produce was 31% in 2023 and 19% in 2021, but does not mention a change in counting methodology as the cause.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2692"
+  }
+ },
+ "g287": {
+  "label": "contradicted",
+  "reason": "The snippet states the 27% rise in potholes repaired in Ashby occurred in 2023, not 2021 as the claim asserts.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4166"
+  }
+ },
+ "g288": {
+  "label": "contradicted",
+  "reason": "The snippet states applications rose 17%, while the claim states they fell 17%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2512"
+  }
+ },
+ "g289": {
+  "label": "supported",
+  "reason": "Both the 26% rise in crab landings at Greyhaven in 2023 and the 15% growth in Route 7 ridership in 2022 are directly stated in the snippets.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2601"
+  }
+ },
+ "g290": {
+  "label": "contradicted",
+  "reason": "The claim states the year as 2020, but the snippet states the yield was in 2022, which is a different period.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4082"
+  }
+ },
+ "g291": {
+  "label": "not_supported",
+  "reason": "The snippets state gritting runs fell 15% in 2023 for Barton, not Carlow.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3065"
+  }
+ },
+ "g292": {
+  "label": "supported",
+  "reason": "The snippet directly states the offer rate for international applicants was 38% in 2024, matching the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=1998"
+  }
+ },
+ "g293": {
+  "label": "contradicted",
+  "reason": "The snippet states volunteers gave 14,800 hours in 2023, but the claim asserts this occurred in 2021, which is a different year.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2439"
+  }
+ },
+ "g294": {
+  "label": "not_supported",
+  "reason": "The snippet states PM2.5 exceeded the daily limit on 9 days in 2022, but does not specify this was at the network's monitors.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2443"
+  }
+ },
+ "g295": {
+  "label": "supported",
+  "reason": "Both the ozone peak figure with date and the South district attendance percentage with year are directly stated in the snippets.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2641"
+  }
+ },
+ "g296": {
+  "label": "not_supported",
+  "reason": "The first part about ozone is stated in snippet [1], but the attendance claim about the South district falling to 91.8% in 2022 is not mentioned in any snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4691"
+  }
+ },
+ "g297": {
+  "label": "supported",
+  "reason": "The snippet directly states that the Riverside clinic saw an increase of 9% in 2023 compared to the year before.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2337"
+  }
+ },
+ "g298": {
+  "label": "supported",
+  "reason": "The snippet states North district enrolment rose from 1,104 to 1,241 pupils in 2021, which is an increase of 137 pupils (1,241 - 1,104 = 137).",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2341"
+  }
+ },
+ "g299": {
+  "label": "supported",
+  "reason": "The snippet states all parts of the claim: the hospital's energy costs fell 11.2% in 2024 after a new boiler was fitted.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2072"
+  }
+ },
+ "g300": {
+  "label": "not_supported",
+  "reason": "The snippet states the 14,800 volunteer hours in 2023 but does not mention any change in counting methodology as the cause.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4439"
+  }
+ },
+ "g301": {
+  "label": "not_supported",
+  "reason": "The snippet states that Elton's rooftop solar installations rose 12% in 2023, but does not mention weekend hours or confirm that Elton is the only one with weekend hours.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2589"
+  }
+ },
+ "g302": {
+  "label": "not_supported",
+  "reason": "The snippet states Holmport's mackerel landings rose 9% in 2023, but does not state that Holmport had the largest mackerel landings in the region.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2924"
+  }
+ },
+ "g303": {
+  "label": "supported",
+  "reason": "The snippet directly states that 40 fields were sampled across three counties, matching the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2280"
+  }
+ },
+ "g304": {
+  "label": "contradicted",
+  "reason": "The snippet states that rooftop solar installations in Dunmore \"rose 44%\" in 2023, which is the opposite direction from the claim's \"fell 44%\".",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2620"
+  }
+ },
+ "g305": {
+  "label": "supported",
+  "reason": "The snippet states exactly what the claim asserts: Route 7 ridership grew 15% in 2022 after ten-minute service frequency.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4281"
+  }
+ },
+ "g306": {
+  "label": "not_supported",
+  "reason": "The snippet gives only the rain-fed yield, not the irrigated yield or the difference between them, so the 2.7 tonnes per hectare added by irrigation cannot be verified.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2793"
+  }
+ },
+ "g307": {
+  "label": "contradicted",
+  "reason": "The claim states the reservoir was completed in 1985, but the snippet states it was completed in 1958.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2212"
+  }
+ },
+ "g308": {
+  "label": "supported",
+  "reason": "The snippet states ozone peaked at 182 micrograms per cubic metre on 19 July 2022, matching the claim's figure and date exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2976"
+  }
+ },
+ "g309": {
+  "label": "supported",
+  "reason": "The snippet directly states that enrolment in the North district rose 12.4% in 2021.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2085"
+  }
+ },
+ "g310": {
+  "label": "not_supported",
+  "reason": "The snippets state that 40 fields across three counties were sampled, but do not mention any change in how it was counted as the reason.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3376"
+  }
+ },
+ "g311": {
+  "label": "not_supported",
+  "reason": "The snippets mention the offer rate for international applicants in 2024, but do not state anything about the number or percentage change of applications to the engineering faculty for the 2024 intake.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3861"
+  }
+ },
+ "g312": {
+  "label": "supported",
+  "reason": "The snippet states the phosphate buffer in run one drifted by 0.08 pH units over fourteen days, matching the claim exactly (the claim omits \"at room temperature\" but doesn't contradict it).",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2725"
+  }
+ },
+ "g313": {
+  "label": "contradicted",
+  "reason": "The snippet states e-book loans reached 96,500 in 2023, but the claim asserts this figure for 2020, a different year.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3557"
+  }
+ },
+ "g314": {
+  "label": "contradicted",
+  "reason": "The snippet states energy costs fell 11.2% in 2024, not that they rose 11.2%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3599"
+  }
+ },
+ "g315": {
+  "label": "supported",
+  "reason": "The snippet states 7.9 tonnes per hectare, and \"about 8 tonnes\" is a fair approximate description of that figure.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4054"
+  }
+ },
+ "g316": {
+  "label": "supported",
+  "reason": "The snippet directly states that resurfacing in Carlow rose 40% in 2023 because a grant funded the ring road.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4481"
+  }
+ },
+ "g317": {
+  "label": "not_supported",
+  "reason": "The claim states two facts; the first about catering costs is fully stated in snippet [1], but the second about wheat yield on rain-fed plots in 2022 is not mentioned in any snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3095"
+  }
+ },
+ "g318": {
+  "label": "supported",
+  "reason": "The snippet directly states that the pH meter's slope stayed between 98 and 101 percent across all calibrations this month, matching the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2317"
+  }
+ },
+ "g319": {
+  "label": "supported",
+  "reason": "The claim omits the starting figure of 23% that snippet [1] provides, stating only that leakage \"fell to 14%\" rather than \"fell from 23% to 14%\".",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2452"
+  }
+ },
+ "g320": {
+  "label": "not_supported",
+  "reason": "The claim states wheat on irrigated plots yielded 7.9 tonnes per hectare, but the snippet only provides yield data for rain-fed plots (5.2 tonnes per hectare), not irrigated plots.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2720"
+  }
+ },
+ "g321": {
+  "label": "not_supported",
+  "reason": "The snippet states that herring landings at Holmport fell 3% in 2023, but does not mention a change in how it was counted as the cause.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2345"
+  }
+ },
+ "g322": {
+  "label": "supported",
+  "reason": "The snippet states that battery installations in Dunmore rose 61% in 2023, which matches every part of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2067"
+  }
+ },
+ "g323": {
+  "label": "contradicted",
+  "reason": "The snippet states the mean NO2 was 38 micrograms per cubic metre, but the claim states 28 micrograms per cubic metre.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3860"
+  }
+ },
+ "g324": {
+  "label": "not_supported",
+  "reason": "The snippet states the drift occurred at room temperature, but does not mention any change in how it was counted as the cause.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2544"
+  }
+ },
+ "g325": {
+  "label": "not_supported",
+  "reason": "The snippet states visitors rose 5% but does not mention the cause being a change in counting methodology.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2345"
+  }
+ },
+ "g326": {
+  "label": "supported",
+  "reason": "The snippet directly states that herring landings at Holmport fell 3% in 2023, matching all elements of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2341"
+  }
+ },
+ "g327": {
+  "label": "not_supported",
+  "reason": "The snippet describes run two, not run one, and does not provide information about run one's pH drift.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2618"
+  }
+ },
+ "g328": {
+  "label": "not_supported",
+  "reason": "The snippets describe Coast Point wind farm with 48 turbines of 3.6 megawatts each, but the claim is about Hollow Ridge wind farm.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2408"
+  }
+ },
+ "g329": {
+  "label": "contradicted",
+  "reason": "The claim attributes the drop to extended opening hours, but the snippet states it was due to text reminders beginning.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2273"
+  }
+ },
+ "g330": {
+  "label": "contradicted",
+  "reason": "The snippet states rooftop solar installations in Fairley fell 6% in 2023, which is the opposite direction from the claim's rise.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2528"
+  }
+ },
+ "g331": {
+  "label": "not_supported",
+  "reason": "The claim states \"Harbour branch reopened\" but snippet [2] refers to a library branch, not a clinic branch, making this a different subject.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2763"
+  }
+ },
+ "g332": {
+  "label": "contradicted",
+  "reason": "The claim states the leakage fell to 14% between 2000 and 2010, but the snippet states it fell to 14% between 2010 and 2020.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3377"
+  }
+ },
+ "g333": {
+  "label": "contradicted",
+  "reason": "The snippet states the average fare revenue per trip was 1.15 dollars in 2022, not 1.51 dollars as claimed.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2138"
+  }
+ },
+ "g334": {
+  "label": "not_supported",
+  "reason": "The claim states the Northside food bank opened a second site, but the snippet refers to the Southside food bank.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3221"
+  }
+ },
+ "g335": {
+  "label": "contradicted",
+  "reason": "The snippet states the 23% rise occurred in 2023, but the claim asserts it happened in 2021.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2204"
+  }
+ },
+ "g336": {
+  "label": "contradicted",
+  "reason": "The claim states 2021 but the snippet gives 81% for 2022, which is a different year for the same measure.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3857"
+  }
+ },
+ "g337": {
+  "label": "not_supported",
+  "reason": "The claim states 2021 but the snippet gives the figure for 2022, a different year.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2452"
+  }
+ },
+ "g338": {
+  "label": "not_supported",
+  "reason": "The claim adds that the study is \"the largest in the region,\" which is not stated in the snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2527"
+  }
+ },
+ "g339": {
+  "label": "supported",
+  "reason": "The snippet directly states that applications to the law faculty fell 4% for the 2024 intake, matching the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2067"
+  }
+ },
+ "g340": {
+  "label": "supported",
+  "reason": "The snippet directly states that catering costs at the hospital changed by 0.0% in 2024, matching the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2242"
+  }
+ },
+ "g341": {
+  "label": "not_supported",
+  "reason": "The claim states irrigated plots yielded 2.5 tonnes per hectare, but no snippet provides any figure for irrigated plots.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2826"
+  }
+ },
+ "g342": {
+  "label": "not_supported",
+  "reason": "The snippet states ozone peaked at 182 micrograms per cubic metre on 19 July 2022, but does not specify this was at the Market Street monitor.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2398"
+  }
+ },
+ "g343": {
+  "label": "contradicted",
+  "reason": "The snippet states crab landings rose 26% in 2023 at Greyhaven, not Holmport.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2398"
+  }
+ },
+ "g344": {
+  "label": "supported",
+  "reason": "The snippet states crab landings at Greyhaven rose 26% in 2023, and 26% is approximately a quarter (25%).",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2299"
+  }
+ },
+ "g345": {
+  "label": "contradicted",
+  "reason": "The snippet states visitors to the Science Museum rose 5% in 2023, which is the opposite direction from the claim's assertion that they fell 5%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2731"
+  }
+ },
+ "g346": {
+  "label": "supported",
+  "reason": "The snippet states missed appointments at Riverside clinic dropped to 7.5% in 2023, which is under 8%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2175"
+  }
+ },
+ "g347": {
+  "label": "contradicted",
+  "reason": "The snippet states loans rose 8%, while the claim states they fell 8%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2595"
+  }
+ },
+ "g348": {
+  "label": "supported",
+  "reason": "The snippet states that school visits to the Science Museum rose 31% in 2023, matching the claim's figure and period, though the snippet also mentions it is now run by a charity and gives a reason (free coach travel) that the claim omits.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3393"
+  }
+ },
+ "g349": {
+  "label": "not_supported",
+  "reason": "The claim states the Eastbrook works served 130,000 people, but snippet [1] only mentions Millford's expansion and says nothing about Eastbrook.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2309"
+  }
+ },
+ "g350": {
+  "label": "contradicted",
+  "reason": "The snippet states energy costs fell 11.2% in 2024, not 21.2% as claimed.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2243"
+  }
+ },
+ "g351": {
+  "label": "not_supported",
+  "reason": "The snippets state that gritting runs in Barton fell 15% in 2023, but do not mention weekend hours or confirm Barton is the only one with weekend hours.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2363"
+  }
+ },
+ "g352": {
+  "label": "supported",
+  "reason": "Snippet [1] directly states that the Hollow Ridge wind farm's capacity factor was 34 percent in 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2280"
+  }
+ },
+ "g353": {
+  "label": "contradicted",
+  "reason": "The snippet states the waiting time fell to 21 minutes in 2023, not 2022 as claimed.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2172"
+  }
+ },
+ "g354": {
+  "label": "supported",
+  "reason": "Snippet [1] directly states that crab landings at Greyhaven rose 26% in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2399"
+  }
+ },
+ "g355": {
+  "label": "contradicted",
+  "reason": "The snippet states visitors to the Art Gallery fell 9% in 2023, but the claim asserts this happened in 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3276"
+  }
+ },
+ "g356": {
+  "label": "not_supported",
+  "reason": "The snippet states resurfacing rose 40% in 2023 for Carlow, not Ashby.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2120"
+  }
+ },
+ "g357": {
+  "label": "contradicted",
+  "reason": "The claim states rain-fed plots yielded 7.9 tonnes per hectare, but the snippet states irrigated plots yielded that amount.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2166"
+  }
+ },
+ "g358": {
+  "label": "supported",
+  "reason": "Snippet [1] directly states that median waiting time at the Hillcrest clinic fell to 21 minutes in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2310"
+  }
+ },
+ "g359": {
+  "label": "not_supported",
+  "reason": "The claim adds a parenthetical statement about when the bus fleet opened (1962), but the snippet only mentions the distance covered in 2022 without stating the opening year.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2606"
+  }
+ },
+ "g360": {
+  "label": "supported",
+  "reason": "The claim states all the key facts (3,120 households, winter of 2023, after heating costs climbed) that snippet [1] provides, omitting only the 22% rise detail.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2591"
+  }
+ },
+ "g361": {
+  "label": "contradicted",
+  "reason": "The snippet states the second site opened in September 2023, while the claim states September 2022.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2129"
+  }
+ },
+ "g362": {
+  "label": "supported",
+  "reason": "The claim omits the starting figure of 23%, stating only the ending figure of 14%, but the period and measure match what snippet [1] states.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2708"
+  }
+ },
+ "g363": {
+  "label": "not_supported",
+  "reason": "The claim states the Harbour branch reopened after an 11-month refurbishment in March 2023, but the snippets provide no information about the Harbour branch.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2285"
+  }
+ },
+ "g364": {
+  "label": "supported",
+  "reason": "The claim combines two independent facts that are both stated in the snippets, with snippet [1] providing the wind farm generation figure and snippet [2] providing the nitrogen runoff reduction percentage.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2512"
+  }
+ },
+ "g365": {
+  "label": "not_supported",
+  "reason": "The claim states the community trust fell 21.2%, but no snippet provides any information about the community trust.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2319"
+  }
+ },
+ "g366": {
+  "label": "contradicted",
+  "reason": "The snippet states rooftop solar installations in Elton rose 12% in 2023, not 21%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2508"
+  }
+ },
+ "g367": {
+  "label": "not_supported",
+  "reason": "The claim adds \"now run by a charity\" which is not stated in the snippet about the 1994 expansion.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2452"
+  }
+ },
+ "g368": {
+  "label": "not_supported",
+  "reason": "The snippet states fresh produce made up 31% of donations in 2023, but does not mention anything about being \"rated best in the county.\"",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2626"
+  }
+ },
+ "g369": {
+  "label": "not_supported",
+  "reason": "The claim states school visits to the Art Gallery rose 13%, but no snippet provides any information about the Art Gallery.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2160"
+  }
+ },
+ "g370": {
+  "label": "supported",
+  "reason": "The spreadsheet row directly states that resurfacing in Carlow rose 40% in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2070"
+  }
+ },
+ "g371": {
+  "label": "supported",
+  "reason": "The snippet states North district enrolment rose 12.4% in 2021, which the claim describes as \"about 12%\".",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2233"
+  }
+ },
+ "g372": {
+  "label": "supported",
+  "reason": "The snippet states the capacity factor was 34 percent in 2022 because of a windy winter, which matches the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2090"
+  }
+ },
+ "g373": {
+  "label": "supported",
+  "reason": "The spreadsheet explicitly states that gritting runs in Barton fell 15% in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2610"
+  }
+ },
+ "g374": {
+  "label": "contradicted",
+  "reason": "The snippet states nursing staff costs rose 6.1% in 2024, not fell 6.1%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2378"
+  }
+ },
+ "g375": {
+  "label": "supported",
+  "reason": "The snippet states waiting time fell from 34 to 21 minutes, which is a decrease of 13 minutes.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3413"
+  }
+ },
+ "g376": {
+  "label": "supported",
+  "reason": "The snippet states that Art Gallery visitors fell 9% in 2023 because the east wing was closed, matching all parts of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2313"
+  }
+ },
+ "g377": {
+  "label": "supported",
+  "reason": "The snippet directly states the exact claim about run two, 37 degrees, phosphate buffer, and 0.21 pH unit drift.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3555"
+  }
+ },
+ "g378": {
+  "label": "supported",
+  "reason": "Snippet [1] directly states that the Hollow Ridge wind farm generated 412 gigawatt hours in 2022, matching the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2367"
+  }
+ },
+ "g379": {
+  "label": "supported",
+  "reason": "The snippet states the median waiting time fell to 21 minutes in 2023 after hiring a second triage nurse, matching all parts of the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2354"
+  }
+ },
+ "g380": {
+  "label": "not_supported",
+  "reason": "The claim states Barton rose 72%, but no snippet provides any information about Barton's potholes or any 72% figure.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2647"
+  }
+ },
+ "g381": {
+  "label": "not_supported",
+  "reason": "The snippet states that 40 fields were sampled across three counties, which matches the claim except the claim specifies this was in a \"follow-up survey\" which is not mentioned in the snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2488"
+  }
+ },
+ "g382": {
+  "label": "supported",
+  "reason": "The snippet states visitors rose 23% in 2023, which \"nearly a quarter\" (25%) fairly describes.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2430"
+  }
+ },
+ "g383": {
+  "label": "not_supported",
+  "reason": "The snippet states the fare revenue figure but does not mention a reason for the decline or any change in counting methodology.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2587"
+  }
+ },
+ "g384": {
+  "label": "contradicted",
+  "reason": "The snippet states a second site opened in September 2023, not a third site.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2180"
+  }
+ },
+ "g385": {
+  "label": "not_supported",
+  "reason": "The claim states North district had an average class size of 27, but the snippet only provides this figure for the West district, not the North district.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2682"
+  }
+ },
+ "g386": {
+  "label": "not_supported",
+  "reason": "The claim states the figure is for 2020, but the snippet gives the same figure for 2022, a different period.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3942"
+  }
+ },
+ "g387": {
+  "label": "contradicted",
+  "reason": "The snippet states 142 litres per person per day in 2020, but the claim states 124 litres per person per day in 2020.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2692"
+  }
+ },
+ "g388": {
+  "label": "supported",
+  "reason": "The snippet states nitrogen runoff fell 18% on plots with cover crops, which matches the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2112"
+  }
+ },
+ "g389": {
+  "label": "contradicted",
+  "reason": "The snippet states the median waiting time fell to 21 minutes in 2023, but does not state it rose to that figure.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2454"
+  }
+ },
+ "g390": {
+  "label": "supported",
+  "reason": "The snippet states 38 total hires with 22 in mathematics and science, which means 16 were in other subjects (38 - 22 = 16).",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4105"
+  }
+ },
+ "g391": {
+  "label": "supported",
+  "reason": "Snippet [1] directly states \"We sampled 40 fields across three counties,\" matching the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2396"
+  }
+ },
+ "g392": {
+  "label": "not_supported",
+  "reason": "The claim correctly states Central Library's 12% decline from snippet [1], but the Harbour branch's 21% decline is not mentioned in any snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3327"
+  }
+ },
+ "g393": {
+  "label": "supported",
+  "reason": "The snippet directly states that average fare revenue per trip fell to 1.15 dollars in 2022, matching the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2327"
+  }
+ },
+ "g394": {
+  "label": "not_supported",
+  "reason": "The snippet states catering costs at the hospital changed by 0.0% in 2024, but does not mention the hospital being rated best in the county.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3839"
+  }
+ },
+ "g395": {
+  "label": "not_supported",
+  "reason": "The snippet describes drug spending, not nursing staff costs, so it does not support the claim about nursing staff costs.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3202"
+  }
+ },
+ "g396": {
+  "label": "not_supported",
+  "reason": "The snippet states the Science Museum had a 5% rise in visitors in 2023, but does not mention when it opened.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2353"
+  }
+ },
+ "g397": {
+  "label": "not_supported",
+  "reason": "The snippet discusses Hillcrest clinic's waiting times, not Riverside clinic's patient count.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2507"
+  }
+ },
+ "g398": {
+  "label": "contradicted",
+  "reason": "The snippet states crab landings at Greyhaven rose 26% in 2023, not 2021.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2458"
+  }
+ },
+ "g399": {
+  "label": "not_supported",
+  "reason": "The claim states Ashby rose 4%, but snippet [1] only provides information about Carlow rising 40% in 2023, with no mention of Ashby.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2380"
+  }
+ },
+ "g400": {
+  "label": "not_supported",
+  "reason": "The snippet states the 96,500 figure but does not mention a change in counting methodology as the cause.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3438"
+  }
+ },
+ "g401": {
+  "label": "not_supported",
+  "reason": "The snippet states e-book loans reached 96,500 in 2023, but does not mention the service being \"the largest in the region.\"",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2393"
+  }
+ },
+ "g402": {
+  "label": "not_supported",
+  "reason": "The snippet states the capacity factor was 34 percent in 2022 but does not provide the total capacity or the 412 gigawatt hours generation figure needed to verify the claim.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2551"
+  }
+ },
+ "g403": {
+  "label": "not_supported",
+  "reason": "The snippets discuss leakage reduction between 2010 and 2020 but provide no information about the Eastbrook reservoir, its capacity, or its completion date.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2371"
+  }
+ },
+ "g404": {
+  "label": "not_supported",
+  "reason": "The first part about Hollow Ridge is stated in snippet [1], but the claim about Coast Point wind farm having a 43% capacity factor is not mentioned in any snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2781"
+  }
+ },
+ "g405": {
+  "label": "not_supported",
+  "reason": "The claim adds a specific figure for the Park Lane monitor (19 days) that is not mentioned in the snippet, which only reports the network-wide count of 9 days.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2857"
+  }
+ },
+ "g406": {
+  "label": "not_supported",
+  "reason": "The claim adds that West is \"the only one with weekend hours,\" which is not stated in the snippet.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2423"
+  }
+ },
+ "g407": {
+  "label": "contradicted",
+  "reason": "The snippet attributes the attendance decline to a flu outbreak in February, not a teachers' strike.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2175"
+  }
+ },
+ "g408": {
+  "label": "supported",
+  "reason": "The snippet states 81% on-time performance, which equals approximately four in five (80%).",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2277"
+  }
+ },
+ "g409": {
+  "label": "not_supported",
+  "reason": "The claim makes two assertions, but the snippets only support the first about Eastbrook reservoir—nothing about pH meter calibrations is mentioned in the provided snippets.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3712"
+  }
+ },
+ "g410": {
+  "label": "contradicted",
+  "reason": "The snippet states cod landings fell 18% in 2023, but the claim states they fell 81%.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2389"
+  }
+ },
+ "g411": {
+  "label": "supported",
+  "reason": "The spreadsheet states that energy costs at the hospital fell 11.2% in 2024.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2097"
+  }
+ },
+ "g412": {
+  "label": "not_supported",
+  "reason": "The snippets state Dunmore rose 44% in 2023, but do not mention Elton at all.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2450"
+  }
+ },
+ "g413": {
+  "label": "not_supported",
+  "reason": "The snippet states South district attendance fell to 91.8% in 2022, but does not mention it being rated best in the county.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2568"
+  }
+ },
+ "g414": {
+  "label": "supported",
+  "reason": "The snippet directly states that fresh produce made up 31% of donations in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2361"
+  }
+ },
+ "g415": {
+  "label": "supported",
+  "reason": "The snippet directly states that visitors to the Science Museum rose 5% in 2023, matching the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2149"
+  }
+ },
+ "g416": {
+  "label": "not_supported",
+  "reason": "The claim is about the conductivity meter's slope, but the snippet only reports the pH meter's slope staying between 98 and 101 percent.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4607"
+  }
+ },
+ "g417": {
+  "label": "contradicted",
+  "reason": "The snippet states leakage fell because old iron mains were replaced, but the claim says it was because water pressure was raised.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=3204"
+  }
+ },
+ "g418": {
+  "label": "supported",
+  "reason": "The snippet states exactly what the claim asserts: applications to the engineering faculty rose 17% for the 2024 intake.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2132"
+  }
+ },
+ "g419": {
+  "label": "supported",
+  "reason": "The claim states \"about 140 litres\" and the snippet states exactly 142 litres, which the approximate wording fairly describes.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2499"
+  }
+ },
+ "g420": {
+  "label": "contradicted",
+  "reason": "The snippet states the refurbishment lasted 11 months, not 7 months as claimed.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2244"
+  }
+ },
+ "g421": {
+  "label": "contradicted",
+  "reason": "The claim states the drop occurred in 2020, but the snippet states it occurred in 2023.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2228"
+  }
+ },
+ "g422": {
+  "label": "supported",
+  "reason": "The claim exactly matches the snippet, which states attendance fell to 91.8% in 2022 after a flu outbreak in February in the South district.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=4723"
+  }
+ },
+ "g423": {
+  "label": "supported",
+  "reason": "The snippet directly states the exact number of turbines (48) and their capacity (3.6 megawatts each) for the Coast Point wind farm.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2460"
+  }
+ },
+ "g424": {
+  "label": "supported",
+  "reason": "Snippet [1] states the Maritime Museum visitors rose 23% in 2023, matching the claim exactly.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2532"
+  }
+ },
+ "g425": {
+  "label": "contradicted",
+  "reason": "The snippet states 48 turbines of 3.6 MW each, which equals 172.8 MW, not 182.8 MW.",
+  "served_model": "claude-sonnet-4.5",
+  "routing": {
+   "provider": "kr",
+   "model": "claude-sonnet-4.5",
+   "decision": "strategy=single; provider=kr; latency_ms=2551"
+  }
+ }
+}
