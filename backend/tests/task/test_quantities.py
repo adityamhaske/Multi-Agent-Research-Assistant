@@ -31,6 +31,11 @@ ACCEPTED = [
     ("in 2021", "on 14 March 2021 the trial began"),
     ("on 03/04/2021", "dated 03/04/2021"),
     ("$40 per unit", "priced at 40 USD each"),
+    # Units whose factor is not a power of ten: precision is a step, not an exponent.
+    ("6 hours", "a 6 hour shift"),
+    ("3 days", "over 3 days"),
+    ("4 hours", "a 240 minute session"),
+    ("nearly 15,000 hours", "Volunteers gave 14,800 hours."),
 ]
 
 REFUSED = [
@@ -45,6 +50,8 @@ REFUSED = [
     ("in 2022", "on 14 March 2021"),
     ("7 participants", "There were 1000 participants."),
     ("$40 per unit", "priced at 40 EUR each"),
+    ("7 hours", "a 6 hour shift"),
+    ("6.5 hours", "a 6 hour shift"),  # invented precision, in a non-decimal unit
 ]
 
 

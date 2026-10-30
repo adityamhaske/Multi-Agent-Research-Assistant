@@ -131,13 +131,16 @@ class Quantity:
     `kind` is `number`, `percent`, `date`, or `unit:<dimension>`. `exponent` is the place of
     the last significant digit (12.4 → -1, 12 → 0, 1,200 → 2) — rounding is judged against
     it. `literal` holds a date's normalised text, or a four-digit number's own digits when
-    it may also be a year.
+    it may also be a year. `step` is set for a converted unit: the size of one unit of the
+    last stated digit, in the base unit — 6 hours is stated to 3,600 s, which no power of ten
+    expresses.
     """
 
     value: Decimal | None
     kind: str
     exponent: int = 0
     literal: str = ""
+    step: Decimal | None = None
 
 
 _NUMBER = r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d{1,3}(?: \d{3})+(?:\.\d+)?|\d+(?:\.\d+)?"
@@ -224,9 +227,16 @@ def extract(text: str) -> list[Quantity]:
         if unit:
             dimension, factor = _UNITS[unit]
             # Precision moves with the unit: 5 km is stated to the kilometre, i.e. to the
-            # thousand metres, so the converted value keeps that coarseness.
+            # thousand metres, so the converted value keeps that coarseness — as a step, since
+            # an hour is 3,600 s and rounding to a power of ten would reject "6 hours" against
+            # "6 hours".
             found.append(
-                Quantity(value * factor, f"unit:{dimension}", exponent + factor.adjusted())
+                Quantity(
+                    value * factor,
+                    f"unit:{dimension}",
+                    exponent + factor.adjusted(),
+                    step=factor.scaleb(exponent),
+                )
             )
             continue
         # A bare four-digit integer in year range may be a year as well as a number: it
@@ -241,6 +251,11 @@ def _rounds_to(claim: Quantity, snippet: Quantity) -> bool:
     """Whether the claim's value is the snippet's, rounded half-up to the claim's precision."""
     if claim.value is None or snippet.value is None:
         return False
+    if claim.step is not None and snippet.step is not None:
+        if claim.step < snippet.step:
+            return False  # the claim is more precise than its evidence
+        rounded = (snippet.value / claim.step).to_integral_value(ROUND_HALF_UP) * claim.step
+        return rounded == claim.value
     if claim.exponent < snippet.exponent:
         return False  # the claim is more precise than its evidence: a digit was invented
     quantum = Decimal(1).scaleb(claim.exponent)
@@ -311,4 +326,5 @@ def calculation_holds(op: str, operands: list[str], result: str, snippets: str) 
     computed = func(a.value, b.value)
     if computed is None:
         return False
-    return _rounds_to(outcome[0], Quantity(computed, outcome[0].kind, -28))
+    exact = Quantity(computed, outcome[0].kind, -28, step=Decimal(1).scaleb(-28))
+    return _rounds_to(outcome[0], exact)
