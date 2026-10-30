@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import time
 from dataclasses import dataclass, field
 
 from research_engine import grounding
@@ -73,6 +74,9 @@ class _Ledger:
     units_repaired: int = 0
     units_dropped: int = 0
     rejected: set[str] = field(default_factory=set)
+    #: When checking began, so its wall time is recorded beside its cost: gate G-5 weighs
+    #: §9's latency as well as its spend, from the same run (RFC V3.1 §14.1).
+    started: float = field(default_factory=time.monotonic)
 
     def absorb(self, v: Validation) -> None:
         self.cost_usd += v.cost_usd
@@ -299,6 +303,7 @@ def _finish(body, sources, validation, ledger: _Ledger, *, status: str, failure:
             "tokens_out": ledger.tokens_out,
             "retries": ledger.retries,
             "repairs": ledger.units_repaired,
+            "seconds": round(time.monotonic() - ledger.started, 3),
         },
         "claims": [c.as_dict() for c in validation.claims] if validation is not None else [],
         "validated_text_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()
