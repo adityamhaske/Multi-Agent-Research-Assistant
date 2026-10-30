@@ -299,13 +299,32 @@ def factual_token_positions(sentence: str) -> list[int]:
     return [m.start() for m in _FACTUAL_TOKEN_RE.finditer(stripped) if m.start() >= first_end]
 
 
+def locate_quote(sentence: str, quote: str, after: int = 0) -> tuple[int, int] | None:
+    """Where a claim's quoted words sit in the sentence, as a character span, or None.
+
+    The model names a claim's place by quoting it, and this function measures it: a model
+    asked for character offsets miscounts them (G-6 run 1 lost 37% of its claims to spans
+    that started mid-word). The quote must be the sentence's own words in order; only runs
+    of whitespace may differ. The first occurrence at or after `after` wins, so a phrase the
+    sentence repeats is placed after the previous claim's quote.
+    """
+    words = quote.split()
+    if not words:
+        return None
+    pattern = re.compile(r"\s+".join(re.escape(w) for w in words))
+    found = pattern.search(sentence, after) or pattern.search(sentence)
+    return found.span() if found else None
+
+
 def check_decomposition(sentence: str, decomposed: list[dict]) -> list[Claim] | None:
     """The claims a decomposition proposes, or None when it fails a structural check.
 
-    Spans inside the sentence and non-overlapping; together they cover every factual token;
-    every `cites` entry is a marker the sentence carries. A failure makes the whole sentence
-    unmeasured — never supported — because an uncovered clause is exactly where an invented
-    assertion would hide.
+    Each claim's span is located from its `quote` (`locate_quote`); a bare `span` is taken
+    as given, which the scripted fakes rely on. Spans inside the sentence and
+    non-overlapping; together they cover every factual token; every `cites` entry is a
+    marker the sentence carries. A failure makes the whole sentence unmeasured — never
+    supported — because an uncovered clause is exactly where an invented assertion would
+    hide.
     """
     if not isinstance(decomposed, list):
         return None
@@ -315,7 +334,16 @@ def check_decomposition(sentence: str, decomposed: list[dict]) -> list[Claim] | 
     for item in decomposed:
         if not isinstance(item, dict):
             return None
-        span = item.get("span")
+        quote = item.get("quote")
+        if quote is not None:
+            if not isinstance(quote, str):
+                return None
+            located = locate_quote(sentence, quote, after=max((e for _, e in spans), default=0))
+            if located is None:
+                return None
+            span = list(located)
+        else:
+            span = item.get("span")
         text = item.get("text")
         cites = item.get("cites") or []
         if (

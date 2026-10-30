@@ -280,6 +280,66 @@ async def test_a_decomposition_that_leaves_a_number_uncovered_is_refused(judge):
     assert claim.state == grounding.UNMEASURED and claim.cause == "decomposition_invalid"
 
 
+# The model quotes; the code measures. Offsets a model counts were wrong often enough to
+# lose 37% of G-6 run 1 (eval-2026-10-30-custom-auto-best-fast-grounding-run1.json).
+
+SENTENCE = "The trial sampled 40 fields across three counties, and visitors rose 5% in 2023 [1]."
+
+
+def _quoted(*quotes):
+    return [{"text": q, "quote": q, "cites": [1], "calculation": None} for q in quotes]
+
+
+def test_quoted_claims_are_placed_by_the_code_not_the_model():
+    claims = grounding.check_decomposition(
+        SENTENCE,
+        _quoted("The trial sampled 40 fields", "across three counties", "visitors rose 5% in 2023"),
+    )
+    assert claims is not None
+    assert [SENTENCE[slice(*c.span)] for c in claims] == [
+        "The trial sampled 40 fields",
+        "across three counties",
+        "visitors rose 5% in 2023",
+    ]
+
+
+def test_a_quote_differing_only_in_whitespace_is_located():
+    claims = grounding.check_decomposition(
+        SENTENCE,
+        _quoted("The trial sampled 40\nfields across  three counties", "visitors rose 5% in 2023"),
+    )
+    assert claims is not None
+
+
+@pytest.mark.parametrize(
+    "quotes",
+    [
+        # Words the sentence does not contain: an invented clause cannot be placed.
+        ("The trial sampled 40 fields across three counties", "visitors rose 9% in 2023"),
+        # Two claims claiming the same words: the RFC's non-overlap rule still holds.
+        (
+            "The trial sampled 40 fields across",
+            "40 fields across three counties",
+            "visitors rose 5% in 2023",
+        ),
+        # A quote that leaves "2023" out of every claim.
+        ("The trial sampled 40 fields across three counties", "visitors rose 5%"),
+    ],
+    ids=["not-in-sentence", "overlapping", "uncovered-date"],
+)
+def test_a_quote_that_fails_a_structural_check_is_refused(quotes):
+    assert grounding.check_decomposition(SENTENCE, _quoted(*quotes)) is None
+
+
+def test_a_repeated_phrase_is_placed_after_the_previous_quote():
+    sentence = "Sales rose 5% in 2022 and costs rose 5% in 2023 [1]."
+    claims = grounding.check_decomposition(
+        sentence, _quoted("Sales rose 5% in 2022", "and costs", "rose 5% in 2023")
+    )
+    assert claims is not None
+    assert claims[2].span[0] > claims[0].span[1], "the second 'rose 5%' is the one placed"
+
+
 # ── AC-40: right number, wrong subject ────────────────────────────────────────────
 
 
