@@ -67,6 +67,10 @@ def test_the_benchmark_refuses_a_checker_that_made_the_labels(tmp_path, monkeypa
     )
     monkeypatch.setenv("LLM_MODE", "real")
     monkeypatch.setenv("MODEL_CRITIC", "custom:auto/best-fast")
+    # The other agents' default routes need a key to build a config at all; the refusal
+    # fires before any call, so a placeholder is never sent anywhere.
+    monkeypatch.setenv("GOOGLE_API_KEY", "placeholder")
+    monkeypatch.setenv("CUSTOM_API_KEY", "placeholder")
     with pytest.raises(gb.Unmeasurable, match="scored against itself"):
         import asyncio
 
