@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { basePath, isPagesBuild, siteUrl } from "@/lib/pages-build";
+import { OG_IMAGE, basePath, isPagesBuild, siteUrl } from "@/lib/pages-build";
 import { Inter, JetBrains_Mono } from "next/font/google";
 
 import { Providers } from "@/components/Providers";
@@ -22,7 +22,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   // `siteUrl` always resolves to a valid absolute URL (it has a non-Pages-build fallback —
   // see `lib/pages-build.ts`), even though only the Pages build's value is meaningful. Next
-  // requires *some* `metadataBase` to resolve the auto-generated `opengraph-image` route
+  // requires *some* `metadataBase` to resolve the relative `OG_IMAGE` path
   // into an absolute URL and otherwise falls back to `http://localhost:3000` with a build
   // warning on every target; a slightly-wrong base on the two targets nothing crawls (see
   // `robots.ts`) is a smaller cost than that warning on every build.
@@ -54,9 +54,11 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Multi-Agent Research Assistant",
     locale: "en_US",
+    images: [OG_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
+    images: [OG_IMAGE],
   },
   // Belt-and-suspenders alongside `robots.ts`: a `<meta name="robots">` tag survives even
   // if a reverse proxy in front of a self-hosted deployment ever drops or rewrites

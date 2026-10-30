@@ -81,6 +81,22 @@ export function absoluteUrl(routePath: string): string | undefined {
 }
 
 /**
+ * The social-preview card, served by `app/(site)/og.png/route.tsx`.
+ *
+ * Relative on purpose: Next resolves it against `metadataBase`, which already carries
+ * `basePath` (`siteUrl`), so the emitted tag is `https://<host>/<repo>/og.png`. Prefixing
+ * `basePath` here too would double it. Shared by the root layout and `pageUrls` because a
+ * page that sets its own `openGraph` replaces the layout's object wholesale rather than
+ * merging into it — without `images` in both, every page using `pageUrls` lost the card.
+ */
+export const OG_IMAGE = {
+  url: "/og.png",
+  width: 1200,
+  height: 630,
+  alt: "Multi-Agent Research Assistant — cited research you can actually verify",
+} as const;
+
+/**
  * `alternates.canonical` and `openGraph.url` for a route, spread into a page's `metadata`.
  *
  * One function so a page cannot set one and forget the other — a crawler and a social
@@ -96,5 +112,7 @@ export function absoluteUrl(routePath: string): string | undefined {
  */
 export function pageUrls(routePath: string): Pick<Metadata, "alternates" | "openGraph"> {
   const url = absoluteUrl(routePath);
-  return url ? { alternates: { canonical: url }, openGraph: { url } } : {};
+  return url
+    ? { alternates: { canonical: url }, openGraph: { url, images: [OG_IMAGE] } }
+    : {};
 }

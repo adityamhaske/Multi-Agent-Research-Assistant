@@ -115,7 +115,7 @@ export. Edit `app-routes/`, never the generated directory.
 
 ## A metadata route needs an explicit static hint, or two of three builds die
 
-`app/robots.ts`, `app/sitemap.ts`, and any `opengraph-image.tsx`/`twitter-image.tsx`
+`app/robots.ts`, `app/sitemap.ts`, and the `app/(site)/og.png/route.tsx` handler
 compute everything from build-time env vars, so they are always safe to freeze at build
 time — but neither the desktop export nor `build:pages` (both `output: "export"`) infer
 that on their own. Without `export const dynamic = "force-static";` in the file, `next
@@ -125,6 +125,13 @@ build` fails outright naming the route (`"dynamic ... not configured on route
 passes `npm run build` and passes in `next dev`, and only fails on the other two targets,
 at build time — add the export the moment you add a new metadata-route file, and run all
 three builds (see root `AGENTS.md`) before trusting one green build implies the others.
+
+**Do not use the `opengraph-image.tsx` file convention for the Pages site.** Under a static
+export it emits an extension-less `/opengraph-image-<hash>`, which GitHub Pages serves as
+`application/octet-stream`; the URL answers 200 but Facebook, LinkedIn and Slack discard an
+image that is not `image/*`. The card is a route handler at `/og.png` instead, referenced
+from `metadata` (`OG_IMAGE` in `lib/pages-build.ts`). Check such a thing with
+`curl -sI <url>` and read `content-type`, not just the status line.
 
 ## Looking at it
 

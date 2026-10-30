@@ -18,14 +18,44 @@ const STATIC_ROUTES = ["/", "/why", "/docs", "/download", "/releases", "/source"
 export const dynamic = "force-static";
 
 /**
+ * How often each kind of page realistically changes. Google ignores `changefreq`; other
+ * crawlers (Bing, Yandex, assorted AI fetchers) still read it as a hint, so it is declared
+ * per kind of page rather than as one blanket value.
+ */
+const CHANGE_FREQUENCY = {
+  "/": "weekly",
+  "/releases": "weekly",
+  "/download": "weekly",
+} as const;
+
+/**
+ * Commit date of the revision this site was built from (`pages.yml` sets it from `git log`).
+ *
+ * One site-wide value, not a per-page one, and that is the honest granularity: a fresh
+ * `actions/checkout` resets every file's mtime to checkout time, so per-file dates would be
+ * fabricated, whereas "the site as of this commit" is a fact. Absent when the build was not
+ * given one (a local `build:pages`), and then `<lastmod>` is left out entirely rather than
+ * invented from the wall clock — Google only trusts `lastmod` that is verifiably accurate.
+ */
+const LASTMOD = process.env.NEXT_PUBLIC_SITE_LASTMOD
+  ? new Date(process.env.NEXT_PUBLIC_SITE_LASTMOD)
+  : undefined;
+const lastModified = LASTMOD && !Number.isNaN(LASTMOD.getTime()) ? LASTMOD : undefined;
+
+function entry(route: string) {
+  return {
+    url: absoluteUrl(route)!,
+    ...(lastModified && { lastModified }),
+    changeFrequency:
+      CHANGE_FREQUENCY[route as keyof typeof CHANGE_FREQUENCY] ?? ("monthly" as const),
+  };
+}
+
+/**
  * `/sitemap.xml`, generated at build time from the same route set `robots.ts` allows.
  *
- * `<lastmod>`, `<priority>` and `<changefreq>` are deliberately absent. Google's own sitemap
- * documentation says it ignores `priority`/`changefreq` outright and only trusts `lastmod`
- * when it is "consistently and verifiably accurate" — this build has no real per-page edit
- * history to report (a fresh `actions/checkout` resets every file's mtime to checkout time,
- * not the commit that last touched it), so the honest sitemap is a list of URLs, not a
- * fabricated freshness signal three fields wide.
+ * `<priority>` is deliberately absent: there is no honest basis for ranking one page above
+ * another. See `LASTMOD` for why `<lastmod>` is a single build-wide date.
  *
  * Empty outside the Pages build, for the same reason `robots.ts` disallows everything
  * there: neither the desktop export nor a self-hosted server has an origin this build can
@@ -35,8 +65,8 @@ export const dynamic = "force-static";
 export default function sitemap(): MetadataRoute.Sitemap {
   if (!isPagesBuild) return [];
 
-  const staticEntries = STATIC_ROUTES.map((route) => ({ url: absoluteUrl(route)! }));
-  const docEntries = allDocs().map((doc) => ({ url: absoluteUrl(`/docs/${doc.slug}`)! }));
+  const staticEntries = STATIC_ROUTES.map(entry);
+  const docEntries = allDocs().map((doc) => entry(`/docs/${doc.slug}`));
 
   return [...staticEntries, ...docEntries];
 }

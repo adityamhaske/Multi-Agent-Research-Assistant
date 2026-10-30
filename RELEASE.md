@@ -293,7 +293,7 @@ write release notes. `releases.ts` and the changelog are version histories by de
   - Evidence: the release PR.
   - STOP if: any carrier was edited by hand instead of derived.
 - [ ] **M1.02** Search for stale references the scanner cannot see: images and screenshots with text in them, the OpenGraph image, hard-coded download or release URLs, image tags in docs.
-  - Verify: `git grep -nE "vPREV|PREV_VERSION" -- ':!docs/project/37-changelog.md' ':!frontend/lib/releases.ts' ':!release-audit'`; `git grep -n "releases/download/"`; `git grep -nE "ghcr.io/[^ ]+:[0-9v]"`; open `frontend/app/(site)/opengraph-image.tsx`.
+  - Verify: `git grep -nE "vPREV|PREV_VERSION" -- ':!docs/project/37-changelog.md' ':!frontend/lib/releases.ts' ':!release-audit'`; `git grep -n "releases/download/"`; `git grep -nE "ghcr.io/[^ ]+:[0-9v]"`; open `frontend/app/(site)/og.png/route.tsx`.
   - Expected: every hit is intentional history or derived at build time.
   - Evidence: the commands and a one-line disposition per hit.
   - STOP if: a user-facing surface presents an old version, URL or tag as current.

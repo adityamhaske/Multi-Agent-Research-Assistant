@@ -72,6 +72,15 @@ describe("pageUrls", () => {
     expect(result.openGraph).toMatchObject({ url: "https://example.com/repo/download/" });
   });
 
+  it("carries the .png social card, since a page's openGraph replaces the layout's", async () => {
+    vi.stubEnv("NEXT_PUBLIC_PAGES", "1");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://example.com/repo");
+    const { pageUrls } = await loadModule();
+    expect(pageUrls("/download").openGraph).toMatchObject({
+      images: [{ url: "/og.png", width: 1200, height: 630 }],
+    });
+  });
+
   it("never sets openGraph.title or openGraph.description", async () => {
     // Setting either here would freeze one page's title into every other page's Open
     // Graph tags once Next merges metadata objects shallowly — see the comment on
