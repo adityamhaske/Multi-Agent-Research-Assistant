@@ -487,6 +487,14 @@ why `research_engine` refuses an older interpreter by name rather than failing t
 why `desktop.yml`'s `shell` job sets up the image's Python: `check_packaged_sidecar.py`
 imports the verifier, which the runner's own `python3` cannot run.
 
+**The backend suite runs on Linux only, and the desktop's file handling ships to Windows.**
+POSIX semantics pass there that Windows refuses: `os.fsync` on a read-only handle is fine on
+Linux and `EBADF` on Windows, and the 3.1 legacy corpus move did exactly that, so every
+Windows desktop with pre-3.1 documents would have failed at launch. Only the G-3 job in
+`release-gates.yml`, which runs the move on `windows-latest`, found it. When desktop code
+touches the filesystem, emulate the Windows behaviour in a test, the way
+`test_desktop_legacy_corpus_migration::_windows_fsync` does.
+
 **The frontend has the same rule, for Node (A10.07).** `frontend/Dockerfile`'s `FROM node:N`
 is the `node-version` of every `actions/setup-node` — ci.yml's `frontend` and `golden-e2e`,
 desktop's `shell`, pages' `build` — and every stated floor: `engines` in
