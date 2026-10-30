@@ -1,0 +1,5250 @@
+{
+ "version": 1,
+ "seed": 3100,
+ "items": [
+  {
+   "id": "g001",
+   "claim": "The Harbour branch reopened after a 11-month refurbishment in March 2022.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "The Harbour branch reopened in March 2023 after an 11-month refurbishment."
+    }
+   ]
+  },
+  {
+   "id": "g002",
+   "claim": "Volunteers gave 14,800 hours in 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Volunteers gave 14,800 hours in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g003",
+   "claim": "Nursing staff costs at the hospital rose 16.1% in 2024.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the hospital; Measure: nursing staff costs; Change: rose 6.1%; Period: 2024; Reason: the national pay award"
+    }
+   ]
+  },
+  {
+   "id": "g004",
+   "claim": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022, and in run one the phosphate buffer drifted by 0.08 pH units over fourteen days.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022"
+    }
+   ]
+  },
+  {
+   "id": "g005",
+   "claim": "The Hollow Ridge wind farm generated just over 400 gigawatt hours in 2022.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022"
+    }
+   ]
+  },
+  {
+   "id": "g006",
+   "claim": "Visitors to the Art Gallery fell 9% in 2023, and the East district hired 38 new teachers in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the Art Gallery; Measure: visitors; Change: fell 9%; Period: 2023; Reason: the east wing was closed"
+    }
+   ]
+  },
+  {
+   "id": "g007",
+   "claim": "Battery installations in Dunmore (the largest in the region) rose 61% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Dunmore; Measure: battery installations; Change: rose 61%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g008",
+   "claim": "Battery installations in Dunmore fell 61% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Dunmore; Measure: battery installations; Change: rose 61%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g009",
+   "claim": "PM2.5 exceeded the daily limit on 9 days at the network's monitors in 2022, and the trial sampled 40 fields across three counties in its first season.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "PM2.5 exceeded the daily limit on 9 days in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g010",
+   "claim": "Battery installations in Dunmore rose 61% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Dunmore; Measure: battery installations; Change: rose 61%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g011",
+   "claim": "Crab landings at Greyhaven rose 26% in 2023 after new pots were trialled.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Greyhaven; Measure: crab landings; Change: rose 26%; Period: 2023; Reason: new pots were trialled"
+    }
+   ]
+  },
+  {
+   "id": "g012",
+   "claim": "The offer rate for home applicants was 38% in 2024.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "The offer rate for international applicants was 38% in 2024"
+    }
+   ]
+  },
+  {
+   "id": "g013",
+   "claim": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Its capacity factor was 34 percent in 2022 because of a windy winter"
+    }
+   ]
+  },
+  {
+   "id": "g014",
+   "claim": "Drug spending at the community trust rose 3.4% in 2024.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: the hospital; Measure: drug spending; Change: rose 3.4%; Period: 2024"
+    }
+   ]
+  },
+  {
+   "id": "g015",
+   "claim": "The East district hired 38 new teachers in 2023 and the West district hired 83.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "The East district hired 38 new teachers in 2023, 22 of them in mathematics and science."
+    }
+   ]
+  },
+  {
+   "id": "g016",
+   "claim": "The Millford treatment works was expanded in 1994 to serve about 300,000 people.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "The Millford treatment works was expanded in 1994 to serve 310,000 people."
+    }
+   ]
+  },
+  {
+   "id": "g017",
+   "claim": "Ozone at the network's monitors (which opened in 1962) peaked at 182 micrograms per cubic metre on 19 July 2022.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Ozone peaked at 182 micrograms per cubic metre on 19 July 2022."
+    }
+   ]
+  },
+  {
+   "id": "g018",
+   "claim": "Potholes repaired in Barton fell 8% in 2023.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Barton; Measure: potholes repaired; Change: fell 8%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g019",
+   "claim": "Average household use was 142 litres per person per day in 2020.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "Average household use was 142 litres per person per day in 2020."
+    }
+   ]
+  },
+  {
+   "id": "g020",
+   "claim": "Crab landings at Greyhaven rose about a quarter in 2023.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Greyhaven; Measure: crab landings; Change: rose 26%; Period: 2023; Reason: new pots were trialled"
+    }
+   ]
+  },
+  {
+   "id": "g021",
+   "claim": "Rooftop solar installations in Elton rose 12% in 2023, and average class size in the West district was 27 pupils in 2022.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Elton; Measure: rooftop solar installations; Change: rose 12%; Period: 2023"
+    },
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Average class size in the West district was 27 pupils in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g022",
+   "claim": "The offer rate for international applicants (rated best in the county) was 38% in 2024.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "The offer rate for international applicants was 38% in 2024"
+    }
+   ]
+  },
+  {
+   "id": "g023",
+   "claim": "Visitors to the Maritime Museum rose 23% in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the Maritime Museum; Measure: visitors; Change: rose 23%; Period: 2023; Reason: the shipwreck exhibition"
+    }
+   ]
+  },
+  {
+   "id": "g024",
+   "claim": "Free computer sessions at the Central Library fell 12% in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "Free computer sessions at the Central Library fell 12% in 2023 as more visitors brought laptops."
+    }
+   ]
+  },
+  {
+   "id": "g025",
+   "claim": "Free computer sessions at the Central Library fell 12% in 2023, and the Harbour branch reopened after a 11-month refurbishment in March 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "Free computer sessions at the Central Library fell 12% in 2023 as more visitors brought laptops."
+    }
+   ]
+  },
+  {
+   "id": "g026",
+   "claim": "The Southside food bank opened a second site in September 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "The Southside food bank opened a second site in September 2023."
+    }
+   ]
+  },
+  {
+   "id": "g027",
+   "claim": "Applications to the law faculty (rated best in the county) fell 4% for the 2024 intake.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "Applications to the law faculty fell 4% for the 2024 intake"
+    }
+   ]
+  },
+  {
+   "id": "g028",
+   "claim": "In run two, at 37 degrees, the phosphate buffer (now run by a charity) drifted by 0.21 pH units.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "In run two, at 37 degrees, the phosphate buffer drifted by 0.21 pH units."
+    }
+   ]
+  },
+  {
+   "id": "g029",
+   "claim": "Mackerel landings at Holmport rose 9% in 2023 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Holmport; Measure: mackerel landings; Change: rose 9%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g030",
+   "claim": "Nitrogen runoff on plots with cover crops fell 18% in the trial after roots held the soil over winter.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Nitrogen runoff fell 18% on plots with cover crops because roots held the soil over winter."
+    }
+   ]
+  },
+  {
+   "id": "g031",
+   "claim": "School visits to the Science Museum (the only one with weekend hours) rose 31% in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: the Science Museum; Measure: school visits; Change: rose 31%; Period: 2023; Reason: free coach travel began"
+    }
+   ]
+  },
+  {
+   "id": "g032",
+   "claim": "Wheat on the rain-fed plots (which opened in 1962) yielded 5.2 tonnes per hectare in 2022.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g033",
+   "claim": "Gritting runs in Barton fell 15% in 2021.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Barton; Measure: gritting runs; Change: fell 15%; Period: 2023; Reason: a mild December"
+    }
+   ]
+  },
+  {
+   "id": "g034",
+   "claim": "Volunteers gave 14,800 hours in 2023, and the city's bus fleet covered 4.2 million kilometres in 2022.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Volunteers gave 14,800 hours in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g035",
+   "claim": "The Hollow Ridge wind farm (the largest in the region) generated 412 gigawatt hours in 2022.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022"
+    }
+   ]
+  },
+  {
+   "id": "g036",
+   "claim": "The East district hired 38 new teachers in 2023.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "The East district hired 38 new teachers in 2023, 22 of them in mathematics and science."
+    }
+   ]
+  },
+  {
+   "id": "g037",
+   "claim": "In run one the phosphate buffer drifted by 0.8 pH units over fourteen days.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "In run one the phosphate buffer drifted by 0.08 pH units over fourteen days at room temperature."
+    }
+   ]
+  },
+  {
+   "id": "g038",
+   "claim": "Curtailment at Coast Point rose to 6 percent in 2020.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Curtailment at Coast Point rose to 6 percent in 2022 when the grid link was congested"
+    }
+   ]
+  },
+  {
+   "id": "g039",
+   "claim": "The Hillcrest clinic saw 18,240 patients in 2023.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "The Riverside clinic saw 18,240 patients in 2023, up 9% on the year before."
+    }
+   ]
+  },
+  {
+   "id": "g040",
+   "claim": "Average household use was 142 litres per person per day in 2010.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "Average household use was 142 litres per person per day in 2020."
+    }
+   ]
+  },
+  {
+   "id": "g041",
+   "claim": "Attendance in the South district fell to 91.8% in 2022.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Attendance in the South district fell to 91.8% in 2022, after a flu outbreak in February."
+    }
+   ]
+  },
+  {
+   "id": "g042",
+   "claim": "Resurfacing in Carlow rose 4% in 2023.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Carlow; Measure: resurfacing; Change: rose 40%; Period: 2023; Reason: a grant funded the ring road"
+    }
+   ]
+  },
+  {
+   "id": "g043",
+   "claim": "Ridership on Route 7 grew 15% in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "The city's bus fleet covered 4.2 million kilometres in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g044",
+   "claim": "Mackerel landings at Holmport rose 9% in 2022.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Holmport; Measure: mackerel landings; Change: rose 9%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g045",
+   "claim": "Nitrogen runoff on plots with cover crops fell 18% in the pilot.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Nitrogen runoff fell 18% on plots with cover crops because roots held the soil over winter."
+    }
+   ]
+  },
+  {
+   "id": "g046",
+   "claim": "Rooftop solar installations in Dunmore rose 44% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Dunmore; Measure: rooftop solar installations; Change: rose 44%; Period: 2023; Reason: a council grant"
+    }
+   ]
+  },
+  {
+   "id": "g047",
+   "claim": "The Harbour branch (the only one with weekend hours) reopened after a 11-month refurbishment in March 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "The Harbour branch reopened in March 2023 after an 11-month refurbishment."
+    }
+   ]
+  },
+  {
+   "id": "g048",
+   "claim": "Catering costs at the hospital changed by 2.0% in 2024.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: the hospital; Measure: catering costs; Change: changed by 0.0%; Period: 2024"
+    }
+   ]
+  },
+  {
+   "id": "g049",
+   "claim": "The county's two clinics gave 6,450 flu vaccinations in the 2023 season.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "The county's two clinics gave 6,450 flu vaccinations in the 2023 season."
+    }
+   ]
+  },
+  {
+   "id": "g050",
+   "claim": "The county hospital gave 6,450 flu vaccinations in the 2023 season.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "The county's two clinics gave 6,450 flu vaccinations in the 2023 season."
+    }
+   ]
+  },
+  {
+   "id": "g051",
+   "claim": "First-year retention among students reached 82% in 2023.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "First-year retention reached 92% in 2023 after a mentoring scheme started"
+    }
+   ]
+  },
+  {
+   "id": "g052",
+   "claim": "Median waiting time at the Hillcrest clinic fell to 12 minutes in 2023.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "Median waiting time at the Hillcrest clinic fell from 34 to 21 minutes in 2023 after a second triage nurse was hired."
+    }
+   ]
+  },
+  {
+   "id": "g053",
+   "claim": "On-time performance on Route 12 was about four in five in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "On-time performance on Route 12 was 81% in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g054",
+   "claim": "On-time performance on Route 7 was 81% in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "On-time performance on Route 12 was 81% in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g055",
+   "claim": "Potholes repaired in Barton fell 8% in 2022.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Barton; Measure: potholes repaired; Change: fell 8%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g056",
+   "claim": "Average class size in the West district was 27 pupils in 2022.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Average class size in the West district was 27 pupils in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g057",
+   "claim": "The Hollow Ridge wind farm generated 412,000 megawatt hours in 2022.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022"
+    }
+   ]
+  },
+  {
+   "id": "g058",
+   "claim": "Mackerel landings at Holmport fell 9% in 2023.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Holmport; Measure: mackerel landings; Change: rose 9%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g059",
+   "claim": "Leakage across the treatment works fell to 14% between 2010 and 2020.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "Leakage across the network fell from 23% to 14% between 2010 and 2020 after old iron mains were replaced."
+    }
+   ]
+  },
+  {
+   "id": "g060",
+   "claim": "The Riverside clinic saw 18,240 patients in 2023.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "The Riverside clinic saw 18,240 patients in 2023, up 9% on the year before."
+    }
+   ]
+  },
+  {
+   "id": "g061",
+   "claim": "Drug spending at the hospital rose 3.4% in 2023.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: the hospital; Measure: drug spending; Change: rose 3.4%; Period: 2024"
+    }
+   ]
+  },
+  {
+   "id": "g062",
+   "claim": "Ridership on Route 7 grew 51% in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "Ridership on Route 7 grew 15% in 2022 after the service ran every ten minutes."
+    }
+   ]
+  },
+  {
+   "id": "g063",
+   "claim": "Visitors to the Maritime Museum rose 23% in 2021.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the Maritime Museum; Measure: visitors; Change: rose 23%; Period: 2023; Reason: the shipwreck exhibition"
+    }
+   ]
+  },
+  {
+   "id": "g064",
+   "claim": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022"
+    }
+   ]
+  },
+  {
+   "id": "g065",
+   "claim": "Applications to the law faculty fell 4% for the 2024 intake and the engineering faculty fell 14%.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "Applications to the law faculty fell 4% for the 2024 intake"
+    }
+   ]
+  },
+  {
+   "id": "g066",
+   "claim": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022, and fresh produce made up 31% of donations in 2023.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g067",
+   "claim": "Battery installations in Dunmore rose 61% in 2023 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Dunmore; Measure: battery installations; Change: rose 61%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g068",
+   "claim": "Cod landings at Greyhaven fell 18% in 2023.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Greyhaven; Measure: cod landings; Change: fell 18%; Period: 2023; Reason: a quota was cut"
+    }
+   ]
+  },
+  {
+   "id": "g069",
+   "claim": "Visitors to the Science Museum rose 23% in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the Maritime Museum; Measure: visitors; Change: rose 23%; Period: 2023; Reason: the shipwreck exhibition"
+    }
+   ]
+  },
+  {
+   "id": "g070",
+   "claim": "School visits to the Science Museum rose nearly a third in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: the Science Museum; Measure: school visits; Change: rose 31%; Period: 2023; Reason: free coach travel began"
+    }
+   ]
+  },
+  {
+   "id": "g071",
+   "claim": "Curtailment at Coast Point rose to 16 percent in 2022.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Curtailment at Coast Point rose to 6 percent in 2022 when the grid link was congested"
+    }
+   ]
+  },
+  {
+   "id": "g072",
+   "claim": "Visitors to the Maritime Museum fell 9% in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the Art Gallery; Measure: visitors; Change: fell 9%; Period: 2023; Reason: the east wing was closed"
+    }
+   ]
+  },
+  {
+   "id": "g073",
+   "claim": "Ridership on Route 7 grew 15% in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "Ridership on Route 7 grew 15% in 2022 after the service ran every ten minutes."
+    }
+   ]
+  },
+  {
+   "id": "g074",
+   "claim": "The Coast Point wind farm has 172.8 megawatts of turbines.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Coast Point wind farm has 48 turbines of 3.6 megawatts each"
+    }
+   ]
+  },
+  {
+   "id": "g075",
+   "claim": "Wheat on the irrigated plots yielded 9.7 tonnes per hectare in 2022.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the irrigated plots yielded 7.9 tonnes per hectare in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g076",
+   "claim": "Herring landings at Holmport rose 3% in 2023.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Holmport; Measure: herring landings; Change: fell 3%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g077",
+   "claim": "First-year retention among students reached 92% in 2023.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "First-year retention reached 92% in 2023 after a mentoring scheme started"
+    }
+   ]
+  },
+  {
+   "id": "g078",
+   "claim": "Potholes repaired in Ashby rose 27% in 2023 because of a new contractor started.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Ashby; Measure: potholes repaired; Change: rose 27%; Period: 2023; Reason: the wet winter"
+    }
+   ]
+  },
+  {
+   "id": "g079",
+   "claim": "The capacity factor of the Hollow Ridge wind farm was 34 percent in 2022 and the Coast Point wind farm was 43.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Its capacity factor was 34 percent in 2022 because of a windy winter"
+    }
+   ]
+  },
+  {
+   "id": "g080",
+   "claim": "Gritting runs in Barton (which opened in 1962) fell 15% in 2023.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Barton; Measure: gritting runs; Change: fell 15%; Period: 2023; Reason: a mild December"
+    }
+   ]
+  },
+  {
+   "id": "g081",
+   "claim": "In run two, at 37 degrees, the phosphate buffer drifted by 0.21 pH units and the Tris buffer drifted by 0.12.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "In run two, at 37 degrees, the phosphate buffer drifted by 0.21 pH units."
+    }
+   ]
+  },
+  {
+   "id": "g082",
+   "claim": "Ridership on Route 7 grew 15% in 2019.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "Ridership on Route 7 grew 15% in 2022 after the service ran every ten minutes."
+    }
+   ]
+  },
+  {
+   "id": "g083",
+   "claim": "Rooftop solar installations in Fairley fell 6% in 2023 and Elton fell 16%.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Fairley; Measure: rooftop solar installations; Change: fell 6%; Period: 2023; Reason: the installer closed"
+    }
+   ]
+  },
+  {
+   "id": "g084",
+   "claim": "Volunteers gave 18,400 hours in 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Volunteers gave 14,800 hours in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g085",
+   "claim": "The offer rate for international applicants was 38% in 2024 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "The offer rate for international applicants was 38% in 2024"
+    }
+   ]
+  },
+  {
+   "id": "g086",
+   "claim": "Rooftop solar installations in Elton rose 44% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Dunmore; Measure: rooftop solar installations; Change: rose 44%; Period: 2023; Reason: a council grant"
+    }
+   ]
+  },
+  {
+   "id": "g087",
+   "claim": "Ozone at the network's monitors peaked at 182 micrograms per cubic metre on 19 July 2022 and the Market Street monitor peaked at 128.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Ozone peaked at 182 micrograms per cubic metre on 19 July 2022."
+    }
+   ]
+  },
+  {
+   "id": "g088",
+   "claim": "Wheat on the irrigated plots (the only one with weekend hours) yielded 7.9 tonnes per hectare in 2022.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the irrigated plots yielded 7.9 tonnes per hectare in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g089",
+   "claim": "The Hollow Ridge wind farm has 48 turbines of 3.6 megawatts each in its current layout.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Coast Point wind farm has 48 turbines of 3.6 megawatts each"
+    }
+   ]
+  },
+  {
+   "id": "g090",
+   "claim": "The county's two clinics gave 6,450 flu vaccinations in the 2023 season and the county hospital gave 4,650.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "The county's two clinics gave 6,450 flu vaccinations in the 2023 season."
+    }
+   ]
+  },
+  {
+   "id": "g091",
+   "claim": "Volunteers gave nearly 15,000 hours in 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Volunteers gave 14,800 hours in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g092",
+   "claim": "Enrolment in the North district rose by 173 pupils in 2021.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Enrolment in the North district rose 12.4% in 2021, from 1,104 to 1,241 pupils."
+    }
+   ]
+  },
+  {
+   "id": "g093",
+   "claim": "Missed appointments at the Riverside clinic dropped to 5.7% in 2023.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "Missed appointments at the Riverside clinic dropped to 7.5% in 2023 once text reminders began."
+    }
+   ]
+  },
+  {
+   "id": "g094",
+   "claim": "Rooftop solar installations in Dunmore rose 44% in 2023 after a council grant.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Dunmore; Measure: rooftop solar installations; Change: rose 44%; Period: 2023; Reason: a council grant"
+    }
+   ]
+  },
+  {
+   "id": "g095",
+   "claim": "Median waiting time at the Hillcrest clinic fell to 21 minutes in 2023 because of the clinic moved to a larger building.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "Median waiting time at the Hillcrest clinic fell from 34 to 21 minutes in 2023 after a second triage nurse was hired."
+    }
+   ]
+  },
+  {
+   "id": "g096",
+   "claim": "Free computer sessions at the Central Library fell 12% in 2023, and the Harbour branch reopened after a 11-month refurbishment in March 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "Free computer sessions at the Central Library fell 12% in 2023 as more visitors brought laptops."
+    },
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "The Harbour branch reopened in March 2023 after an 11-month refurbishment."
+    }
+   ]
+  },
+  {
+   "id": "g097",
+   "claim": "First-year retention among students reached 92% in 2023 and staff reached 82%.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "First-year retention reached 92% in 2023 after a mentoring scheme started"
+    }
+   ]
+  },
+  {
+   "id": "g098",
+   "claim": "First-year retention among students reached 92% in 2021.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "First-year retention reached 92% in 2023 after a mentoring scheme started"
+    }
+   ]
+  },
+  {
+   "id": "g099",
+   "claim": "Attendance in the South district fell to roughly 92% in 2022.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Attendance in the South district fell to 91.8% in 2022, after a flu outbreak in February."
+    }
+   ]
+  },
+  {
+   "id": "g100",
+   "claim": "Applications to the engineering faculty fell 17% for the 2024 intake.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "Applications to the engineering faculty rose 17% for the 2024 intake"
+    }
+   ]
+  },
+  {
+   "id": "g101",
+   "claim": "The study kept twenty control bottles at four degrees in this study.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "Twelve bottles were set aside as controls and kept at four degrees."
+    }
+   ]
+  },
+  {
+   "id": "g102",
+   "claim": "PM2.5 exceeded the daily limit on 9 days at the network's monitors in 2022 and the Park Lane monitor 19.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "PM2.5 exceeded the daily limit on 9 days in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g103",
+   "claim": "Drug spending at the hospital rose 3.4% in 2024 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: the hospital; Measure: drug spending; Change: rose 3.4%; Period: 2024"
+    }
+   ]
+  },
+  {
+   "id": "g104",
+   "claim": "Volunteers gave 14,800 hours in 2023 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Volunteers gave 14,800 hours in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g105",
+   "claim": "The trial sampled 40 fields across three counties in its third season.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "We sampled 40 fields across three counties."
+    }
+   ]
+  },
+  {
+   "id": "g106",
+   "claim": "Gritting runs in Barton fell 15% in 2023 and Carlow fell 51%.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Barton; Measure: gritting runs; Change: fell 15%; Period: 2023; Reason: a mild December"
+    }
+   ]
+  },
+  {
+   "id": "g107",
+   "claim": "The Riverside clinic saw 18,240 patients in 2023 and the Hillcrest clinic saw 12,840.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "The Riverside clinic saw 18,240 patients in 2023, up 9% on the year before."
+    }
+   ]
+  },
+  {
+   "id": "g108",
+   "claim": "Fresh produce made up 31% of donations in 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Fresh produce made up 31% of donations in 2023, up from 19% in 2021."
+    }
+   ]
+  },
+  {
+   "id": "g109",
+   "claim": "The Eastbrook reservoir had a capacity of 42 million cubic metres when it was completed in 1958.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "Leakage across the network fell from 23% to 14% between 2010 and 2020 after old iron mains were replaced."
+    }
+   ]
+  },
+  {
+   "id": "g110",
+   "claim": "Attendance in the South district fell to 91.8% in 2022 because of a teachers' strike.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Attendance in the South district fell to 91.8% in 2022, after a flu outbreak in February."
+    }
+   ]
+  },
+  {
+   "id": "g111",
+   "claim": "Applications to the engineering faculty (now run by a charity) rose 17% for the 2024 intake.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "Applications to the engineering faculty rose 17% for the 2024 intake"
+    }
+   ]
+  },
+  {
+   "id": "g112",
+   "claim": "Fresh produce's share of donations rose 12 percentage points between 2021 and 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Fresh produce made up 31% of donations in 2023, up from 19% in 2021."
+    }
+   ]
+  },
+  {
+   "id": "g113",
+   "claim": "The county's two clinics gave 6,450 flu vaccinations in the 2023 season because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "The county's two clinics gave 6,450 flu vaccinations in the 2023 season."
+    }
+   ]
+  },
+  {
+   "id": "g114",
+   "claim": "Wheat on the irrigated plots yielded 790 tonnes per square kilometre in 2022.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the irrigated plots yielded 7.9 tonnes per hectare in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g115",
+   "claim": "Catering costs at the hospital changed by 0.0% in 2024 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: the hospital; Measure: catering costs; Change: changed by 0.0%; Period: 2024"
+    }
+   ]
+  },
+  {
+   "id": "g116",
+   "claim": "The Eastbrook reservoir had a capacity of 42 million cubic metres when it was completed in 1958.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "The Eastbrook reservoir was completed in 1958 with a capacity of 42 million cubic metres."
+    }
+   ]
+  },
+  {
+   "id": "g117",
+   "claim": "E-book loans across the service reached nearly 100,000 in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "E-book loans across the service reached 96,500 in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g118",
+   "claim": "PM2.5 exceeded the daily limit on 9 days at the Park Lane monitor in 2022.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "PM2.5 exceeded the daily limit on 9 days in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g119",
+   "claim": "On-time performance on Route 12 was 81% in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "On-time performance on Route 12 was 81% in 2022."
+    },
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: the hospital; Measure: catering costs; Change: changed by 0.0%; Period: 2024"
+    }
+   ]
+  },
+  {
+   "id": "g120",
+   "claim": "Free computer sessions at the Central Library fell 12% in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "Free computer sessions at the Central Library fell 12% in 2023 as more visitors brought laptops."
+    },
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "The Harbour branch reopened in March 2023 after an 11-month refurbishment."
+    }
+   ]
+  },
+  {
+   "id": "g121",
+   "claim": "Applications to the engineering faculty rose about a sixth for the 2024 intake.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "Applications to the engineering faculty rose 17% for the 2024 intake"
+    }
+   ]
+  },
+  {
+   "id": "g122",
+   "claim": "Attendance in the South district fell to 89.1% in 2022.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Attendance in the South district fell to 91.8% in 2022, after a flu outbreak in February."
+    }
+   ]
+  },
+  {
+   "id": "g123",
+   "claim": "The Millford treatment works was expanded in 1994 to serve 310,000 people and the Eastbrook works was 130,000.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "The Millford treatment works was expanded in 1994 to serve 310,000 people."
+    }
+   ]
+  },
+  {
+   "id": "g124",
+   "claim": "Rooftop solar installations in Fairley rose 6% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Fairley; Measure: rooftop solar installations; Change: fell 6%; Period: 2023; Reason: the installer closed"
+    }
+   ]
+  },
+  {
+   "id": "g125",
+   "claim": "Loans at the Central Library (now run by a charity) rose 8% in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "Loans at the Central Library rose 8% in 2023, to 214,000 items."
+    }
+   ]
+  },
+  {
+   "id": "g126",
+   "claim": "Loans at the Central Library rose 8% in 2023 and the Harbour branch rose 18%.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "Loans at the Central Library rose 8% in 2023, to 214,000 items."
+    }
+   ]
+  },
+  {
+   "id": "g127",
+   "claim": "The Eastbrook reservoir (the largest in the region) had a capacity of 42 million cubic metres when it was completed in 1958.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "The Eastbrook reservoir was completed in 1958 with a capacity of 42 million cubic metres."
+    }
+   ]
+  },
+  {
+   "id": "g128",
+   "claim": "Cod landings at Greyhaven fell 18% in 2023 because of the harbour was dredged.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Greyhaven; Measure: cod landings; Change: fell 18%; Period: 2023; Reason: a quota was cut"
+    }
+   ]
+  },
+  {
+   "id": "g129",
+   "claim": "The study kept twelve control bottles at four degrees in this study and the pilot study kept twenty.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "Twelve bottles were set aside as controls and kept at four degrees."
+    }
+   ]
+  },
+  {
+   "id": "g130",
+   "claim": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022 and the irrigated plots yielded 2.5.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g131",
+   "claim": "The pilot study kept twelve control bottles at four degrees in this study.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "Twelve bottles were set aside as controls and kept at four degrees."
+    }
+   ]
+  },
+  {
+   "id": "g132",
+   "claim": "Cod landings at Greyhaven fell 18% in 2023 after a quota was cut.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Greyhaven; Measure: cod landings; Change: fell 18%; Period: 2023; Reason: a quota was cut"
+    }
+   ]
+  },
+  {
+   "id": "g133",
+   "claim": "The Northside food bank served 3,120 households in the winter of 2021.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "The Northside food bank served 3,120 households in the winter of 2023, a rise of 22% after heating costs climbed."
+    }
+   ]
+  },
+  {
+   "id": "g134",
+   "claim": "Potholes repaired in Barton fell 8% in 2023 and Ashby fell 18%.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Barton; Measure: potholes repaired; Change: fell 8%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g135",
+   "claim": "Mean NO2 at the Market Street monitor was 38 micrograms per cubic metre in 2022.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Mean NO2 at the Park Lane monitor fell 21% between 2019 and 2022 after the low-traffic scheme began."
+    }
+   ]
+  },
+  {
+   "id": "g136",
+   "claim": "Energy costs at the hospital fell about 11% in 2024.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the hospital; Measure: energy costs; Change: fell 11.2%; Period: 2024; Reason: a new boiler was fitted"
+    }
+   ]
+  },
+  {
+   "id": "g137",
+   "claim": "Average class size in the North district was 27 pupils in 2022.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Average class size in the West district was 27 pupils in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g138",
+   "claim": "Rooftop solar installations in Elton rose 12% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Elton; Measure: rooftop solar installations; Change: rose 12%; Period: 2023"
+    },
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Average class size in the West district was 27 pupils in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g139",
+   "claim": "PM2.5 exceeded the daily limit on 9 days at the network's monitors in 2022.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "PM2.5 exceeded the daily limit on 9 days in 2022."
+    },
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "We sampled 40 fields across three counties."
+    }
+   ]
+  },
+  {
+   "id": "g140",
+   "claim": "School visits to the Science Museum rose 31% in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: the Science Museum; Measure: school visits; Change: rose 31%; Period: 2023; Reason: free coach travel began"
+    }
+   ]
+  },
+  {
+   "id": "g141",
+   "claim": "Wheat on the irrigated plots yielded 7.9 tonnes per hectare in 2022.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g142",
+   "claim": "Free computer sessions at the Harbour branch fell 12% in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "Free computer sessions at the Central Library fell 12% in 2023 as more visitors brought laptops."
+    }
+   ]
+  },
+  {
+   "id": "g143",
+   "claim": "The pH meter's slope stayed between 98 and 101 percent across all calibrations in last month.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "The pH meter's slope stayed between 98 and 101 percent across all calibrations this month."
+    }
+   ]
+  },
+  {
+   "id": "g144",
+   "claim": "Visitors to the Art Gallery fell 9% in 2023 because of ticket prices went up.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the Art Gallery; Measure: visitors; Change: fell 9%; Period: 2023; Reason: the east wing was closed"
+    }
+   ]
+  },
+  {
+   "id": "g145",
+   "claim": "The Riverside clinic saw about 18,000 patients in 2023.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "The Riverside clinic saw 18,240 patients in 2023, up 9% on the year before."
+    }
+   ]
+  },
+  {
+   "id": "g146",
+   "claim": "The Millford treatment works was expanded in 1984 to serve 310,000 people.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "The Millford treatment works was expanded in 1994 to serve 310,000 people."
+    }
+   ]
+  },
+  {
+   "id": "g147",
+   "claim": "Missed appointments at the Riverside clinic (rated best in the county) dropped to 7.5% in 2023.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "Missed appointments at the Riverside clinic dropped to 7.5% in 2023 once text reminders began."
+    }
+   ]
+  },
+  {
+   "id": "g148",
+   "claim": "The Northside food bank served about 3,100 households in the winter of 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "The Northside food bank served 3,120 households in the winter of 2023, a rise of 22% after heating costs climbed."
+    }
+   ]
+  },
+  {
+   "id": "g149",
+   "claim": "Mean NO2 at the Market Street monitor was 38 micrograms per cubic metre in 2022 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Mean NO2 at the Market Street monitor was 38 micrograms per cubic metre in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g150",
+   "claim": "Cod landings at Greyhaven fell 18% in 2021.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Greyhaven; Measure: cod landings; Change: fell 18%; Period: 2023; Reason: a quota was cut"
+    }
+   ]
+  },
+  {
+   "id": "g151",
+   "claim": "Potholes repaired in Ashby (rated best in the county) rose 27% in 2023.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Ashby; Measure: potholes repaired; Change: rose 27%; Period: 2023; Reason: the wet winter"
+    }
+   ]
+  },
+  {
+   "id": "g152",
+   "claim": "Mean NO2 at the Park Lane monitor fell 21% between 2019 and 2022.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Mean NO2 at the Park Lane monitor fell 21% between 2019 and 2022 after the low-traffic scheme began."
+    }
+   ]
+  },
+  {
+   "id": "g153",
+   "claim": "Cod landings at Greyhaven fell 18% in 2023, and the study kept twelve control bottles at four degrees in this study.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Greyhaven; Measure: cod landings; Change: fell 18%; Period: 2023; Reason: a quota was cut"
+    },
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "Twelve bottles were set aside as controls and kept at four degrees."
+    }
+   ]
+  },
+  {
+   "id": "g154",
+   "claim": "Mean NO2 at the Park Lane monitor fell 21% between 2016 and 2019.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Mean NO2 at the Park Lane monitor fell 21% between 2019 and 2022 after the low-traffic scheme began."
+    }
+   ]
+  },
+  {
+   "id": "g155",
+   "claim": "Visitors to the Art Gallery fell 9% in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the Art Gallery; Measure: visitors; Change: fell 9%; Period: 2023; Reason: the east wing was closed"
+    }
+   ]
+  },
+  {
+   "id": "g156",
+   "claim": "Potholes repaired in Ashby rose 27% in 2023 after the wet winter.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Ashby; Measure: potholes repaired; Change: rose 27%; Period: 2023; Reason: the wet winter"
+    }
+   ]
+  },
+  {
+   "id": "g157",
+   "claim": "Drug spending at the hospital rose 3.4% in 2024 and the community trust rose 4.3%.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: the hospital; Measure: drug spending; Change: rose 3.4%; Period: 2024"
+    }
+   ]
+  },
+  {
+   "id": "g158",
+   "claim": "Mean NO2 at the Park Lane monitor (the only one with weekend hours) fell 21% between 2019 and 2022.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Mean NO2 at the Park Lane monitor fell 21% between 2019 and 2022 after the low-traffic scheme began."
+    }
+   ]
+  },
+  {
+   "id": "g159",
+   "claim": "Ridership on Route 12 grew 15% in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "Ridership on Route 7 grew 15% in 2022 after the service ran every ten minutes."
+    }
+   ]
+  },
+  {
+   "id": "g160",
+   "claim": "On-time performance on Route 12 was 81% in 2022 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "On-time performance on Route 12 was 81% in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g161",
+   "claim": "Crab landings at Greyhaven rose 26% in 2021.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Greyhaven; Measure: crab landings; Change: rose 26%; Period: 2023; Reason: new pots were trialled"
+    }
+   ]
+  },
+  {
+   "id": "g162",
+   "claim": "Loans at the Central Library rose 8% in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "Loans at the Central Library rose 8% in 2023, to 214,000 items."
+    }
+   ]
+  },
+  {
+   "id": "g163",
+   "claim": "Nursing staff costs at the hospital rose 6.1% in 2024.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: the hospital; Measure: drug spending; Change: rose 3.4%; Period: 2024"
+    }
+   ]
+  },
+  {
+   "id": "g164",
+   "claim": "Crab landings at Greyhaven (the largest in the region) rose 26% in 2023.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Greyhaven; Measure: crab landings; Change: rose 26%; Period: 2023; Reason: new pots were trialled"
+    }
+   ]
+  },
+  {
+   "id": "g165",
+   "claim": "Rooftop solar installations in Elton rose 12% in 2021.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Elton; Measure: rooftop solar installations; Change: rose 12%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g166",
+   "claim": "Average household use was 142 litres per person per day in 2020 and businesses was 124.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "Average household use was 142 litres per person per day in 2020."
+    }
+   ]
+  },
+  {
+   "id": "g167",
+   "claim": "The capacity factor of the Hollow Ridge wind farm was 34 percent in 2021.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Its capacity factor was 34 percent in 2022 because of a windy winter"
+    }
+   ]
+  },
+  {
+   "id": "g168",
+   "claim": "Applications to the engineering faculty rose 17% for the 2024 intake.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "The offer rate for international applicants was 38% in 2024"
+    }
+   ]
+  },
+  {
+   "id": "g169",
+   "claim": "The pH meter's slope stayed between 98 and 101 percent across all calibrations in this month and the conductivity meter stayed 95 and 99.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "The pH meter's slope stayed between 98 and 101 percent across all calibrations this month."
+    }
+   ]
+  },
+  {
+   "id": "g170",
+   "claim": "Fresh produce made up 31% of purchases in 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Fresh produce made up 31% of donations in 2023, up from 19% in 2021."
+    }
+   ]
+  },
+  {
+   "id": "g171",
+   "claim": "Wheat on the irrigated plots yielded 7.9 tonnes per hectare in 2022 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the irrigated plots yielded 7.9 tonnes per hectare in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g172",
+   "claim": "Potholes repaired in Barton fell 8% in 2023 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Barton; Measure: potholes repaired; Change: fell 8%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g173",
+   "claim": "Mean NO2 at the Market Street monitor was 38 micrograms per cubic metre in 2022.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Mean NO2 at the Market Street monitor was 38 micrograms per cubic metre in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g174",
+   "claim": "Visitors to the Maritime Museum rose 23% in 2023 after the shipwreck exhibition.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the Maritime Museum; Measure: visitors; Change: rose 23%; Period: 2023; Reason: the shipwreck exhibition"
+    }
+   ]
+  },
+  {
+   "id": "g175",
+   "claim": "In run two, at 37 degrees, the phosphate buffer drifted by 0.21 pH units because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "In run two, at 37 degrees, the phosphate buffer drifted by 0.21 pH units."
+    }
+   ]
+  },
+  {
+   "id": "g176",
+   "claim": "The Northside food bank served 3,120 households in the winter of 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Volunteers gave 14,800 hours in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g177",
+   "claim": "Curtailment at Coast Point fell to 6 percent in 2022.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Curtailment at Coast Point rose to 6 percent in 2022 when the grid link was congested"
+    }
+   ]
+  },
+  {
+   "id": "g178",
+   "claim": "Rooftop solar installations in Dunmore fell 44% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Dunmore; Measure: rooftop solar installations; Change: rose 44%; Period: 2023; Reason: a council grant"
+    }
+   ]
+  },
+  {
+   "id": "g179",
+   "claim": "In run one the phosphate buffer drifted by 0.08 pH units over fourteen days because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "In run one the phosphate buffer drifted by 0.08 pH units over fourteen days at room temperature."
+    }
+   ]
+  },
+  {
+   "id": "g180",
+   "claim": "Ridership on Route 7 shrank 15% in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "Ridership on Route 7 grew 15% in 2022 after the service ran every ten minutes."
+    }
+   ]
+  },
+  {
+   "id": "g181",
+   "claim": "Free computer sessions at the Central Library fell 21% in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "Free computer sessions at the Central Library fell 12% in 2023 as more visitors brought laptops."
+    }
+   ]
+  },
+  {
+   "id": "g182",
+   "claim": "School visits to the Science Museum rose 31% in 2023 after free coach travel began.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: the Science Museum; Measure: school visits; Change: rose 31%; Period: 2023; Reason: free coach travel began"
+    }
+   ]
+  },
+  {
+   "id": "g183",
+   "claim": "Mean NO2 at the Market Street monitor was 38 micrograms per cubic metre in 2022 and the Park Lane monitor was 28.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Mean NO2 at the Market Street monitor was 38 micrograms per cubic metre in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g184",
+   "claim": "Visitors to the Art Gallery fell 9% in 2023, and the East district hired 38 new teachers in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the Art Gallery; Measure: visitors; Change: fell 9%; Period: 2023; Reason: the east wing was closed"
+    },
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "The East district hired 38 new teachers in 2023, 22 of them in mathematics and science."
+    }
+   ]
+  },
+  {
+   "id": "g185",
+   "claim": "Missed appointments at the Riverside clinic dropped to 7.5% in 2023 after text reminders began.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "Missed appointments at the Riverside clinic dropped to 7.5% in 2023 once text reminders began."
+    }
+   ]
+  },
+  {
+   "id": "g186",
+   "claim": "Missed appointments at the Riverside clinic dropped to 7.5% in 2023.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "Missed appointments at the Riverside clinic dropped to 7.5% in 2023 once text reminders began."
+    }
+   ]
+  },
+  {
+   "id": "g187",
+   "claim": "Median waiting time at the Hillcrest clinic fell to 21 minutes in 2023.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "Median waiting time at the Hillcrest clinic fell from 34 to 21 minutes in 2023 after a second triage nurse was hired."
+    }
+   ]
+  },
+  {
+   "id": "g188",
+   "claim": "The city's bus fleet covered 4.2 million kilometres in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "The city's bus fleet covered 4.2 million kilometres in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g189",
+   "claim": "The pH meter (the largest in the region)'s slope stayed between 98 and 101 percent across all calibrations in this month.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "The pH meter's slope stayed between 98 and 101 percent across all calibrations this month."
+    }
+   ]
+  },
+  {
+   "id": "g190",
+   "claim": "The Southside food bank served 3,120 households in the winter of 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "The Northside food bank served 3,120 households in the winter of 2023, a rise of 22% after heating costs climbed."
+    }
+   ]
+  },
+  {
+   "id": "g191",
+   "claim": "Applications to the engineering faculty fell 4% for the 2024 intake.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "Applications to the law faculty fell 4% for the 2024 intake"
+    }
+   ]
+  },
+  {
+   "id": "g192",
+   "claim": "In run one the phosphate buffer drifted by 0.08 pH units over fourteen days.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "In run two, at 37 degrees, the phosphate buffer drifted by 0.21 pH units."
+    }
+   ]
+  },
+  {
+   "id": "g193",
+   "claim": "Nitrogen runoff on plots with cover crops fell 18% in the trial and plots without cover crops fell 8%.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Nitrogen runoff fell 18% on plots with cover crops because roots held the soil over winter."
+    }
+   ]
+  },
+  {
+   "id": "g194",
+   "claim": "The capacity factor of the Hollow Ridge wind farm was 34 percent in 2022.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Its capacity factor was 34 percent in 2022 because of a windy winter"
+    }
+   ]
+  },
+  {
+   "id": "g195",
+   "claim": "The Riverside clinic saw 18,240 patients in 2021.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "The Riverside clinic saw 18,240 patients in 2023, up 9% on the year before."
+    }
+   ]
+  },
+  {
+   "id": "g196",
+   "claim": "Loans at the Central Library rose under 10% in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "Loans at the Central Library rose 8% in 2023, to 214,000 items."
+    }
+   ]
+  },
+  {
+   "id": "g197",
+   "claim": "Curtailment at Coast Point rose to 6 percent in 2022 after the grid link was congested.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Curtailment at Coast Point rose to 6 percent in 2022 when the grid link was congested"
+    }
+   ]
+  },
+  {
+   "id": "g198",
+   "claim": "Nitrogen runoff on plots with cover crops fell 18% in the trial because of less fertiliser was applied.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Nitrogen runoff fell 18% on plots with cover crops because roots held the soil over winter."
+    }
+   ]
+  },
+  {
+   "id": "g199",
+   "claim": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022"
+    }
+   ]
+  },
+  {
+   "id": "g200",
+   "claim": "Volunteers gave 14,800 hours in 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Volunteers gave 14,800 hours in 2023."
+    },
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "The city's bus fleet covered 4.2 million kilometres in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g201",
+   "claim": "The East district hired 38 new teachers in 2023 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "The East district hired 38 new teachers in 2023, 22 of them in mathematics and science."
+    }
+   ]
+  },
+  {
+   "id": "g202",
+   "claim": "Mean NO2 at the Park Lane monitor fell 12% between 2019 and 2022.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Mean NO2 at the Park Lane monitor fell 21% between 2019 and 2022 after the low-traffic scheme began."
+    }
+   ]
+  },
+  {
+   "id": "g203",
+   "claim": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022 and the Coast Point wind farm generated 214.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022"
+    }
+   ]
+  },
+  {
+   "id": "g204",
+   "claim": "In run one the phosphate buffer drifted by 0.08 pH units over fourteen days and the citrate buffer drifted by 0.8.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "In run one the phosphate buffer drifted by 0.08 pH units over fourteen days at room temperature."
+    }
+   ]
+  },
+  {
+   "id": "g205",
+   "claim": "Cod landings at Greyhaven (now run by a charity) fell 18% in 2023.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Greyhaven; Measure: cod landings; Change: fell 18%; Period: 2023; Reason: a quota was cut"
+    }
+   ]
+  },
+  {
+   "id": "g206",
+   "claim": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022, and fresh produce made up 31% of donations in 2023.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022."
+    },
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Fresh produce made up 31% of donations in 2023, up from 19% in 2021."
+    }
+   ]
+  },
+  {
+   "id": "g207",
+   "claim": "The Coast Point wind farm has 48 turbines of 3.6 megawatts each in its current layout and the Hollow Ridge wind farm has 84.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Coast Point wind farm has 48 turbines of 3.6 megawatts each"
+    }
+   ]
+  },
+  {
+   "id": "g208",
+   "claim": "Applications to the law faculty fell 4% for the 2023 intake.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "Applications to the law faculty fell 4% for the 2024 intake"
+    }
+   ]
+  },
+  {
+   "id": "g209",
+   "claim": "The study kept twelve control bottles at four degrees in this study.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "Twelve bottles were set aside as controls and kept at four degrees."
+    }
+   ]
+  },
+  {
+   "id": "g210",
+   "claim": "Drug spending at the hospital rose 3.4% in 2024.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: the hospital; Measure: drug spending; Change: rose 3.4%; Period: 2024"
+    }
+   ]
+  },
+  {
+   "id": "g211",
+   "claim": "Missed appointments at the Riverside clinic dropped to 7.5% in 2020.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "Missed appointments at the Riverside clinic dropped to 7.5% in 2023 once text reminders began."
+    }
+   ]
+  },
+  {
+   "id": "g212",
+   "claim": "On-time performance on Route 12 was 81% in 2022, and catering costs at the hospital changed by 0.0% in 2024.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "On-time performance on Route 12 was 81% in 2022."
+    },
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: the hospital; Measure: catering costs; Change: changed by 0.0%; Period: 2024"
+    }
+   ]
+  },
+  {
+   "id": "g213",
+   "claim": "Rooftop solar installations in Dunmore rose 44% in 2023 because of panel prices doubled.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Dunmore; Measure: rooftop solar installations; Change: rose 44%; Period: 2023; Reason: a council grant"
+    }
+   ]
+  },
+  {
+   "id": "g214",
+   "claim": "First-year retention among students reached 92% in 2023 because of tuition fees were lowered.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "First-year retention reached 92% in 2023 after a mentoring scheme started"
+    }
+   ]
+  },
+  {
+   "id": "g215",
+   "claim": "Potholes repaired in Ashby rose 27% in 2023.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Ashby; Measure: potholes repaired; Change: rose 27%; Period: 2023; Reason: the wet winter"
+    }
+   ]
+  },
+  {
+   "id": "g216",
+   "claim": "Nursing staff costs at the hospital rose 6.1% in 2024 after the national pay award.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the hospital; Measure: nursing staff costs; Change: rose 6.1%; Period: 2024; Reason: the national pay award"
+    }
+   ]
+  },
+  {
+   "id": "g217",
+   "claim": "Curtailment at Coast Point rose to 6 percent in 2022 because of turbines were taken offline for repairs.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Curtailment at Coast Point rose to 6 percent in 2022 when the grid link was congested"
+    }
+   ]
+  },
+  {
+   "id": "g218",
+   "claim": "The Riverside clinic saw 12,840 patients in 2023.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "The Riverside clinic saw 18,240 patients in 2023, up 9% on the year before."
+    }
+   ]
+  },
+  {
+   "id": "g219",
+   "claim": "The Millford treatment works was expanded in 1994 to serve 310,000 people.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "The Millford treatment works was expanded in 1994 to serve 310,000 people."
+    }
+   ]
+  },
+  {
+   "id": "g220",
+   "claim": "Fresh produce made up 31% of donations (now run by a charity) in 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Fresh produce made up 31% of donations in 2023, up from 19% in 2021."
+    }
+   ]
+  },
+  {
+   "id": "g221",
+   "claim": "Rooftop solar installations in Fairley fell 16% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Fairley; Measure: rooftop solar installations; Change: fell 6%; Period: 2023; Reason: the installer closed"
+    }
+   ]
+  },
+  {
+   "id": "g222",
+   "claim": "The Hollow Ridge wind farm generated 41,200 megawatt hours in 2022.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022"
+    }
+   ]
+  },
+  {
+   "id": "g223",
+   "claim": "The Eastbrook reservoir had a capacity of 42 million cubic metres when it was completed in 1958 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "The Eastbrook reservoir was completed in 1958 with a capacity of 42 million cubic metres."
+    }
+   ]
+  },
+  {
+   "id": "g224",
+   "claim": "The capacity factor of the Coast Point wind farm was 34 percent in 2022.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Its capacity factor was 34 percent in 2022 because of a windy winter"
+    }
+   ]
+  },
+  {
+   "id": "g225",
+   "claim": "The phosphate buffer drifted 0.13 pH units more in run two than in run one.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "In run two, at 37 degrees, the phosphate buffer drifted by 0.21 pH units."
+    }
+   ]
+  },
+  {
+   "id": "g226",
+   "claim": "First-year retention among students reached 92% in 2023 after a mentoring scheme started.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "First-year retention reached 92% in 2023 after a mentoring scheme started"
+    }
+   ]
+  },
+  {
+   "id": "g227",
+   "claim": "The Southside food bank opened a second site in September 2022.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "The Southside food bank opened a second site in September 2023."
+    }
+   ]
+  },
+  {
+   "id": "g228",
+   "claim": "School visits to the Science Museum rose 13% in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: the Science Museum; Measure: school visits; Change: rose 31%; Period: 2023; Reason: free coach travel began"
+    }
+   ]
+  },
+  {
+   "id": "g229",
+   "claim": "Free computer sessions at the Central Library fell 12% in 2023 after more visitors brought laptops.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "Free computer sessions at the Central Library fell 12% in 2023 as more visitors brought laptops."
+    }
+   ]
+  },
+  {
+   "id": "g230",
+   "claim": "The Eastbrook reservoir had a capacity of 24 million cubic metres when it was completed in 1958.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "The Eastbrook reservoir was completed in 1958 with a capacity of 42 million cubic metres."
+    }
+   ]
+  },
+  {
+   "id": "g231",
+   "claim": "The pH meter's slope stayed between 95 and 99 percent across all calibrations in this month.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "The pH meter's slope stayed between 98 and 101 percent across all calibrations this month."
+    }
+   ]
+  },
+  {
+   "id": "g232",
+   "claim": "The Harbour branch reopened after a 11-month refurbishment in March 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "The Harbour branch reopened in March 2023 after an 11-month refurbishment."
+    }
+   ]
+  },
+  {
+   "id": "g233",
+   "claim": "The county's two clinics gave about 6,500 flu vaccinations in the 2023 season.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "The county's two clinics gave 6,450 flu vaccinations in the 2023 season."
+    }
+   ]
+  },
+  {
+   "id": "g234",
+   "claim": "Battery installations in Dunmore rose about 60% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Dunmore; Measure: battery installations; Change: rose 61%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g235",
+   "claim": "Rooftop solar installations in Elton rose 12% in 2023, and average class size in the West district was 27 pupils in 2022.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Elton; Measure: rooftop solar installations; Change: rose 12%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g236",
+   "claim": "Catering costs at the hospital changed by 0.0% in 2022.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: the hospital; Measure: catering costs; Change: changed by 0.0%; Period: 2024"
+    }
+   ]
+  },
+  {
+   "id": "g237",
+   "claim": "Herring landings at Holmport (the only one with weekend hours) fell 3% in 2023.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Holmport; Measure: herring landings; Change: fell 3%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g238",
+   "claim": "Nursing staff costs at the hospital rose 6.1% in 2024.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the hospital; Measure: nursing staff costs; Change: rose 6.1%; Period: 2024; Reason: the national pay award"
+    }
+   ]
+  },
+  {
+   "id": "g239",
+   "claim": "Average household use was 142 litres per person per day in 2020.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "Average household use was 142 litres per person per day in 2020."
+    }
+   ]
+  },
+  {
+   "id": "g240",
+   "claim": "On-time performance on Route 12 (the only one with weekend hours) was 81% in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "On-time performance on Route 12 was 81% in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g241",
+   "claim": "Loans at the Central Library rose 18% in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "Loans at the Central Library rose 8% in 2023, to 214,000 items."
+    }
+   ]
+  },
+  {
+   "id": "g242",
+   "claim": "E-book loans across the service reached 96,500 in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "E-book loans across the service reached 96,500 in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g243",
+   "claim": "Nursing staff costs at the hospital fell 6.1% in 2024.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the hospital; Measure: nursing staff costs; Change: rose 6.1%; Period: 2024; Reason: the national pay award"
+    }
+   ]
+  },
+  {
+   "id": "g244",
+   "claim": "The West district hired 38 new teachers in 2023.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "The East district hired 38 new teachers in 2023, 22 of them in mathematics and science."
+    }
+   ]
+  },
+  {
+   "id": "g245",
+   "claim": "The city's bus fleet covered 420,000 kilometres in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "The city's bus fleet covered 4.2 million kilometres in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g246",
+   "claim": "Ozone at the network's monitors peaked at 182 micrograms per cubic metre on 19 July 2022 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Ozone peaked at 182 micrograms per cubic metre on 19 July 2022."
+    }
+   ]
+  },
+  {
+   "id": "g247",
+   "claim": "Free computer sessions at the Central Library (the largest in the region) fell 12% in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "Free computer sessions at the Central Library fell 12% in 2023 as more visitors brought laptops."
+    }
+   ]
+  },
+  {
+   "id": "g248",
+   "claim": "Mackerel landings at Holmport rose 9% in 2023.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Holmport; Measure: mackerel landings; Change: rose 9%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g249",
+   "claim": "Curtailment at Coast Point rose to 6 percent in 2022.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Curtailment at Coast Point rose to 6 percent in 2022 when the grid link was congested"
+    },
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "E-book loans across the service reached 96,500 in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g250",
+   "claim": "The Northside food bank served 3,120 households in the winter of 2023 and the Southside food bank served 2,130.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "The Northside food bank served 3,120 households in the winter of 2023, a rise of 22% after heating costs climbed."
+    }
+   ]
+  },
+  {
+   "id": "g251",
+   "claim": "The Harbour branch reopened after a 11-month refurbishment in March 2023 and the Central Library reopened 7.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "The Harbour branch reopened in March 2023 after an 11-month refurbishment."
+    }
+   ]
+  },
+  {
+   "id": "g252",
+   "claim": "The East district hired 38 new teachers in 2021.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "The East district hired 38 new teachers in 2023, 22 of them in mathematics and science."
+    }
+   ]
+  },
+  {
+   "id": "g253",
+   "claim": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g254",
+   "claim": "PM2.5 exceeded the daily limit on 19 days at the network's monitors in 2022.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "PM2.5 exceeded the daily limit on 9 days in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g255",
+   "claim": "Potholes repaired in Barton (which opened in 1962) fell 8% in 2023.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Barton; Measure: potholes repaired; Change: fell 8%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g256",
+   "claim": "The Northside food bank served 3,120 households in the winter of 2023 because of a new school opened nearby.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "The Northside food bank served 3,120 households in the winter of 2023, a rise of 22% after heating costs climbed."
+    }
+   ]
+  },
+  {
+   "id": "g257",
+   "claim": "Rooftop solar installations in Elton rose 12% in 2023 and Dunmore rose 21%.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Elton; Measure: rooftop solar installations; Change: rose 12%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g258",
+   "claim": "Mean NO2 at the Market Street monitor fell 21% between 2019 and 2022.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Mean NO2 at the Park Lane monitor fell 21% between 2019 and 2022 after the low-traffic scheme began."
+    }
+   ]
+  },
+  {
+   "id": "g259",
+   "claim": "Average household use was about 140 litres per person per day in 2020.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "Average household use was 142 litres per person per day in 2020."
+    }
+   ]
+  },
+  {
+   "id": "g260",
+   "claim": "On-time performance on Route 12 was 81% in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "On-time performance on Route 12 was 81% in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g261",
+   "claim": "Leakage across the network fell to 4% between 2010 and 2020.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "Leakage across the network fell from 23% to 14% between 2010 and 2020 after old iron mains were replaced."
+    }
+   ]
+  },
+  {
+   "id": "g262",
+   "claim": "Applications to the engineering faculty rose 7% for the 2024 intake.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "Applications to the engineering faculty rose 17% for the 2024 intake"
+    }
+   ]
+  },
+  {
+   "id": "g263",
+   "claim": "Wheat on the irrigated plots yielded 7.9 tonnes per hectare in 2022.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the irrigated plots yielded 7.9 tonnes per hectare in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g264",
+   "claim": "E-book loans across the Harbour branch reached 96,500 in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "E-book loans across the service reached 96,500 in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g265",
+   "claim": "Resurfacing in Carlow rose 40% in 2023.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Carlow; Measure: resurfacing; Change: rose 40%; Period: 2023; Reason: a grant funded the ring road"
+    },
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Attendance in the South district fell to 91.8% in 2022, after a flu outbreak in February."
+    }
+   ]
+  },
+  {
+   "id": "g266",
+   "claim": "The city's tram fleet covered 4.2 million kilometres in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "The city's bus fleet covered 4.2 million kilometres in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g267",
+   "claim": "Nursing staff costs at the hospital rose 6.1% in 2024 and the community trust rose 16.1%.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the hospital; Measure: nursing staff costs; Change: rose 6.1%; Period: 2024; Reason: the national pay award"
+    }
+   ]
+  },
+  {
+   "id": "g268",
+   "claim": "Rooftop solar installations in Fairley fell 6% in 2023 because of the grant ended.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Fairley; Measure: rooftop solar installations; Change: fell 6%; Period: 2023; Reason: the installer closed"
+    }
+   ]
+  },
+  {
+   "id": "g269",
+   "claim": "The trial (now run by a charity) sampled 40 fields across three counties in its first season.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "We sampled 40 fields across three counties."
+    }
+   ]
+  },
+  {
+   "id": "g270",
+   "claim": "Nursing staff costs at the hospital rose about 6% in 2024.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the hospital; Measure: nursing staff costs; Change: rose 6.1%; Period: 2024; Reason: the national pay award"
+    }
+   ]
+  },
+  {
+   "id": "g271",
+   "claim": "Enrolment in the North district rose by 12.4% in 2021 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Enrolment in the North district rose 12.4% in 2021, from 1,104 to 1,241 pupils."
+    }
+   ]
+  },
+  {
+   "id": "g272",
+   "claim": "Resurfacing in Carlow rose 40% in 2023, and attendance in the South district fell to 91.8% in 2022.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Carlow; Measure: resurfacing; Change: rose 40%; Period: 2023; Reason: a grant funded the ring road"
+    },
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Attendance in the South district fell to 91.8% in 2022, after a flu outbreak in February."
+    }
+   ]
+  },
+  {
+   "id": "g273",
+   "claim": "In run two, at 37 degrees, the phosphate buffer drifted by 0.12 pH units.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "In run two, at 37 degrees, the phosphate buffer drifted by 0.21 pH units."
+    }
+   ]
+  },
+  {
+   "id": "g274",
+   "claim": "Rooftop solar installations in Fairley fell 6% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Fairley; Measure: rooftop solar installations; Change: fell 6%; Period: 2023; Reason: the installer closed"
+    }
+   ]
+  },
+  {
+   "id": "g275",
+   "claim": "Curtailment at Coast Point rose to 6 percent in 2022.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Curtailment at Coast Point rose to 6 percent in 2022 when the grid link was congested"
+    }
+   ]
+  },
+  {
+   "id": "g276",
+   "claim": "Herring landings at Holmport fell 3% in 2023.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Holmport; Measure: herring landings; Change: fell 3%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g277",
+   "claim": "The county's two clinics gave 6,450 flu vaccinations in the 2021 season.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "The county's two clinics gave 6,450 flu vaccinations in the 2023 season."
+    }
+   ]
+  },
+  {
+   "id": "g278",
+   "claim": "Average class size in the West district was 31 pupils in 2022.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Average class size in the West district was 27 pupils in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g279",
+   "claim": "The city's bus fleet covered 4,200,000 kilometres in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "The city's bus fleet covered 4.2 million kilometres in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g280",
+   "claim": "Rooftop solar installations in Elton fell 12% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Elton; Measure: rooftop solar installations; Change: rose 12%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g281",
+   "claim": "Rooftop solar installations in Fairley fell 6% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Fairley; Measure: rooftop solar installations; Change: fell 6%; Period: 2023; Reason: the installer closed"
+    },
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the Maritime Museum; Measure: visitors; Change: rose 23%; Period: 2023; Reason: the shipwreck exhibition"
+    }
+   ]
+  },
+  {
+   "id": "g282",
+   "claim": "The offer rate for international applicants was 38% in 2023.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "The offer rate for international applicants was 38% in 2024"
+    }
+   ]
+  },
+  {
+   "id": "g283",
+   "claim": "Potholes repaired in Barton rose 27% in 2023.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Ashby; Measure: potholes repaired; Change: rose 27%; Period: 2023; Reason: the wet winter"
+    }
+   ]
+  },
+  {
+   "id": "g284",
+   "claim": "Resurfacing in Carlow rose 40% in 2022.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Carlow; Measure: resurfacing; Change: rose 40%; Period: 2023; Reason: a grant funded the ring road"
+    }
+   ]
+  },
+  {
+   "id": "g285",
+   "claim": "Leakage across the network fell by 9 percentage points between 2010 and 2020.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "Leakage across the network fell from 23% to 14% between 2010 and 2020 after old iron mains were replaced."
+    }
+   ]
+  },
+  {
+   "id": "g286",
+   "claim": "Nitrogen runoff on plots without cover crops fell 18% in the trial.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Nitrogen runoff fell 18% on plots with cover crops because roots held the soil over winter."
+    }
+   ]
+  },
+  {
+   "id": "g287",
+   "claim": "Enrolment in the South district rose by 12.4% in 2021.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Enrolment in the North district rose 12.4% in 2021, from 1,104 to 1,241 pupils."
+    }
+   ]
+  },
+  {
+   "id": "g288",
+   "claim": "Average fare revenue per trip fell to 1.15 dollars in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "Average fare revenue per trip fell to 1.15 dollars in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g289",
+   "claim": "The Northside food bank served 3,120 households in the winter of 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "The Northside food bank served 3,120 households in the winter of 2023, a rise of 22% after heating costs climbed."
+    }
+   ]
+  },
+  {
+   "id": "g290",
+   "claim": "Enrolment in the North district fell by 12.4% in 2021.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Enrolment in the North district rose 12.4% in 2021, from 1,104 to 1,241 pupils."
+    }
+   ]
+  },
+  {
+   "id": "g291",
+   "claim": "Curtailment at Coast Point rose to 6 percent in 2022, and e-book loans across the service reached 96,500 in 2023.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Curtailment at Coast Point rose to 6 percent in 2022 when the grid link was congested"
+    },
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "E-book loans across the service reached 96,500 in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g292",
+   "claim": "Mean NO2 at the Park Lane monitor fell 21% between 2019 and 2022 after the low-traffic scheme began.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Mean NO2 at the Park Lane monitor fell 21% between 2019 and 2022 after the low-traffic scheme began."
+    }
+   ]
+  },
+  {
+   "id": "g293",
+   "claim": "Mean NO2 at the Park Lane monitor was 38 micrograms per cubic metre in 2022.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Mean NO2 at the Market Street monitor was 38 micrograms per cubic metre in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g294",
+   "claim": "On-time performance on Route 12 was 81% in 2022, and catering costs at the hospital changed by 0.0% in 2024.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "On-time performance on Route 12 was 81% in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g295",
+   "claim": "Energy costs at the hospital fell 11.2% in 2024 and the community trust fell 21.2%.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the hospital; Measure: energy costs; Change: fell 11.2%; Period: 2024; Reason: a new boiler was fitted"
+    }
+   ]
+  },
+  {
+   "id": "g296",
+   "claim": "Rooftop solar installations in Fairley fell 6% in 2023 after the installer closed.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Fairley; Measure: rooftop solar installations; Change: fell 6%; Period: 2023; Reason: the installer closed"
+    }
+   ]
+  },
+  {
+   "id": "g297",
+   "claim": "Enrolment in the North district rose by 12.4% in 2021.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Attendance in the South district fell to 91.8% in 2022, after a flu outbreak in February."
+    }
+   ]
+  },
+  {
+   "id": "g298",
+   "claim": "Herring landings at Holmport fell 3% in 2023 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Holmport; Measure: herring landings; Change: fell 3%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g299",
+   "claim": "Fresh produce's share of donations rose 21 percentage points between 2021 and 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Fresh produce made up 31% of donations in 2023, up from 19% in 2021."
+    }
+   ]
+  },
+  {
+   "id": "g300",
+   "claim": "Gritting runs in Barton fell 15% in 2023 after a mild December.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Barton; Measure: gritting runs; Change: fell 15%; Period: 2023; Reason: a mild December"
+    }
+   ]
+  },
+  {
+   "id": "g301",
+   "claim": "Applications to the engineering faculty rose 17% for the 2022 intake.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "Applications to the engineering faculty rose 17% for the 2024 intake"
+    }
+   ]
+  },
+  {
+   "id": "g302",
+   "claim": "Visitors to the Maritime Museum rose 23% in 2023 and the Science Museum rose 32%.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the Maritime Museum; Measure: visitors; Change: rose 23%; Period: 2023; Reason: the shipwreck exhibition"
+    }
+   ]
+  },
+  {
+   "id": "g303",
+   "claim": "Wheat on the rain-fed plots yielded 2.5 tonnes per hectare in 2022.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g304",
+   "claim": "Visitors to the Science Museum (now run by a charity) rose 5% in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: the Science Museum; Measure: visitors; Change: rose 5%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g305",
+   "claim": "The offer rate for international applicants was 38% in 2024.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "The offer rate for international applicants was 38% in 2024"
+    }
+   ]
+  },
+  {
+   "id": "g306",
+   "claim": "Volunteers (now run by a charity) gave 14,800 hours in 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Volunteers gave 14,800 hours in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g307",
+   "claim": "PM2.5 exceeded the daily limit on 9 days at the network's monitors in 2022.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "PM2.5 exceeded the daily limit on 9 days in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g308",
+   "claim": "Rooftop solar installations in Fairley fell 6% in 2023, and visitors to the Maritime Museum rose 23% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Fairley; Measure: rooftop solar installations; Change: fell 6%; Period: 2023; Reason: the installer closed"
+    },
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the Maritime Museum; Measure: visitors; Change: rose 23%; Period: 2023; Reason: the shipwreck exhibition"
+    }
+   ]
+  },
+  {
+   "id": "g309",
+   "claim": "Rooftop solar installations in Fairley fell 6% in 2023, and visitors to the Maritime Museum rose 23% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Fairley; Measure: rooftop solar installations; Change: fell 6%; Period: 2023; Reason: the installer closed"
+    }
+   ]
+  },
+  {
+   "id": "g310",
+   "claim": "The Riverside clinic's patient numbers rose 9% in 2023.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "The Riverside clinic saw 18,240 patients in 2023, up 9% on the year before."
+    }
+   ]
+  },
+  {
+   "id": "g311",
+   "claim": "Enrolment in the North district rose by 137 pupils in 2021.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Enrolment in the North district rose 12.4% in 2021, from 1,104 to 1,241 pupils."
+    }
+   ]
+  },
+  {
+   "id": "g312",
+   "claim": "Energy costs at the hospital fell 11.2% in 2024 after a new boiler was fitted.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the hospital; Measure: energy costs; Change: fell 11.2%; Period: 2024; Reason: a new boiler was fitted"
+    }
+   ]
+  },
+  {
+   "id": "g313",
+   "claim": "Volunteers gave 14,800 hours in 2021.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Volunteers gave 14,800 hours in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g314",
+   "claim": "Cod landings at Greyhaven fell 18% in 2023 and Holmport fell 81%.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Greyhaven; Measure: cod landings; Change: fell 18%; Period: 2023; Reason: a quota was cut"
+    }
+   ]
+  },
+  {
+   "id": "g315",
+   "claim": "Cod landings at Greyhaven fell 18% in 2023, and the study kept twelve control bottles at four degrees in this study.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Greyhaven; Measure: cod landings; Change: fell 18%; Period: 2023; Reason: a quota was cut"
+    }
+   ]
+  },
+  {
+   "id": "g316",
+   "claim": "The trial sampled 40 fields across three counties in its first season.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "We sampled 40 fields across three counties."
+    }
+   ]
+  },
+  {
+   "id": "g317",
+   "claim": "Battery installations in Dunmore rose 16% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Dunmore; Measure: battery installations; Change: rose 61%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g318",
+   "claim": "Ridership on Route 7 grew 15% in 2022 after the service ran every ten minutes.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "Ridership on Route 7 grew 15% in 2022 after the service ran every ten minutes."
+    }
+   ]
+  },
+  {
+   "id": "g319",
+   "claim": "Irrigation added 2.7 tonnes per hectare to wheat yields in 2022.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g320",
+   "claim": "The Eastbrook reservoir had a capacity of 42 million cubic metres when it was completed in 1985.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "The Eastbrook reservoir was completed in 1958 with a capacity of 42 million cubic metres."
+    }
+   ]
+  },
+  {
+   "id": "g321",
+   "claim": "Ozone at the network's monitors peaked at 182 micrograms per cubic metre on 19 July 2022.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Ozone peaked at 182 micrograms per cubic metre on 19 July 2022."
+    }
+   ]
+  },
+  {
+   "id": "g322",
+   "claim": "Enrolment in the North district rose by 12.4% in 2021.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Enrolment in the North district rose 12.4% in 2021, from 1,104 to 1,241 pupils."
+    }
+   ]
+  },
+  {
+   "id": "g323",
+   "claim": "The follow-up survey sampled 40 fields across three counties in its first season.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "We sampled 40 fields across three counties."
+    }
+   ]
+  },
+  {
+   "id": "g324",
+   "claim": "The Riverside clinic saw 18,240 patients in 2023.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "Median waiting time at the Hillcrest clinic fell from 34 to 21 minutes in 2023 after a second triage nurse was hired."
+    }
+   ]
+  },
+  {
+   "id": "g325",
+   "claim": "Attendance in the South district fell to 91.8% in 2022 after a flu outbreak in February.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Attendance in the South district fell to 91.8% in 2022, after a flu outbreak in February."
+    }
+   ]
+  },
+  {
+   "id": "g326",
+   "claim": "In run one the phosphate buffer drifted by 0.08 pH units over fourteen days.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "In run one the phosphate buffer drifted by 0.08 pH units over fourteen days at room temperature."
+    }
+   ]
+  },
+  {
+   "id": "g327",
+   "claim": "E-book loans across the service reached 96,500 in 2023 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "E-book loans across the service reached 96,500 in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g328",
+   "claim": "Energy costs at the hospital (which opened in 1962) fell 11.2% in 2024.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the hospital; Measure: energy costs; Change: fell 11.2%; Period: 2024; Reason: a new boiler was fitted"
+    }
+   ]
+  },
+  {
+   "id": "g329",
+   "claim": "Wheat on the irrigated plots yielded about 8 tonnes per hectare in 2022.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the irrigated plots yielded 7.9 tonnes per hectare in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g330",
+   "claim": "Resurfacing in Carlow rose 40% in 2023 after a grant funded the ring road.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Carlow; Measure: resurfacing; Change: rose 40%; Period: 2023; Reason: a grant funded the ring road"
+    }
+   ]
+  },
+  {
+   "id": "g331",
+   "claim": "Curtailment at Coast Point rose to 6 percent in 2022, and e-book loans across the service reached 96,500 in 2023.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Curtailment at Coast Point rose to 6 percent in 2022 when the grid link was congested"
+    }
+   ]
+  },
+  {
+   "id": "g332",
+   "claim": "The pH meter's slope stayed between 98 and 101 percent across all calibrations in this month.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "The pH meter's slope stayed between 98 and 101 percent across all calibrations this month."
+    }
+   ]
+  },
+  {
+   "id": "g333",
+   "claim": "Visitors to the Art Gallery (which opened in 1962) fell 9% in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the Art Gallery; Measure: visitors; Change: fell 9%; Period: 2023; Reason: the east wing was closed"
+    }
+   ]
+  },
+  {
+   "id": "g334",
+   "claim": "Leakage across the network fell to 14% between 2010 and 2020 after old iron mains were replaced.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "Leakage across the network fell from 23% to 14% between 2010 and 2020 after old iron mains were replaced."
+    }
+   ]
+  },
+  {
+   "id": "g335",
+   "claim": "The Coast Point wind farm has 48 turbines of 3.6 megawatts each in its current layout.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Coast Point wind farm has 48 turbines of 3.6 megawatts each"
+    }
+   ]
+  },
+  {
+   "id": "g336",
+   "claim": "PM2.5 exceeded the daily limit on 9 days at the network's monitors in 2022, and the trial sampled 40 fields across three counties in its first season.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "PM2.5 exceeded the daily limit on 9 days in 2022."
+    },
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "We sampled 40 fields across three counties."
+    }
+   ]
+  },
+  {
+   "id": "g337",
+   "claim": "Crab landings at Greyhaven rose 26% in 2023.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Greyhaven; Measure: crab landings; Change: rose 26%; Period: 2023; Reason: new pots were trialled"
+    }
+   ]
+  },
+  {
+   "id": "g338",
+   "claim": "Mean NO2 at the Market Street monitor was 38 micrograms per cubic metre in 2019.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Mean NO2 at the Market Street monitor was 38 micrograms per cubic metre in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g339",
+   "claim": "In run one the phosphate buffer drifted by 0.08 pH units over seven days.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "In run one the phosphate buffer drifted by 0.08 pH units over fourteen days at room temperature."
+    }
+   ]
+  },
+  {
+   "id": "g340",
+   "claim": "Visitors to the Science Museum fell 5% in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: the Science Museum; Measure: visitors; Change: rose 5%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g341",
+   "claim": "Resurfacing in Carlow rose 40% in 2023, and attendance in the South district fell to 91.8% in 2022.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Carlow; Measure: resurfacing; Change: rose 40%; Period: 2023; Reason: a grant funded the ring road"
+    }
+   ]
+  },
+  {
+   "id": "g342",
+   "claim": "Cod landings at Greyhaven fell 18% in 2023.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Greyhaven; Measure: cod landings; Change: fell 18%; Period: 2023; Reason: a quota was cut"
+    },
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "Twelve bottles were set aside as controls and kept at four degrees."
+    }
+   ]
+  },
+  {
+   "id": "g343",
+   "claim": "The Harbour branch reopened after a 7-month refurbishment in March 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "The Harbour branch reopened in March 2023 after an 11-month refurbishment."
+    }
+   ]
+  },
+  {
+   "id": "g344",
+   "claim": "The Coast Point wind farm has 182.8 megawatts of turbines.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Coast Point wind farm has 48 turbines of 3.6 megawatts each"
+    }
+   ]
+  },
+  {
+   "id": "g345",
+   "claim": "Missed appointments at the Riverside clinic dropped to 7.5% in 2023 and the Hillcrest clinic dropped to 5.7%.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "Missed appointments at the Riverside clinic dropped to 7.5% in 2023 once text reminders began."
+    }
+   ]
+  },
+  {
+   "id": "g346",
+   "claim": "Mackerel landings at Holmport rose 9% in 2023 and Greyhaven rose 19%.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Holmport; Measure: mackerel landings; Change: rose 9%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g347",
+   "claim": "Energy costs at the hospital fell 11.2% in 2024.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the hospital; Measure: energy costs; Change: fell 11.2%; Period: 2024; Reason: a new boiler was fitted"
+    }
+   ]
+  },
+  {
+   "id": "g348",
+   "claim": "Rooftop solar installations in Elton rose 12% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Elton; Measure: rooftop solar installations; Change: rose 12%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g349",
+   "claim": "Leakage across the network fell to 14% between 2000 and 2010.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "Leakage across the network fell from 23% to 14% between 2010 and 2020 after old iron mains were replaced."
+    }
+   ]
+  },
+  {
+   "id": "g350",
+   "claim": "Average fare revenue per trip fell to 1.15 dollars in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "Average fare revenue per trip fell to 1.15 dollars in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g351",
+   "claim": "The Southside food bank opened a second site in September 2023 and the Northside food bank opened third.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "The Southside food bank opened a second site in September 2023."
+    }
+   ]
+  },
+  {
+   "id": "g352",
+   "claim": "Visitors to the Maritime Museum rose 32% in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the Maritime Museum; Measure: visitors; Change: rose 23%; Period: 2023; Reason: the shipwreck exhibition"
+    }
+   ]
+  },
+  {
+   "id": "g353",
+   "claim": "On-time performance on Route 12 was 81% in 2021.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "On-time performance on Route 12 was 81% in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g354",
+   "claim": "Average fare revenue per trip fell to 1.15 dollars in 2022 and Route 7 fell to 1.51.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "Average fare revenue per trip fell to 1.15 dollars in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g355",
+   "claim": "The study (the only one with weekend hours) kept twelve control bottles at four degrees in this study.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "Twelve bottles were set aside as controls and kept at four degrees."
+    }
+   ]
+  },
+  {
+   "id": "g356",
+   "claim": "Applications to the law faculty fell 4% for the 2024 intake.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "Applications to the law faculty fell 4% for the 2024 intake"
+    }
+   ]
+  },
+  {
+   "id": "g357",
+   "claim": "Catering costs at the hospital changed by 0.0% in 2024.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: the hospital; Measure: catering costs; Change: changed by 0.0%; Period: 2024"
+    }
+   ]
+  },
+  {
+   "id": "g358",
+   "claim": "Irrigation added 3.7 tonnes per hectare to wheat yields in 2022.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g359",
+   "claim": "Ozone at the network's monitors peaked at 182 micrograms per cubic metre on 19 June 2022.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "Ozone peaked at 182 micrograms per cubic metre on 19 July 2022."
+    }
+   ]
+  },
+  {
+   "id": "g360",
+   "claim": "Visitors to the Art Gallery fell 9% in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the Art Gallery; Measure: visitors; Change: fell 9%; Period: 2023; Reason: the east wing was closed"
+    },
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "The East district hired 38 new teachers in 2023, 22 of them in mathematics and science."
+    }
+   ]
+  },
+  {
+   "id": "g361",
+   "claim": "Volunteers gave 14,800 hours in 2023, and the city's bus fleet covered 4.2 million kilometres in 2022.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Volunteers gave 14,800 hours in 2023."
+    },
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "The city's bus fleet covered 4.2 million kilometres in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g362",
+   "claim": "Visitors to the Art Gallery rose 5% in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: the Science Museum; Measure: visitors; Change: rose 5%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g363",
+   "claim": "Missed appointments at the Riverside clinic dropped to under 8% in 2023.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "Missed appointments at the Riverside clinic dropped to 7.5% in 2023 once text reminders began."
+    }
+   ]
+  },
+  {
+   "id": "g364",
+   "claim": "Loans at the Central Library fell 8% in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "Loans at the Central Library rose 8% in 2023, to 214,000 items."
+    }
+   ]
+  },
+  {
+   "id": "g365",
+   "claim": "School visits to the Science Museum rose 31% in 2021.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: the Science Museum; Measure: school visits; Change: rose 31%; Period: 2023; Reason: free coach travel began"
+    }
+   ]
+  },
+  {
+   "id": "g366",
+   "claim": "The Millford treatment works (now run by a charity) was expanded in 1994 to serve 310,000 people.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "The Millford treatment works was expanded in 1994 to serve 310,000 people."
+    }
+   ]
+  },
+  {
+   "id": "g367",
+   "claim": "Energy costs at the hospital fell 11.2% in 2023.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the hospital; Measure: energy costs; Change: fell 11.2%; Period: 2024; Reason: a new boiler was fitted"
+    }
+   ]
+  },
+  {
+   "id": "g368",
+   "claim": "Gritting runs in Barton rose 15% in 2023.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Barton; Measure: gritting runs; Change: fell 15%; Period: 2023; Reason: a mild December"
+    }
+   ]
+  },
+  {
+   "id": "g369",
+   "claim": "Herring landings at Greyhaven fell 3% in 2023.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Holmport; Measure: herring landings; Change: fell 3%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g370",
+   "claim": "Median waiting time at the Hillcrest clinic fell to 21 minutes in 2022.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "Median waiting time at the Hillcrest clinic fell from 34 to 21 minutes in 2023 after a second triage nurse was hired."
+    }
+   ]
+  },
+  {
+   "id": "g371",
+   "claim": "Loans at the Central Library rose 8% in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "The Harbour branch reopened in March 2023 after an 11-month refurbishment."
+    }
+   ]
+  },
+  {
+   "id": "g372",
+   "claim": "Visitors to the Art Gallery rose 9% in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the Art Gallery; Measure: visitors; Change: fell 9%; Period: 2023; Reason: the east wing was closed"
+    }
+   ]
+  },
+  {
+   "id": "g373",
+   "claim": "Resurfacing in Carlow fell 40% in 2023.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Carlow; Measure: resurfacing; Change: rose 40%; Period: 2023; Reason: a grant funded the ring road"
+    }
+   ]
+  },
+  {
+   "id": "g374",
+   "claim": "Wheat on the irrigated plots yielded 7.9 tonnes per hectare in 2021.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the irrigated plots yielded 7.9 tonnes per hectare in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g375",
+   "claim": "Attendance in the South district (rated best in the county) fell to 91.8% in 2022.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Attendance in the South district fell to 91.8% in 2022, after a flu outbreak in February."
+    }
+   ]
+  },
+  {
+   "id": "g376",
+   "claim": "The city's bus fleet (which opened in 1962) covered 4.2 million kilometres in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "The city's bus fleet covered 4.2 million kilometres in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g377",
+   "claim": "The Northside food bank served 3,120 households in the winter of 2023 after heating costs climbed.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "The Northside food bank served 3,120 households in the winter of 2023, a rise of 22% after heating costs climbed."
+    }
+   ]
+  },
+  {
+   "id": "g378",
+   "claim": "The Southside food bank (rated best in the county) opened a second site in September 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "The Southside food bank opened a second site in September 2023."
+    }
+   ]
+  },
+  {
+   "id": "g379",
+   "claim": "Leakage across the network fell to 14% between 2010 and 2020.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "Leakage across the network fell from 23% to 14% between 2010 and 2020 after old iron mains were replaced."
+    }
+   ]
+  },
+  {
+   "id": "g380",
+   "claim": "Rooftop solar installations in Dunmore (now run by a charity) rose 44% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Dunmore; Measure: rooftop solar installations; Change: rose 44%; Period: 2023; Reason: a council grant"
+    }
+   ]
+  },
+  {
+   "id": "g381",
+   "claim": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022, and in run one the phosphate buffer drifted by 0.08 pH units over fourteen days.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022"
+    },
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "In run one the phosphate buffer drifted by 0.08 pH units over fourteen days at room temperature."
+    }
+   ]
+  },
+  {
+   "id": "g382",
+   "claim": "Energy costs at the hospital fell 21.2% in 2024.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the hospital; Measure: energy costs; Change: fell 11.2%; Period: 2024; Reason: a new boiler was fitted"
+    }
+   ]
+  },
+  {
+   "id": "g383",
+   "claim": "Rooftop solar installations in Dunmore rose 12% in 2023.",
+   "snippets": [
+    {
+     "document": "solar-installs.csv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: Elton; Measure: rooftop solar installations; Change: rose 12%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g384",
+   "claim": "The Millford treatment works was expanded in 1994 to serve 310,000 people because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "The Millford treatment works was expanded in 1994 to serve 310,000 people."
+    }
+   ]
+  },
+  {
+   "id": "g385",
+   "claim": "Fresh produce made up 13% of donations in 2023.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Fresh produce made up 31% of donations in 2023, up from 19% in 2021."
+    }
+   ]
+  },
+  {
+   "id": "g386",
+   "claim": "School visits to the Science Museum rose 31% in 2023 because of a new café opened.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: the Science Museum; Measure: school visits; Change: rose 31%; Period: 2023; Reason: free coach travel began"
+    }
+   ]
+  },
+  {
+   "id": "g387",
+   "claim": "Crab landings at Greyhaven fell 26% in 2023.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Greyhaven; Measure: crab landings; Change: rose 26%; Period: 2023; Reason: new pots were trialled"
+    }
+   ]
+  },
+  {
+   "id": "g388",
+   "claim": "Resurfacing in Carlow rose 40% in 2023.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Carlow; Measure: resurfacing; Change: rose 40%; Period: 2023; Reason: a grant funded the ring road"
+    }
+   ]
+  },
+  {
+   "id": "g389",
+   "claim": "Enrolment in the North district rose by about 12% in 2021.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Enrolment in the North district rose 12.4% in 2021, from 1,104 to 1,241 pupils."
+    }
+   ]
+  },
+  {
+   "id": "g390",
+   "claim": "The capacity factor of the Hollow Ridge wind farm was 34 percent in 2022 after a windy winter.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Its capacity factor was 34 percent in 2022 because of a windy winter"
+    }
+   ]
+  },
+  {
+   "id": "g391",
+   "claim": "Gritting runs in Barton fell 15% in 2023.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: Barton; Measure: gritting runs; Change: fell 15%; Period: 2023; Reason: a mild December"
+    }
+   ]
+  },
+  {
+   "id": "g392",
+   "claim": "Nursing staff costs at the community trust rose 6.1% in 2024.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the hospital; Measure: nursing staff costs; Change: rose 6.1%; Period: 2024; Reason: the national pay award"
+    }
+   ]
+  },
+  {
+   "id": "g393",
+   "claim": "Median waiting time at the Hillcrest clinic fell by 13 minutes in 2023.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "Median waiting time at the Hillcrest clinic fell from 34 to 21 minutes in 2023 after a second triage nurse was hired."
+    }
+   ]
+  },
+  {
+   "id": "g394",
+   "claim": "Visitors to the Art Gallery fell 9% in 2023 after the east wing was closed.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: the Art Gallery; Measure: visitors; Change: fell 9%; Period: 2023; Reason: the east wing was closed"
+    }
+   ]
+  },
+  {
+   "id": "g395",
+   "claim": "In run two, at 37 degrees, the phosphate buffer drifted by 0.21 pH units.",
+   "snippets": [
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "In run two, at 37 degrees, the phosphate buffer drifted by 0.21 pH units."
+    }
+   ]
+  },
+  {
+   "id": "g396",
+   "claim": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022"
+    },
+    {
+     "document": "lab-notes.md",
+     "kind": "md",
+     "mode": "verbatim",
+     "text": "In run one the phosphate buffer drifted by 0.08 pH units over fourteen days at room temperature."
+    }
+   ]
+  },
+  {
+   "id": "g397",
+   "claim": "Median waiting time at the Hillcrest clinic fell to 21 minutes in 2023 after a second triage nurse was hired.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "Median waiting time at the Hillcrest clinic fell from 34 to 21 minutes in 2023 after a second triage nurse was hired."
+    }
+   ]
+  },
+  {
+   "id": "g398",
+   "claim": "Potholes repaired in Ashby rose 27% in 2021.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: Ashby; Measure: potholes repaired; Change: rose 27%; Period: 2023; Reason: the wet winter"
+    }
+   ]
+  },
+  {
+   "id": "g399",
+   "claim": "The trial sampled 40 fields across three counties in its first season and the follow-up survey sampled 14.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "We sampled 40 fields across three counties."
+    }
+   ]
+  },
+  {
+   "id": "g400",
+   "claim": "Visitors to the Maritime Museum rose nearly a quarter in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 2 — Subject: the Maritime Museum; Measure: visitors; Change: rose 23%; Period: 2023; Reason: the shipwreck exhibition"
+    }
+   ]
+  },
+  {
+   "id": "g401",
+   "claim": "Average fare revenue per trip rose to 1.15 dollars in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "Average fare revenue per trip fell to 1.15 dollars in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g402",
+   "claim": "The Southside food bank opened a second site in September 2023 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "The Southside food bank opened a second site in September 2023."
+    }
+   ]
+  },
+  {
+   "id": "g403",
+   "claim": "Average class size in the West district was 27 pupils in 2022 because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Average class size in the West district was 27 pupils in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g404",
+   "claim": "The city's bus fleet covered 4.2 million kilometres in 2020.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "The city's bus fleet covered 4.2 million kilometres in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g405",
+   "claim": "Average household use was 142 litres per person per day in 2020.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "Average household use was 142 litres per person per day in 2020."
+    }
+   ]
+  },
+  {
+   "id": "g406",
+   "claim": "Nitrogen runoff on plots with cover crops fell 18% in the trial.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Nitrogen runoff fell 18% on plots with cover crops because roots held the soil over winter."
+    }
+   ]
+  },
+  {
+   "id": "g407",
+   "claim": "Median waiting time at the Hillcrest clinic rose to 21 minutes in 2023.",
+   "snippets": [
+    {
+     "document": "clinic-review.odt",
+     "kind": "odt",
+     "mode": "linearized",
+     "text": "Median waiting time at the Hillcrest clinic fell from 34 to 21 minutes in 2023 after a second triage nurse was hired."
+    }
+   ]
+  },
+  {
+   "id": "g408",
+   "claim": "The East district hired 16 new teachers outside mathematics and science in 2023.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "The East district hired 38 new teachers in 2023, 22 of them in mathematics and science."
+    }
+   ]
+  },
+  {
+   "id": "g409",
+   "claim": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022.",
+   "snippets": [
+    {
+     "document": "crop-trial.tex",
+     "kind": "code",
+     "mode": "verbatim",
+     "text": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022."
+    },
+    {
+     "document": "food-bank.txt",
+     "kind": "txt",
+     "mode": "verbatim",
+     "text": "Fresh produce made up 31% of donations in 2023, up from 19% in 2021."
+    }
+   ]
+  },
+  {
+   "id": "g410",
+   "claim": "Free computer sessions at the Central Library fell 12% in 2023 because of opening hours were cut.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "Free computer sessions at the Central Library fell 12% in 2023 as more visitors brought laptops."
+    }
+   ]
+  },
+  {
+   "id": "g411",
+   "claim": "Average fare revenue per trip fell to 1.15 dollars in 2022.",
+   "snippets": [
+    {
+     "document": "transit-memo.rtf",
+     "kind": "rtf",
+     "mode": "linearized",
+     "text": "Average fare revenue per trip fell to 1.15 dollars in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g412",
+   "claim": "Catering costs at the hospital (the only one with weekend hours) changed by 0.0% in 2024.",
+   "snippets": [
+    {
+     "document": "hospital-budget.xlsx",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 5 — Subject: the hospital; Measure: catering costs; Change: changed by 0.0%; Period: 2024"
+    }
+   ]
+  },
+  {
+   "id": "g413",
+   "claim": "The Coast Point wind farm has 48 turbines of 3.6 megawatts each in its current layout because of a change in how it was counted.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "The Coast Point wind farm has 48 turbines of 3.6 megawatts each"
+    }
+   ]
+  },
+  {
+   "id": "g414",
+   "claim": "Visitors to the Science Museum rose 5% in 2023 and the Art Gallery rose 15%.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: the Science Museum; Measure: visitors; Change: rose 5%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g415",
+   "claim": "Visitors to the Science Museum rose 5% in 2023.",
+   "snippets": [
+    {
+     "document": "museum-visitors.ods",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 3 — Subject: the Science Museum; Measure: visitors; Change: rose 5%; Period: 2023"
+    }
+   ]
+  },
+  {
+   "id": "g416",
+   "claim": "Crab landings at Holmport rose 26% in 2023.",
+   "snippets": [
+    {
+     "document": "fish-landings.tsv",
+     "kind": "csv",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Greyhaven; Measure: crab landings; Change: rose 26%; Period: 2023; Reason: new pots were trialled"
+    }
+   ]
+  },
+  {
+   "id": "g417",
+   "claim": "Resurfacing in Carlow rose 40% in 2023 because of the depot moved.",
+   "snippets": [
+    {
+     "document": "road-maintenance.xls",
+     "kind": "spreadsheet",
+     "mode": "linearized",
+     "text": "Row 4 — Subject: Carlow; Measure: resurfacing; Change: rose 40%; Period: 2023; Reason: a grant funded the ring road"
+    }
+   ]
+  },
+  {
+   "id": "g418",
+   "claim": "E-book loans across the service (the largest in the region) reached 96,500 in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "E-book loans across the service reached 96,500 in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g419",
+   "claim": "E-book loans across the service reached 69,500 in 2023.",
+   "snippets": [
+    {
+     "document": "library-report.html",
+     "kind": "html",
+     "mode": "verbatim",
+     "text": "E-book loans across the service reached 96,500 in 2023."
+    }
+   ]
+  },
+  {
+   "id": "g420",
+   "claim": "Applications to the engineering faculty rose 17% for the 2024 intake.",
+   "snippets": [
+    {
+     "document": "admissions.pptx",
+     "kind": "pptx",
+     "mode": "linearized",
+     "text": "Applications to the engineering faculty rose 17% for the 2024 intake"
+    }
+   ]
+  },
+  {
+   "id": "g421",
+   "claim": "Leakage across the network fell to 14% between 2010 and 2020 and the treatment works fell to 4%.",
+   "snippets": [
+    {
+     "document": "water-history.epub",
+     "kind": "epub",
+     "mode": "verbatim",
+     "text": "Leakage across the network fell from 23% to 14% between 2010 and 2020 after old iron mains were replaced."
+    }
+   ]
+  },
+  {
+   "id": "g422",
+   "claim": "The capacity factor of the Hollow Ridge wind farm was 34 percent in 2022 because of new turbine blades.",
+   "snippets": [
+    {
+     "document": "wind-farm.pdf",
+     "kind": "pdf",
+     "mode": "verbatim",
+     "text": "Its capacity factor was 34 percent in 2022 because of a windy winter"
+    }
+   ]
+  },
+  {
+   "id": "g423",
+   "claim": "PM2.5 exceeded the daily limit on 9 days at the network's monitors in 2021.",
+   "snippets": [
+    {
+     "document": "air-quality.ipynb",
+     "kind": "ipynb",
+     "mode": "linearized",
+     "text": "PM2.5 exceeded the daily limit on 9 days in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g424",
+   "claim": "Average class size in the West district (the only one with weekend hours) was 27 pupils in 2022.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Average class size in the West district was 27 pupils in 2022."
+    }
+   ]
+  },
+  {
+   "id": "g425",
+   "claim": "Attendance in the South district fell to 91.8% in 2022 and the East district fell to 89.1%.",
+   "snippets": [
+    {
+     "document": "district-report.docx",
+     "kind": "docx",
+     "mode": "linearized",
+     "text": "Attendance in the South district fell to 91.8% in 2022, after a flu outbreak in February."
+    }
+   ]
+  }
+ ]
+}
