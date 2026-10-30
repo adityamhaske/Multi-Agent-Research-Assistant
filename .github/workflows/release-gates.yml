@@ -1,0 +1,144 @@
+name: Release gates
+
+# Evidence for the V3.1 release gates that need a released application, not this commit's
+# build (internal/rfcs/V3.1-corpus-scope.md §14.1). Run on demand and when a gate script
+# changes; never a required check, because what it measures (a published installer, a model
+# server it installs) is not this commit's code, and a mirror outage must not block a merge.
+# The release record links the run whose artifacts it cites.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/gates/**
+      - .github/workflows/release-gates.yml
+  # A change to a gate is checked before it merges, not discovered on release day.
+  pull_request:
+    paths:
+      - scripts/gates/**
+      - .github/workflows/release-gates.yml
+
+permissions:
+  contents: read
+
+jobs:
+  g3-downgrade-open:
+    # G-3: the actual released 3.0.2 application, from its published installer, opening 3.1
+    # data. macOS is checked on a release Mac too; it runs here as well so all three
+    # platforms leave the same evidence file.
+    name: G-3 — v3.0.2 opens 3.1 data (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            installer: Research.Assistant_3.0.2_amd64.AppImage
+          - os: windows-latest
+            installer: Research.Assistant_3.0.2_x64_en-US.msi
+          - os: macos-latest
+            installer: Research.Assistant_3.0.2_aarch64.dmg
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OLLAMA_BASE_URL: http://127.0.0.1:11434/v1
+      CORPUS_EMBEDDINGS_MODEL: nomic-embed-text
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies
+        timeout-minutes: 15
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      # 3.0.2 embeds through local Ollama even under --fake, and `prepare` embeds the 3.1
+      # corpus with the same model, so both sides search one vector space. Each fetch is
+      # bounded on its own step (AGENTS.md: size a bound against what it guards).
+      - name: Install Ollama (Linux)
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
+        shell: bash
+        run: curl -fsSL https://ollama.com/install.sh | sh
+      - name: Install Ollama (macOS)
+        if: runner.os == 'macOS'
+        timeout-minutes: 10
+        shell: bash
+        run: brew install ollama
+      - name: Install Ollama (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://ollama.com/download/ollama-windows-amd64.zip -OutFile ollama.zip
+          Expand-Archive ollama.zip -DestinationPath "$env:RUNNER_TEMP\ollama"
+          "$env:RUNNER_TEMP\ollama" | Out-File -FilePath $env:GITHUB_PATH -Append
+      - name: Serve nomic-embed-text
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          (ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &)
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:11434/api/tags > /dev/null && break; sleep 1; done
+          ollama pull nomic-embed-text
+          curl -sf http://127.0.0.1:11434/api/tags | grep -q nomic-embed-text
+
+      - name: Build the three 3.1 data directories
+        timeout-minutes: 10
+        working-directory: backend
+        shell: bash
+        run: python ../scripts/gates/g3_downgrade_open.py prepare "$RUNNER_TEMP/g3"
+
+      - name: Download the published v3.0.2 installer
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          gh release download v3.0.2 --pattern "${{ matrix.installer }}" --pattern SHA256SUMS \
+            --dir "$RUNNER_TEMP/rel302"
+      - name: Find the engine inside it (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/rel302"
+          chmod +x "${{ matrix.installer }}"
+          "./${{ matrix.installer }}" --appimage-extract > /dev/null
+          echo "ENGINE=$(find "$PWD/squashfs-root" -type f -name research-sidecar | head -1)" >> "$GITHUB_ENV"
+      - name: Find the engine inside it (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mnt="$RUNNER_TEMP/mnt302"; mkdir -p "$mnt"
+          hdiutil attach -nobrowse -readonly -noverify -mountpoint "$mnt" \
+            "$RUNNER_TEMP/rel302/${{ matrix.installer }}" > /dev/null
+          echo "ENGINE=$mnt/Research Assistant.app/Contents/Resources/sidecar/research-sidecar" >> "$GITHUB_ENV"
+      - name: Find the engine inside it (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # An administrative install unpacks the MSI's files without registering anything.
+          $target = "$env:RUNNER_TEMP\msi302"
+          $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
+            '/a', "`"$env:RUNNER_TEMP\rel302\${{ matrix.installer }}`"", '/qn', "TARGETDIR=`"$target`"")
+          if ($p.ExitCode -ne 0) { throw "msiexec /a exited $($p.ExitCode)" }
+          $engine = Get-ChildItem $target -Recurse -Filter research-sidecar.exe | Select-Object -First 1
+          if (-not $engine) { throw "no research-sidecar.exe in the 3.0.2 MSI" }
+          "ENGINE=$($engine.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: G-3 — the released 3.0.2 engine opens each directory
+        timeout-minutes: 20
+        shell: bash
+        run: |
+          python scripts/gates/g3_downgrade_open.py check "$RUNNER_TEMP/g3" --bin "$ENGINE" \
+            --installer "$RUNNER_TEMP/rel302/${{ matrix.installer }}" \
+            --sha256sums "$RUNNER_TEMP/rel302/SHA256SUMS" \
+            --json "g3-evidence/${{ runner.os }}.json"
+      - name: Upload G-3 evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: g3-evidence-${{ runner.os }}
+          path: g3-evidence/
+          retention-days: 90

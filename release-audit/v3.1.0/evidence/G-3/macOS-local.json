@@ -1,0 +1,83 @@
+{
+  "gate": "G-3",
+  "generated_at": "2026-10-29T23:47:29Z",
+  "platform": "darwin",
+  "installer": {
+    "name": "Research.Assistant_3.0.2_aarch64.dmg",
+    "sha256": "827c6a0443117b9092fe2e5c885a0f990c065a0e80ed2375f2a55fd1d688cc01",
+    "matches_SHA256SUMS": true
+  },
+  "binary": "/private/tmp/claude-501/-Users-adityamhaske-Documents-projects-Multi-Agent-Research-Assistant/13f3c0a1-e1e7-48ed-a6d0-aa9c49c79716/scratchpad/mnt302/Research Assistant.app/Contents/Resources/sidecar/research-sidecar",
+  "directories": {
+    "migrated": {
+      "result": "PASS",
+      "version": {
+        "version": "3.0.2",
+        "git_sha": "0a9de70ee90485531120856fce7f5dde4041c0aa",
+        "dirty": false,
+        "contract_version": "fdcd9fceecf4f347",
+        "built_at": "2026-10-19T18:44:17+00:00"
+      },
+      "projects": [
+        "Documents from before 3.1",
+        "General",
+        "Made in 3.1",
+        "Second project",
+        "Upgrade fixture"
+      ],
+      "documents_listed": 0,
+      "search": null,
+      "log_tail": "{\"ready\": true, \"host\": \"127.0.0.1\", \"port\": 54749, \"token\": \"REDACTED\"}"
+    },
+    "restored": {
+      "result": "PASS",
+      "version": {
+        "version": "3.0.2",
+        "git_sha": "0a9de70ee90485531120856fce7f5dde4041c0aa",
+        "dirty": false,
+        "contract_version": "fdcd9fceecf4f347",
+        "built_at": "2026-10-19T18:44:17+00:00"
+      },
+      "projects": [
+        "Documents from before 3.1",
+        "General",
+        "Made in 3.1",
+        "Second project",
+        "Upgrade fixture"
+      ],
+      "documents_listed": 8,
+      "search": {
+        "run_id": "7643733c-3610-46cf-872a-4a24b9e41992",
+        "cited": [
+          "4ce43142-3ab2-4dc1-95e4-d680aa76489e",
+          "629d41d6-c27e-417f-ac1b-01f07e8dd8a6",
+          "a432ef89-f862-466f-b3f2-42c93c9a8000"
+        ]
+      },
+      "log_tail": "{\"ready\": true, \"host\": \"127.0.0.1\", \"port\": 54758, \"token\": \"REDACTED\"}"
+    },
+    "corpus31": {
+      "result": "PASS",
+      "version": {
+        "version": "3.0.2",
+        "git_sha": "0a9de70ee90485531120856fce7f5dde4041c0aa",
+        "dirty": false,
+        "contract_version": "fdcd9fceecf4f347",
+        "built_at": "2026-10-19T18:44:17+00:00"
+      },
+      "projects": [
+        "General"
+      ],
+      "documents_listed": 7,
+      "search": {
+        "run_id": "de74f4a5-1b2f-4aa4-aaed-4d1f39a5a504",
+        "cited": [
+          "1156dc8a-3cd0-41e8-ad46-6fe8e3b63a84",
+          "be4f2966-0ad0-4a36-a9a9-84525fd06686"
+        ]
+      },
+      "log_tail": "{\"ready\": true, \"host\": \"127.0.0.1\", \"port\": 54782, \"token\": \"REDACTED\"}\n{\"session_id\": \"5de4e0f8-e2fb-463e-a86a-12e2b179e331\", \"event\": \"sidecar_demo_seeded\", \"level\": \"info\", \"timestamp\": \"2026-10-29T23:47:35.337352Z\"}"
+    }
+  },
+  "result": "PASS"
+}
