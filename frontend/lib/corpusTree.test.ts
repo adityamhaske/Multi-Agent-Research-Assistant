@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildTree,
   filterTree,
+  folderDeletion,
   folderState,
+  moveTargets,
   selectionRequest,
   toggleDocument,
   toggleFolder,
@@ -81,5 +83,18 @@ describe("corpusTree", () => {
     expect(filtered.map((r) => r.folder.name)).toEqual(["Thesis"]);
     expect(filtered[0].folders.map((f) => f.folder.name)).toEqual(["Ch1"]);
     expect(filtered[0].folders[0].documents.map((d) => d.filename)).toEqual(["b.xlsx"]);
+  });
+
+  it("counts what a folder delete removes: files filed nowhere else, and subfolders", () => {
+    // k2 is only in Ch1, k3 only in Ch2, k1 in both: deleting Thesis takes all three.
+    expect(folderDeletion(TREE, "f-thesis")).toEqual({ subfolders: 2, files: 3 });
+    // Deleting Ch1 alone leaves k1, which Ch2 still holds.
+    expect(folderDeletion(TREE, "f-ch1")).toEqual({ subfolders: 0, files: 1 });
+    expect(folderDeletion(TREE, "f-empty")).toEqual({ subfolders: 0, files: 0 });
+  });
+
+  it("never offers a folder itself or anything beneath it as a place to move it", () => {
+    expect(moveTargets(TREE, "f-thesis").map((f) => f.id)).toEqual(["f-empty"]);
+    expect(moveTargets(TREE, "f-ch1").map((f) => f.id)).toEqual(["f-ch2", "f-empty", "f-thesis"]);
   });
 });
