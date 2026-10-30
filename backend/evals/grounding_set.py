@@ -37,6 +37,7 @@ from __future__ import annotations
 import io
 import json
 import random
+import re
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -68,9 +69,18 @@ class Fact:
     extra_ok: str | None = None
     extra_bad: str | None = None
 
+    @property
+    def period_stated(self) -> bool:
+        """Whether the source states the period at all. Where it does not ("the trial", "this
+        study"), a claim naming one asserts something unstated, so the frame drops it."""
+        return bool(self.P) and self.P.lower() in self.source.lower()
+
     def claim(self, **swap) -> str:
+        frame = self.frame
+        if not self.period_stated:
+            frame = re.sub(r"\s+(?:in|for|over|on|between)\s+\{P\}", "", frame)
         fields = {"S": self.S, "V": self.V, "X": self.X, "P": self.P, **swap}
-        text = self.frame.format(**fields)
+        text = frame.format(**fields)
         return text[0].upper() + text[1:] + "."
 
 
@@ -332,7 +342,7 @@ FACTS: list[Fact] = [
     ),
     F(
         "wind-farm.pdf",
-        "Its capacity factor was 34 percent in 2022 because of a windy winter",
+        "The Hollow Ridge wind farm's capacity factor was 34 percent in 2022 because of a windy winter",
         "the capacity factor of {S} {V} {X} percent in {P}",
         "the Hollow Ridge wind farm",
         "the Coast Point wind farm",
@@ -1237,7 +1247,6 @@ def items_for(fact: Fact, snippet: str, rng: random.Random) -> list[tuple[str, s
 
     neg = [
         (fact.claim(X=fact.wrong_X), "wrong_number", "contradicted"),
-        (fact.claim(S=fact.alt_S), "wrong_subject", "not_supported"),
         (
             fact.claim()[:-1] + f" and {fact.alt_S} {fact.V} {fact.wrong_X}.".replace("  ", " "),
             "compound_invented_clause",
@@ -1248,13 +1257,13 @@ def items_for(fact: Fact, snippet: str, rng: random.Random) -> list[tuple[str, s
             "added_inference",
             "not_supported",
         ),
-        (
-            fact.claim(S=f"{fact.S} ({rng.choice(PARENTHETICALS)})"),
-            "parenthetical",
-            "not_supported",
-        ),
     ]
-    if fact.alt_P and fact.P:
+    # A frame with no subject slot would make these the source sentence itself: not a negative.
+    if "{S}" in fact.frame:
+        neg.append((fact.claim(S=fact.alt_S), "wrong_subject", "not_supported"))
+        parenthetical = fact.claim(S=f"{fact.S} ({rng.choice(PARENTHETICALS)})")
+        neg.append((parenthetical, "parenthetical", "not_supported"))
+    if fact.alt_P and fact.period_stated:
         neg.append((fact.claim(P=fact.alt_P), "wrong_period", "not_supported"))
     if fact.opp_V:
         neg.append((fact.claim(V=fact.opp_V), "opposite_direction", "contradicted"))

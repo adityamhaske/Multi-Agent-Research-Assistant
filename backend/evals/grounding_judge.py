@@ -10,8 +10,11 @@ What keeps the judge a reference rather than a second opinion of the checker:
 - **Blind input.** It reads `items.json` alone, the claim and its snippets, exactly what a
   person saw on the labelling page. Neither `authoring.json` (what a claim was written to
   be) nor any checker verdict reaches it.
-- **The person's rubric.** The labelling page's instructions are its system prompt,
-  unchanged, so the reference means what the human reference would have meant.
+- **The person's rubric.** The labelling page's instructions are its system prompt, so the
+  reference means what the human reference would have meant. Two clarifications follow
+  them, added after a hand review of a first labelling found a judge rejecting claims that
+  merely left a clause out and miscounting a product. The reason comes before the label,
+  because three first-run labels contradicted their own reasons.
 - **Not the system under test.** `grounding_benchmark` refuses a run where the checker's
   route is the judge's. What actually answered is recorded from OmniRoute's routing headers
   (`evals/harness.py::gateway_routing`), never assumed from the route.
@@ -62,9 +65,15 @@ a different figure for the same measure, or the opposite direction.
 
 Spreadsheet rows read "Row 2 — Column: value; …", the way the app extracts them.
 
-Answer in exactly two lines:
-LABEL: supported | not_supported | contradicted
-REASON: one sentence naming the part of the claim that decides it."""
+Two clarifications of the above:
+- A claim may leave out part of what a snippet says and still be supported. Judge only what \
+the claim asserts.
+- Check every figure, and any arithmetic the claim relies on, against the snippets before \
+deciding.
+
+Answer in exactly two lines, the reason first:
+REASON: one sentence naming the part of the claim that decides it.
+LABEL: supported | not_supported | contradicted"""
 
 RUBRIC_SHA256 = hashlib.sha256(RUBRIC.encode("utf-8")).hexdigest()
 _LABEL = re.compile(r"^\s*LABEL:\s*(supported|not_supported|contradicted)\s*$", re.I | re.M)
