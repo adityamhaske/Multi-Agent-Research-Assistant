@@ -17,7 +17,7 @@
 
 # Provider SDKs
 openai==3.21.0
-anthropic==1.9.0
+anthropic==2.3.0
 google-genai==2.25.0
 
 # LangChain integrations over them
