@@ -97,6 +97,20 @@ def load_env_file(path: str | Path = "../.env") -> bool:
     return bool(load_dotenv(env_path, override=False))
 
 
+def provider_keys_from_env() -> dict[str, str]:
+    """The provider keys in the environment, and the custom endpoint they belong to.
+
+    One reader for the CLI and the desktop. The custom provider needs its endpoint as well
+    as its key, and `llm_factory` reads it from `provider_keys` under `custom_base_url`
+    (the contract `app/runtime.py` follows). The desktop once restated the key names and
+    left the endpoint out, so a custom route had a key and no address.
+    """
+    keys = {p: os.environ[env] for p, env in _PROVIDER_ENV.items() if os.environ.get(env)}
+    if os.environ.get("CUSTOM_BASE_URL"):
+        keys["custom_base_url"] = os.environ["CUSTOM_BASE_URL"]
+    return keys
+
+
 def run_config_from_env(*, fake: bool) -> RunConfig:
     """Build the engine's config from the process environment.
 
@@ -120,17 +134,7 @@ def run_config_from_env(*, fake: bool) -> RunConfig:
         return RunConfig(llm_mode="fake")
 
     models = {role: os.environ.get(f"MODEL_{role.upper()}", DEFAULT_MODELS[role]) for role in ROLES}
-    keys = {
-        provider: os.environ[env] for provider, env in _PROVIDER_ENV.items() if os.environ.get(env)
-    }
-
-    # The custom provider needs its endpoint as well as its key, and `llm_factory` reads
-    # that endpoint out of `provider_keys` under this name (same contract as
-    # app/runtime.py). Without it a `custom:` route silently falls back to the OpenAI
-    # default base URL and 401s against a key that was never meant for OpenAI.
-    custom_base_url = os.environ.get("CUSTOM_BASE_URL", "")
-    if custom_base_url:
-        keys["custom_base_url"] = custom_base_url
+    keys = provider_keys_from_env()
 
     # An upfront guard for the common "forgot to export anything" case; per-provider
     # coverage is still enforced later, with an actionable message, by `llm_factory._build`.

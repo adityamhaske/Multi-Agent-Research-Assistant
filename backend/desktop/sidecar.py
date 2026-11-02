@@ -174,7 +174,12 @@ from research_engine.events import make_event
 from research_engine.graph import build_graph
 from research_engine.llm_factory import get_llm, text_of
 from research_engine.local import SqliteCache, load_env_file
-from research_engine.local import providers_missing_a_key, run_limits_from_env, usable_providers
+from research_engine.local import (
+    provider_keys_from_env,
+    providers_missing_a_key,
+    run_limits_from_env,
+    usable_providers,
+)
 from research_engine.prompt_composition import recording_provenance, system_prompt
 from research_engine.routing_rules import validate as validate_routing_rule
 from research_engine.runconfig import (
@@ -671,15 +676,9 @@ def save_custom_endpoint(data_dir: str | Path, url: str | None) -> None:
 
 
 def provider_keys(data_dir: str | Path | None) -> dict[str, str]:
-    """Env keys, then keychain keys (keychain wins), plus a saved custom endpoint URL."""
-    env_names = {
-        "google": "GOOGLE_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY",
-        "openai": "OPENAI_API_KEY",
-        "openrouter": "OPENROUTER_API_KEY",
-        "custom": "CUSTOM_API_KEY",
-    }
-    keys = {p: os.environ[e] for p, e in env_names.items() if os.environ.get(e)}
+    """Env keys and endpoint (`local.provider_keys_from_env`), then keychain keys and the
+    saved custom endpoint URL, which win."""
+    keys = provider_keys_from_env()
     keys.update(stored_keys())
     if data_dir is not None:
         custom_base_url = stored_custom_endpoint(data_dir)
