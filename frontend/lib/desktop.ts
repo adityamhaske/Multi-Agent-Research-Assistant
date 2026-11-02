@@ -66,6 +66,17 @@ export function apiBase(): string {
   return cfg ? `${cfg.baseUrl}/api/v1` : "/api/v1";
 }
 
+/**
+ * `url` when it is this app's own API — a same-origin `/api/v1/` path, or the desktop engine
+ * on loopback — and `undefined` otherwise. A link's address built from a route parameter
+ * (a run or session id) must not become a `javascript:` URL or a jump to another site.
+ */
+export function apiHref(url: string): string | undefined {
+  return /^(\/api\/v1\/|http:\/\/127\.0\.0\.1:\d{1,5}\/api\/v1\/)[^\s"'<>\\]*$/.test(url)
+    ? url
+    : undefined;
+}
+
 /** Bearer auth in desktop mode; the web build authenticates with httpOnly cookies. */
 export function authHeaders(): Record<string, string> {
   const cfg = sidecarConfig();

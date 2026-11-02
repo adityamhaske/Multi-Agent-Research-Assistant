@@ -28,7 +28,7 @@ function renderDrawer(onClose = vi.fn()) {
       <PreviewDrawer
         open
         onClose={onClose}
-        url="/api/d/1"
+        url="/api/v1/projects/p/corpus/documents/1/download"
         filename="notes.txt"
         downloadable
       />
@@ -84,9 +84,9 @@ describe("PreviewDrawer download", () => {
     fetchMock.mockClear();
 
     const link = screen.getByRole("link", { name: "Download" });
-    expect(link).toHaveAttribute("href", "/api/d/1"); // still a link: middle-click, copy link
+    expect(link).toHaveAttribute("href", "/api/v1/projects/p/corpus/documents/1/download"); // still a link: middle-click, copy link
     await userEvent.click(link);
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/d/1", expect.objectContaining({ cache: "no-store" }));
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/projects/p/corpus/documents/1/download", expect.objectContaining({ cache: "no-store" }));
   });
 });

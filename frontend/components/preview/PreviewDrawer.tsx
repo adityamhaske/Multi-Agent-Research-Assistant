@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { DocumentPreview } from "@/components/preview/DocumentPreview";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
 import { ApiError } from "@/lib/api";
+import { apiHref } from "@/lib/desktop";
 import { downloadFile } from "@/lib/download";
 
 /**
@@ -69,9 +70,9 @@ export function PreviewDrawer({
             {subtitle && <p className="mt-0.5 font-mono text-xs text-text-muted">{subtitle}</p>}
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {downloadable && (
+            {downloadable && apiHref(url) && (
               <a
-                href={url}
+                href={apiHref(url)}
                 download={filename}
                 // An anchor for its semantics, a fetch for its bytes: a link cannot carry the
                 // desktop's bearer token, so a plain click was a 401 there (lib/download.ts).
