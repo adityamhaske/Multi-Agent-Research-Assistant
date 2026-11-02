@@ -1,0 +1,7786 @@
+{
+  "eval": "grounding-benchmark",
+  "gate": "G-6",
+  "generated_at": "2026-11-02T05:35:38+00:00",
+  "set_version": 1,
+  "critic_routing": "custom:agy/gemini-3-flash",
+  "routing_is_alias": false,
+  "preflight": false,
+  "reference_labels": {
+    "kind": "llm_judge",
+    "route": "custom:kiro/claude-sonnet-4.5",
+    "served_models": [
+      "claude-sonnet-4.5"
+    ],
+    "served_providers": [
+      "kr"
+    ],
+    "rubric_sha256": "7431bee5ee1f61d982347e2337d85681c7975be50bec6b10f9001ec4994c5c0b",
+    "decided_by": "owner, 2026-10-29: \"use haiku 5.5 to do this, use LLM as judge\"; no Haiku 5.5 route answered, then \"Use Kiro Haiku 4.5\", then \"use any cheap and best model\"",
+    "amendment": "internal/rfcs/V3.1-scope-freeze.md, A-1",
+    "generated_at": "2026-10-30T02:05:18+00:00"
+  },
+  "thresholds": {
+    "false_accept": 0.02,
+    "false_accept_wilson_upper": 0.05,
+    "false_reject": 0.15,
+    "unmeasured": 0.05
+  },
+  "result": {
+    "claims": 425,
+    "unmeasured": 15,
+    "unmeasured_share": 0.03529411764705882,
+    "confusion": {
+      "supported": {
+        "supported": 127,
+        "not_supported": 9,
+        "contradicted": 0,
+        "unmeasured": 4
+      },
+      "not_supported": {
+        "supported": 7,
+        "not_supported": 145,
+        "contradicted": 8,
+        "unmeasured": 9
+      },
+      "contradicted": {
+        "supported": 0,
+        "not_supported": 59,
+        "contradicted": 55,
+        "unmeasured": 2
+      }
+    },
+    "false_accept": 0.025547445255474453,
+    "false_accept_counts": {
+      "accepted": 7,
+      "negatives_measured": 274
+    },
+    "false_accept_wilson_upper": 0.05178601948121273,
+    "false_reject": 0.0661764705882353,
+    "false_reject_counts": {
+      "rejected": 9,
+      "positives_measured": 136
+    },
+    "contradicted_recall": 0.4824561403508772,
+    "status": "measured",
+    "threshold_checks": {
+      "false_accept": false,
+      "false_accept_wilson_upper": false,
+      "false_reject": true
+    },
+    "meets_threshold": false
+  },
+  "slices": {
+    "by_document_kind": {
+      "code": {
+        "claims": 26,
+        "unmeasured": 1,
+        "indicative_only": false,
+        "false_accept": 0.05555555555555555,
+        "false_reject": 0.14285714285714285,
+        "recall": {
+          "supported": 0.8571428571428571,
+          "not_supported": 0.9,
+          "contradicted": 0.25
+        }
+      },
+      "csv": {
+        "claims": 47,
+        "unmeasured": 0,
+        "indicative_only": false,
+        "false_accept": 0.0,
+        "false_reject": 0.0,
+        "recall": {
+          "supported": 1.0,
+          "not_supported": 1.0,
+          "contradicted": 0.6666666666666666
+        }
+      },
+      "docx": {
+        "claims": 26,
+        "unmeasured": 1,
+        "indicative_only": false,
+        "false_accept": 0.0,
+        "false_reject": 0.25,
+        "recall": {
+          "supported": 0.75,
+          "not_supported": 0.8888888888888888,
+          "contradicted": 0.125
+        }
+      },
+      "epub": {
+        "claims": 26,
+        "unmeasured": 0,
+        "indicative_only": false,
+        "false_accept": 0.0,
+        "false_reject": 0.375,
+        "recall": {
+          "supported": 0.625,
+          "not_supported": 1.0,
+          "contradicted": 0.3333333333333333
+        }
+      },
+      "html": {
+        "claims": 26,
+        "unmeasured": 0,
+        "indicative_only": false,
+        "false_accept": 0.05,
+        "false_reject": 0.0,
+        "recall": {
+          "supported": 1.0,
+          "not_supported": 0.9166666666666666,
+          "contradicted": 0.375
+        }
+      },
+      "ipynb": {
+        "claims": 23,
+        "unmeasured": 1,
+        "indicative_only": false,
+        "false_accept": 0.05555555555555555,
+        "false_reject": 0.0,
+        "recall": {
+          "supported": 1.0,
+          "not_supported": 0.8461538461538461,
+          "contradicted": 0.2
+        }
+      },
+      "md": {
+        "claims": 22,
+        "unmeasured": 3,
+        "indicative_only": false,
+        "false_accept": 0.0,
+        "false_reject": 0.0,
+        "recall": {
+          "supported": 1.0,
+          "not_supported": 0.9,
+          "contradicted": 0.6
+        }
+      },
+      "odt": {
+        "claims": 29,
+        "unmeasured": 1,
+        "indicative_only": false,
+        "false_accept": 0.0,
+        "false_reject": 0.09090909090909091,
+        "recall": {
+          "supported": 0.9090909090909091,
+          "not_supported": 1.0,
+          "contradicted": 0.375
+        }
+      },
+      "pdf": {
+        "claims": 28,
+        "unmeasured": 0,
+        "indicative_only": false,
+        "false_accept": 0.05,
+        "false_reject": 0.125,
+        "recall": {
+          "supported": 0.875,
+          "not_supported": 0.7857142857142857,
+          "contradicted": 0.5
+        }
+      },
+      "pptx": {
+        "claims": 23,
+        "unmeasured": 1,
+        "indicative_only": false,
+        "false_accept": 0.0,
+        "false_reject": 0.0,
+        "recall": {
+          "supported": 1.0,
+          "not_supported": 0.8888888888888888,
+          "contradicted": 0.8571428571428571
+        }
+      },
+      "rtf": {
+        "claims": 25,
+        "unmeasured": 1,
+        "indicative_only": false,
+        "false_accept": 0.0,
+        "false_reject": 0.0,
+        "recall": {
+          "supported": 1.0,
+          "not_supported": 0.9090909090909091,
+          "contradicted": 0.6666666666666666
+        }
+      },
+      "spreadsheet": {
+        "claims": 75,
+        "unmeasured": 5,
+        "indicative_only": false,
+        "false_accept": 0.02127659574468085,
+        "false_reject": 0.0,
+        "recall": {
+          "supported": 1.0,
+          "not_supported": 0.9615384615384616,
+          "contradicted": 0.5714285714285714
+        }
+      },
+      "txt": {
+        "claims": 25,
+        "unmeasured": 1,
+        "indicative_only": false,
+        "false_accept": 0.0,
+        "false_reject": 0.0,
+        "recall": {
+          "supported": 1.0,
+          "not_supported": 0.9090909090909091,
+          "contradicted": 0.4
+        }
+      }
+    },
+    "multi_source": {
+      "claims": 24,
+      "unmeasured": 0,
+      "indicative_only": false,
+      "false_accept": 1.0,
+      "false_reject": 0.045454545454545456,
+      "recall": {
+        "supported": 0.9545454545454546,
+        "not_supported": 0.0,
+        "contradicted": null
+      }
+    },
+    "single_source": {
+      "claims": 401,
+      "unmeasured": 15,
+      "indicative_only": false,
+      "false_accept": 0.01838235294117647,
+      "false_reject": 0.07017543859649122,
+      "recall": {
+        "supported": 0.9298245614035088,
+        "not_supported": 0.9177215189873418,
+        "contradicted": 0.4824561403508772
+      }
+    },
+    "numeric_or_date": {
+      "claims": 420,
+      "unmeasured": 15,
+      "indicative_only": false,
+      "false_accept": 0.025830258302583026,
+      "false_reject": 0.06716417910447761,
+      "recall": {
+        "supported": 0.9328358208955224,
+        "not_supported": 0.9050632911392406,
+        "contradicted": 0.48672566371681414
+      }
+    },
+    "no_number_or_date": {
+      "claims": 5,
+      "unmeasured": 0,
+      "indicative_only": true,
+      "false_accept": 0.0,
+      "false_reject": 0.0,
+      "recall": {
+        "supported": 1.0,
+        "not_supported": 1.0,
+        "contradicted": 0.0
+      }
+    }
+  },
+  "calls": 1142,
+  "tokens_in": 635174,
+  "tokens_out": 70360,
+  "claims": [
+    {
+      "id": "g001",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Herring landings at Greyhaven fell 3% in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1237,
+      "tokens_out": 110
+    },
+    {
+      "id": "g002",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Leakage across the network fell to 4%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The time period of the decrease was between 2010 and 2020",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1646,
+      "tokens_out": 170
+    },
+    {
+      "id": "g003",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Ridership on Route 7 grew 51% in 2022",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1295,
+      "tokens_out": 126
+    },
+    {
+      "id": "g004",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Free computer sessions at the Central Library fell 12% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the East district hired 38 new teachers in 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1642,
+      "tokens_out": 187
+    },
+    {
+      "id": "g005",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Mean NO2 at the Park Lane monitor fell 21% between 2019 and 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Mean NO2 at the Market Street monitor fell 12%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1681,
+      "tokens_out": 191
+    },
+    {
+      "id": "g006",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Fresh produce's share of donations rose 12 percentage points",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Fresh produce's share of donations rose between 2021 and 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1699,
+      "tokens_out": 199
+    },
+    {
+      "id": "g007",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Free computer sessions at the Central Library fell 12%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The fall in free computer sessions at the Central Library occurred in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1598,
+      "tokens_out": 170
+    },
+    {
+      "id": "g008",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Volunteers gave 14,800 hours in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "paid staff gave 18,400 hours in 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1611,
+      "tokens_out": 182
+    },
+    {
+      "id": "g009",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "First-year retention among students reached 92%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "First-year retention among students reached 92% in 2021",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1585,
+      "tokens_out": 164
+    },
+    {
+      "id": "g010",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Coast Point wind farm has 172.8 megawatts of turbines",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1527,
+      "tokens_out": 127
+    },
+    {
+      "id": "g011",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Drug spending at the community trust rose 3.4%",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Drug spending at the community trust occurred in 2024",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1303,
+      "tokens_out": 159
+    },
+    {
+      "id": "g012",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Crab landings at Greyhaven rose 26% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "ridership on Route 7 grew 15% in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1686,
+      "tokens_out": 189
+    },
+    {
+      "id": "g013",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Southside food bank opened a second site",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Southside food bank opened a second site in September 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1559,
+      "tokens_out": 166
+    },
+    {
+      "id": "g014",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Mackerel landings at Holmport rose by 9% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1496,
+      "tokens_out": 110
+    },
+    {
+      "id": "g015",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The offer rate for international applicants was 38% in 2024",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "This was because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1545,
+      "tokens_out": 175
+    },
+    {
+      "id": "g016",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Harbour branch reopened after a 11-month refurbishment in March 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Central Library reopened 7",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1605,
+      "tokens_out": 179
+    },
+    {
+      "id": "g017",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Riverside clinic saw 18,240 patients in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the Hillcrest clinic saw 12,840 patients in 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1654,
+      "tokens_out": 188
+    },
+    {
+      "id": "g018",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Applications to the engineering faculty rose about a sixth",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The intake was for 2024",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1551,
+      "tokens_out": 160
+    },
+    {
+      "id": "g019",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Visitors to the Maritime Museum rose 23% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1508,
+      "tokens_out": 109
+    },
+    {
+      "id": "g020",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "First-year retention among students reached 92% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "a mentoring scheme started",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1575,
+      "tokens_out": 168
+    },
+    {
+      "id": "g021",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Potholes repaired in Barton fell 18% in 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1295,
+      "tokens_out": 126
+    },
+    {
+      "id": "g022",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "First-year retention among students reached 92% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "First-year retention reached 92% because tuition fees were lowered",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1551,
+      "tokens_out": 175
+    },
+    {
+      "id": "g023",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Volunteers are the largest in the region",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Volunteers gave 14,800 hours in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1533,
+      "tokens_out": 169
+    },
+    {
+      "id": "g024",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Cod landings at Greyhaven fell 18%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Cod landings at Greyhaven fell in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1624,
+      "tokens_out": 161
+    },
+    {
+      "id": "g025",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The trial sampled 40 fields across three counties",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "visitors to the Science Museum rose 5% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1715,
+      "tokens_out": 203
+    },
+    {
+      "id": "g026",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Catering costs at the hospital changed by 0.0% in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1305,
+      "tokens_out": 136
+    },
+    {
+      "id": "g027",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The yield was because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1577,
+      "tokens_out": 184
+    },
+    {
+      "id": "g028",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Curtailment at Coast Point fell to 6 percent in 2022",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1238,
+      "tokens_out": 108
+    },
+    {
+      "id": "g029",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Visitors to the Science Museum rose 23% in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1246,
+      "tokens_out": 238
+    },
+    {
+      "id": "g030",
+      "verdict": "unmeasured",
+      "atomic": [
+        {
+          "text": "In run two, at 37 degrees, the phosphate buffer drifted by 0.12 pH units [1].",
+          "state": "unmeasured",
+          "cause": "decomposition_invalid"
+        }
+      ],
+      "calls": 1,
+      "tokens_in": 637,
+      "tokens_out": 145
+    },
+    {
+      "id": "g031",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Visitors to the Art Gallery fell by 9 percent in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1508,
+      "tokens_out": 108
+    },
+    {
+      "id": "g032",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Free computer sessions at the Central Library fell 21%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The drop in free computer sessions at the Central Library occurred in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1604,
+      "tokens_out": 182
+    },
+    {
+      "id": "g033",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The capacity factor of the Hollow Ridge wind farm was 34 percent in 2022",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "on-time performance on Route 12 was 81% in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1716,
+      "tokens_out": 213
+    },
+    {
+      "id": "g034",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "E-book loans across the service reached 96,500 in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "drug spending at the hospital rose 3.4% in 2024",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1836,
+      "tokens_out": 219
+    },
+    {
+      "id": "g035",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Northside food bank served about 3,100 households",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The service occurred in the winter of 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1647,
+      "tokens_out": 182
+    },
+    {
+      "id": "g036",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "PM2.5 exceeded the daily limit on 9 days at the network's monitors in 2021",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1311,
+      "tokens_out": 126
+    },
+    {
+      "id": "g037",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Resurfacing in Carlow (the only one with weekend hours) rose in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Resurfacing in Carlow rose by 40% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1684,
+      "tokens_out": 188
+    },
+    {
+      "id": "g038",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Median waiting time at the Hillcrest clinic fell to 12 minutes",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The median waiting time fell in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1624,
+      "tokens_out": 166
+    },
+    {
+      "id": "g039",
+      "verdict": "unmeasured",
+      "atomic": [
+        {
+          "text": "Applications to the engineering faculty (now run by a charity) rose 17% for the 2024 intake [1].",
+          "state": "unmeasured",
+          "cause": "decomposition_invalid"
+        }
+      ],
+      "calls": 1,
+      "tokens_in": 640,
+      "tokens_out": 199
+    },
+    {
+      "id": "g040",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Coast Point wind farm is rated best in the county",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The Coast Point wind farm has 48 turbines",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Each turbine is of 3.6 megawatts",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1611,
+      "tokens_out": 222
+    },
+    {
+      "id": "g041",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "nitrogen runoff on plots with cover crops fell 18%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1621,
+      "tokens_out": 181
+    },
+    {
+      "id": "g042",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Crab landings at Greyhaven rose 26% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Crab landings rose because of prices fell",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1585,
+      "tokens_out": 167
+    },
+    {
+      "id": "g043",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Mean NO2 at the Market Street monitor was 38 micrograms per cubic metre in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1510,
+      "tokens_out": 121
+    },
+    {
+      "id": "g044",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Mackerel landings at Holmport fell 9%",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "Mackerel landings at Holmport occurred in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1545,
+      "tokens_out": 158
+    },
+    {
+      "id": "g045",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Riverside clinic saw 18,240 patients",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Riverside clinic saw patients in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1603,
+      "tokens_out": 174
+    },
+    {
+      "id": "g046",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "PM2.5 exceeded the daily limit on 9 days at the network's monitors in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "This was because of a change in how PM2.5 was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1582,
+      "tokens_out": 192
+    },
+    {
+      "id": "g047",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Resurfacing in Carlow rose 4% in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1302,
+      "tokens_out": 122
+    },
+    {
+      "id": "g048",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Dunmore opened in 1962",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "Rooftop solar installations in Dunmore rose 44% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1664,
+      "tokens_out": 183
+    },
+    {
+      "id": "g049",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Curtailment at Coast Point rose to 6 percent in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Curtailment at Hollow Ridge rose to 16 percent in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1622,
+      "tokens_out": 181
+    },
+    {
+      "id": "g050",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Visitors to the Maritime Museum rose 23% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "resurfacing in Carlow rose 40% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1783,
+      "tokens_out": 205
+    },
+    {
+      "id": "g051",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Applications to the law faculty fell 4% for the 2024 intake",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the engineering faculty fell 14%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1594,
+      "tokens_out": 190
+    },
+    {
+      "id": "g052",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Northside food bank is rated best in the county",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The Northside food bank served 3,120 households in the winter of 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1614,
+      "tokens_out": 182
+    },
+    {
+      "id": "g053",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Ozone at the network's monitors is the only one with weekend hours",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Ozone at the network's monitors peaked at 182 micrograms per cubic metre on 19 July 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1602,
+      "tokens_out": 200
+    },
+    {
+      "id": "g054",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Hollow Ridge wind farm generated 412 gigawatt hours",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Hollow Ridge wind farm generated electricity in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1575,
+      "tokens_out": 170
+    },
+    {
+      "id": "g055",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "E-book loans across the service reached 96,500 in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "drug spending at the hospital rose 3.4% in 2024",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1661,
+      "tokens_out": 197
+    },
+    {
+      "id": "g056",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "E-book loans across the service reached nearly 100,000 in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1512,
+      "tokens_out": 123
+    },
+    {
+      "id": "g057",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The East district hired 38 new teachers in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The hiring was because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1565,
+      "tokens_out": 172
+    },
+    {
+      "id": "g058",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Fairley are now run by a charity",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Rooftop solar installations in Fairley fell 6% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1594,
+      "tokens_out": 177
+    },
+    {
+      "id": "g059",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Cod landings at Greyhaven fell 18% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Cod landings at Greyhaven fell after a quota was cut",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1645,
+      "tokens_out": 173
+    },
+    {
+      "id": "g060",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Battery installations in Dunmore rose about 60%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Battery installations in Dunmore happened in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1600,
+      "tokens_out": 163
+    },
+    {
+      "id": "g061",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The East district hired 38 new teachers",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The hiring occurred in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1579,
+      "tokens_out": 166
+    },
+    {
+      "id": "g062",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Mean NO2 at the Park Lane monitor fell 21% between 2019 and 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Mean NO2 at the Park Lane monitor fell because of a factory closed",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1620,
+      "tokens_out": 190
+    },
+    {
+      "id": "g063",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Crab landings at Greyhaven rose 26%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Crab landings at Greyhaven occurred in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1629,
+      "tokens_out": 164
+    },
+    {
+      "id": "g064",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "School visits to the Science Museum rose nearly a third",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "School visits to the Science Museum occurred in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1631,
+      "tokens_out": 164
+    },
+    {
+      "id": "g065",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Ridership on Route 7 grew 15%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The growth in ridership occurred in 2019",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1596,
+      "tokens_out": 169
+    },
+    {
+      "id": "g066",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Leakage across the network fell to 14% between 2010 and 2020",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the treatment works fell to 4%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1671,
+      "tokens_out": 181
+    },
+    {
+      "id": "g067",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Catering costs at the hospital changed by 0.0% in 2024",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The change in catering costs was because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1593,
+      "tokens_out": 183
+    },
+    {
+      "id": "g068",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Volunteers gave 14,800 hours in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1475,
+      "tokens_out": 113
+    },
+    {
+      "id": "g069",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Millford treatment works was expanded in 1994",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Millford treatment works serves about 300,000 people",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1617,
+      "tokens_out": 179
+    },
+    {
+      "id": "g070",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "The Hollow Ridge wind farm generated 214 gigawatt hours",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "The generation occurred in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1587,
+      "tokens_out": 162
+    },
+    {
+      "id": "g071",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Potholes repaired in Ashby rose 27%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The increase in potholes repaired in Ashby occurred in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1624,
+      "tokens_out": 165
+    },
+    {
+      "id": "g072",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Enrolment in the North district rose by 173 pupils",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "Enrolment rose in 2021",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1637,
+      "tokens_out": 186
+    },
+    {
+      "id": "g073",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Missed appointments at the Riverside clinic dropped to 5.7% in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1304,
+      "tokens_out": 246
+    },
+    {
+      "id": "g074",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Mean NO2 at the Market Street monitor fell 21%",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The change occurred between 2019 and 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1588,
+      "tokens_out": 172
+    },
+    {
+      "id": "g075",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Median waiting time at the Riverside clinic fell to 21 minutes",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Median waiting time at the Riverside clinic fell in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1314,
+      "tokens_out": 164
+    },
+    {
+      "id": "g076",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Eastbrook reservoir had a capacity of 42 million cubic metres when it was completed in 1958",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the pH meter's slope stayed between 98 and 101 percent across all calibrations in this month",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1777,
+      "tokens_out": 237
+    },
+    {
+      "id": "g077",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Visitors to the Maritime Museum fell 23% in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1246,
+      "tokens_out": 106
+    },
+    {
+      "id": "g078",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Average household use was 142 litres per person per day",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Average household use was in 2010",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1587,
+      "tokens_out": 163
+    },
+    {
+      "id": "g079",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Attendance in the South district fell to roughly 92% in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1502,
+      "tokens_out": 113
+    },
+    {
+      "id": "g080",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Loans at the Harbour branch rose 8%",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Loans at the Harbour branch rose in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1289,
+      "tokens_out": 152
+    },
+    {
+      "id": "g081",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "In run one the phosphate buffer drifted by 0.8 pH units",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "The phosphate buffer drifted over fourteen days",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1580,
+      "tokens_out": 445
+    },
+    {
+      "id": "g082",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Elton rose 12%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Rooftop solar installations rose in 2021",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1604,
+      "tokens_out": 161
+    },
+    {
+      "id": "g083",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Average household use was 142 litres per person per day in 2020",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "businesses use was 124 litres per person per day in 2020",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1619,
+      "tokens_out": 191
+    },
+    {
+      "id": "g084",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The phosphate buffer drifted 0.31 pH units in run two",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The phosphate buffer drifted more in run two than in run one",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1351,
+      "tokens_out": 183
+    },
+    {
+      "id": "g085",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Riverside clinic saw 18,240 patients in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Riverside clinic saw patients in 2023 because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1591,
+      "tokens_out": 186
+    },
+    {
+      "id": "g086",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "First-year retention among students is now run by a charity",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "First-year retention among students reached 92% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1550,
+      "tokens_out": 173
+    },
+    {
+      "id": "g087",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Attendance in the East district fell to 91.8%",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Attendance in the East district fell in 2022",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1301,
+      "tokens_out": 160
+    },
+    {
+      "id": "g088",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Hollow Ridge wind farm generated just over 400 gigawatt hours",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The generation occurred in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1575,
+      "tokens_out": 170
+    },
+    {
+      "id": "g089",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Loans at the Central Library rose 8%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "Loans at the Central Library rose in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1328,
+      "tokens_out": 167
+    },
+    {
+      "id": "g090",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The county hospital gave 6,450 flu vaccinations in the 2023 season",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1248,
+      "tokens_out": 114
+    },
+    {
+      "id": "g091",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Loans at the Central Library rose 8% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The increase in loans was because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1570,
+      "tokens_out": 174
+    },
+    {
+      "id": "g092",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Wheat on the irrigated plots yielded 7.9 tonnes per hectare in 2021",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1297,
+      "tokens_out": 129
+    },
+    {
+      "id": "g093",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Eastbrook reservoir had a capacity of 42 million cubic metres when it was completed",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Eastbrook reservoir was completed in 1958",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1609,
+      "tokens_out": 187
+    },
+    {
+      "id": "g094",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Average class size in the West district was 27 pupils in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Average class size in the North district was 31 pupils in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1613,
+      "tokens_out": 190
+    },
+    {
+      "id": "g095",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Gritting runs in Barton fell 15% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Carlow gritting runs fell 51% in 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1647,
+      "tokens_out": 175
+    },
+    {
+      "id": "g096",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The city's bus fleet covered 4.2 million kilometres",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The city's bus fleet covered this in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1691,
+      "tokens_out": 189
+    },
+    {
+      "id": "g097",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Attendance in the South district fell to 89.1%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "Attendance in the South district fell in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1608,
+      "tokens_out": 163
+    },
+    {
+      "id": "g098",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Millford treatment works was expanded in 1994",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Millford treatment works was expanded to serve 310,000 people",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Millford treatment works was expanded because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1699,
+      "tokens_out": 249
+    },
+    {
+      "id": "g099",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "School visits to the Science Museum rose 31% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "School visits to the Science Museum rose because of a new caf\u00e9 opened",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1598,
+      "tokens_out": 174
+    },
+    {
+      "id": "g100",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Fresh produce made up 31% of purchases in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1242,
+      "tokens_out": 106
+    },
+    {
+      "id": "g101",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Hollow Ridge wind farm generated 412,000 megawatt hours",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The generation occurred in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1583,
+      "tokens_out": 182
+    },
+    {
+      "id": "g102",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Potholes repaired in Ashby fell 8% in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1238,
+      "tokens_out": 110
+    },
+    {
+      "id": "g103",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Ozone at the network's monitors peaked at 128 micrograms per cubic metre",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "Ozone peaked on 19 July 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1614,
+      "tokens_out": 180
+    },
+    {
+      "id": "g104",
+      "verdict": "unmeasured",
+      "atomic": [
+        {
+          "text": "Potholes repaired in Barton (rated best in the county) fell 8% in 2023 [1].",
+          "state": "unmeasured",
+          "cause": "decomposition_invalid"
+        }
+      ],
+      "calls": 1,
+      "tokens_in": 638,
+      "tokens_out": 176
+    },
+    {
+      "id": "g105",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The trial sampled 40 fields across three counties",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The follow-up survey sampled 14 fields",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1550,
+      "tokens_out": 160
+    },
+    {
+      "id": "g106",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Eastbrook reservoir is the largest in the region",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The Eastbrook reservoir had a capacity of 42 million cubic metres when it was completed in 1958",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1585,
+      "tokens_out": 185
+    },
+    {
+      "id": "g107",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Nursing staff costs at the hospital rose about 6%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Nursing staff costs at the hospital rose in 2024",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1638,
+      "tokens_out": 164
+    },
+    {
+      "id": "g108",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Gritting runs in Barton fell 15% in 2021",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1302,
+      "tokens_out": 129
+    },
+    {
+      "id": "g109",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Volunteers gave nearly 15,000 hours in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1479,
+      "tokens_out": 115
+    },
+    {
+      "id": "g110",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The pilot study kept twelve control bottles",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The control bottles were kept at four degrees",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1511,
+      "tokens_out": 150
+    },
+    {
+      "id": "g111",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "PM2.5 exceeded the daily limit on 9 days at the Park Lane monitor in 2022",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1252,
+      "tokens_out": 120
+    },
+    {
+      "id": "g112",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Visitors to the Science Museum rose by 5% in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1293,
+      "tokens_out": 105
+    },
+    {
+      "id": "g113",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Nursing staff costs at the hospital rose 6.1% in 2024",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The community trust rose 16.1%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1666,
+      "tokens_out": 175
+    },
+    {
+      "id": "g114",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Enrolment in the North district rose by 12.4%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "Enrolment in the North district occurred in 2021",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1421,
+      "tokens_out": 166
+    },
+    {
+      "id": "g115",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Average class size in the West district was 27 pupils",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The year was 2022",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1518,
+      "tokens_out": 159
+    },
+    {
+      "id": "g116",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "First-year retention among students reached 92%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "First-year retention among students reached 92% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1578,
+      "tokens_out": 168
+    },
+    {
+      "id": "g117",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The county's two clinics gave 6,450 flu vaccinations",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The flu vaccinations were given in the 2023 season",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1607,
+      "tokens_out": 176
+    },
+    {
+      "id": "g118",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Mackerel landings at Holmport rose 19% in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1296,
+      "tokens_out": 124
+    },
+    {
+      "id": "g119",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Cod landings at Greyhaven rose 18%",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "Cod landings at Greyhaven rose in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1308,
+      "tokens_out": 154
+    },
+    {
+      "id": "g120",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "The capacity factor of the Coast Point wind farm was 34 percent in 2022",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1249,
+      "tokens_out": 114
+    },
+    {
+      "id": "g121",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Nitrogen runoff on plots with cover crops fell 8%",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1270,
+      "tokens_out": 115
+    },
+    {
+      "id": "g122",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Eastbrook reservoir had a capacity of 42 million cubic metres",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Eastbrook reservoir was completed in 1958",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1750,
+      "tokens_out": 193
+    },
+    {
+      "id": "g123",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Attendance in the South district fell to 91.8%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Attendance in the South district was in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1604,
+      "tokens_out": 167
+    },
+    {
+      "id": "g124",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Drug spending at the hospital rose 3.4% in 2024",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Drug spending at the hospital rose because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1585,
+      "tokens_out": 179
+    },
+    {
+      "id": "g125",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Ridership on Route 7 grew 15%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Ridership growth occurred in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1585,
+      "tokens_out": 164
+    },
+    {
+      "id": "g126",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Elton rose 12%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Rooftop solar installations in Elton rose in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1603,
+      "tokens_out": 167
+    },
+    {
+      "id": "g127",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Potholes repaired in Barton fell 8% in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1294,
+      "tokens_out": 128
+    },
+    {
+      "id": "g128",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Visitors to the Maritime Museum rose 23% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Visitors to the Maritime Museum rose after the shipwreck exhibition",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1637,
+      "tokens_out": 171
+    },
+    {
+      "id": "g129",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Riverside clinic saw about 18,000 patients",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Riverside clinic saw patients in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1607,
+      "tokens_out": 168
+    },
+    {
+      "id": "g130",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Millford treatment works was expanded in 1984",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The Millford treatment works serves 310,000 people",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1619,
+      "tokens_out": 181
+    },
+    {
+      "id": "g131",
+      "verdict": "unmeasured",
+      "atomic": [
+        {
+          "text": "Missed appointments at the Riverside clinic (rated best in the county) dropped to 7.5% in 2023 [1].",
+          "state": "unmeasured",
+          "cause": "decomposition_invalid"
+        }
+      ],
+      "calls": 1,
+      "tokens_in": 642,
+      "tokens_out": 163
+    },
+    {
+      "id": "g132",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Drug spending at the hospital rose 3.4% in 2024",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1502,
+      "tokens_out": 111
+    },
+    {
+      "id": "g133",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Wheat on the irrigated plots yielded 9.7 tonnes per hectare",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "Wheat on the irrigated plots yielded 9.7 tonnes per hectare in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1405,
+      "tokens_out": 169
+    },
+    {
+      "id": "g134",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Nursing staff costs at the hospital rose in 2024",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Nursing staff costs at the hospital increased by 16.1%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1641,
+      "tokens_out": 189
+    },
+    {
+      "id": "g135",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The pH meter's slope stayed between 98 and 101 percent across all calibrations in this month",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The stay was because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1588,
+      "tokens_out": 188
+    },
+    {
+      "id": "g136",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Nitrogen runoff on plots with cover crops fell 18%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "less fertiliser was applied",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1521,
+      "tokens_out": 155
+    },
+    {
+      "id": "g137",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Mackerel landings at Greyhaven rose 9% in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1239,
+      "tokens_out": 106
+    },
+    {
+      "id": "g138",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The offer rate for international applicants is rated best in the county",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The offer rate for international applicants was 38% in 2024",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1541,
+      "tokens_out": 173
+    },
+    {
+      "id": "g139",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Elton fell 6%",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Rooftop solar installations in Elton fell in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1308,
+      "tokens_out": 166
+    },
+    {
+      "id": "g140",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "School visits to the Science Museum rose 31%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "School visits to the Science Museum happened in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1634,
+      "tokens_out": 164
+    },
+    {
+      "id": "g141",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Wheat on the rain-fed plots is rated best in the county",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1574,
+      "tokens_out": 183
+    },
+    {
+      "id": "g142",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Ridership on Route 7 grew 15% in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Route 12 ridership grew 51%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1628,
+      "tokens_out": 175
+    },
+    {
+      "id": "g143",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "On-time performance on Route 7 was 81% in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1295,
+      "tokens_out": 112
+    },
+    {
+      "id": "g144",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Battery installations in Dunmore rose 61% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The rise was because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1575,
+      "tokens_out": 182
+    },
+    {
+      "id": "g145",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Loans at the Central Library rose 8%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Loans at the Central Library rose in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1588,
+      "tokens_out": 159
+    },
+    {
+      "id": "g146",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "E-book loans across the service reached 96,500",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "E-book loans across the service reached 96,500 in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1794,
+      "tokens_out": 200
+    },
+    {
+      "id": "g147",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Battery installations in Dunmore fell 61% in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1240,
+      "tokens_out": 106
+    },
+    {
+      "id": "g148",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Nursing staff costs at the hospital rose 6.1% in 2024",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Nursing staff costs rose because more agency nurses were hired",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1604,
+      "tokens_out": 174
+    },
+    {
+      "id": "g149",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Average household use was 142 litres per person per day in 2020",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Average household use was 142 litres per person per day in 2020 because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1579,
+      "tokens_out": 204
+    },
+    {
+      "id": "g150",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The capacity factor of the Hollow Ridge wind farm (the only one with weekend hours) was 34 percent in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1538,
+      "tokens_out": 133
+    },
+    {
+      "id": "g151",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Mean NO2 at the Market Street monitor was 38 micrograms per cubic metre in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1317,
+      "tokens_out": 134
+    },
+    {
+      "id": "g152",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The study kept twelve control bottles at four degrees",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The study kept twelve control bottles because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1505,
+      "tokens_out": 163
+    },
+    {
+      "id": "g153",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Applications to the engineering faculty rose 17% for the 2024 intake",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Applications to the law faculty rose 7%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1599,
+      "tokens_out": 179
+    },
+    {
+      "id": "g154",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Battery installations in Dunmore rose 61% in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1296,
+      "tokens_out": 133
+    },
+    {
+      "id": "g155",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Wheat on the irrigated plots yielded 7.9 tonnes per hectare",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The yield was in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1571,
+      "tokens_out": 166
+    },
+    {
+      "id": "g156",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Fairley fell 6% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Rooftop solar installations in Elton fell 16% in 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1652,
+      "tokens_out": 181
+    },
+    {
+      "id": "g157",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "In run two, at 37 degrees, the Tris buffer drifted",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "the Tris buffer drifted by 0.21 pH units",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1301,
+      "tokens_out": 166
+    },
+    {
+      "id": "g158",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Visitors to the Maritime Museum rose 23% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "resurfacing in Carlow rose 40% in 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1668,
+      "tokens_out": 187
+    },
+    {
+      "id": "g159",
+      "verdict": "unmeasured",
+      "atomic": [
+        {
+          "text": "Nitrogen runoff on plots with cover crops (which opened in 1962) fell 18% [1].",
+          "state": "unmeasured",
+          "cause": "decomposition_invalid"
+        }
+      ],
+      "calls": 1,
+      "tokens_in": 637,
+      "tokens_out": 146
+    },
+    {
+      "id": "g160",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Herring landings at Holmport rose 3% in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1237,
+      "tokens_out": 110
+    },
+    {
+      "id": "g161",
+      "verdict": "unmeasured",
+      "atomic": [
+        {
+          "text": "In run one the phosphate buffer (the only one with weekend hours) drifted by 0.08 pH units over fourteen days [1].",
+          "state": "unmeasured",
+          "cause": "decomposition_invalid"
+        }
+      ],
+      "calls": 1,
+      "tokens_in": 641,
+      "tokens_out": 153
+    },
+    {
+      "id": "g162",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Ridership on Route 7 shrank 15% in 2022",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1241,
+      "tokens_out": 110
+    },
+    {
+      "id": "g163",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Free computer sessions at the Central Library fell 12% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the East district hired 38 new teachers in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1807,
+      "tokens_out": 219
+    },
+    {
+      "id": "g164",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Elton rose 44%",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Rooftop solar installations in Elton rose in the year 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1315,
+      "tokens_out": 162
+    },
+    {
+      "id": "g165",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Wheat on the irrigated plots yielded 790 tonnes per square kilometre in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1299,
+      "tokens_out": 131
+    },
+    {
+      "id": "g166",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "First-year retention among students reached 82%",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "First-year retention among students occurred in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1581,
+      "tokens_out": 168
+    },
+    {
+      "id": "g167",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Missed appointments at the Riverside clinic dropped to 7.5% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Text reminders began in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1615,
+      "tokens_out": 178
+    },
+    {
+      "id": "g168",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Missed appointments at the Riverside clinic dropped to 7.5% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1506,
+      "tokens_out": 117
+    },
+    {
+      "id": "g169",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Mean NO2 at the Market Street monitor was 38 micrograms per cubic metre",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Mean NO2 at the Market Street monitor occurred in 2019",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1613,
+      "tokens_out": 182
+    },
+    {
+      "id": "g170",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The city's bus fleet covered 4.2 million kilometres",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The city's bus fleet covered distance in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1581,
+      "tokens_out": 171
+    },
+    {
+      "id": "g171",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The pH meter's slope stayed between 95 and 99 percent across all calibrations in this month",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1311,
+      "tokens_out": 134
+    },
+    {
+      "id": "g172",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Crab landings at Greyhaven rose 26% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "New pots were trialled",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1640,
+      "tokens_out": 170
+    },
+    {
+      "id": "g173",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Northside food bank served 3,120 households in the winter of 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Southside food bank served 2,130 households in the winter of 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1693,
+      "tokens_out": 199
+    },
+    {
+      "id": "g174",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Applications to the engineering faculty fell 4% for the 2024 intake",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1232,
+      "tokens_out": 108
+    },
+    {
+      "id": "g175",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The capacity factor of the Hollow Ridge wind farm was 34 percent",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The capacity factor of the Hollow Ridge wind farm was in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1609,
+      "tokens_out": 175
+    },
+    {
+      "id": "g176",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Riverside clinic saw 18,240 patients",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Riverside clinic saw patients in 2021",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1608,
+      "tokens_out": 170
+    },
+    {
+      "id": "g177",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Loans at the Central Library rose under 10% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1498,
+      "tokens_out": 111
+    },
+    {
+      "id": "g178",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Curtailment at Coast Point rose to 6 percent in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Curtailment at Coast Point rose after the grid link was congested",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1559,
+      "tokens_out": 174
+    },
+    {
+      "id": "g179",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Applications to the law faculty rose 4%",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "The intake year is 2024",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1508,
+      "tokens_out": 154
+    },
+    {
+      "id": "g180",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The generation was because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1560,
+      "tokens_out": 180
+    },
+    {
+      "id": "g181",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The West district hired 38 new teachers",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The West district hired new teachers in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1288,
+      "tokens_out": 162
+    },
+    {
+      "id": "g182",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Potholes repaired in Barton fell 8% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1492,
+      "tokens_out": 109
+    },
+    {
+      "id": "g183",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Hollow Ridge wind farm is rated best in the county",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1554,
+      "tokens_out": 176
+    },
+    {
+      "id": "g184",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "In run one the phosphate buffer drifted by 0.08 pH units",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the drift occurred over seven days",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1535,
+      "tokens_out": 160
+    },
+    {
+      "id": "g185",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Fairley fell 6%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Rooftop solar installations in Fairley fell in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1629,
+      "tokens_out": 168
+    },
+    {
+      "id": "g186",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Coast Point wind farm has 48 turbines",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The turbines of the Coast Point wind farm are of 3.6 megawatts each",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Hollow Ridge wind farm has 84 turbines",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1684,
+      "tokens_out": 231
+    },
+    {
+      "id": "g187",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "The offer rate for home applicants was 38% in 2024",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1232,
+      "tokens_out": 108
+    },
+    {
+      "id": "g188",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The study kept twelve control bottles",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The study kept the bottles at four degrees",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1507,
+      "tokens_out": 148
+    },
+    {
+      "id": "g189",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "E-book loans across the service reached 69,500 in 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1306,
+      "tokens_out": 131
+    },
+    {
+      "id": "g190",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Northside food bank served 3,120 households",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The service occurred in the winter of 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1344,
+      "tokens_out": 165
+    },
+    {
+      "id": "g191",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The city's bus fleet covered 4.2 million kilometres in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the study kept twelve control bottles at four degrees",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1714,
+      "tokens_out": 199
+    },
+    {
+      "id": "g192",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Catering costs at the hospital changed by 0.0% in 2024",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the community trust changed by 2.0%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1645,
+      "tokens_out": 177
+    },
+    {
+      "id": "g193",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Drug spending at the hospital rose 3.4% in 2024",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the community trust rose 4.3%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1634,
+      "tokens_out": 171
+    },
+    {
+      "id": "g194",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Curtailment at Coast Point rose to 6 percent in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Curtailment at Coast Point rose because turbines were taken offline for repairs",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1564,
+      "tokens_out": 177
+    },
+    {
+      "id": "g195",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Riverside clinic saw 12,840 patients",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The Riverside clinic saw patients in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1608,
+      "tokens_out": 162
+    },
+    {
+      "id": "g196",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Millford treatment works was expanded in 1994",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Millford treatment works serves 310,000 people",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1613,
+      "tokens_out": 177
+    },
+    {
+      "id": "g197",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Nitrogen runoff on plots with cover crops fell 18%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "roots held the soil over winter",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1563,
+      "tokens_out": 170
+    },
+    {
+      "id": "g198",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Free computer sessions at the Central Library fell 12%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Free computer sessions at the Central Library fell in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1753,
+      "tokens_out": 185
+    },
+    {
+      "id": "g199",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "The Coast Point wind farm generated 412 gigawatt hours in 2022",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1240,
+      "tokens_out": 112
+    },
+    {
+      "id": "g200",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Millford reservoir had a capacity of 42 million cubic metres",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The Millford reservoir was completed in 1958",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1305,
+      "tokens_out": 168
+    },
+    {
+      "id": "g201",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The capacity factor of the Hollow Ridge wind farm was 34 percent",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The capacity factor of the Hollow Ridge wind farm was in 2021",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1612,
+      "tokens_out": 171
+    },
+    {
+      "id": "g202",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The phosphate buffer drifted 0.13 pH units more in run two than in run one",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1300,
+      "tokens_out": 360
+    },
+    {
+      "id": "g203",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Southside food bank is the only one with weekend hours",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The Southside food bank opened a second site in September 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1539,
+      "tokens_out": 172
+    },
+    {
+      "id": "g204",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Herring landings at Holmport fell 3% in 2022",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1293,
+      "tokens_out": 106
+    },
+    {
+      "id": "g205",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Free computer sessions at the Central Library fell 12% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Free computer sessions fell after more visitors brought laptops",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1605,
+      "tokens_out": 175
+    },
+    {
+      "id": "g206",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "The Eastbrook reservoir had a capacity of 24 million cubic metres",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "The Eastbrook reservoir was completed in 1958",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1610,
+      "tokens_out": 171
+    },
+    {
+      "id": "g207",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The pH meter is now run by a charity",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The pH meter's slope stayed between 98 and 101 percent across all calibrations in this month",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1578,
+      "tokens_out": 181
+    },
+    {
+      "id": "g208",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Harbour branch reopened after a 11-month refurbishment",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Harbour branch reopened in March 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1573,
+      "tokens_out": 167
+    },
+    {
+      "id": "g209",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The county's two clinics gave about 6,500 flu vaccinations",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The flu vaccinations were given in the 2023 season",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1611,
+      "tokens_out": 186
+    },
+    {
+      "id": "g210",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Dunmore rose 44% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Rooftop solar installations in Dunmore rose 44% in 2023 because of a council grant",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1676,
+      "tokens_out": 191
+    },
+    {
+      "id": "g211",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The trial sampled 40 fields across three counties",
+          "state": "not_supported",
+          "cause": "uncited"
+        },
+        {
+          "text": "visitors to the Science Museum rose 5% in 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1290,
+      "tokens_out": 176
+    },
+    {
+      "id": "g212",
+      "verdict": "unmeasured",
+      "atomic": [
+        {
+          "text": "Drug spending at the hospital (which opened in 1962) rose 3.4% in 2024 [1].",
+          "state": "unmeasured",
+          "cause": "decomposition_invalid"
+        }
+      ],
+      "calls": 1,
+      "tokens_in": 642,
+      "tokens_out": 155
+    },
+    {
+      "id": "g213",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Cod landings at Greyhaven fell 18% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Cod landings at Greyhaven fell because of the harbour was dredged",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1590,
+      "tokens_out": 171
+    },
+    {
+      "id": "g214",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "On-time performance on Route 12 was 81% in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1498,
+      "tokens_out": 117
+    },
+    {
+      "id": "g215",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Average household use was 142 litres per person per day",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Average household use was in 2020",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1573,
+      "tokens_out": 167
+    },
+    {
+      "id": "g216",
+      "verdict": "unmeasured",
+      "atomic": [
+        {
+          "text": "On-time performance on Route 12 (the only one with weekend hours) was 81% in 2022 [1].",
+          "state": "unmeasured",
+          "cause": "decomposition_invalid"
+        }
+      ],
+      "calls": 1,
+      "tokens_in": 643,
+      "tokens_out": 163
+    },
+    {
+      "id": "g217",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Loans at the Central Library rose 18%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "Loans at the Central Library happened in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1597,
+      "tokens_out": 182
+    },
+    {
+      "id": "g218",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "E-book loans across the service reached 96,500 in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1504,
+      "tokens_out": 119
+    },
+    {
+      "id": "g219",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Ozone at the network's monitors peaked at 182 micrograms per cubic metre on 19 July 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Market Street monitor peaked at 128 micrograms per cubic metre",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1662,
+      "tokens_out": 201
+    },
+    {
+      "id": "g220",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The East district hired 38 new teachers in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The West district hired 83 new teachers in 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1619,
+      "tokens_out": 173
+    },
+    {
+      "id": "g221",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The city's bus fleet covered 420,000 kilometres",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The city's bus fleet covered distance in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1606,
+      "tokens_out": 605
+    },
+    {
+      "id": "g222",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Potholes repaired in Ashby rose 27% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Potholes repaired in Ashby rose because a new contractor started",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1588,
+      "tokens_out": 173
+    },
+    {
+      "id": "g223",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Free computer sessions at the Central Library fell 12%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Free computer sessions at the Central Library occurred in 2021",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1598,
+      "tokens_out": 163
+    },
+    {
+      "id": "g224",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Mean NO2 at the Park Lane monitor fell 21%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Mean NO2 at the Park Lane monitor fell between 2016 and 2019",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1648,
+      "tokens_out": 186
+    },
+    {
+      "id": "g225",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Catering costs at the hospital changed by 0.0% in 2024",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1588,
+      "tokens_out": 124
+    },
+    {
+      "id": "g226",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "The Southside food bank served 3,120 households",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "The Southside food bank served households in the winter of 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1328,
+      "tokens_out": 169
+    },
+    {
+      "id": "g227",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Harbour branch reopened after a 11-month refurbishment",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Harbour branch reopened in March 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Harbour branch reopened because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1645,
+      "tokens_out": 233
+    },
+    {
+      "id": "g228",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The East district hired 38 new teachers",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The hiring took place in 2021",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1589,
+      "tokens_out": 155
+    },
+    {
+      "id": "g229",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The yield was in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1587,
+      "tokens_out": 170
+    },
+    {
+      "id": "g230",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Gritting runs in Barton fell 15% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The decrease in gritting runs occurred after a mild December",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1639,
+      "tokens_out": 172
+    },
+    {
+      "id": "g231",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Dunmore rose 44%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Rooftop solar installations in Dunmore rose in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1637,
+      "tokens_out": 170
+    },
+    {
+      "id": "g232",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Ridership on Route 7 grew 15%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "Ridership growth occurred in 2022",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1337,
+      "tokens_out": 299
+    },
+    {
+      "id": "g233",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Visitors to the Art Gallery fell 9% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Visitors to the Maritime Museum fell 19% in 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1648,
+      "tokens_out": 182
+    },
+    {
+      "id": "g234",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Mean NO2 at the Market Street monitor was 38 micrograms per cubic metre in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "This was because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1583,
+      "tokens_out": 185
+    },
+    {
+      "id": "g235",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The capacity factor of the Hollow Ridge wind farm was 34 percent in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "on-time performance on Route 12 was 81% in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1672,
+      "tokens_out": 201
+    },
+    {
+      "id": "g236",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Curtailment at Hollow Ridge rose to 6 percent in 2022",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1238,
+      "tokens_out": 108
+    },
+    {
+      "id": "g237",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Wheat on the irrigated plots is the largest in the region",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Wheat on the irrigated plots yielded 7.9 tonnes per hectare in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1558,
+      "tokens_out": 177
+    },
+    {
+      "id": "g238",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Northside food bank served 3,120 households in the winter of 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Northside food bank served 3,120 households because of a new school opened nearby",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1624,
+      "tokens_out": 192
+    },
+    {
+      "id": "g239",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Visitors to the Maritime Museum rose 32% in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1300,
+      "tokens_out": 122
+    },
+    {
+      "id": "g240",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The county's two clinics gave 6,450 flu vaccinations in the 2023 season",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "This occurred because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1590,
+      "tokens_out": 187
+    },
+    {
+      "id": "g241",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Mean NO2 at the Park Lane monitor fell 21%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The fall in Mean NO2 at the Park Lane monitor happened between 2019 and 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1664,
+      "tokens_out": 185
+    },
+    {
+      "id": "g242",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The study kept twenty control bottles",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The study kept the bottles at four degrees",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1476,
+      "tokens_out": 144
+    },
+    {
+      "id": "g243",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Median waiting time at the Hillcrest clinic fell to 21 minutes",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The waiting time fell in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1625,
+      "tokens_out": 169
+    },
+    {
+      "id": "g244",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Fresh produce's share of donations rose 21 percentage points between 2021 and 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1323,
+      "tokens_out": 140
+    },
+    {
+      "id": "g245",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The county's two clinics gave 6,450 flu vaccinations in the 2023 season",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the county hospital gave 4,650 flu vaccinations in the 2023 season",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1658,
+      "tokens_out": 197
+    },
+    {
+      "id": "g246",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Harbour branch is now run by a charity",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The Harbour branch reopened after a 11-month refurbishment in March 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1556,
+      "tokens_out": 175
+    },
+    {
+      "id": "g247",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Fairley fell 6% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Rooftop solar installations fell after the installer closed",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1640,
+      "tokens_out": 175
+    },
+    {
+      "id": "g248",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Nursing staff costs at the hospital rose in 2024",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Nursing staff costs at the hospital had a percentage change of 6.1%",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1650,
+      "tokens_out": 199
+    },
+    {
+      "id": "g249",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "On-time performance on Route 12 was 81% in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "On-time performance on Route 7 was 18%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1626,
+      "tokens_out": 180
+    },
+    {
+      "id": "g250",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Applications to the law faculty fell 4%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The intake year is 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1564,
+      "tokens_out": 154
+    },
+    {
+      "id": "g251",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Applications to the engineering faculty rose 7%",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "The intake was for the year 2024",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1568,
+      "tokens_out": 164
+    },
+    {
+      "id": "g252",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Nursing staff costs at the hospital rose 6.1% in 2024",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Nursing staff costs rose after the national pay award",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1657,
+      "tokens_out": 178
+    },
+    {
+      "id": "g253",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Dunmore rose 12%",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Rooftop solar installations rose in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1300,
+      "tokens_out": 160
+    },
+    {
+      "id": "g254",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Energy costs at the hospital fell about 11%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The fall occurred in 2024",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1634,
+      "tokens_out": 160
+    },
+    {
+      "id": "g255",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Free computer sessions at the Central Library rose 12%",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "Free computer sessions at the Central Library happened in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1544,
+      "tokens_out": 163
+    },
+    {
+      "id": "g256",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The city's bus fleet covered 4.2 million kilometres in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The city's tram fleet covered 2.4 million kilometres in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1638,
+      "tokens_out": 198
+    },
+    {
+      "id": "g257",
+      "verdict": "unmeasured",
+      "atomic": [
+        {
+          "text": "Visitors to the Art Gallery fell 9% in 2023 because of ticket prices went up [1].",
+          "state": "unmeasured",
+          "cause": "decomposition_invalid"
+        }
+      ],
+      "calls": 1,
+      "tokens_in": 636,
+      "tokens_out": 147
+    },
+    {
+      "id": "g258",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The trial sampled 14 fields",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The trial sampled across three counties",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1520,
+      "tokens_out": 152
+    },
+    {
+      "id": "g259",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Enrolment in the South district rose by 12.4% in 2021",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1264,
+      "tokens_out": 116
+    },
+    {
+      "id": "g260",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Crab landings at Greyhaven are now run by a charity",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Crab landings at Greyhaven rose 26% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1594,
+      "tokens_out": 173
+    },
+    {
+      "id": "g261",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "In run two, at 37 degrees, the phosphate buffer drifted by 0.21 pH units",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the drift was because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1584,
+      "tokens_out": 186
+    },
+    {
+      "id": "g262",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "School visits to the Science Museum rose 31% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Free coach travel began",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1639,
+      "tokens_out": 168
+    },
+    {
+      "id": "g263",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Curtailment at Coast Point rose to 6 percent in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1490,
+      "tokens_out": 111
+    },
+    {
+      "id": "g264",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "The county's two clinics gave 6,450 flu vaccinations in the 2021 season",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1313,
+      "tokens_out": 126
+    },
+    {
+      "id": "g265",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Average class size in the West district was 31 pupils",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The year was 2022",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1572,
+      "tokens_out": 182
+    },
+    {
+      "id": "g266",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The city's bus fleet covered 4,200,000 kilometres in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1512,
+      "tokens_out": 125
+    },
+    {
+      "id": "g267",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Visitors to the Art Gallery fell 19% in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1301,
+      "tokens_out": 122
+    },
+    {
+      "id": "g268",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Ozone at the network's monitors peaked at 182 micrograms per cubic metre",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Ozone at the network's monitors peaked on 19 July 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1796,
+      "tokens_out": 208
+    },
+    {
+      "id": "g269",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "The offer rate for international applicants was 38% in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1288,
+      "tokens_out": 108
+    },
+    {
+      "id": "g270",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Potholes repaired in Ashby (the only one with weekend hours) rose 27% in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1542,
+      "tokens_out": 127
+    },
+    {
+      "id": "g271",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Potholes repaired in Ashby rose 27% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The rise in repaired potholes occurred after the wet winter",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1637,
+      "tokens_out": 173
+    },
+    {
+      "id": "g272",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Leakage across the network fell by 9 percentage points between 2010 and 2020",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1591,
+      "tokens_out": 138
+    },
+    {
+      "id": "g273",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Nitrogen runoff on plots without cover crops fell 18%",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1220,
+      "tokens_out": 98
+    },
+    {
+      "id": "g274",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Enrolment in the North district rose by 12.4% in 2021",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the South district rose 21.4% in 2021",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1684,
+      "tokens_out": 212
+    },
+    {
+      "id": "g275",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Average fare revenue per trip fell to 1.15 dollars in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Route 7 fare revenue per trip fell to 1.51 dollars",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1628,
+      "tokens_out": 184
+    },
+    {
+      "id": "g276",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Northside food bank served 3,120 households",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The service occurred in the winter of 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1643,
+      "tokens_out": 172
+    },
+    {
+      "id": "g277",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Enrolment in the North district fell by 12.4% in 2021",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1264,
+      "tokens_out": 116
+    },
+    {
+      "id": "g278",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Catering costs at the hospital changed by 0.0% in 2024",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1846,
+      "tokens_out": 233
+    },
+    {
+      "id": "g279",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Mean NO2 at the Park Lane monitor fell 21% between 2019 and 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The fall occurred after the low-traffic scheme began",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1675,
+      "tokens_out": 192
+    },
+    {
+      "id": "g280",
+      "verdict": "unmeasured",
+      "atomic": [
+        {
+          "text": "Mean NO2 at the Market Street monitor (rated best in the county) was 38 micrograms per cubic metre in 2022 [1].",
+          "state": "unmeasured",
+          "cause": "decomposition_invalid"
+        }
+      ],
+      "calls": 1,
+      "tokens_in": 644,
+      "tokens_out": 169
+    },
+    {
+      "id": "g281",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The city's bus fleet covered 4.2 million kilometres in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the study kept twelve control bottles at four degrees",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1562,
+      "tokens_out": 185
+    },
+    {
+      "id": "g282",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Energy costs at the hospital fell 11.2% in 2024",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "wards were closed",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1596,
+      "tokens_out": 173
+    },
+    {
+      "id": "g283",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "School visits to the Science Museum fell 31% in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1251,
+      "tokens_out": 108
+    },
+    {
+      "id": "g284",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Battery installations in Dunmore rose 61% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Fairley rose 16%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1620,
+      "tokens_out": 165
+    },
+    {
+      "id": "g285",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Cod landings at Holmport fell 18% in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1247,
+      "tokens_out": 106
+    },
+    {
+      "id": "g286",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Fresh produce made up 31% of donations in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The 31% proportion was because of a change in how fresh produce was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1586,
+      "tokens_out": 187
+    },
+    {
+      "id": "g287",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Potholes repaired in Ashby rose 27% in 2021",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1304,
+      "tokens_out": 108
+    },
+    {
+      "id": "g288",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Applications to the engineering faculty fell 17%",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "The intake was for 2024",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1514,
+      "tokens_out": 156
+    },
+    {
+      "id": "g289",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Crab landings at Greyhaven rose 26% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "ridership on Route 7 grew 15% in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1852,
+      "tokens_out": 211
+    },
+    {
+      "id": "g290",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Wheat on the rain-fed plots yielded in 2020",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1549,
+      "tokens_out": 171
+    },
+    {
+      "id": "g291",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Gritting runs in Carlow fell 15% in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1249,
+      "tokens_out": 108
+    },
+    {
+      "id": "g292",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The offer rate for international applicants was 38% in 2024",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1478,
+      "tokens_out": 111
+    },
+    {
+      "id": "g293",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Volunteers gave 14,800 hours in 2021",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1286,
+      "tokens_out": 108
+    },
+    {
+      "id": "g294",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "PM2.5 exceeded the daily limit on 9 days at the network's monitors in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1510,
+      "tokens_out": 129
+    },
+    {
+      "id": "g295",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Ozone at the network's monitors peaked at 182 micrograms per cubic metre on 19 July 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Attendance in the South district fell to 91.8% in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1869,
+      "tokens_out": 247
+    },
+    {
+      "id": "g296",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Ozone at the network's monitors peaked at 182 micrograms per cubic metre on 19 July 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "attendance in the South district fell to 91.8% in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1687,
+      "tokens_out": 223
+    },
+    {
+      "id": "g297",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Riverside clinic's patient numbers rose 9%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The rise in the Riverside clinic's patient numbers occurred in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1610,
+      "tokens_out": 168
+    },
+    {
+      "id": "g298",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Enrolment in the North district rose by 137 pupils",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Enrolment in the North district occurred in 2021",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1708,
+      "tokens_out": 194
+    },
+    {
+      "id": "g299",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Energy costs at the hospital fell 11.2% in 2024",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Energy costs fell after a new boiler was fitted",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1663,
+      "tokens_out": 184
+    },
+    {
+      "id": "g300",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Volunteers gave 14,800 hours in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Volunteers gave hours because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1543,
+      "tokens_out": 177
+    },
+    {
+      "id": "g301",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Elton are the only ones with weekend hours",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Rooftop solar installations in Elton rose 12% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1578,
+      "tokens_out": 178
+    },
+    {
+      "id": "g302",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Mackerel landings at Holmport are the largest in the region",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Mackerel landings at Holmport rose 9% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1567,
+      "tokens_out": 171
+    },
+    {
+      "id": "g303",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The trial sampled 40 fields",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The trial sampled across three counties",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1495,
+      "tokens_out": 148
+    },
+    {
+      "id": "g304",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Dunmore fell 44% in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1254,
+      "tokens_out": 112
+    },
+    {
+      "id": "g305",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Ridership on Route 7 grew 15% in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the service ran every ten minutes",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1604,
+      "tokens_out": 182
+    },
+    {
+      "id": "g306",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Irrigation added 2.7 tonnes per hectare to wheat yields in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1296,
+      "tokens_out": 272
+    },
+    {
+      "id": "g307",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "The Eastbrook reservoir had a capacity of 42 million cubic metres",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Eastbrook reservoir was completed in 1985",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1610,
+      "tokens_out": 171
+    },
+    {
+      "id": "g308",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Ozone at the network's monitors peaked at 182 micrograms per cubic metre",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Ozone peaked on 19 July 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1610,
+      "tokens_out": 192
+    },
+    {
+      "id": "g309",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Enrolment in the North district rose by 12.4%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Enrolment in the North district occurred in 2021",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1656,
+      "tokens_out": 173
+    },
+    {
+      "id": "g310",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The trial sampled 40 fields across three counties",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The trial sampled fields because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1498,
+      "tokens_out": 163
+    },
+    {
+      "id": "g311",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Applications to the engineering faculty rose 17%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The rise in applications was for the 2024 intake",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1331,
+      "tokens_out": 173
+    },
+    {
+      "id": "g312",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "In run one the phosphate buffer drifted by 0.08 pH units",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The drift occurred over fourteen days",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1575,
+      "tokens_out": 164
+    },
+    {
+      "id": "g313",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "E-book loans across the service reached 96,500 in 2020",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1249,
+      "tokens_out": 116
+    },
+    {
+      "id": "g314",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Energy costs at the hospital rose 11.2%",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "Energy costs at the hospital rose in the year 2024",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1322,
+      "tokens_out": 168
+    },
+    {
+      "id": "g315",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Wheat on the irrigated plots yielded about 8 tonnes per hectare",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Wheat on the irrigated plots yielded in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1573,
+      "tokens_out": 167
+    },
+    {
+      "id": "g316",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Resurfacing in Carlow rose 40% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "A grant funded the ring road",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1651,
+      "tokens_out": 180
+    },
+    {
+      "id": "g317",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Catering costs at the hospital changed by 0.0% in 2024",
+          "state": "not_supported",
+          "cause": "uncited"
+        },
+        {
+          "text": "wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1338,
+      "tokens_out": 193
+    },
+    {
+      "id": "g318",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The pH meter's slope stayed between 98 and 101 percent across all calibrations in this month",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1514,
+      "tokens_out": 123
+    },
+    {
+      "id": "g319",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Leakage across the network fell to 14% between 2010 and 2020",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Old iron mains were replaced",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1663,
+      "tokens_out": 182
+    },
+    {
+      "id": "g320",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Wheat on the irrigated plots yielded 7.9 tonnes per hectare",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The yield was in 2022",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1344,
+      "tokens_out": 159
+    },
+    {
+      "id": "g321",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Herring landings at Holmport fell 3% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The fall was because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1569,
+      "tokens_out": 174
+    },
+    {
+      "id": "g322",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Battery installations in Dunmore rose 61% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1496,
+      "tokens_out": 109
+    },
+    {
+      "id": "g323",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Mean NO2 at the Market Street monitor was 28 micrograms per cubic metre in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1307,
+      "tokens_out": 134
+    },
+    {
+      "id": "g324",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "In run one the phosphate buffer drifted by 0.08 pH units over fourteen days",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The drift was because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1565,
+      "tokens_out": 178
+    },
+    {
+      "id": "g325",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Visitors to the Science Museum rose 5% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Visitors to the Science Museum rose because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1571,
+      "tokens_out": 175
+    },
+    {
+      "id": "g326",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Herring landings at Holmport fell 3% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1491,
+      "tokens_out": 109
+    },
+    {
+      "id": "g327",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "In run one the phosphate buffer drifted by 0.08 pH units",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The drift occurred over fourteen days",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1344,
+      "tokens_out": 179
+    },
+    {
+      "id": "g328",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Hollow Ridge wind farm has 48 turbines",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Each turbine is of 3.6 megawatts",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1272,
+      "tokens_out": 154
+    },
+    {
+      "id": "g329",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Missed appointments at the Riverside clinic dropped to 7.5% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Missed appointments dropped because opening hours were extended",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1573,
+      "tokens_out": 176
+    },
+    {
+      "id": "g330",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Fairley rose 6% in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1250,
+      "tokens_out": 110
+    },
+    {
+      "id": "g331",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Median waiting time at the Hillcrest clinic fell to 21 minutes in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the Harbour branch reopened after a 11-month refurbishment in March 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1845,
+      "tokens_out": 221
+    },
+    {
+      "id": "g332",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Leakage across the network fell to 14% between 2000 and 2010",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1268,
+      "tokens_out": 120
+    },
+    {
+      "id": "g333",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Average fare revenue per trip fell to 1.51 dollars in 2022",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1297,
+      "tokens_out": 131
+    },
+    {
+      "id": "g334",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Northside food bank opened a second site",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The Northside food bank opened a second site in September 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1276,
+      "tokens_out": 159
+    },
+    {
+      "id": "g335",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Visitors to the Maritime Museum rose 23% in 2021",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1302,
+      "tokens_out": 125
+    },
+    {
+      "id": "g336",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "On-time performance on Route 12 was 81% in 2021",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1301,
+      "tokens_out": 114
+    },
+    {
+      "id": "g337",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Average fare revenue per trip fell to 1.15 dollars in 2021",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1548,
+      "tokens_out": 134
+    },
+    {
+      "id": "g338",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The study is the largest in the region",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The study kept twelve control bottles at four degrees",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1493,
+      "tokens_out": 153
+    },
+    {
+      "id": "g339",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Applications to the law faculty fell 4% for the 2024 intake",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1478,
+      "tokens_out": 111
+    },
+    {
+      "id": "g340",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Catering costs at the hospital changed by 0.0% in 2024",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1509,
+      "tokens_out": 119
+    },
+    {
+      "id": "g341",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Wheat on the rain-fed plots yielded 5.2 tonnes per hectare in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the irrigated plots yielded 2.5 tonnes per hectare in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1636,
+      "tokens_out": 188
+    },
+    {
+      "id": "g342",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Ozone at the Market Street monitor peaked at 182 micrograms per cubic metre",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Ozone at the Market Street monitor peaked on 19 July 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1616,
+      "tokens_out": 195
+    },
+    {
+      "id": "g343",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Crab landings at Holmport rose in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Crab landings at Holmport rose by 26% in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1318,
+      "tokens_out": 165
+    },
+    {
+      "id": "g344",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Crab landings at Greyhaven rose about a quarter in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1509,
+      "tokens_out": 109
+    },
+    {
+      "id": "g345",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Visitors to the Science Museum fell 5% in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1236,
+      "tokens_out": 104
+    },
+    {
+      "id": "g346",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Missed appointments at the Riverside clinic dropped to under 8%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "This occurred in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1588,
+      "tokens_out": 163
+    },
+    {
+      "id": "g347",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Loans at the Central Library fell 8%",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "The fall in loans occurred in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1288,
+      "tokens_out": 151
+    },
+    {
+      "id": "g348",
+      "verdict": "unmeasured",
+      "atomic": [
+        {
+          "text": "School visits to the Science Museum (now run by a charity) rose 31% in 2023 [1].",
+          "state": "unmeasured",
+          "cause": "decomposition_invalid"
+        }
+      ],
+      "calls": 1,
+      "tokens_in": 639,
+      "tokens_out": 158
+    },
+    {
+      "id": "g349",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Millford treatment works was expanded in 1994",
+          "state": "not_supported",
+          "cause": "uncited"
+        },
+        {
+          "text": "The Millford treatment works serves 310,000 people",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Eastbrook works serves 130,000 people",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1636,
+      "tokens_out": 215
+    },
+    {
+      "id": "g350",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Energy costs at the hospital fell 21.2% in 2024",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1312,
+      "tokens_out": 136
+    },
+    {
+      "id": "g351",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Gritting runs in Barton are the only ones with weekend hours",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Gritting runs in Barton fell 15% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1590,
+      "tokens_out": 200
+    },
+    {
+      "id": "g352",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The capacity factor of the Hollow Ridge wind farm was 34 percent in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1585,
+      "tokens_out": 126
+    },
+    {
+      "id": "g353",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Median waiting time at the Hillcrest clinic fell to 21 minutes",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Median waiting time at the Hillcrest clinic fell in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1632,
+      "tokens_out": 170
+    },
+    {
+      "id": "g354",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Crab landings at Greyhaven rose 26%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Crab landings at Greyhaven occurred in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1782,
+      "tokens_out": 182
+    },
+    {
+      "id": "g355",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Visitors to the Art Gallery fell 9% in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1300,
+      "tokens_out": 127
+    },
+    {
+      "id": "g356",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Resurfacing in Ashby rose 40% in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1249,
+      "tokens_out": 106
+    },
+    {
+      "id": "g357",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Wheat on the rain-fed plots yielded 7.9 tonnes per hectare",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "The yield occurred in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1532,
+      "tokens_out": 166
+    },
+    {
+      "id": "g358",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Median waiting time at the Hillcrest clinic fell to 21 minutes",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Median waiting time at the Hillcrest clinic was in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1775,
+      "tokens_out": 192
+    },
+    {
+      "id": "g359",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The city's bus fleet opened in 1962",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The city's bus fleet covered 4.2 million kilometres in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1621,
+      "tokens_out": 181
+    },
+    {
+      "id": "g360",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Northside food bank served 3,120 households in the winter of 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "heating costs climbed",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1651,
+      "tokens_out": 184
+    },
+    {
+      "id": "g361",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "The Southside food bank opened a second site",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Southside food bank opened a second site in September 2022",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1573,
+      "tokens_out": 162
+    },
+    {
+      "id": "g362",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Leakage across the network fell to 14%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The leakage fell between 2010 and 2020",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1646,
+      "tokens_out": 172
+    },
+    {
+      "id": "g363",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Median waiting time at the Hillcrest clinic fell to 21 minutes in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the Harbour branch reopened after a 11-month refurbishment in March 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1695,
+      "tokens_out": 219
+    },
+    {
+      "id": "g364",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "nitrogen runoff on plots with cover crops fell 18%",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1752,
+      "tokens_out": 203
+    },
+    {
+      "id": "g365",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Energy costs at the hospital fell 11.2% in 2024",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the community trust fell 21.2%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1669,
+      "tokens_out": 175
+    },
+    {
+      "id": "g366",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Elton rose 21%",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "Rooftop solar installations in Elton rose in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1606,
+      "tokens_out": 185
+    },
+    {
+      "id": "g367",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Millford treatment works is now run by a charity",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "The Millford treatment works was expanded in 1994",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The Millford treatment works was expanded to serve 310,000 people",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1689,
+      "tokens_out": 241
+    },
+    {
+      "id": "g368",
+      "verdict": "unmeasured",
+      "atomic": [
+        {
+          "text": "Fresh produce made up 31% of donations (rated best in the county) in 2023 [1].",
+          "state": "unmeasured",
+          "cause": "decomposition_invalid"
+        }
+      ],
+      "calls": 1,
+      "tokens_in": 638,
+      "tokens_out": 147
+    },
+    {
+      "id": "g369",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "School visits to the Science Museum rose 31% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "School visits to the Art Gallery rose 13% in 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1660,
+      "tokens_out": 179
+    },
+    {
+      "id": "g370",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Resurfacing in Carlow rose 40% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1518,
+      "tokens_out": 111
+    },
+    {
+      "id": "g371",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Enrolment in the North district rose by about 12%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The rise in enrolment in the North district occurred in 2021",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1654,
+      "tokens_out": 172
+    },
+    {
+      "id": "g372",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The capacity factor of the Hollow Ridge wind farm was 34 percent in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The capacity factor was after a windy winter",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1613,
+      "tokens_out": 177
+    },
+    {
+      "id": "g373",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Gritting runs in Barton fell 15% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1508,
+      "tokens_out": 109
+    },
+    {
+      "id": "g374",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Nursing staff costs at the hospital fell 6.1% in 2024",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1255,
+      "tokens_out": 114
+    },
+    {
+      "id": "g375",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Median waiting time at the Hillcrest clinic fell by 13 minutes",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The fall in median waiting time occurred in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1628,
+      "tokens_out": 166
+    },
+    {
+      "id": "g376",
+      "verdict": "unmeasured",
+      "atomic": [
+        {
+          "text": "Visitors to the Art Gallery fell 9% in 2023 after the east wing was closed [1].",
+          "state": "unmeasured",
+          "cause": "decomposition_invalid"
+        }
+      ],
+      "calls": 1,
+      "tokens_in": 636,
+      "tokens_out": 141
+    },
+    {
+      "id": "g377",
+      "verdict": "unmeasured",
+      "atomic": [
+        {
+          "text": "In run two, at 37 degrees, the phosphate buffer drifted by 0.21 pH units [1].",
+          "state": "unmeasured",
+          "cause": "decomposition_invalid"
+        }
+      ],
+      "calls": 1,
+      "tokens_in": 637,
+      "tokens_out": 153
+    },
+    {
+      "id": "g378",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Hollow Ridge wind farm generated 412 gigawatt hours in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1566,
+      "tokens_out": 129
+    },
+    {
+      "id": "g379",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Median waiting time at the Hillcrest clinic fell to 21 minutes in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "a second triage nurse was hired",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1643,
+      "tokens_out": 178
+    },
+    {
+      "id": "g380",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Potholes repaired in Ashby rose 27% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Potholes repaired in Barton rose 72% in 2023",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1648,
+      "tokens_out": 178
+    },
+    {
+      "id": "g381",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The follow-up survey sampled 40 fields",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The follow-up survey sampled across three counties",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1513,
+      "tokens_out": 157
+    },
+    {
+      "id": "g382",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Visitors to the Maritime Museum rose nearly a quarter",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Visitors to the Maritime Museum increased in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1617,
+      "tokens_out": 161
+    },
+    {
+      "id": "g383",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Average fare revenue per trip fell to 1.15 dollars in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The change fell because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1563,
+      "tokens_out": 188
+    },
+    {
+      "id": "g384",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "The Southside food bank opened a third site",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "The Southside food bank opened a third site in September 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1276,
+      "tokens_out": 159
+    },
+    {
+      "id": "g385",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Average class size in the North district was 27 pupils in 2022",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1237,
+      "tokens_out": 110
+    },
+    {
+      "id": "g386",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "The city's bus fleet covered 4.2 million kilometres",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The city's bus fleet covered this distance in 2020",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1536,
+      "tokens_out": 168
+    },
+    {
+      "id": "g387",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Average household use was 124 litres per person per day",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "Average household use was in 2020",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1583,
+      "tokens_out": 163
+    },
+    {
+      "id": "g388",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Nitrogen runoff on plots with cover crops fell 18%",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1464,
+      "tokens_out": 101
+    },
+    {
+      "id": "g389",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Median waiting time at the Hillcrest clinic rose to 21 minutes",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "Median waiting time rose in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1313,
+      "tokens_out": 162
+    },
+    {
+      "id": "g390",
+      "verdict": "unmeasured",
+      "atomic": [
+        {
+          "text": "The East district hired 16 new teachers outside mathematics and science in 2023 [1].",
+          "state": "unmeasured",
+          "cause": "decomposition_invalid"
+        }
+      ],
+      "calls": 1,
+      "tokens_in": 634,
+      "tokens_out": 143
+    },
+    {
+      "id": "g391",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The trial sampled 40 fields",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The trial sampled across three counties",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1647,
+      "tokens_out": 176
+    },
+    {
+      "id": "g392",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Free computer sessions at the Central Library fell 12% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Free computer sessions at the Harbour branch fell 21%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1623,
+      "tokens_out": 175
+    },
+    {
+      "id": "g393",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Average fare revenue per trip fell to 1.15 dollars",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Average fare revenue per trip fell in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1577,
+      "tokens_out": 169
+    },
+    {
+      "id": "g394",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Catering costs at the hospital are rated best in the county",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Catering costs at the hospital changed by 0.0% in 2024",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1584,
+      "tokens_out": 185
+    },
+    {
+      "id": "g395",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Nursing staff costs at the hospital rose in 2024",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Nursing staff costs at the hospital had a percentage change of 6.1%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1362,
+      "tokens_out": 192
+    },
+    {
+      "id": "g396",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Science Museum opened in 1962",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "Visitors to the Science Museum rose 5% in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1623,
+      "tokens_out": 170
+    },
+    {
+      "id": "g397",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Riverside clinic saw 18,240 patients",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The Riverside clinic saw patients in 2023",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1365,
+      "tokens_out": 167
+    },
+    {
+      "id": "g398",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Crab landings at Greyhaven rose 26%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Crab landings at Greyhaven occurred in 2021",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1625,
+      "tokens_out": 160
+    },
+    {
+      "id": "g399",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Resurfacing in Carlow rose 40% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Ashby rose 4%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1645,
+      "tokens_out": 165
+    },
+    {
+      "id": "g400",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "E-book loans across the service reached 96,500 in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "E-book loans reached 96,500 in 2023 because of a change in how it was counted",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1592,
+      "tokens_out": 199
+    },
+    {
+      "id": "g401",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "E-book loans across the service are the largest in the region",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "E-book loans across the service reached 96,500 in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1573,
+      "tokens_out": 190
+    },
+    {
+      "id": "g402",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Hollow Ridge wind farm generated 412 gigawatt hours",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The Hollow Ridge wind farm generated electricity in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1613,
+      "tokens_out": 166
+    },
+    {
+      "id": "g403",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Eastbrook reservoir had a capacity of 42 million cubic metres when it was completed",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The Eastbrook reservoir was completed in 1958",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1447,
+      "tokens_out": 180
+    },
+    {
+      "id": "g404",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The capacity factor of the Hollow Ridge wind farm was 34 percent in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The capacity factor of the Coast Point wind farm was 43 percent in 2022",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1645,
+      "tokens_out": 192
+    },
+    {
+      "id": "g405",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "PM2.5 exceeded the daily limit on 9 days at the network's monitors in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "PM2.5 exceeded the daily limit at the Park Lane monitor 19",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1635,
+      "tokens_out": 200
+    },
+    {
+      "id": "g406",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Average class size in the West district (the only one with weekend hours) was 27 pupils",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Average class size was in 2022",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1305,
+      "tokens_out": 174
+    },
+    {
+      "id": "g407",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Attendance in the South district fell to 91.8% in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The fall in attendance was because of a teachers' strike",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1577,
+      "tokens_out": 184
+    },
+    {
+      "id": "g408",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "On-time performance on Route 12 was about four in five in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1498,
+      "tokens_out": 117
+    },
+    {
+      "id": "g409",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Eastbrook reservoir had a capacity of 42 million cubic metres when it was completed in 1958",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "the pH meter's slope stayed between 98 and 101 percent across all calibrations in this month",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1692,
+      "tokens_out": 223
+    },
+    {
+      "id": "g410",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "Cod landings at Greyhaven fell 81% in 2023",
+          "state": "contradicted",
+          "cause": "contradicted"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1301,
+      "tokens_out": 126
+    },
+    {
+      "id": "g411",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Energy costs at the hospital fell 11.2% in 2024",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1524,
+      "tokens_out": 117
+    },
+    {
+      "id": "g412",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Rooftop solar installations in Dunmore rose 44% in 2023",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Rooftop solar installations in Elton rose 14%",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1653,
+      "tokens_out": 176
+    },
+    {
+      "id": "g413",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Attendance in the South district (rated best in the county) fell to 91.8%",
+          "state": "not_supported",
+          "cause": "not_supported"
+        },
+        {
+          "text": "Attendance fell in 2022",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1565,
+      "tokens_out": 173
+    },
+    {
+      "id": "g414",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Fresh produce made up 31% of donations in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1500,
+      "tokens_out": 109
+    },
+    {
+      "id": "g415",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Visitors to the Science Museum rose by 5%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The rise in visitors to the Science Museum occurred in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1596,
+      "tokens_out": 163
+    },
+    {
+      "id": "g416",
+      "verdict": "contradicted",
+      "atomic": [
+        {
+          "text": "The conductivity meter's slope stayed between 98 and 101 percent across all calibrations",
+          "state": "contradicted",
+          "cause": "contradicted"
+        },
+        {
+          "text": "The calibrations occurred in this month",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1303,
+      "tokens_out": 167
+    },
+    {
+      "id": "g417",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Leakage across the network fell to 14% between 2010 and 2020",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Water pressure was raised",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1610,
+      "tokens_out": 177
+    },
+    {
+      "id": "g418",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Applications to the engineering faculty rose 17%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The rise in applications was for the 2024 intake",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1562,
+      "tokens_out": 164
+    },
+    {
+      "id": "g419",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Average household use was about 140 litres per person per day",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Average household use was in 2020",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1577,
+      "tokens_out": 169
+    },
+    {
+      "id": "g420",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Harbour branch reopened after a 7-month refurbishment",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        },
+        {
+          "text": "The Harbour branch reopened in March 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1579,
+      "tokens_out": 161
+    },
+    {
+      "id": "g421",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "Missed appointments at the Riverside clinic dropped to 7.5% in 2020",
+          "state": "not_supported",
+          "cause": "not_supported"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1249,
+      "tokens_out": 114
+    },
+    {
+      "id": "g422",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Attendance in the South district fell to 91.8% in 2022",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Attendance fell after a flu outbreak in February",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1621,
+      "tokens_out": 185
+    },
+    {
+      "id": "g423",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "The Coast Point wind farm has 48 turbines",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "The turbines are 3.6 megawatts each",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1549,
+      "tokens_out": 169
+    },
+    {
+      "id": "g424",
+      "verdict": "supported",
+      "atomic": [
+        {
+          "text": "Visitors to the Maritime Museum rose 23%",
+          "state": "supported",
+          "cause": null
+        },
+        {
+          "text": "Visitors to the Maritime Museum rose in 2023",
+          "state": "supported",
+          "cause": null
+        }
+      ],
+      "calls": 3,
+      "tokens_in": 1821,
+      "tokens_out": 179
+    },
+    {
+      "id": "g425",
+      "verdict": "not_supported",
+      "atomic": [
+        {
+          "text": "The Coast Point wind farm has 182.8 megawatts of turbines",
+          "state": "not_supported",
+          "cause": "number_not_in_snippet"
+        }
+      ],
+      "calls": 2,
+      "tokens_in": 1283,
+      "tokens_out": 124
+    }
+  ]
+}
