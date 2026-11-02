@@ -59,7 +59,7 @@ thresholds).
 | Docs: the corpus guide and PR-20b | #231, #232, #270 | docs | docs tests | — | — | — | ✓ | ✓ /docs | — | — | Shipped |
 | Site discoverability: og.png content type, llms.txt, crawler rules, sitemap dates | #264 | `app/(site)` metadata routes | site tests | — | — | — | — | ✓ | — | — | Shipped |
 | The preview drawer links Download only to this app's own API (CodeQL #32, #33) | #281 | `lib/desktop.ts::apiHref`, `PreviewDrawer` | `desktop.test.ts`, `PreviewDrawer.test.tsx` | ✓ | — | ✓ | — | — | — | — | Shipped |
-| The release itself: version, notes, changelog, this record, the flip and the post-release record | #278, #282, #283, #POST | `VERSION` and its carriers, `releases.ts`, the changelog, this file | the release audit | — | — | — | ✓ changelog | ✓ /releases (after the flip) | ✓ | ✓ | Shipped (process) |
+| The release itself: version, notes, changelog, this record, the flip and the post-release record | #278, #282, #283, #284 | `VERSION` and its carriers, `releases.ts`, the changelog, this file | the release audit | — | — | — | ✓ changelog | ✓ /releases (after the flip) | ✓ | ✓ | Shipped (process) |
 | Provider SDKs: anthropic 2.3.0 with langchain-anthropic 1.7.7 and langchain-core 1.6.12 (supersedes Dependabot's anthropic bump) | #280, #266 | `backend/constraints.txt` | full backend suite on the new pins in a clean venv (2476 passed; `test_worker_event_loop`, `test_dependency_constraints`); a 40-claim G-6 spot check on the new pins before tagging | — | — | ✓ | — | — | — | — | Shipped. G-5 and G-6 were measured on the previous pins (langchain-core 1.6.6, anthropic 1.9.0). The spot check on the new pins (G-6, first 40 claims, `custom:auto/best-fast`, not written) gave 2 unmeasured, 0 false accepts, 7.1% false rejects. The same 40 claims in the passing full run gave 1 unmeasured, 0 of 25 false accepts and 1 of 14 false rejects (7.1%). Contradicted recall varied (43% vs 100%), but every contradicted claim it missed was still rejected |
 | Dependencies | #209, #267 | vitest, react-query | CI | — | — | — | — | — | — | — | Shipped |
 | Closing v3.0.2 and v3.0.3 (flip, post-release, macOS checks, the 48-hour watches) | #207, #233, #235, #236, #238 | `release-audit/v3.0.2`, `v3.0.3` | the audits | — | — | — | — | ✓ | — | — | Shipped (process) |
@@ -117,7 +117,7 @@ a desktop check (M6.03).
 |---|---|---|---|---|
 | pre-tag | `release_audit.py --version 3.1.0 --stage pre-tag` | PASS | 35 PASS, 1 WARN | `pre-tag.json` |
 | published | `… --published --download --docker` | PASS | 51 PASS, 3 WARN | `published.json` |
-| post-release | `… --post-release --download --docker`, run on `0135e05` (the flip) | PASS | COUNTS | `post-release.json`. A trial run before these rows were filled failed only A21.01 (the rows it named) |
+| post-release | `… --post-release --download --docker`, run on `0135e05` (the flip) | PASS | 62 PASS, 2 WARN | `post-release.json`. A trial run before these rows were filled failed only A21.01 (the rows it named) |
 
 Disposition of every WARN and UNAVAILABLE (M21.01):
 
