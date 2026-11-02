@@ -14,7 +14,7 @@ me", 2026-11-01), including the G-5 thresholds (scope-freeze A-7).
 | Version | v3.1.0 |
 | Previous release | v3.0.3 |
 | Release manager | Aditya Mhaske (prepared and run with Claude Code under the owner's delegation) |
-| Release commit (tag target) | PENDING: the merge of #281, which follows the release PR (#278) with the CodeQL fix and this record's scope. The release candidate tested for G-1 and G-2 is `c20733e`, the merge of #279. The tag differs from it by `PreviewDrawer.tsx`, `lib/desktop.ts`, their tests and this file; the published `.dmg` is built from the tag |
+| Release commit (tag target) | PENDING: the merge of the record PR that follows #280. The release candidate tested for G-1 and G-2 is `c20733e` (the merge of #279). The tag differs from it by #281 (`PreviewDrawer.tsx`, `lib/desktop.ts` and their tests), #280 (`backend/constraints.txt`) and this file. The published `.dmg` is built from the tag and checked on this Mac (Phase 7) |
 | Tag | v3.1.0 (annotated) |
 | Tag date | PENDING |
 | Audit evidence | `pre-tag.json`, `published.json`, `post-release.json` in this directory |
@@ -59,16 +59,17 @@ thresholds).
 | Docs: the corpus guide and PR-20b | #231, #232, #270 | docs | docs tests | — | — | — | ✓ | ✓ /docs | — | — | Shipped |
 | Site discoverability: og.png content type, llms.txt, crawler rules, sitemap dates | #264 | `app/(site)` metadata routes | site tests | — | — | — | — | ✓ | — | — | Shipped |
 | The preview drawer links Download only to this app's own API (CodeQL #32, #33) | #281 | `lib/desktop.ts::apiHref`, `PreviewDrawer` | `desktop.test.ts`, `PreviewDrawer.test.tsx` | ✓ | — | ✓ | — | — | — | — | Shipped |
-| The release itself: version, notes, changelog, this record | #278 | `VERSION` and its carriers, `releases.ts`, the changelog, this file | the release audit | — | — | — | ✓ changelog | ✓ /releases (after the flip) | ✓ | ✓ | Shipped (process) |
+| The release itself: version, notes, changelog, this record | #278, #282 | `VERSION` and its carriers, `releases.ts`, the changelog, this file | the release audit | — | — | — | ✓ changelog | ✓ /releases (after the flip) | ✓ | ✓ | Shipped (process) |
+| Provider SDKs: anthropic 2.3.0 with langchain-anthropic 1.7.7 and langchain-core 1.6.12 (supersedes Dependabot's anthropic bump) | #280, #266 | `backend/constraints.txt` | full backend suite on the new pins in a clean venv (2476 passed; `test_worker_event_loop`, `test_dependency_constraints`); a 40-claim G-6 spot check on the new pins before tagging | — | — | ✓ | — | — | — | — | Shipped. G-5 and G-6 were measured on the previous pins (langchain-core 1.6.6, anthropic 1.9.0). The spot check on the new pins (G-6, first 40 claims, `custom:auto/best-fast`, not written) gave 2 unmeasured, 0 false accepts, 7.1% false rejects. The same 40 claims in the passing full run gave 1 unmeasured, 0 of 25 false accepts and 1 of 14 false rejects (7.1%). Contradicted recall varied (43% vs 100%), but every contradicted claim it missed was still rejected |
 | Dependencies | #209, #267 | vitest, react-query | CI | — | — | — | — | — | — | — | Shipped |
 | Closing v3.0.2 and v3.0.3 (flip, post-release, macOS checks, the 48-hour watches) | #207, #233, #235, #236, #238 | `release-audit/v3.0.2`, `v3.0.3` | the audits | — | — | — | — | ✓ | — | — | Shipped (process) |
 | Corpus-guide unreleased note and the AC-11 copy test | #232, #259 | docs/39, `RunScopePanel.test.tsx` | ✓ | ✓ | — | — | ✓ | — | — | — | Shipped |
 
 Deferred (merged but not part of this release's story): none.
 
-Not merged, decided after the tag (owner, 2026-11-02, "when complete"): #265 (Python 3.15 base
-image, which waits on the desktop freeze, AGENTS.md A10.06) and #266 (anthropic SDK 2.x, a
-reviewed provider-SDK upgrade).
+Not merged, decided after the tag: #265 (the Python 3.15 base image, which waits on the
+desktop freeze, AGENTS.md A10.06). The owner merged #280, the provider-SDK upgrade that
+supersedes #266, before the tag, so it ships in this release.
 
 ## Release gates (RFC V3.1 §14.1)
 
