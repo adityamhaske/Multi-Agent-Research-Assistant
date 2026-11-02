@@ -73,7 +73,9 @@ def images_exist(ctx: Ctx) -> Outcome:
             problems.append(f"{image}:{ref} does not exist")
             continue
         digests[f"{image}:{ref}"] = digest
-        problems += [f"{image}:{ref} lacks {p}" for p in PLATFORMS if p not in _platforms(index)]
+        problems += [
+            f"{image}:{ref} lacks {p}" for p in PLATFORMS if p not in _platforms(index)
+        ]
     return verdict(problems, f"{len(pairs)} tags, both architectures", digests=digests)
 
 
@@ -88,7 +90,9 @@ def images_latest(ctx: Ctx) -> Outcome:
         default=None,
     )
     if newest and newest > parse_version(ctx.version):
-        return skip(f"a newer release exists ({'.'.join(map(str, newest))}); latest is its")
+        return skip(
+            f"a newer release exists ({'.'.join(map(str, newest))}); latest is its"
+        )
     pairs = [(image, ref) for image in IMAGES for ref in (ctx.version, "latest")]
     digests = dict(
         zip(
@@ -106,7 +110,9 @@ def images_latest(ctx: Ctx) -> Outcome:
     return verdict(problems, "latest = " + ctx.version)
 
 
-def _provenance(ctx: Ctx, image: str, index: dict, attestation: dict) -> tuple[str, str | None]:
+def _provenance(
+    ctx: Ctx, image: str, index: dict, attestation: dict
+) -> tuple[str, str | None]:
     subject = attestation["annotations"]["vnd.docker.reference.digest"]
     platform = next(
         (
@@ -121,7 +127,8 @@ def _provenance(ctx: Ctx, image: str, index: dict, attestation: dict) -> tuple[s
         (
             layer
             for layer in manifest["layers"]
-            if "provenance" in layer.get("annotations", {}).get("in-toto.io/predicate-type", "")
+            if "provenance"
+            in layer.get("annotations", {}).get("in-toto.io/predicate-type", "")
         ),
         None,
     )
@@ -160,9 +167,13 @@ def images_provenance(ctx: Ctx) -> Outcome:
     ):
         seen[f"{image} {platform}"] = revision
         if revision != sha:
-            problems.append(f"{image} {platform} was built from {str(revision)[:9]}, not {sha[:9]}")
+            problems.append(
+                f"{image} {platform} was built from {str(revision)[:9]}, not {sha[:9]}"
+            )
     if len(seen) < len(IMAGES) * len(PLATFORMS) and not problems:
-        problems.append(f"only {len(seen)} of {len(IMAGES) * len(PLATFORMS)} carry provenance")
+        problems.append(
+            f"only {len(seen)} of {len(IMAGES) * len(PLATFORMS)} carry provenance"
+        )
     return verdict(problems, f"all {len(seen)} built from {sha[:9]}", revisions=seen)
 
 
@@ -175,7 +186,9 @@ def deploy_default_tag(ctx: Ctx) -> Outcome:
     # `edge` was the bootstrap's default while no release existed, and stayed the default
     # after: a fresh deploy in September 2026 pulled a pre-1.0 build from 5 August.
     boot = re.search(r"^IMAGE_TAG=(\S+)", ctx.read("deploy/oracle-bootstrap.sh"), re.M)
-    demo = re.search(r"IMAGE_TAG:-([^}]+)\}", ctx.read("deploy/docker-compose.demo.yml"))
+    demo = re.search(
+        r"IMAGE_TAG:-([^}]+)\}", ctx.read("deploy/docker-compose.demo.yml")
+    )
     tags = {
         "deploy/oracle-bootstrap.sh": boot[1] if boot else None,
         "deploy/docker-compose.demo.yml": demo[1] if demo else None,
@@ -199,7 +212,9 @@ def image_identity(ctx: Ctx) -> Outcome:
     if not shutil.which("docker"):
         raise Unavailable("docker is not installed")
     ref = f"ghcr.io/{ctx.repo.lower()}-api:{ctx.version}"
-    pulled = subprocess.run(["docker", "pull", "-q", ref], capture_output=True, text=True)
+    pulled = subprocess.run(
+        ["docker", "pull", "-q", ref], capture_output=True, text=True
+    )
     if pulled.returncode != 0:
         raise Unavailable(f"docker pull {ref}: {pulled.stderr.strip()[:200]}")
     # Read APP_VERSION from the file rather than importing the app: `app.config` validates a
@@ -223,7 +238,9 @@ def image_identity(ctx: Ctx) -> Outcome:
         env=dict(os.environ),
     )
     if probe.returncode != 0:
-        return fail(f"the image could not report its build: {probe.stderr.strip()[-300:]}")
+        return fail(
+            f"the image could not report its build: {probe.stderr.strip()[-300:]}"
+        )
     info = json.loads(probe.stdout.strip().splitlines()[-1])
     sha = ctx.release_commit()
     problems = []
@@ -286,7 +303,9 @@ def _one_runtime(
         str(p.relative_to(ctx.root)): p.read_text(encoding="utf-8")
         for p in sorted((ctx.root / ".github/workflows").glob("*.y*ml"))
     }
-    problems = runtime_drift(dockerfile, workflows, required, exceptions, runtime=runtime)
+    problems = runtime_drift(
+        dockerfile, workflows, required, exceptions, runtime=runtime
+    )
     versions = image_versions(dockerfile, runtime)
     if len(set(versions)) == 1:
         problems += floor_drift(
@@ -308,6 +327,8 @@ def _floor_files(ctx: Ctx, floors: dict[str, tuple[str, ...]]) -> dict[str, str 
     ]
     paths = {*floors, *(p.relative_to(ctx.root).as_posix() for p in markdown)}
     return {
-        rel: (ctx.root / rel).read_text(encoding="utf-8") if (ctx.root / rel).is_file() else None
+        rel: (ctx.root / rel).read_text(encoding="utf-8")
+        if (ctx.root / rel).is_file()
+        else None
         for rel in sorted(paths)
     }

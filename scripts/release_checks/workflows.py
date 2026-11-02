@@ -225,7 +225,9 @@ def job_problems(jobs: list[dict], required: Iterable[str]) -> list[str]:
     return problems
 
 
-def step_problems(jobs: list[dict], wanted: dict[str, Iterable[str]]) -> tuple[list, list]:
+def step_problems(
+    jobs: list[dict], wanted: dict[str, Iterable[str]]
+) -> tuple[list, list]:
     """(failed or skipped steps, steps absent from the run). Absent means the guard was not in
     that commit's workflow — reported, never counted as having passed."""
     problems, absent = [], []
@@ -317,7 +319,9 @@ def _pages_run_for(ctx: Ctx, sha: str, problems: list[str]) -> tuple[dict | None
         pass
     paths = push_paths(ctx.read(".github/workflows/pages.yml"))
     if not paths:
-        problems.append("no Pages run on the release commit, and pages.yml names no paths filter")
+        problems.append(
+            "no Pages run on the release commit, and pages.yml names no paths filter"
+        )
         return None, sha
     built_from = ctx.git(
         "log",
@@ -329,7 +333,9 @@ def _pages_run_for(ctx: Ctx, sha: str, problems: list[str]) -> tuple[dict | None
         *(f":(glob){p}" for p in paths),
     ).strip()
     if not built_from:
-        problems.append("no Pages run on the release commit, and no commit ever built the site")
+        problems.append(
+            "no Pages run on the release commit, and no commit ever built the site"
+        )
         return None, sha
     try:
         return ctx.run_for(built_from, "Pages", "push", "main"), built_from
@@ -350,9 +356,13 @@ def _pages_run_for(ctx: Ctx, sha: str, problems: list[str]) -> tuple[dict | None
 )
 def ruleset(ctx: Ctx) -> Outcome:
     active = [
-        rs for rs in ctx.api(f"/repos/{ctx.repo}/rulesets") if rs.get("enforcement") == "active"
+        rs
+        for rs in ctx.api(f"/repos/{ctx.repo}/rulesets")
+        if rs.get("enforcement") == "active"
     ]
-    details = parallel_map(lambda rs: ctx.api(f"/repos/{ctx.repo}/rulesets/{rs['id']}"), active)
+    details = parallel_map(
+        lambda rs: ctx.api(f"/repos/{ctx.repo}/rulesets/{rs['id']}"), active
+    )
     contexts = {
         c["context"]
         for d in details
@@ -434,7 +444,10 @@ def tauri_config(ctx: Ctx) -> Outcome:
             'bundle.macOS.signingIdentity is not "-" — a downloaded Mac build '
             "is reported as damaged"
         )
-    if bundle.get("resources", {}).get("../backend/dist/research-sidecar/") != "sidecar/":
+    if (
+        bundle.get("resources", {}).get("../backend/dist/research-sidecar/")
+        != "sidecar/"
+    ):
         problems.append("bundle.resources no longer copies the engine to sidecar/")
     if bundle.get("targets") != "all":
         problems.append(
