@@ -28,6 +28,19 @@ describe("resolveSidecar", () => {
     expect(cfg).toEqual({ baseUrl: "http://127.0.0.1:9", token: "from-query" });
   });
 
+  it("refuses an engine address that is not loopback", () => {
+    for (const base of [
+      "https://evil.example",
+      "http://127.0.0.1.evil.example:9",
+      "javascript:alert(1)",
+      "http://localhost:9",
+      "http://127.0.0.1:9/api",
+    ]) {
+      expect(resolveSidecar(`?sidecar=${encodeURIComponent(base)}&token=t`)).toBeNull();
+      expect(resolveSidecar("", { baseUrl: base, token: "t" })).toBeNull();
+    }
+  });
+
   it("returns null when either half of the handshake is missing", () => {
     expect(resolveSidecar("?sidecar=http://127.0.0.1:9")).toBeNull();
     expect(resolveSidecar("?token=t")).toBeNull();

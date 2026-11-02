@@ -35,10 +35,13 @@ export function resolveSidecar(
   injected?: Partial<SidecarConfig> | null,
 ): SidecarConfig | null {
   const params = new URLSearchParams(search);
-  const baseUrl = injected?.baseUrl ?? params.get("sidecar");
+  const baseUrl = (injected?.baseUrl ?? params.get("sidecar") ?? "").replace(/\/+$/, "");
   const token = injected?.token ?? params.get("token");
-  if (!baseUrl || !token) return null;
-  return { baseUrl: baseUrl.replace(/\/+$/, ""), token };
+  // The engine binds loopback only (docs/13 §7), so its address is always
+  // http://127.0.0.1:<port>. Anything else — reachable through the query-string fallback —
+  // would send every API call, bearer token included, to another host.
+  if (!/^http:\/\/127\.0\.0\.1:\d{1,5}$/.test(baseUrl) || !token) return null;
+  return { baseUrl, token };
 }
 
 let cached: SidecarConfig | null | undefined;
