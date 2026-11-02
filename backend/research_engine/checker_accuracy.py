@@ -20,7 +20,9 @@ NOT_MEASURED = "not_measured"
 
 #: route → (status, result file). Only valid runs count: one with more than 5% of claims
 #: unmeasured is invalid by §17 and measured nothing.
-MEASURED: dict[str, tuple[str, str]] = {}
+MEASURED: dict[str, tuple[str, str]] = {
+    "custom:auto/best-fast": (MEETS, "eval-2026-11-02-custom-auto-best-fast-grounding-run1.json"),
+}
 
 _WORDS = {
     MEETS: "meets the measured threshold",
