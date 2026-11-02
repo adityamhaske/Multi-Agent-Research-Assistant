@@ -36,6 +36,8 @@ ACCEPTED = [
     ("3 days", "over 3 days"),
     ("4 hours", "a 240 minute session"),
     ("nearly 15,000 hours", "Volunteers gave 14,800 hours."),
+    ("412,000 megawatt hours", "The farm generated 412 gigawatt hours in 2022."),
+    ("412 GWh", "The farm generated 412,000 MWh in 2022."),
 ]
 
 REFUSED = [
@@ -52,6 +54,7 @@ REFUSED = [
     ("$40 per unit", "priced at 40 EUR each"),
     ("7 hours", "a 6 hour shift"),
     ("6.5 hours", "a 6 hour shift"),  # invented precision, in a non-decimal unit
+    ("412 MWh", "The farm generated 412 GWh in 2022."),
 ]
 
 
@@ -77,6 +80,22 @@ def test_a_stated_calculation_is_recomputed():
     # An operand that is not in the evidence sinks the whole calculation.
     assert not calculation_holds("subtract", ["1,600", "1,200"], "400", snippets)
     assert not calculation_holds("cube_root", ["1,500", "1,200"], "300", snippets)
+
+
+def test_an_operand_copied_without_its_percent_sign_is_the_stated_percentage():
+    """A verifier writes `31` for the snippet's `31%`. The bare figure stands for the stated
+    percentage only when that exact percentage is stated; it is never invented."""
+    snippets = "Fresh produce made up 31% of donations in 2023, up from 19% in 2021."
+    assert calculation_holds("subtract", ["31", "19"], "12", snippets)
+    assert calculation_holds("subtract", ["31%", "19%"], "12", snippets)
+    assert not calculation_holds("subtract", ["31", "18"], "13", snippets)
+
+
+def test_a_sum_or_difference_of_different_kinds_is_refused():
+    """31% less 19 people is not 12 of anything: add and subtract need one kind."""
+    snippets = "Turnout was 31% among the 19 people asked."
+    assert not calculation_holds("subtract", ["31%", "19"], "12", snippets)
+    assert not calculation_holds("add", ["31", "19"], "50", snippets)
 
 
 def test_a_computed_value_with_no_stated_calculation_is_not_in_the_snippets():

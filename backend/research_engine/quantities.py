@@ -20,7 +20,8 @@ opinion can override, so when in doubt this module says "not found".
 | Units             | identity conversions within a dimension only; never across dimensions    |
 | Dates             | month names and ISO normalise; all-numeric `03/04/2021` stays literal    |
 | Rounding          | a claim may round a value half-up to its own precision, never add digits |
-| Calculations      | only when stated: each operand must match, and the arithmetic is redone  |
+| Calculations      | only when stated: each operand must match, and the arithmetic is redone; |
+|                   | a bare operand stands for a percentage only if that exact one is stated  |
 """
 
 from __future__ import annotations
@@ -64,7 +65,7 @@ _SCALE = {
     "trillion": 12,
 }
 
-#: (dimension, factor to the dimension's base unit). Base units: m, g, s, l, byte.
+#: (dimension, factor to the dimension's base unit). Base units: m, g, s, l, byte, Wh.
 _UNITS = {
     "mm": ("length", Decimal("0.001")),
     "cm": ("length", Decimal("0.01")),
@@ -109,6 +110,15 @@ _UNITS = {
     "kb": ("data", Decimal("1000")),
     "mb": ("data", Decimal("1000000")),
     "gb": ("data", Decimal("1000000000")),
+    "wh": ("energy", Decimal("1")),
+    "kwh": ("energy", Decimal("1000")),
+    "mwh": ("energy", Decimal("1000000")),
+    "gwh": ("energy", Decimal("1000000000")),
+    "twh": ("energy", Decimal("1000000000000")),
+    "kilowatt hours": ("energy", Decimal("1000")),
+    "megawatt hours": ("energy", Decimal("1000000")),
+    "gigawatt hours": ("energy", Decimal("1000000000")),
+    "terawatt hours": ("energy", Decimal("1000000000000")),
     "°c": ("celsius", Decimal("1")),
     "°f": ("fahrenheit", Decimal("1")),
     "usd": ("usd", Decimal("1")),
@@ -305,6 +315,23 @@ _OPS = {
 }
 
 
+def _as_stated(operand: Quantity, available: list[Quantity]) -> Quantity | None:
+    """The operand as the snippets state it, or None when they do not.
+
+    A verifier copying `31%` as `31` has not changed the figure, so a bare number stands
+    for a percentage — but only when the snippets state exactly that percentage and do not
+    state the bare number itself. Nothing else is lifted: a unit carries a scale, and
+    guessing it would equate values the table above keeps apart.
+    """
+    if any(matches(operand, s) for s in available):
+        return operand
+    if operand.kind == "number":
+        lifted = Quantity(operand.value, "percent", operand.exponent)
+        if any(s.kind == "percent" and s.value == operand.value for s in available):
+            return lifted
+    return None
+
+
 def calculation_holds(op: str, operands: list[str], result: str, snippets: str) -> bool:
     """A stated calculation: each operand is in the snippets and the arithmetic is right.
 
@@ -318,9 +345,12 @@ def calculation_holds(op: str, operands: list[str], result: str, snippets: str) 
     outcome = extract(result)
     if any(len(p) != 1 for p in parsed) or len(outcome) != 1:
         return False
-    a, b = parsed[0][0], parsed[1][0]
-    if unsupported(operands[0], snippets) or unsupported(operands[1], snippets):
+    available = extract(snippets)
+    a, b = (_as_stated(p[0], available) for p in parsed)
+    if a is None or b is None:
         return False
+    if op in ("add", "subtract") and a.kind != b.kind:
+        return False  # 31% less 19 people is not 12 of anything
     if a.value is None or b.value is None or outcome[0].value is None:
         return False
     computed = func(a.value, b.value)

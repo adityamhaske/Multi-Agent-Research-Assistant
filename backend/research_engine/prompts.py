@@ -157,14 +157,16 @@ and the exact snippets its cited sources provided, taken together. Rule SUPPORTE
 the snippets state everything the claim and those words assert: numbers, dates, entities
 and direction of change must be backed by the snippet text, and a plausible claim the
 snippets do not state is not supported. A bracketed aside, qualifier, cause or sequence in
-the report's words ("because", "after", "due to") must be stated too.
+the report's words ("because", "after", "due to") must be stated too; one the snippets give
+in other words ("because of", "following", a Reason column) is stated.
 The figure must be stated for the same subject: the place, organisation, group, site and
 period the claim names. A snippet giving it for another subject, or for no named subject
 where the claim names one, does not support it. In a spreadsheet row ("Row 2 — Column:
 value; …"), the subject column says who the row is about.
 Rule CONTRADICTED if a snippet states the opposite or a different value for the same thing.
 Otherwise rule NOT_SUPPORTED. Close paraphrase of a snippet is SUPPORTED, and so is a figure
-approximately stated ("about", "nearly") that fairly describes a stated one.
+approximately stated ("about", "nearly") that fairly describes a stated one, or a stated
+figure converted exactly to other units (412 GWh as 412,000 MWh).
 Answer with exactly one line per claim: "Claim N: SUPPORTED", "Claim N: NOT_SUPPORTED" or
 "Claim N: CONTRADICTED". Answer for every claim. Where a claim lists figures not found in
 the evidence as written and they are computed from figures the evidence states, add the
