@@ -165,6 +165,8 @@ Some run-configuration fields are set per user or per run rather than by the env
 | `topic_seeds`, `outline_template` | The start request | empty / unset |
 | `skip_plan_gate` | The start request; the app's form sends `false` | `true` at the API and engine level, `false` as the database column default |
 | `corpus_mode`, `demo` | The start request | `false` |
+| `corpus_allowed_ids` | The start request's `corpus_selection`, resolved once to exact document versions and frozen on the run | unset (no selection) |
+| `offline` | The start request; implies `corpus_mode` | `false` |
 | `enforce_ssrf_guards` | The host — strict on the server, relaxed on desktop | `true` |
 | `max_planner_tasks` | Run configuration | 6 |
 | `prompt_overrides` | User preferences, snapshotted onto the run at start (live for chat) | empty |

@@ -79,8 +79,13 @@ were selected. It does **not** keep your question private: the question and exce
 files are sent to whichever model provider each agent is set to use.
 
 **Offline** limits where the models run. Turn it on and the research refuses to start unless
-every agent uses a model on this computer — Ollama, or a custom endpoint on this machine — and
-names any agent that does not. Offline research never reads the web.
+every agent uses a model at an address on this computer — Ollama, or a custom endpoint on this
+machine — and names any agent that does not. Offline research never reads the web.
+
+The check is on the address, because that is all the app can see. A custom endpoint on this
+computer that is itself a router to cloud providers (OmniRoute, LiteLLM and the like) passes
+the check while your question and excerpts leave the machine through it. Only turn on Offline
+for such an endpoint if it forwards to models on this computer.
 
 The two are independent: you can have either without the other.
 

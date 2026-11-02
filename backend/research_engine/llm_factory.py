@@ -232,7 +232,7 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
         )
 
     if provider == "ollama":
-        # Local inference, also OpenAI-compatible. This is offline tier 2 (docs/13 §8):
+        # Local inference, also OpenAI-compatible. This is offline tier 2 (docs/13 "Three privacy tiers"):
         # no key, no inference egress. The endpoint is overridable for a remote box.
         from langchain_openai import ChatOpenAI
 

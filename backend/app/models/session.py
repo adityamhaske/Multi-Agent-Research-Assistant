@@ -91,7 +91,7 @@ class Session(Base):
     # unmeasured-vs-zero bug this codebase exists to refuse.
     citation_resolution_rate: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
 
-    # Airgapped corpus mode (docs/12 M10).
+    # Airgapped corpus mode (internal/12 M10).
     corpus_mode: Mapped[bool] = mapped_column(nullable=False, server_default="false")
 
     # This run used scripted models and fixture retrievers rather than a real provider

@@ -32,7 +32,7 @@ from app.models.user import User
 #: table name inline in `sidecar.py`, which is the "two homes, one contract" shape this
 #: repository keeps rediscovering. The sidecar now imports this set instead.
 #:
-#: Project memory is the one feature absent on desktop by design (docs/12 M10): the
+#: Project memory is the one feature absent on desktop by design (internal/12 M10): the
 #: local corpus has its own SQLite store and local embeddings.
 POSTGRES_ONLY_TABLES = frozenset(
     {

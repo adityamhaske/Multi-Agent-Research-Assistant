@@ -5,7 +5,7 @@ web_search   → retriever chain (Tavily → Brave → DuckDuckGo), Redis-cached
 read_webpage → SSRF-guarded fetch + main-text extraction
 calculate    → AST-restricted arithmetic
 
-In corpus mode (docs/12 M10) the fetch half of that contract changes: `read_webpage`
+In corpus mode (internal/12 M10) the fetch half of that contract changes: `read_webpage`
 resolves `corpus://` locations from the installed corpus and refuses every other URL,
 so neither tool reaches the network. The agents' model calls are not tools and are not
 restricted by corpus mode.
