@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .constants import CHECKSUMS, IMAGES, INSTALLERS, MACOS_UNQUARANTINE, SIZE_FLOOR_MB
+from .constants import CHECKSUMS, IMAGES, MACOS_UNQUARANTINE, SIZE_FLOOR_MB, installers_for
 
 # A version string, not an IP address (127.0.0.1 has four parts) and not the fourth part of
 # one. The lookbehind allows letters so `Assistant_3.0.1_` and `V3.0.0` are still found.
@@ -185,7 +185,7 @@ def parse_sha256sums(text: str) -> dict[str, str]:
 
 def asset_problems(assets: list[dict], version: str) -> list[str]:
     """The published asset list against exactly what desktop.yml should have produced."""
-    expected = {t.format(v=version) for t in INSTALLERS.values()} | {CHECKSUMS}
+    expected = {t.format(v=version) for t in installers_for(version).values()} | {CHECKSUMS}
     names = {a["name"] for a in assets}
     problems = [f"missing: {n}" for n in sorted(expected - names)]
     problems += [f"unexpected asset: {n}" for n in sorted(names - expected)]
@@ -206,7 +206,7 @@ def checksum_problems(
     sums: dict[str, str], assets: list[dict], version: str
 ) -> list[str]:
     """SHA256SUMS names exactly the installers, and each hash is what GitHub stored."""
-    installers = {t.format(v=version) for t in INSTALLERS.values()}
+    installers = {t.format(v=version) for t in installers_for(version).values()}
     problems = [f"SHA256SUMS does not list {n}" for n in sorted(installers - set(sums))]
     problems += [
         f"SHA256SUMS lists {n}, which is not an installer of this release"
