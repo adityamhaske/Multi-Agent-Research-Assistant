@@ -12,7 +12,7 @@
      (frontend/lib/releases.ts) — nothing here to bump when cutting a release. -->
 [![Download](https://img.shields.io/badge/Download-Desktop%20App-2563eb?style=for-the-badge)](https://adityamhaske.github.io/Multi-Agent-Research-Assistant/download/)
 
-Apple Silicon macOS, Windows, and Linux desktop builds are on the [download page](https://adityamhaske.github.io/Multi-Agent-Research-Assistant/download/); see the [desktop installation guide](docs/getting-started/23-desktop-app.md) for per-platform setup notes.
+Apple Silicon macOS desktop builds are on the [download page](https://adityamhaske.github.io/Multi-Agent-Research-Assistant/download/); Windows and Linux are offered the last build published for them, which predates the corpus features. See the [desktop installation guide](docs/getting-started/23-desktop-app.md) for per-platform setup notes.
 
 ---
 
@@ -63,8 +63,9 @@ verbatim supporting snippet. A citation that *doesn't* resolve renders as a visi
   chosen local models. A local indexing model does not make the run offline.
 - **Project memory and chat** — project chat answers from the reports you approved and cites
   them (self-hosted server).
-- **Desktop app or self-hosted** — Apple Silicon macOS, Windows and Linux builds with no
-  Docker, database or login to set up, or the full stack with one Docker command.
+- **Desktop app or self-hosted** — an Apple Silicon macOS app (Windows and Linux: the last
+  build published for them) with no Docker, database or login to set up, or the full stack
+  with one Docker command.
 - **Measured, with its caveats** — the 3.0.0 release run measured 96.4% citation support over
   ten fixed questions, graded by a judge that is none of the models under test.
   ([What was measured](docs/research/16-citation-fidelity-benchmark.md#8-what-has-actually-been-measured))

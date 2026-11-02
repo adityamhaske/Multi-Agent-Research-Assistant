@@ -46,7 +46,7 @@ export const FEATURES: Feature[] = [
   },
   {
     title: "Desktop app or your own server",
-    body: "Install on an Apple Silicon Mac, Windows or Linux with no Docker, database or login to set up, or self-host the full stack with one command. Desktop builds are unsigned, so macOS and Windows warn on first launch.",
+    body: "Install on an Apple Silicon Mac (Windows and Linux: the last build published for them) with no Docker, database or login to set up, or self-host the full stack with one command. Desktop builds are unsigned, so macOS and Windows warn on first launch.",
     href: "/download",
   },
   {

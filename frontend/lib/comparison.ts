@@ -122,7 +122,8 @@ export const ROWS: ComparisonRow[] = [
     note:
       "Corpus-only mode: evidence from your uploads only, web search off, local indexing " +
       "model required. The question and excerpts still go to the provider each research " +
-      "model uses — a cloud provider unless you choose local models.",
+      "model uses, a cloud provider unless you choose local models; the Offline switch " +
+      "refuses to start unless every model is at an address on your computer.",
   },
   {
     dimension: "Runs on local models",
@@ -235,7 +236,9 @@ export const MECHANISMS: Mechanism[] = [
       "non-corpus URL, and fails closed — an embedder that does not declare itself local is " +
       "treated as remote and rejected. That keeps the evidence local, not the run: the " +
       "excerpts still reach the planner, executor, critic and synthesizer, so the manuscript " +
-      "stays local only when all four run on local models. Corpus mode does not check.",
+      "stays local only when all four run on local models. The Offline switch checks that " +
+      "each model's address is on this computer; a local router that forwards to a cloud " +
+      "provider passes it.",
     why:
       "A cloud product structurally cannot offer this. With embargoed data, patient records " +
       "or an unpublished draft, “upload it to Google” is not a decision you are allowed to " +

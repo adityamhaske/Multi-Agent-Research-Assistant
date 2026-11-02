@@ -26,12 +26,16 @@ Shipped and in use:
 - **Corpus-only mode** — research whose evidence comes only from your own documents, with
   web search off and a local indexing model required. The research models still receive
   the question and excerpts on whatever provider they use.
+- **Research on the files you choose** — folders and many file kinds in a project's corpus,
+  research limited to the files you pick, every claim checked against them before you see
+  the report, and an Offline switch that refuses to start unless every model is at an
+  address on this computer ([how it works](../user-guide/39-corpus-folders-and-selection.md)).
 - **Bring your own key** — Google, Anthropic, OpenAI, OpenRouter, and any OpenAI-compatible
   endpoint, encrypted at rest and isolated per run.
 - **Local models** through Ollama, including local embeddings.
 - **Self-hosting** with Docker Compose, and a documented $0/month single-host deployment.
-- **Desktop app** for Apple Silicon macOS, Windows, and Linux, with a bundled engine and
-  SQLite.
+- **Desktop app** for Apple Silicon macOS, with a bundled engine and SQLite. Windows and
+  Linux are offered the last build published for them.
 - **An independently judged evaluation** — citation support is graded by a named judge that
   is none of the models under test. The V3.0.0 release run measured 0.9638 on the fixed
   ten-query set, clearing the 0.95 threshold
@@ -40,12 +44,6 @@ Shipped and in use:
   a correlation id on every log a research run produces. A dashboard is not shipped.
 
 ## In progress
-
-- **Corpus folders, file selection and Offline.** On `main`, not in a released installer yet:
-  folders and many more file kinds in a project's corpus, research limited to the files you
-  pick with every claim checked against them before you see it, and an Offline switch that
-  refuses to start unless every model runs on this computer
-  ([how it works](../user-guide/39-corpus-folders-and-selection.md)).
 
 - **A published citation-fidelity benchmark.** The
   [methodology](../research/16-citation-fidelity-benchmark.md) is specified and the runner

@@ -34,9 +34,6 @@ the mode enforces:
 A run in this mode with no corpus installed fails rather than quietly falling back to the
 web.
 
-> **Not in a released version yet:** the two switches below are on `main`; the installers on
-> the download page do not have them ([Corpus folders and selection](39-corpus-folders-and-selection.md)).
-
 **Only the files you selected** — with files or folders ticked on the Corpus page, the same
 switch reads that way, and the run may use only those files, frozen at the versions they had
 when the run started. Every claim in the answer is then checked against the passages it

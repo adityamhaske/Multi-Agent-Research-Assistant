@@ -1,0 +1,14 @@
+{
+ "login": 200,
+ "preferences_kept": true,
+ "api_key_kept": true,
+ "project_kept": true,
+ "runs_kept": true,
+ "done_status": "COMPLETED",
+ "old_export_md": 200,
+ "old_bundle": 200,
+ "waiting_status_before": "AWAITING_PLAN",
+ "waiting_review_gate": "AWAITING_REVIEW",
+ "waiting_final": "COMPLETED",
+ "session_kept": true
+}

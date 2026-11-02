@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { RELEASES } from "@/lib/releases";
+import { desktopVersionFor, RELEASES } from "@/lib/releases";
 
 import DownloadPage from "./page";
 
@@ -9,6 +9,10 @@ const LATEST = RELEASES.find((r) => !r.unreleased && r.version !== "v1.0.0")!.ve
   /^v/,
   "",
 );
+// A macOS-only release leaves Windows and Linux on the newest build published for them.
+const bare = (v: string | null) => v!.replace(/^v/, "");
+const WIN = bare(desktopVersionFor("windows", `v${LATEST}`));
+const LIN = bare(desktopVersionFor("linux", `v${LATEST}`));
 
 describe("DownloadPage", () => {
   it("renders the version selector defaulting to the latest version", () => {
@@ -33,31 +37,31 @@ describe("DownloadPage", () => {
 
     // Windows button
     const winBtn = screen.getByRole("link", {
-      name: new RegExp(`download \\.msi · v${LATEST}`, "i"),
+      name: new RegExp(`download \\.msi · v${WIN}`, "i"),
     });
     expect(winBtn).toBeInTheDocument();
     expect(winBtn).toHaveClass("btn-secondary");
     expect(winBtn.getAttribute("href")).toContain(
-      `releases/download/v${LATEST}/Research.Assistant_${LATEST}_x64_en-US.msi`,
+      `releases/download/v${WIN}/Research.Assistant_${WIN}_x64_en-US.msi`,
     );
 
     // Linux buttons (both AppImage and deb)
     const linuxAppImage = screen.getByRole("link", {
-      name: new RegExp(`download \\.appimage · v${LATEST}`, "i"),
+      name: new RegExp(`download \\.appimage · v${LIN}`, "i"),
     });
     expect(linuxAppImage).toBeInTheDocument();
     expect(linuxAppImage).toHaveClass("btn-secondary");
     expect(linuxAppImage.getAttribute("href")).toContain(
-      `releases/download/v${LATEST}/Research.Assistant_${LATEST}_amd64.AppImage`,
+      `releases/download/v${LIN}/Research.Assistant_${LIN}_amd64.AppImage`,
     );
 
     const linuxDeb = screen.getByRole("link", {
-      name: new RegExp(`download \\.deb · v${LATEST}`, "i"),
+      name: new RegExp(`download \\.deb · v${LIN}`, "i"),
     });
     expect(linuxDeb).toBeInTheDocument();
     expect(linuxDeb).toHaveClass("btn-secondary");
     expect(linuxDeb.getAttribute("href")).toContain(
-      `releases/download/v${LATEST}/Research.Assistant_${LATEST}_amd64.deb`,
+      `releases/download/v${LIN}/Research.Assistant_${LIN}_amd64.deb`,
     );
 
     // Docker localhost button
@@ -83,7 +87,11 @@ describe("DownloadPage", () => {
     const { container } = render(<DownloadPage />);
     expect(container).not.toHaveTextContent(/last decade/);
     expect(container).not.toHaveTextContent(/any laptop/);
-    expect(container).toHaveTextContent(/Apple Silicon\s+Macs and 64-bit \(x86-64\) Windows and Linux/);
+    expect(container).toHaveTextContent(
+      WIN === LATEST
+        ? /Apple Silicon\s+Macs and 64-bit \(x86-64\) Windows and Linux/
+        : new RegExp(`Apple Silicon\\s+Macs; the newest 64-bit Windows and Linux builds are v${WIN}`),
+    );
   });
 
   it("updates download links when a different version is selected", () => {
