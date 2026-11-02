@@ -14,7 +14,7 @@ me", 2026-11-01), including the G-5 thresholds (scope-freeze A-7).
 | Version | v3.1.0 |
 | Previous release | v3.0.3 |
 | Release manager | Aditya Mhaske (prepared and run with Claude Code under the owner's delegation) |
-| Release commit (tag target) | PENDING — the merge of the release PR |
+| Release commit (tag target) | PENDING: the merge of #281, which follows the release PR (#278) with the CodeQL fix and this record's scope. The release candidate tested for G-1 and G-2 is `c20733e`, the merge of #279. The tag differs from it by `PreviewDrawer.tsx`, `lib/desktop.ts`, their tests and this file; the published `.dmg` is built from the tag |
 | Tag | v3.1.0 (annotated) |
 | Tag date | PENDING |
 | Audit evidence | `pre-tag.json`, `published.json`, `post-release.json` in this directory |
@@ -58,6 +58,8 @@ thresholds).
 | Release gates G-1 to G-6 and their tooling | #234, #250, #251, #256, #276 | `scripts/gates/*`, `desktop.yml` G-1 steps | the gates themselves | — | — | ✓ | — | — | — | — | Shipped (process) |
 | Docs: the corpus guide and PR-20b | #231, #232, #270 | docs | docs tests | — | — | — | ✓ | ✓ /docs | — | — | Shipped |
 | Site discoverability: og.png content type, llms.txt, crawler rules, sitemap dates | #264 | `app/(site)` metadata routes | site tests | — | — | — | — | ✓ | — | — | Shipped |
+| The preview drawer links Download only to this app's own API (CodeQL #32, #33) | #281 | `lib/desktop.ts::apiHref`, `PreviewDrawer` | `desktop.test.ts`, `PreviewDrawer.test.tsx` | ✓ | — | ✓ | — | — | — | — | Shipped |
+| The release itself: version, notes, changelog, this record | #278 | `VERSION` and its carriers, `releases.ts`, the changelog, this file | the release audit | — | — | — | ✓ changelog | ✓ /releases (after the flip) | ✓ | ✓ | Shipped (process) |
 | Dependencies | #209, #267 | vitest, react-query | CI | — | — | — | — | — | — | — | Shipped |
 | Closing v3.0.2 and v3.0.3 (flip, post-release, macOS checks, the 48-hour watches) | #207, #233, #235, #236, #238 | `release-audit/v3.0.2`, `v3.0.3` | the audits | — | — | — | — | ✓ | — | — | Shipped (process) |
 | Corpus-guide unreleased note and the AC-11 copy test | #232, #259 | docs/39, `RunScopePanel.test.tsx` | ✓ | ✓ | — | — | ✓ | — | — | — | Shipped |
