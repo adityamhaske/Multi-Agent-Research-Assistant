@@ -270,6 +270,12 @@ pub fn run() {
                 .inner_size(1280.0, 840.0)
                 .min_inner_size(900.0, 600.0)
                 .initialization_script(&init_script)
+                // The corpus page takes dropped files and folders through the page's own
+                // drop events (`frontend/lib/dropFiles.ts`). Tauri's native handler is on
+                // by default and swallows every drop before the page sees it, so the drop
+                // zone never highlighted and nothing uploaded (RFC V3.1 G-2, macOS). Nothing
+                // here listens for Tauri's own drag-drop events.
+                .disable_drag_drop_handler()
                 .build()?;
             eprintln!("research-desktop: sidecar ready at {base_url}");
             Ok(())

@@ -45,7 +45,9 @@ password-protected, are refused with the reason.
 
 Choose **Choose folder**, or drop a folder onto the Corpus page, and its subfolders come with
 it. Files upload one at a time; **Stop uploading** lets the file being sent finish and sends
-nothing after it. The same file in two folders is stored once and listed in both.
+nothing after it. The same file in two folders is stored once and listed in both. A subfolder
+your computer does not let the app read is left out, and the app is not told it was there:
+compare the upload list with the folder if something is missing.
 
 Each folder in **Choose files to research** has **Rename**, **Move** and **Delete**. Renaming or
 moving a folder changes nothing that cites its files.
