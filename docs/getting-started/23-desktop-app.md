@@ -25,6 +25,11 @@ the unblock steps for each platform are below.
 
 ## Supported platforms
 
+The current desktop app is published for **Apple Silicon Macs only**. Windows and Linux are
+offered the last build published for them on the download page; it runs as described below
+but does not have file selection, folders, Offline or claim checking
+([corpus folders and selection](../user-guide/39-corpus-folders-and-selection.md)).
+
 | Platform | Installer | First-launch friction |
 |---|---|---|
 | **macOS** (Apple Silicon) | `.dmg` | Real. Gatekeeper blocks it; see below. |

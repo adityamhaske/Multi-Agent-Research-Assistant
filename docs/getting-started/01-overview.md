@@ -79,7 +79,7 @@ result names the model that actually answered each ruling.
 | An evaluation harness graded by an independent judge, with published results | Built |
 | Bring-your-own-key for Google, Anthropic, OpenAI, OpenRouter, and any OpenAI-compatible endpoint | Built |
 | Local models through Ollama, including fully local embeddings | Built |
-| Desktop app (Apple Silicon macOS, x64 Windows, x86-64 Linux) with a bundled engine and SQLite | Built, unsigned |
+| Desktop app with a bundled engine and SQLite: Apple Silicon macOS; x64 Windows and x86-64 Linux on the last build published for them | Built, unsigned |
 | Keyless demo mode with scripted models and fixture sources | Built |
 
 Details: [Running research](../user-guide/25-running-research.md) ·

@@ -12,7 +12,7 @@ deciding whether to trust the thing, and a changelog with no bad news is marketi
 
 ---
 
-## v3.1.0 — unreleased
+## v3.1.0 — 2026-11-02
 
 Research only the files you choose, with every claim checked against them before you see the
 report. The desktop app is published for Apple Silicon Macs only from this release.

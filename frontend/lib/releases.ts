@@ -57,7 +57,6 @@ export const RELEASES: Release[] = [
     version: "v3.1.0",
     date: "2026-11-02",
     platforms: ["macos"],
-    unreleased: true,
     headline:
       "Research only the files you choose, with every claim checked against them before you see the report.",
     improved: [

@@ -1,0 +1,12 @@
+{
+ "register": 201,
+ "login": 200,
+ "preferences": 200,
+ "api_key": 200,
+ "done_plan_gate": "AWAITING_PLAN",
+ "done_review_gate": "AWAITING_REVIEW",
+ "done_final": "COMPLETED",
+ "bundle_3.0.3": 200,
+ "waiting_gate": "AWAITING_PLAN",
+ "session": 202
+}
