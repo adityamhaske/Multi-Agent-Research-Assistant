@@ -66,6 +66,7 @@ jobs:
         with:
           packages: >-
             libwebkit2gtk-4.1-0 webkit2gtk-driver xvfb openbox xdotool imagemagick
+            python3-gi gir1.2-gtk-3.0
       - name: Install the .deb
         if: runner.os == 'Linux'
         shell: bash
@@ -92,7 +93,9 @@ jobs:
       - name: tauri-driver
         timeout-minutes: 15
         run: cargo install tauri-driver --locked
-      - name: Embedding stub, display, window manager and tauri-driver (Linux)
+      # Helpers start in the same step as the pass: a process a Windows step starts does not
+      # outlive the step.
+      - name: Drive the installed app (Linux)
         if: runner.os == 'Linux'
         shell: bash
         run: |
@@ -100,24 +103,31 @@ jobs:
           python scripts/gates/g2_embed_stub.py --port 11434 &
           Xvfb :99 -screen 0 1600x1000x24 &
           sleep 2
-          DISPLAY=:99 openbox &
-          echo "DISPLAY=:99" >> "$GITHUB_ENV"
-          DISPLAY=:99 OLLAMA_BASE_URL=http://127.0.0.1:11434/v1 tauri-driver > tauri-driver.log 2>&1 &
+          export DISPLAY=:99
+          openbox &
+          OLLAMA_BASE_URL=http://127.0.0.1:11434/v1 tauri-driver > tauri-driver.log 2>&1 &
           sleep 3
-      - name: Embedding stub and tauri-driver (Windows)
+          python scripts/gates/g2_webview_e2e.py --app "$APP" \
+            --work "$RUNNER_TEMP/g2-work" --out g2-evidence
+      - name: Drive the installed app (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Start-Process python -ArgumentList 'scripts/gates/g2_embed_stub.py','--port','11434'
-          $env:OLLAMA_BASE_URL = 'http://127.0.0.1:11434/v1'
+          $ErrorActionPreference = 'Stop'
           $driver = Join-Path $env:EDGEWEBDRIVER 'msedgedriver.exe'
-          Start-Process tauri-driver -ArgumentList '--native-driver', $driver -RedirectStandardError tauri-driver.log
-          Start-Sleep 3
-      - name: Drive the installed app
-        shell: bash
-        run: |
-          python scripts/gates/g2_webview_e2e.py --app "$APP" \
-            --fixtures "$RUNNER_TEMP/g2-fixtures" --out g2-evidence
+          if (-not (Test-Path $driver)) { throw "no msedgedriver at $driver" }
+          & $driver --version
+          $stub = Start-Process python -PassThru -ArgumentList 'scripts/gates/g2_embed_stub.py','--port','11434'
+          $env:OLLAMA_BASE_URL = 'http://127.0.0.1:11434/v1'
+          $td = Start-Process tauri-driver -PassThru -ArgumentList '--native-driver', $driver `
+            -RedirectStandardOutput tauri-driver.out.log -RedirectStandardError tauri-driver.log
+          Start-Sleep 5
+          if ($td.HasExited) { Get-Content tauri-driver.log; throw "tauri-driver exited $($td.ExitCode)" }
+          python scripts/gates/g2_webview_e2e.py --app $env:APP `
+            --work (Join-Path $env:RUNNER_TEMP 'g2-work') --out g2-evidence
+          $code = $LASTEXITCODE
+          Stop-Process -Id $td.Id, $stub.Id -ErrorAction SilentlyContinue
+          exit $code
       - name: Upload G-2 evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -127,5 +137,5 @@ jobs:
             g2-evidence/
             installer.sha256
             desktop-run.txt
-            tauri-driver.log
+            tauri-driver*.log
           retention-days: 90
