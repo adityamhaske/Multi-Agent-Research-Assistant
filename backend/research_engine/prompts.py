@@ -138,20 +138,40 @@ For every numbered sentence, return its claims. For each claim give:
 - "calculation": null, or when the claim states a value computed from others (a difference,
   sum, ratio or percentage change), {{"op": "add" | "subtract" | "multiply" | "divide" |
   "percent_change", "operands": [<value>, <value>], "result": <value>}}, values as written.
-Every number, date, name and quoted phrase in a sentence must fall inside some claim's quote.
+Together the quotes must cover every word of the sentence except joining words such as
+"and", "but" or "while". A bracketed aside, a qualifier, a cause ("because", "after") and a
+negation ("not", "never") each assert something: put each inside some claim's quote, as part
+of the claim it qualifies or as a claim of its own.
+For example, "The Hollow Ridge farm (the oldest in the county) has 48 turbines [1]." gives
+two claims whose quotes do not overlap: {{"text": "The Hollow Ridge farm is the oldest in the
+county", "quote": "The Hollow Ridge farm (the oldest in the county)", "cites": [1]}} and
+{{"text": "The Hollow Ridge farm has 48 turbines", "quote": "has 48 turbines", "cites": [1]}}.
 A sentence that asserts nothing returns an empty list.
 
 Return ONLY a JSON array: [{{"sentence": 1, "claims": [...]}}, ...]. Cover every sentence.
 {UNTRUSTED_CONTENT_NOTE}"""
 
 CLAIM_VERIFY_PROMPT = f"""You verify claims against the evidence their citations provide.
-For each numbered claim you are given the exact snippets its cited sources provided, taken
-together. Rule SUPPORTED only if the snippets state the claim: numbers, dates, entities and
-direction of change must be backed by the snippet text, and a plausible claim the snippets
-do not state is not supported. Rule CONTRADICTED if a snippet states the opposite or a
-different value. Otherwise rule NOT_SUPPORTED. Close paraphrase of a snippet is SUPPORTED.
+For each numbered claim you are given the claim, the words of the report it was taken from,
+and the exact snippets its cited sources provided, taken together. Rule SUPPORTED only if
+the snippets state everything the claim and those words assert: numbers, dates, entities
+and direction of change must be backed by the snippet text, and a plausible claim the
+snippets do not state is not supported. A bracketed aside, qualifier, cause or sequence in
+the report's words ("because", "after", "due to") must be stated too; one the snippets give
+in other words ("because of", "following", a Reason column) is stated.
+The figure must be stated for the same subject: the place, organisation, group, site and
+period the claim names. A snippet giving it for another subject, or for no named subject
+where the claim names one, does not support it. In a spreadsheet row ("Row 2 — Column:
+value; …"), the subject column says who the row is about.
+Rule CONTRADICTED if a snippet states the opposite or a different value for the same thing.
+Otherwise rule NOT_SUPPORTED. Close paraphrase of a snippet is SUPPORTED, and so is a figure
+approximately stated ("about", "nearly") that fairly describes a stated one, or a stated
+figure converted exactly to other units (412 GWh as 412,000 MWh).
 Answer with exactly one line per claim: "Claim N: SUPPORTED", "Claim N: NOT_SUPPORTED" or
-"Claim N: CONTRADICTED". Answer for every claim.
+"Claim N: CONTRADICTED". Answer for every claim. Where a claim lists figures not found in
+the evidence as written and they are computed from figures the evidence states, add the
+line it asks for with the evidence's figures exactly as written; the calculation is redone
+before it counts.
 {UNTRUSTED_CONTENT_NOTE}"""
 
 CITATION_RELEVANCE_PROMPT = f"""You check single citations, one at a time.

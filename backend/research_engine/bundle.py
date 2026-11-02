@@ -347,7 +347,9 @@ def stamp_demo_md(report: str, *, demo: bool) -> str:
     return f"{DEMO_STAMP_MD}{report}" if demo else report
 
 
-def render_model_attribution_md(model_routing: dict[str, str] | None) -> str:
+def render_model_attribution_md(
+    model_routing: dict[str, str] | None, checker_accuracy: dict | None = None
+) -> str:
     """A "Models used" Markdown footer — the `.md`/`.pdf` export counterpart of this
     module's `models` field (requirement 1: disclosure "in the report/export").
 
@@ -367,8 +369,13 @@ def render_model_attribution_md(model_routing: dict[str, str] | None) -> str:
     Empty when routing was never resolved — a run that failed before the planner, or a
     report exported from before this field existed — never a guessed default (the
     unmeasured-vs-zero rule).
+
+    A selected-files run also states how accurate its claim checker was measured to be
+    (D-24), from the label its grounding record carries — the run page shows the same words.
     """
     if not model_routing:
         return ""
     lines = "\n".join(f"- **{role}** — `{route}`" for role, route in sorted(model_routing.items()))
+    if checker_accuracy and checker_accuracy.get("label"):
+        lines += f"\n\n{checker_accuracy['label'][0].upper()}{checker_accuracy['label'][1:]}."
     return f"\n\n---\n\n## Models used\n\n{lines}\n"

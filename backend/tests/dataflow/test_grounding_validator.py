@@ -95,10 +95,14 @@ class Judge:
 
     def verify(self, human: str) -> str:
         lines = []
-        for n, claim, evidence in re.findall(
-            r"Claim (\d+): (.*?)\nEvidence \d+:\n(.*?)(?=\n\nClaim \d+:|\Z)", human, re.S
+        # A competent judge holds the claim *and* the report's own words to the evidence.
+        for n, claim, written, evidence in re.findall(
+            r"Claim (\d+): (.*?)\nAs written in the report: \"(.*?)\"\n(?:Figures [^\n]*\n)?"
+            r"Evidence \d+:\n(.*?)(?=\n\nClaim \d+:|\Z)",
+            human,
+            re.S,
         ):
-            need, have = _words(claim), _words(evidence)
+            need, have = _words(claim) | _words(written), _words(evidence)
             lines.append(f"Claim {n}: {'SUPPORTED' if need <= have else 'NOT_SUPPORTED'}")
         return "\n".join(lines)
 
@@ -410,3 +414,121 @@ async def test_conclusions_are_checked_against_the_findings(judge):
     claims = _by_text(result)
     assert claims["Enrolment rose because tuition fell [1]."].cause == "inference_rejected"
     assert "inference" in judge["judge"].calls
+
+
+# ── Nothing asserted goes unchecked (G-6 run 1) ───────────────────────────────────
+
+ASIDE = "Volunteers (the largest group in the region) gave 14,800 hours in 2023 [1]."
+
+
+def test_an_aside_with_no_number_or_capital_must_still_be_quoted():
+    """It names no figure and no proper noun, and it still asserts something."""
+    left_out = [
+        {
+            "text": "Volunteers gave 14,800 hours in 2023",
+            "quote": "gave 14,800 hours in 2023",
+            "cites": [1],
+        },
+        {"text": "Volunteers exist", "quote": "Volunteers", "cites": [1]},
+    ]
+    assert grounding.check_decomposition(ASIDE, left_out) is None
+    quoted = left_out + [
+        {
+            "text": "Volunteers are the largest group in the region",
+            "quote": "(the largest group in the region)",
+            "cites": [1],
+        }
+    ]
+    assert grounding.check_decomposition(ASIDE, quoted) is not None
+
+
+def test_only_joining_words_may_sit_between_quotes():
+    sentence = "Sales rose 5% in 2022 and costs fell 3% in 2023 [1]."
+    claims = grounding.check_decomposition(
+        sentence,
+        [
+            {"text": "Sales rose 5% in 2022", "quote": "Sales rose 5% in 2022", "cites": [1]},
+            {"text": "Costs fell 3% in 2023", "quote": "costs fell 3% in 2023", "cites": [1]},
+        ],
+    )
+    assert claims is not None, "'and' joins two assertions and makes none"
+    negated = "Sales did not rise in 2022 [1]."
+    dropped_not = [
+        {"text": "Sales rise in 2022", "quote": "rise in 2022", "cites": [1]},
+        {"text": "Sales", "quote": "Sales did", "cites": [1]},
+    ]
+    assert grounding.check_decomposition(negated, dropped_not) is None, "a negation is content"
+
+
+async def test_a_restatement_that_drops_an_aside_is_held_to_the_words_as_written(judge):
+    def restates_without_the_aside(sentence):
+        return [
+            {
+                "text": "Volunteers gave 14,800 hours in 2023.",
+                "quote": sentence,
+                "cites": [1],
+                "calculation": None,
+            }
+        ]
+
+    judge["judge"] = Judge(decompose=restates_without_the_aside)
+    result = await _validate(ASIDE + "\n", _sources("Volunteers gave 14,800 hours in 2023."))
+    (claim,) = result.claims
+    assert claim.state == grounding.NOT_SUPPORTED, "the aside was written, and nothing states it"
+
+
+# ── A derived figure: the model proposes, the code recomputes ─────────────────────
+
+
+class CalculatingJudge(Judge):
+    """Rules every claim SUPPORTED and proposes `calc` for it, right or wrong."""
+
+    def __init__(self, calc: str | None, **kw):
+        super().__init__(**kw)
+        self.calc = calc
+
+    def verify(self, human: str) -> str:
+        n = len(re.findall(r"^Claim \d+:", human, re.M))
+        out = [f"Claim {i}: SUPPORTED" for i in range(1, n + 1)]
+        if self.calc:
+            out.append(f"Calc 1: {self.calc}")
+        return "\n".join(out)
+
+
+WIND = _sources("The farm has 48 turbines of 3.6 megawatts each.")
+
+
+@pytest.mark.parametrize(
+    ("claim", "calc", "state"),
+    [
+        ("The farm has 172.8 megawatts of turbines [1].", "multiply 48 3.6 = 172.8", "supported"),
+        # The arithmetic is redone: 48 × 3.6 is not 180.
+        ("The farm has 180 megawatts of turbines [1].", "multiply 48 3.6 = 180", "not_supported"),
+        # Operands more precise than the snippets state are invented digits.
+        (
+            "The farm has 172.8 megawatts of turbines [1].",
+            "multiply 48 3.60 = 172.80",
+            "not_supported",
+        ),
+        # An operand the snippets do not state cannot be used.
+        ("The farm has 240 megawatts of turbines [1].", "multiply 48 5 = 240", "not_supported"),
+        # No calculation: a figure missing from the snippets is still a rejection.
+        ("The farm has 172.8 megawatts of turbines [1].", None, "not_supported"),
+    ],
+    ids=[
+        "right",
+        "wrong-arithmetic",
+        "invented-precision",
+        "unstated-operand",
+        "no-calculation",
+    ],
+)
+async def test_a_derived_figure_is_supported_only_by_a_calculation_the_code_redoes(
+    judge, claim, calc, state
+):
+    judge["judge"] = CalculatingJudge(calc)
+    result = await _validate(claim + "\n", WIND)
+    (c,) = result.claims
+    assert c.state == state, (c.state, c.cause)
+    if state == "not_supported":
+        assert c.cause == "number_not_in_snippet"

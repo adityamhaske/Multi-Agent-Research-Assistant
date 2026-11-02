@@ -5,7 +5,8 @@ import type { Run } from "@/lib/types";
  *
  * The file list is the frozen selection from the run's own record — never re-derived from
  * the corpus as it is now, which may have changed since. Grounding counts are shown as
- * recorded; a run with no record says nothing rather than implying zero.
+ * recorded; a run with no record says nothing rather than implying zero. The checker-accuracy
+ * line is the record's own words (D-24), so the page and the export cannot disagree.
  */
 export function RunScopePanel({ run }: { run: Run }) {
   const files = run.corpus_selection?.resolved ?? [];
@@ -53,6 +54,13 @@ export function RunScopePanel({ run }: { run: Run }) {
             : grounding.status === "no_evidence"
               ? "These files don't answer the question. Nothing was answered from outside them."
               : `${grounding.claims_unmeasured ?? 0} claim(s) could not be checked, so the report was not offered for approval.`}
+        </p>
+      )}
+      {grounding?.checker_accuracy?.label && (
+        <p className="mt-1 text-xs text-text-muted">
+          {grounding.checker_accuracy.label.charAt(0).toUpperCase() +
+            grounding.checker_accuracy.label.slice(1)}
+          .
         </p>
       )}
     </section>

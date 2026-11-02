@@ -527,6 +527,11 @@ export interface Run {
     claims_unmeasured?: number;
     units_repaired?: number;
     units_dropped?: number;
+    /** How accurate G-6 measured this run's checking model to be (RFC V3.1 D-24). */
+    checker_accuracy?: {
+      status: "meets_threshold" | "below_threshold" | "not_measured";
+      label: string;
+    } | null;
   } | null;
   demo: boolean;
   skip_plan_gate: boolean;
