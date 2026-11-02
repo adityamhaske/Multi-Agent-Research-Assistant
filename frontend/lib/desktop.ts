@@ -35,10 +35,13 @@ export function resolveSidecar(
   injected?: Partial<SidecarConfig> | null,
 ): SidecarConfig | null {
   const params = new URLSearchParams(search);
-  const baseUrl = injected?.baseUrl ?? params.get("sidecar");
+  const baseUrl = (injected?.baseUrl ?? params.get("sidecar") ?? "").replace(/\/+$/, "");
   const token = injected?.token ?? params.get("token");
-  if (!baseUrl || !token) return null;
-  return { baseUrl: baseUrl.replace(/\/+$/, ""), token };
+  // The engine binds loopback only (docs/13 §7), so its address is always
+  // http://127.0.0.1:<port>. Anything else — reachable through the query-string fallback —
+  // would send every API call, bearer token included, to another host.
+  if (!/^http:\/\/127\.0\.0\.1:\d{1,5}$/.test(baseUrl) || !token) return null;
+  return { baseUrl, token };
 }
 
 let cached: SidecarConfig | null | undefined;
@@ -64,6 +67,17 @@ export function _resetSidecarCache(): void {
 export function apiBase(): string {
   const cfg = sidecarConfig();
   return cfg ? `${cfg.baseUrl}/api/v1` : "/api/v1";
+}
+
+/**
+ * `url` when it is this app's own API — a same-origin `/api/v1/` path, or the desktop engine
+ * on loopback — and `undefined` otherwise. A link's address built from a route parameter
+ * (a run or session id) must not become a `javascript:` URL or a jump to another site.
+ */
+export function apiHref(url: string): string | undefined {
+  return /^(\/api\/v1\/|http:\/\/127\.0\.0\.1:\d{1,5}\/api\/v1\/)[^\s"'<>\\]*$/.test(url)
+    ? url
+    : undefined;
 }
 
 /** Bearer auth in desktop mode; the web build authenticates with httpOnly cookies. */

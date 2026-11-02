@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 // The web test run builds without NEXT_PUBLIC_DESKTOP, so isDesktop is false here;
 // the pure resolver is the part that carries the real logic (docs/13 §7).
-import { resolveSidecar, sessionHref, streamUrl } from "./desktop";
+import { apiHref, resolveSidecar, sessionHref, streamUrl } from "./desktop";
 
 describe("resolveSidecar", () => {
   it("parses the handshake from the launch query string", () => {
@@ -28,6 +28,19 @@ describe("resolveSidecar", () => {
     expect(cfg).toEqual({ baseUrl: "http://127.0.0.1:9", token: "from-query" });
   });
 
+  it("refuses an engine address that is not loopback", () => {
+    for (const base of [
+      "https://evil.example",
+      "http://127.0.0.1.evil.example:9",
+      "javascript:alert(1)",
+      "http://localhost:9",
+      "http://127.0.0.1:9/api",
+    ]) {
+      expect(resolveSidecar(`?sidecar=${encodeURIComponent(base)}&token=t`)).toBeNull();
+      expect(resolveSidecar("", { baseUrl: base, token: "t" })).toBeNull();
+    }
+  });
+
   it("returns null when either half of the handshake is missing", () => {
     expect(resolveSidecar("?sidecar=http://127.0.0.1:9")).toBeNull();
     expect(resolveSidecar("?token=t")).toBeNull();
@@ -42,5 +55,29 @@ describe("web-build defaults", () => {
 
   it("streamUrl passes through untouched without a sidecar handshake", () => {
     expect(streamUrl("/api/v1/sessions/1/stream")).toBe("/api/v1/sessions/1/stream");
+  });
+});
+
+describe("apiHref", () => {
+  it("passes this app's own API addresses", () => {
+    expect(apiHref("/api/v1/runs/abc/cited-documents/d%201/download")).toBe(
+      "/api/v1/runs/abc/cited-documents/d%201/download",
+    );
+    expect(apiHref("http://127.0.0.1:58583/api/v1/projects/p/corpus/documents/d/download")).toBe(
+      "http://127.0.0.1:58583/api/v1/projects/p/corpus/documents/d/download",
+    );
+  });
+
+  it("refuses anything a route parameter could turn it into", () => {
+    for (const url of [
+      "javascript:alert(1)",
+      "https://evil.example/api/v1/x",
+      "//evil.example/api/v1/x",
+      "/api/v1/x\"><script>",
+      "http://127.0.0.1.evil.example/api/v1/x",
+      "/runs/abc/download",
+    ]) {
+      expect(apiHref(url)).toBeUndefined();
+    }
   });
 });
