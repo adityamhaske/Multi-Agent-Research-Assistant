@@ -12,13 +12,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .constants import (
-    CHECKSUMS,
-    IMAGES,
-    MACOS_UNQUARANTINE,
-    SIZE_FLOOR_MB,
-    installers_for,
-)
+from .constants import CHECKSUMS, IMAGES, MACOS_UNQUARANTINE, SIZE_FLOOR_MB, installers_for
 
 # A version string, not an IP address (127.0.0.1 has four parts) and not the fourth part of
 # one. The lookbehind allows letters so `Assistant_3.0.1_` and `V3.0.0` are still found.
@@ -49,8 +43,12 @@ def parse_releases_ts(text: str) -> list[dict]:
                 "headline": bool(re.search(r"^\s*headline:\s*\S", chunk, re.M)),
                 "improved": _array_len(chunk, "improved"),
                 "known": _array_len(chunk, "known"),
-                "improvedSummary": bool(re.search(r'improvedSummary:\s*\n?\s*"[^"]+"', chunk)),
-                "knownSummary": bool(re.search(r'knownSummary:\s*\n?\s*"[^"]+"', chunk)),
+                "improvedSummary": bool(
+                    re.search(r'improvedSummary:\s*\n?\s*"[^"]+"', chunk)
+                ),
+                "knownSummary": bool(
+                    re.search(r'knownSummary:\s*\n?\s*"[^"]+"', chunk)
+                ),
             }
         )
     return entries
@@ -69,18 +67,24 @@ def release_list_problems(entries: list[dict]) -> list[str]:
     for e in entries:
         v = parse_version(e["version"])
         if not e["version"].startswith("v") or v is None:
-            problems.append(f"{e['version']!r} is not a v-prefixed version (it must match the tag)")
+            problems.append(
+                f"{e['version']!r} is not a v-prefixed version (it must match the tag)"
+            )
             continue
         if e["version"] in seen:
             problems.append(f"{e['version']} appears twice")
         seen.add(e["version"])
         if previous is not None and v >= previous:
-            problems.append(f"{e['version']} is listed after a lower version — newest first")
+            problems.append(
+                f"{e['version']} is listed after a lower version — newest first"
+            )
         previous = v
         if not e["date"] or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", e["date"]):
             problems.append(f"{e['version']} has no ISO date")
         elif previous_date and e["date"] > previous_date:
-            problems.append(f"{e['version']} is dated after the release listed above it")
+            problems.append(
+                f"{e['version']} is dated after the release listed above it"
+            )
         else:
             previous_date = e["date"]
     return problems
@@ -96,7 +100,9 @@ def entry_completeness(entry: dict) -> tuple[list[str], list[str]]:
     if not entry["improvedSummary"]:
         failures.append("no `improvedSummary`")
     if entry["known"] == 0:
-        warnings.append("`known` is empty — confirm in the record that nothing is known")
+        warnings.append(
+            "`known` is empty — confirm in the record that nothing is known"
+        )
     elif not entry["knownSummary"]:
         failures.append("`known` has items but no `knownSummary`")
     return failures, warnings
@@ -152,11 +158,15 @@ def review_references(
     reviewed = {(a["path"], normalize_line(a["text"])) for a in allowlist}
     present = {(r["path"], r["text"]) for r in refs}
     unreviewed = [r for r in refs if (r["path"], r["text"]) not in reviewed]
-    stale = [a for a in allowlist if (a["path"], normalize_line(a["text"])) not in present]
+    stale = [
+        a for a in allowlist if (a["path"], normalize_line(a["text"])) not in present
+    ]
     cur = parse_version(current)
     future = []
     for r in refs:
-        newer = [v for v in r["versions"] if (pv := parse_version(v)) and cur and pv > cur]
+        newer = [
+            v for v in r["versions"] if (pv := parse_version(v)) and cur and pv > cur
+        ]
         # Only this product's version family: a third-party `16.3.5` is not a claim about us.
         newer = [v for v in newer if parse_version(v)[0] <= cur[0] + 1]
         if newer:
@@ -179,7 +189,9 @@ def asset_problems(assets: list[dict], version: str) -> list[str]:
     names = {a["name"] for a in assets}
     problems = [f"missing: {n}" for n in sorted(expected - names)]
     problems += [f"unexpected asset: {n}" for n in sorted(names - expected)]
-    problems += [f"asset name contains a space: {n!r}" for n in sorted(names) if " " in n]
+    problems += [
+        f"asset name contains a space: {n!r}" for n in sorted(names) if " " in n
+    ]
     for a in assets:
         suffix = next((s for s in SIZE_FLOOR_MB if a["name"].endswith(s)), None)
         if suffix and a["size"] < SIZE_FLOOR_MB[suffix] * 1024 * 1024:
@@ -190,7 +202,9 @@ def asset_problems(assets: list[dict], version: str) -> list[str]:
     return problems
 
 
-def checksum_problems(sums: dict[str, str], assets: list[dict], version: str) -> list[str]:
+def checksum_problems(
+    sums: dict[str, str], assets: list[dict], version: str
+) -> list[str]:
     """SHA256SUMS names exactly the installers, and each hash is what GitHub stored."""
     installers = {t.format(v=version) for t in installers_for(version).values()}
     problems = [f"SHA256SUMS does not list {n}" for n in sorted(installers - set(sums))]
@@ -211,16 +225,24 @@ def checksum_problems(sums: dict[str, str], assets: list[dict], version: str) ->
 def release_body_problems(body: str, version: str) -> list[str]:
     problems = []
     if f"Desktop bundles for v{version}" not in body:
-        problems.append("the desktop workflow's appended section is missing — was it overwritten?")
+        problems.append(
+            "the desktop workflow's appended section is missing — was it overwritten?"
+        )
     if "Multi-arch container images" not in body:
-        problems.append("the release workflow's image section is missing — was it overwritten?")
+        problems.append(
+            "the release workflow's image section is missing — was it overwritten?"
+        )
     if re.search(rf":v{re.escape(version)}\b", body):
-        problems.append(f"an image is referenced as `:v{version}`; the pushed tag is `:{version}`")
+        problems.append(
+            f"an image is referenced as `:v{version}`; the pushed tag is `:{version}`"
+        )
     for image in IMAGES:
         if not re.search(rf"-{image}:{re.escape(version)}\b", body):
             problems.append(f"no `{image}:{version}` pull line")
     if MACOS_UNQUARANTINE not in body:
-        problems.append("the macOS first-launch command is missing or differs from the site's")
+        problems.append(
+            "the macOS first-launch command is missing or differs from the site's"
+        )
     if "SHA256SUMS" not in body:
         problems.append("no instruction to verify downloads against SHA256SUMS")
     return problems
@@ -375,7 +397,9 @@ def runtime_drift(
             "cannot be read"
         ]
     if len(images) > 1:
-        return [f"{rt.dockerfile} builds on more than one {rt.name} ({', '.join(images)})"]
+        return [
+            f"{rt.dockerfile} builds on more than one {rt.name} ({', '.join(images)})"
+        ]
     image, problems = images[0], []
     seen: set[tuple[str, str]] = set()
     for path, text in workflows.items():
@@ -456,13 +480,16 @@ def floor_drift(
         own = required.get(path, ())
         if text is None:
             if own:
-                problems.append(f"{path} is missing, so the {name} floor it states cannot be read")
+                problems.append(
+                    f"{path} is missing, so the {name} floor it states cannot be read"
+                )
             continue
         for rx in dict.fromkeys((*own, *anywhere)):
             stated = sorted({".".join(m.groups()) for m in re.finditer(rx, text, re.M)})
             if not stated and rx in own:
                 problems.append(
-                    f"{path}: no line states the {name} floor in the form this check reads (`{rx}`)"
+                    f"{path}: no line states the {name} floor in the form this check reads "
+                    f"(`{rx}`)"
                 )
             problems += [
                 f"{path}: states a {name} {v} floor; CI runs only the image's {image}"

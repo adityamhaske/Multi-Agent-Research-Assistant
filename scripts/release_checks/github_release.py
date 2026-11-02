@@ -132,9 +132,7 @@ def gh_checksums(ctx: Ctx) -> Outcome:
     if not all(a.get("digest") for a in assets):
         raise Unavailable("GitHub did not report asset digests; use --download")
     sums = _sums(ctx)
-    return verdict(
-        checksum_problems(sums, assets, ctx.version), f"{len(sums)} hashes match", sums=sums
-    )
+    return verdict(checksum_problems(sums, assets, ctx.version), f"{len(sums)} hashes match", sums=sums)
 
 
 def _hash_download(url: str) -> str:

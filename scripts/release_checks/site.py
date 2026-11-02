@@ -198,7 +198,7 @@ def live_download(ctx: Ctx) -> Outcome:
     if want - links:
         problems.append(f"missing {sorted(want - links)}")
     # A platform this release left out links its newest earlier build; A15.02 checks those
-    # answer. Anything else of this version, or newer, is a link the release does not have.
+    # answer. Anything else of this version is a link the release does not have.
     stray = sorted(h for h in links - want if f"/v{ctx.version}/" in h)
     if stray:
         problems.append(f"unexpected {stray}")
