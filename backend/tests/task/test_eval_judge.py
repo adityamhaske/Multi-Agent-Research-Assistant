@@ -445,7 +445,11 @@ def test_the_judges_own_client_is_asked_for_response_headers():
     harness.configure_judge(GATEWAY_JUDGE)
     # The test process runs scripted models; building a real client needs real mode. No call
     # is made — the client is only constructed and inspected.
-    token = set_run_config(replace(get_run_config(), llm_mode="real"))
+    base = get_run_config()
+    keys = {**base.provider_keys, "custom_base_url": "http://127.0.0.1:20128/v1"}
+    token = set_run_config(
+        replace(base, llm_mode="real", provider_keys=keys, enforce_ssrf_guards=False)
+    )
     try:
         llm = harness._judge_llm()
     finally:

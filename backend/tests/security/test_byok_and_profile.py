@@ -87,6 +87,36 @@ def test_build_raises_actionable_error_without_any_key():
         llm_factory.reset_user_keys(token)
 
 
+def test_a_custom_route_with_no_endpoint_is_refused_rather_than_sent_to_openai():
+    """A `custom:` route names the user's own endpoint. With none configured, the OpenAI
+    client falls back to api.openai.com, so the custom key and the prompts went to a
+    provider nobody chose — OpenAI answered 401 quoting the key. The route is refused."""
+    from research_engine.runconfig import RunConfig, reset_run_config, set_run_config
+
+    config = set_run_config(RunConfig(llm_mode="real", provider_keys={"custom": CUSTOM_KEY}))
+    keys = llm_factory.set_user_keys({})
+    try:
+        with pytest.raises(ValueError, match="no endpoint address"):
+            llm_factory._build("custom", "auto/best-fast", "planner")
+    finally:
+        llm_factory.reset_user_keys(keys)
+        reset_run_config(config)
+
+
+def test_a_custom_route_with_an_endpoint_dials_that_endpoint():
+    from research_engine.runconfig import RunConfig, reset_run_config, set_run_config
+
+    keys_in = {"custom": CUSTOM_KEY, "custom_base_url": "http://127.0.0.1:20128/v1"}
+    config = set_run_config(
+        RunConfig(llm_mode="real", provider_keys=keys_in, enforce_ssrf_guards=False)
+    )
+    try:
+        llm = llm_factory._build("custom", "auto/best-fast", "planner")
+        assert str(llm.openai_api_base).startswith("http://127.0.0.1:20128")
+    finally:
+        reset_run_config(config)
+
+
 def test_user_provider_keys_builds_the_dict_from_an_encrypted_column():
     """The shape three call sites used to build by hand: `{provider: key}`, plus a
     `{provider}_base_url` entry when the user pointed the key at a custom endpoint."""

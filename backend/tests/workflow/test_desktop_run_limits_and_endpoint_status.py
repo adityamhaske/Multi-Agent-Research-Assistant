@@ -82,6 +82,30 @@ def test_the_desktop_and_the_cli_read_limits_through_one_function():
     assert sc.run_limits_from_env is local.run_limits_from_env
 
 
+def test_the_desktop_reads_the_custom_endpoint_from_the_environment_as_the_cli_does(
+    clean_env, monkeypatch
+):
+    """`CUSTOM_API_KEY` was read from the environment and `CUSTOM_BASE_URL` was not, so a
+    custom route had a key and no address — and the client dialled api.openai.com with it.
+    The two config paths read the same variables; a saved endpoint still wins."""
+    monkeypatch.setenv("CUSTOM_API_KEY", "sk-test-custom")
+    monkeypatch.setenv("CUSTOM_BASE_URL", "http://127.0.0.1:20128/v1")
+    save_routing(clean_env, dict.fromkeys(ROLES, "custom:auto/best-fast"))
+
+    config = sidecar_run_config(fake=False, data_dir=clean_env)
+    assert config.provider_keys["custom_base_url"] == "http://127.0.0.1:20128/v1"
+    assert (
+        local.run_config_from_env(fake=False).provider_keys["custom_base_url"]
+        == (config.provider_keys["custom_base_url"])
+    )
+
+    assert sc.provider_keys_from_env is local.provider_keys_from_env  # one reader, not two
+
+    sc.save_custom_endpoint(clean_env, "http://127.0.0.1:1234/v1")
+    config = sidecar_run_config(fake=False, data_dir=clean_env)
+    assert config.provider_keys["custom_base_url"] == "http://127.0.0.1:1234/v1"
+
+
 @pytest.fixture
 async def sidecar(clean_env):
     app = create_sidecar_app(data_dir=clean_env, token=TOKEN, fake=False)

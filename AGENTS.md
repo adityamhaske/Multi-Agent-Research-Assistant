@@ -108,7 +108,11 @@ run locally before pushing, because one green build says nothing about the other
 
 **When you change any of these, grep for the other copy before you finish:**
 
-- Config → `app/runtime.py` *and* `research_engine/local.py`
+- Config → `app/runtime.py` *and* `research_engine/local.py`. Provider keys and the custom
+  endpoint read from the environment have one home, `local.provider_keys_from_env`, used by
+  the CLI and the desktop: the desktop's own copy read `CUSTOM_API_KEY` without
+  `CUSTOM_BASE_URL`, and a custom route with no address dialled api.openai.com with the
+  custom key. `llm_factory` now refuses a custom route with no endpoint
 - Request → session → `app/api/v1/research.py` *and* `desktop/sidecar.py`
 - Per-session run config → `app/workers/pipeline_runner.py` *and*
   `desktop/sidecar.py::_drive_session`
