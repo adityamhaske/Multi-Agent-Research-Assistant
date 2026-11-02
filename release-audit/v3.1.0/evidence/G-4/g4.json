@@ -1,0 +1,377 @@
+{
+  "gate": "G-4",
+  "generated_at": "2026-11-02T05:11:52+00:00",
+  "build": {
+    "version": "unknown",
+    "git_sha": "unknown",
+    "dirty": true,
+    "contract_version": "unknown",
+    "built_at": "unknown",
+    "checkout": "e7471707cd5ddc7f5914b86f850cde6f7acb002a"
+  },
+  "python": "3.14.8 (main, Sep 30 2026, 17:55:09) [Clang 21.0.0 (clang-2100.3.34.2)]",
+  "v3.0.2_verifier": {
+    "tag": "v3.0.2",
+    "verify_bundle.py sha256": "b38fea875e7ba81004000b0597070c9835ccb0c3f852dfc5e003ab67fb075862"
+  },
+  "bundles": [
+    {
+      "path": "release-audit/v3.1.0/evidence/G-4/bundle-1.json",
+      "sha256": "19354abf8d503a4108958412d182572cc246c7b981d3ad293891cf663071b449",
+      "bundle_hash": "9113b39118f77c8fcab23522170cbabb4c3f2931b1f3fec54769102d081208ef",
+      "bundle_version": 2,
+      "demo": false,
+      "cases": {
+        "as produced": {
+          "v3.0.2": {
+            "passed": true,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": true,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true
+            }
+          },
+          "3.1": {
+            "passed": true,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": true,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true,
+              "corpus_selection": true
+            }
+          },
+          "held": true
+        },
+        "source edited": {
+          "v3.0.2": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true
+            }
+          },
+          "3.1": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true,
+              "corpus_selection": true
+            }
+          },
+          "held": true
+        },
+        "selection trace entry edited": {
+          "v3.0.2": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true
+            }
+          },
+          "3.1": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true,
+              "corpus_selection": true
+            }
+          },
+          "held": true
+        },
+        "grounding_validation edited": {
+          "v3.0.2": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true
+            }
+          },
+          "3.1": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true,
+              "corpus_selection": true
+            }
+          },
+          "held": true
+        },
+        "report edited": {
+          "v3.0.2": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": false,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true
+            }
+          },
+          "3.1": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": false,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true,
+              "corpus_selection": true
+            }
+          },
+          "held": true
+        },
+        "outside selection, rehashed": {
+          "v3.0.2": {
+            "passed": true,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": true,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true
+            }
+          },
+          "3.1": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": true,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true,
+              "corpus_selection": false
+            }
+          },
+          "held": true
+        }
+      },
+      "problems": []
+    },
+    {
+      "path": "release-audit/v3.1.0/evidence/G-4/bundle-2.json",
+      "sha256": "2e6bac5ca17c5032d322f1c742998fff74fa96f136a31650b379bb67c51319a3",
+      "bundle_hash": "c403572a43a72d871be833c27c1f409804597b0221f34c4aff557746b1d2dad3",
+      "bundle_version": 2,
+      "demo": false,
+      "cases": {
+        "as produced": {
+          "v3.0.2": {
+            "passed": true,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": true,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true
+            }
+          },
+          "3.1": {
+            "passed": true,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": true,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true,
+              "corpus_selection": true
+            }
+          },
+          "held": true
+        },
+        "source edited": {
+          "v3.0.2": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true
+            }
+          },
+          "3.1": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true,
+              "corpus_selection": true
+            }
+          },
+          "held": true
+        },
+        "selection trace entry edited": {
+          "v3.0.2": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true
+            }
+          },
+          "3.1": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true,
+              "corpus_selection": true
+            }
+          },
+          "held": true
+        },
+        "grounding_validation edited": {
+          "v3.0.2": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true
+            }
+          },
+          "3.1": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true,
+              "corpus_selection": true
+            }
+          },
+          "held": true
+        },
+        "report edited": {
+          "v3.0.2": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": false,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true
+            }
+          },
+          "3.1": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": false,
+              "report_integrity": false,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true,
+              "corpus_selection": true
+            }
+          },
+          "held": true
+        },
+        "outside selection, rehashed": {
+          "v3.0.2": {
+            "passed": true,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": true,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true
+            }
+          },
+          "3.1": {
+            "passed": false,
+            "checks": {
+              "schema_validity": true,
+              "bundle_integrity": true,
+              "report_integrity": true,
+              "evidence_integrity": true,
+              "citation_resolution": true,
+              "claim_evidence_linkage": true,
+              "approval_chain": true,
+              "corpus_selection": false
+            }
+          },
+          "held": true
+        }
+      },
+      "problems": []
+    }
+  ],
+  "result": "PASS",
+  "problems": []
+}

@@ -1,0 +1,53 @@
+{
+ "engine": {
+  "version": "unknown",
+  "git_sha": "unknown",
+  "dirty": true,
+  "contract_version": "unknown",
+  "built_at": "unknown"
+ },
+ "runs": [
+  {
+   "run_id": "583a9bbe-707b-4050-9838-c28222b9977b",
+   "question": "What does the report say about enrolment?",
+   "files": [
+    "Reports/report.docx"
+   ],
+   "status_at_gate": "AWAITING_REVIEW",
+   "error": null,
+   "grounding_status": "complete",
+   "model_routing": {
+    "planner": "custom:auto/best-fast",
+    "executor": "custom:auto/best-fast",
+    "critic": "custom:auto/best-fast",
+    "synthesizer": "custom:auto/best-fast",
+    "chat": "custom:auto/best-fast"
+   },
+   "bundle": "bundle-1.json",
+   "bundle_hash": "9113b39118f77c8fcab23522170cbabb4c3f2931b1f3fec54769102d081208ef",
+   "final_status": "COMPLETED"
+  },
+  {
+   "run_id": "a8a4cf04-4047-489b-b024-a7f6c7a4b2c5",
+   "question": "What do these files say about the budget and enrolment figures?",
+   "files": [
+    "Mixed/Figures/budget.xlsx",
+    "Mixed/Figures/enrolment.csv",
+    "Mixed/Figures/notes.md"
+   ],
+   "status_at_gate": "AWAITING_REVIEW",
+   "error": null,
+   "grounding_status": "complete",
+   "model_routing": {
+    "planner": "custom:auto/best-fast",
+    "executor": "custom:auto/best-fast",
+    "critic": "custom:auto/best-fast",
+    "synthesizer": "custom:auto/best-fast",
+    "chat": "custom:auto/best-fast"
+   },
+   "bundle": "bundle-2.json",
+   "bundle_hash": "c403572a43a72d871be833c27c1f409804597b0221f34c4aff557746b1d2dad3",
+   "final_status": "COMPLETED"
+  }
+ ]
+}
