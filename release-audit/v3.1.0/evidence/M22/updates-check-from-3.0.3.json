@@ -1,0 +1,15 @@
+{
+ "what": "M22.04: the published v3.0.3 desktop engine, from Research.Assistant_3.0.3_aarch64.dmg (SHA256SUMS OK), run headless with --fake and asked GET /api/v1/version and GET /api/v1/updates/check",
+ "run_at": "2026-11-02T20:58Z",
+ "dmg": "Research.Assistant_3.0.3_aarch64.dmg",
+ "engine_version": {
+  "version": "3.0.3"
+ },
+ "updates_check": {
+  "state": "update_available",
+  "running_version": "3.0.3",
+  "latest_version": "3.1.0",
+  "release_url": "https://github.com/adityamhaske/Multi-Agent-Research-Assistant/releases/tag/v3.1.0",
+  "detail": ""
+ }
+}

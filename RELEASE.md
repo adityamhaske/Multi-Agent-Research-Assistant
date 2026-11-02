@@ -527,11 +527,11 @@ Three images, two architectures each, pushed by digest and stitched into multi-a
 |---|---|---|
 | A11.01 | The Release exists, is not a draft, is a prerelease exactly when the version has a suffix, and its title names the version | published → post-release |
 | A11.02 | GitHub's `releases/latest` is this tag (Settings → About's update check reads it) | published → post-release |
-| A11.03 | Exactly the four installers and `SHA256SUMS`, served names (no spaces), each above its size floor | published → post-release |
+| A11.03 | Exactly the release's installers (the four through 3.0.3, the `.dmg` alone from 3.1.0) and `SHA256SUMS`, served names (no spaces), each above its size floor | published → post-release |
 | A11.04 | Every asset was uploaded by `github-actions[bot]` during the tag's own Desktop run | published → post-release |
 | A11.05 | `SHA256SUMS` lists exactly the installers and every hash equals GitHub's stored digest | published → post-release |
 | A11.06 | With `--download`: every installer, downloaded, hashes to its `SHA256SUMS` line | published → post-release |
-| A11.07 | The body carries both appended sections, `:X.Y.Z` (never `:vX.Y.Z`) pull lines for all three images, the macOS command, and the checksum instruction | published → post-release |
+| A11.07 | The body carries both appended sections, `:X.Y.Z` (never `:vX.Y.Z`) pull lines for all three images, the macOS command, the checksum instruction, and, on a macOS-only release, that it has no Windows or Linux installer (an earlier Windows or Linux install's update check links here) | published → post-release |
 | A11.08 | The tag's source archive downloads | published → post-release |
 | A11.09 | The tag's `Release` run passed every job: six builds, three manifests, the release (and, from the release after 3.0.1, the stamp job) | published → post-release |
 
