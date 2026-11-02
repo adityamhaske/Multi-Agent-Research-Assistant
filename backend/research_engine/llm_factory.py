@@ -232,7 +232,7 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
         )
 
     if provider == "ollama":
-        # Local inference, also OpenAI-compatible. This is offline tier 2 (docs/13 §8):
+        # Local inference, also OpenAI-compatible. This is offline tier 2 (docs/13 "Three privacy tiers"):
         # no key, no inference egress. The endpoint is overridable for a remote box.
         from langchain_openai import ChatOpenAI
 
@@ -248,7 +248,15 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
         from langchain_openai import ChatOpenAI
 
         base_url = api_key_for("custom_base_url")
-        if get_run_config().enforce_ssrf_guards and base_url:
+        if not base_url:
+            # The OpenAI client's default address is api.openai.com. A custom route with no
+            # endpoint once went there with the custom key and the prompts, to a provider
+            # nobody chose; refuse instead, naming what is missing.
+            raise ValueError(
+                f"The {role} route '{provider}:{model}' has no endpoint address. Save the "
+                "Custom Endpoint's URL in Settings, or set CUSTOM_BASE_URL."
+            )
+        if get_run_config().enforce_ssrf_guards:
             from research_engine.net_guard import SSRFBlocked, validate_url
 
             try:
@@ -256,11 +264,12 @@ def _build(provider: str, model: str, role: str) -> BaseChatModel:
             except SSRFBlocked as e:
                 raise ValueError(f"Blocked by SSRF guard: {e}") from e
 
-        base_url = map_local_host(base_url) if base_url else base_url
-
-        kwargs = {"model": model, "api_key": key or "custom", "max_tokens": cfg["max_tokens"]}
-        if base_url:
-            kwargs["base_url"] = base_url
+        kwargs = {
+            "model": model,
+            "api_key": key or "custom",
+            "max_tokens": cfg["max_tokens"],
+            "base_url": map_local_host(base_url),
+        }
         if sampling_supported(model):
             kwargs["temperature"] = cfg["temperature"]
         return ChatOpenAI(**kwargs)

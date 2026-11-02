@@ -31,7 +31,6 @@ from release_checks.constants import (  # noqa: E402
     ENGINES_NODE_FLOOR,
     FAIL,
     GUARD_PYTHON_FLOOR,
-    INSTALLERS,
     NODE_FLOORS,
     PASS,
     PROSE_NODE_FLOOR,
@@ -41,6 +40,7 @@ from release_checks.constants import (  # noqa: E402
     REQUIRED_PYTHON_JOBS,
     UNAVAILABLE,
     WARN,
+    installers_for,
 )
 from release_checks.core import Check, Ctx, Outcome, Unavailable  # noqa: E402
 from release_checks.evaluate import (  # noqa: E402
@@ -74,13 +74,15 @@ from release_checks.evaluate import (  # noqa: E402
 )
 
 V = "9.8.7"
+#: The last version that published Windows and Linux installers.
+PRE_MAC_ONLY = "3.0.3"
 MB = 1024 * 1024
 
 
 def _assets(version: str = V) -> list[dict]:
     sizes = {".dmg": 70, ".msi": 75, ".AppImage": 170, ".deb": 120}
     assets = []
-    for template in INSTALLERS.values():
+    for template in installers_for(version).values():
         name = template.format(v=version)
         suffix = next(s for s in sizes if name.endswith(s))
         assets.append(
@@ -110,12 +112,29 @@ def test_the_published_asset_set_passes():
 
 
 def test_a_missing_installer_an_extra_file_and_a_space_are_each_caught():
-    assets = [a for a in _assets() if not a["name"].endswith(".msi")]
-    assets.append({"name": f"Research Assistant_{V}_x64-setup.exe", "size": 80 * MB})
-    problems = asset_problems(assets, V)
+    assets = [a for a in _assets(PRE_MAC_ONLY) if not a["name"].endswith(".msi")]
+    assets.append({"name": f"Research Assistant_{PRE_MAC_ONLY}_x64-setup.exe", "size": 80 * MB})
+    problems = asset_problems(assets, PRE_MAC_ONLY)
     assert any("missing" in p and p.endswith(".msi") for p in problems)
     assert any("unexpected asset" in p and "setup.exe" in p for p in problems)
     assert any("contains a space" in p for p in problems)
+
+
+def test_a_release_before_3_1_publishes_four_installers_and_one_after_publishes_the_dmg():
+    assert (
+        len(installers_for(PRE_MAC_ONLY)) == 4
+        and asset_problems(_assets(PRE_MAC_ONLY), PRE_MAC_ONLY) == []
+    )
+    assert list(installers_for("3.1.0")) == ["macOS, Apple Silicon (.dmg)"]
+    assert asset_problems(_assets("3.1.0"), "3.1.0") == []
+
+
+def test_a_windows_or_linux_installer_on_a_macos_only_release_is_caught():
+    """An installer nobody launched is not offered (scope-freeze A-6), so one that appears
+    on a 3.1+ release anyway — the release job collecting more than the .dmg — is caught."""
+    msi = {"name": "Research.Assistant_3.1.0_x64_en-US.msi", "size": 75 * MB}
+    problems = asset_problems([*_assets("3.1.0"), msi], "3.1.0")
+    assert any("unexpected asset" in p and p.endswith(".msi") for p in problems)
 
 
 def test_a_bundle_with_no_engine_in_it_is_caught_by_its_size():

@@ -6,13 +6,16 @@ files don't cover" section accepting only statements about the selection — are
 `test_grounding_validator.py` and `test_grounding_repair.py`. This file pins the record they
 leave: on both hosts' real routes and run drivers, the counts a selection run stores on its
 row are the counts its bundle trace carries, and they add up. The run page renders the
-row's counts (`frontend/components/runs/RunScopePanel.test.tsx`).
+row's counts (`frontend/components/runs/RunScopePanel.test.tsx`). The record also names how
+accurate its checking model was measured to be (D-24), and the prose export repeats those
+words, so a reader of the `.md` sees what the run page shows.
 """
 
 from __future__ import annotations
 
 import pytest
 
+from research_engine import checker_accuracy
 from tests.parity.drivers import desktop_driver, server_driver
 from tests.security.test_corpus_project_isolation import (
     A_TEXT,
@@ -63,3 +66,10 @@ async def test_the_row_and_the_bundle_trace_carry_one_record(host):
     assert entry == {"event": "grounding_validation"} | {
         k: v for k, v in report.items() if k != "claims"
     }
+
+    accuracy = report["checker_accuracy"]
+    assert accuracy == checker_accuracy.for_route(accuracy["routing"])
+    assert accuracy["routing"] == run["model_routing"]["critic"]
+    md = (await host.request("GET", f"/runs/{run['id']}/export.md")).text
+    label = accuracy["label"]
+    assert f"{label[0].upper()}{label[1:]}." in md

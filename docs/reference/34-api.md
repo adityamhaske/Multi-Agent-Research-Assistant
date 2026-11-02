@@ -528,10 +528,11 @@ Prefix `/projects/{project_id}/corpus`.
 | Method | Path | Notes |
 |---|---|---|
 | `POST` | `/documents` | Multipart upload: `file`, optional `doc_key` (a new version of that document), optional `relative_path` (files it into that folder path, creating folders as needed). Accepted extensions are `documents.FORMATS`; anything else is `400`, naming them |
-| `GET` | `/documents` | `[{id, filename, chunks, created_at, size_bytes, downloadable}]` |
+| `GET` | `/documents` | `[{id, filename, chunks, created_at, size_bytes, downloadable, origin, doc_key, version, is_current}]`. `id` names one version; `doc_key` names the document across versions. `origin` is `uploaded` or `generated` (an approved report saved back), and a generated one is never cited. A superseded version (`is_current: false`) still opens, so citations made against it keep resolving, but is no longer searched |
 | `GET` | `/documents/{doc_id}/download` | The original bytes |
+| `GET` | `/documents/{doc_id}/text` | The text citations are verified against, for preview: `{filename, kind, text, segments, extraction_mode}` |
 | `DELETE` | `/documents/{doc_id}` | `204` |
-| `GET` | `/status` | `{documents, chunks, chunks_by_model, current_model}` |
+| `GET` | `/status` | `{documents, chunks, chunks_by_model, current_model, corpus_id, corpus_version}`. `corpus_id` and `corpus_version` identify the store and its state on either host, where a file path could not |
 | `GET` | `/tree` | `{folders: [{id, parent_id, name}], documents: [...], memberships: [{doc_key, folder_id, display_name}]}`. A document with no membership sits at the root |
 | `POST` | `/folders` | `{name, parent_id?}` → `201 {id, parent_id, name}`. An existing folder of that name there is returned, not duplicated |
 | `PATCH` | `/folders/{folder_id}` | `{name?}` renames; `{move: true, parent_id}` moves (`null` = root). `400` on a name clash or a move into itself |

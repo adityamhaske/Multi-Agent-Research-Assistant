@@ -41,6 +41,12 @@ Shipped and in use:
 
 ## In progress
 
+- **Corpus folders, file selection and Offline.** On `main`, not in a released installer yet:
+  folders and many more file kinds in a project's corpus, research limited to the files you
+  pick with every claim checked against them before you see it, and an Offline switch that
+  refuses to start unless every model runs on this computer
+  ([how it works](../user-guide/39-corpus-folders-and-selection.md)).
+
 - **A published citation-fidelity benchmark.** The
   [methodology](../research/16-citation-fidelity-benchmark.md) is specified and the runner
   exists; no comparative run has been published. The blocker is an independent judge and a

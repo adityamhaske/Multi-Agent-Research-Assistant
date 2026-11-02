@@ -1,5 +1,5 @@
 """
-Extracting text from ingested corpus documents (docs/12 M10, docs/13 §8).
+Extracting text from ingested corpus documents (internal/12 M10, docs/13 "Three privacy tiers").
 
 Pure bytes in, text out — with the page boundaries a PDF has and an offset map the
 chunker turns into exact citation locations. Supported: PDF, Markdown, plain text;

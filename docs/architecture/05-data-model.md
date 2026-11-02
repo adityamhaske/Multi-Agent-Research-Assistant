@@ -242,6 +242,25 @@ folder. Releases before 3.1 kept one `corpus.sqlite` for the whole app; the firs
 moves it, whole, into a project of its own (`desktop/corpus_layout.py`), keeping a backup.
 Which layout is in force is the `corpus_layout` row of the desktop-only `app_meta` table.
 
+Inside a store, every schema change goes through `CorpusStore._migrate`, which only adds:
+existing rows are never rewritten, so a 3.0.x app can still open a 3.1 store and read the
+documents it knew (G-3).
+
+| Table | Holds |
+|---|---|
+| `corpus_documents` | One row per **version** of a document: its bytes, extracted text and `segments` (the page or sheet each span came from). `doc_key` groups the versions of one document, `version` numbers them, and `superseded_at` marks every version but the newest |
+| `corpus_chunks` | The embedded chunks of each version, with the embedding model that made them |
+| `corpus_folders` | `id`, `parent_id`, `name`: the folder tree. A folder is a name, never a filesystem path |
+| `corpus_memberships` | `doc_key` → `folder_id`: where a document is filed. The same document in two folders is one document with two memberships; a document with none sits at the root |
+| `corpus_meta` | The store's own version and settings |
+
+A selected-files run never reads this live. `research_runs.corpus_selection` (migration 0028)
+freezes the request **and** the exact document versions it resolved to, so a later upload,
+rename or delete cannot change what a finished run was allowed to read. `research_runs.offline`
+(0029) records the Offline guarantee the run asked for, and `research_runs.grounding_report`
+(0030) records its claim-by-claim check (RFC V3.1 §9.6). All three are nullable: runs created
+before them read their project's whole corpus, and say so.
+
 `CORPUS_DIR` defaults to the relative path `data/corpus`, resolved against the backend
 package root rather than the process working directory — otherwise running from the
 repository root and from `backend/` would create two different corpus roots, and a document

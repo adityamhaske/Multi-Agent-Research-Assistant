@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 STAGES = ("ci", "pre-tag", "published", "post-release")
 AFTER_TAG = ("published", "post-release")
 PASS, FAIL, WARN, SKIP, UNAVAILABLE = "PASS", "FAIL", "WARN", "SKIP", "UNAVAILABLE"
@@ -16,6 +18,21 @@ INSTALLERS = {
     "Linux, x86-64 (.AppImage)": "Research.Assistant_{v}_amd64.AppImage",
     "Linux, x86-64 (.deb)": "Research.Assistant_{v}_amd64.deb",
 }
+#: From this version the desktop is published for macOS only
+#: (internal/rfcs/V3.1-scope-freeze.md, A-6): the release's owner can launch and verify a
+#: Mac build and nothing else, and an installer nobody launched is not offered. Earlier
+#: releases keep all four, and the download page still links them for those platforms.
+MACOS_ONLY_FROM = (3, 1, 0)
+
+
+def installers_for(version: str) -> dict[str, str]:
+    """The installers a release of `version` publishes: `INSTALLERS`, or macOS alone."""
+    parts = tuple(int(n) for n in re.findall(r"\d+", version)[:3])
+    if parts >= MACOS_ONLY_FROM:
+        return {k: t for k, t in INSTALLERS.items() if k.startswith("macOS")}
+    return dict(INSTALLERS)
+
+
 CHECKSUMS = "SHA256SUMS"
 # Floors mirror desktop.yml's: an installer compresses a 140-200 MB engine, and the failure
 # being guarded (a shell with no engine in it) is ~5 MB. The AppImage is never smaller than

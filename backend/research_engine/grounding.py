@@ -133,6 +133,9 @@ class Claim:
     span: tuple[int, int]
     cites: list[int]
     calculation: dict | None = None
+    #: Figures the claim states that its snippets do not, left for the verifier to account
+    #: for with a calculation the code redoes (`_verify`); empty when every figure is present.
+    missing: list[str] = field(default_factory=list)
     valid_cites: list[int] = field(default_factory=list)
     invalid_cites: list[int] = field(default_factory=list)
     non_supporting_cites: list[int] = field(default_factory=list)
@@ -299,6 +302,30 @@ def factual_token_positions(sentence: str) -> list[int]:
     return [m.start() for m in _FACTUAL_TOKEN_RE.finditer(stripped) if m.start() >= first_end]
 
 
+#: Words a decomposition may leave between quotes: they join or frame assertions and make
+#: none. Negations, causes and sequences ("not", "because", "after") are deliberately absent
+#: — each changes what is asserted, so it must sit inside some claim's quote.
+_FUNCTION_WORDS = frozenset(
+    """a an the and or but nor so yet while whereas both either also then too as of in on at
+    to for by with from into onto over this that these those which who whom whose it its
+    they their them there is are was were be been being has have had do does did
+    however meanwhile notably overall additionally moreover furthermore similarly likewise
+    instead respectively""".split()
+)
+_WORD_RE = re.compile(r"[^\W_]+(?:['’-][^\W_]+)*")
+
+
+def content_word_positions(sentence: str) -> list[int]:
+    """Start offsets of every word a decomposition must cover besides the factual tokens:
+    anything that is not a function word. An aside with no number or capital — "(the
+    largest in the region)" — asserts something too, and left outside every quote it would
+    never be checked."""
+    stripped = _MARKER_RE.sub(lambda m: " " * len(m.group(0)), sentence)
+    return [
+        m.start() for m in _WORD_RE.finditer(stripped) if m.group(0).lower() not in _FUNCTION_WORDS
+    ]
+
+
 def locate_quote(sentence: str, quote: str, after: int = 0) -> tuple[int, int] | None:
     """Where a claim's quoted words sit in the sentence, as a character span, or None.
 
@@ -321,8 +348,8 @@ def check_decomposition(sentence: str, decomposed: list[dict]) -> list[Claim] | 
 
     Each claim's span is located from its `quote` (`locate_quote`); a bare `span` is taken
     as given, which the scripted fakes rely on. Spans inside the sentence and
-    non-overlapping; together they cover every factual token; every `cites` entry is a
-    marker the sentence carries. A failure makes the whole sentence unmeasured — never
+    non-overlapping; together they cover every factual token and every content word; every
+    `cites` entry is a marker the sentence carries. A failure makes the whole sentence unmeasured — never
     supported — because an uncovered clause is exactly where an invented assertion would
     hide.
     """
@@ -377,7 +404,7 @@ def check_decomposition(sentence: str, decomposed: list[dict]) -> list[Claim] | 
                 calculation=calculation,
             )
         )
-    for position in factual_token_positions(sentence):
+    for position in (*factual_token_positions(sentence), *content_word_positions(sentence)):
         if not any(s <= position < e for s, e in spans):
             return None
     return out
@@ -486,6 +513,21 @@ _VERDICT_RE = re.compile(
     r"^\s*Claim\s+(\d+)\s*:\s*(SUPPORTED|NOT_SUPPORTED|CONTRADICTED)\s*$", re.I
 )
 _PAIR_RE = re.compile(r"^\s*Pair\s+(\d+)\s*:\s*(YES|NO)\s*$", re.I)
+_CALC_RE = re.compile(
+    r"^\s*Calc\s+(\d+)\s*:\s*(add|subtract|multiply|divide|percent_change)\s+(\S+)\s+(\S+)"
+    r"\s*=\s*(\S+)\s*$",
+    re.I,
+)
+
+
+def parse_calculations(text: str, n: int) -> list[tuple[str, list[str], str] | None]:
+    """The calculation proposed for each claim, as (op, operands, result), or None."""
+    out: list[tuple[str, list[str], str] | None] = [None] * n
+    for line in (text or "").splitlines():
+        m = _CALC_RE.match(line)
+        if m and 1 <= int(m.group(1)) <= n:
+            out[int(m.group(1)) - 1] = (m.group(2).lower(), [m.group(3), m.group(4)], m.group(5))
+    return out
 
 
 def parse_verdicts(text: str, n: int) -> list[str | None]:
@@ -588,6 +630,10 @@ async def validate(
     conclusion_units = {u.index for u in units if u.kind == CONCLUSION}
     body = [c for c in pending if c.unit not in conclusion_units]
     conclusions = [c for c in pending if c.unit in conclusion_units]
+    for c in conclusions:
+        if c.missing:
+            c.state, c.cause = NOT_SUPPORTED, "number_not_in_snippet"
+    conclusions = [c for c in conclusions if not c.missing]
     await _verify(body, evidence, result, budget, purpose="critic.claim_verify")
     await _relevance(body, evidence, result, budget)
     supported = [c for c in result.claims if c.state == SUPPORTED]
@@ -699,8 +745,42 @@ def _check_quantities(pending: list[Claim], evidence: dict[int, Evidence]) -> No
             # operands were checked inside it; only the result itself may be absent.
             result_values = {str(v) for v in [calc.get("result")]}
             missing = [m for m in missing if not any(m in r or r in m for r in result_values)]
-        if missing:
-            claim.state, claim.cause = NOT_SUPPORTED, "number_not_in_snippet"
+        # Not rejected yet: a figure computed from the snippets' figures is not in them as
+        # written. The verifier, which sees the snippets, may propose the calculation, and
+        # `_verify` accepts it only once the code has redone it.
+        claim.missing = missing
+
+
+def _as_written(claim: Claim) -> str:
+    """The report's own words for a claim, markers removed: what the claim was taken from."""
+    words = claim.sentence[claim.span[0] : claim.span[1]]
+    return " ".join(_MARKER_RE.sub(" ", words).split())
+
+
+def _verify_human(i: int, claim: Claim, evidence: dict[int, Evidence]) -> str:
+    lines = [f"Claim {i}: {claim.text}", f'As written in the report: "{_as_written(claim)}"']
+    if claim.missing:
+        lines.append(
+            f"Figures not found in the evidence as written: {', '.join(claim.missing)}. "
+            f"If they are computed from figures the evidence states, add the line "
+            f'"Calc {i}: <add|subtract|multiply|divide|percent_change> <a> <b> = <result>".'
+        )
+    lines.append(f"Evidence {i}:\n{_snippets(claim, evidence)}")
+    return "\n".join(lines)
+
+
+def _account_for_figures(claim: Claim, calc, evidence: dict[int, Evidence]) -> bool:
+    """Whether a proposed calculation accounts for every figure the snippets lack: its
+    operands are in the snippets, the code's own arithmetic gives its result, and that
+    result is the claim's figure. The model proposes; nothing it says is taken as done."""
+    if calc is None:
+        return False
+    op, operands, outcome = calc
+    snippets = _snippets(claim, evidence)
+    if not quantities.calculation_holds(op, operands, outcome, snippets):
+        return False
+    text = _MARKER_RE.sub(" ", claim.text)
+    return not quantities.unsupported(text, f"{snippets}\n{outcome}")
 
 
 async def _verify(
@@ -713,28 +793,30 @@ async def _verify(
 ) -> None:
     for start in range(0, len(pending), BATCH):
         batch = pending[start : start + BATCH]
-        human = "\n\n".join(
-            f"Claim {i}: {c.text}\nEvidence {i}:\n{_snippets(c, evidence)}"
-            for i, c in enumerate(batch, start=1)
-        )
+        human = "\n\n".join(_verify_human(i, c, evidence) for i, c in enumerate(batch, start=1))
         try:
-            verdicts = parse_verdicts(
-                await call_model(purpose, human, budget=budget, result=result), len(batch)
-            )
+            reply = await call_model(purpose, human, budget=budget, result=result)
         except Exception as exc:  # noqa: BLE001
             cause = unmeasured_cause(exc)
             for c in batch:
                 c.state, c.cause = UNMEASURED, cause
             continue
-        for c, verdict in zip(batch, verdicts, strict=True):
+        verdicts = parse_verdicts(reply, len(batch))
+        calcs = parse_calculations(reply, len(batch))
+        for c, verdict, calc in zip(batch, verdicts, calcs, strict=True):
             if verdict is None:
                 c.state, c.cause = UNMEASURED, "malformed_response"
+            elif (
+                verdict == "supported" and c.missing and not _account_for_figures(c, calc, evidence)
+            ):
+                c.state, c.cause = NOT_SUPPORTED, "number_not_in_snippet"
             elif verdict == "supported":
                 c.state, c.cause = SUPPORTED, None
             elif verdict == "contradicted":
                 c.state, c.cause = CONTRADICTED, "contradicted"
             else:
-                c.state, c.cause = NOT_SUPPORTED, "not_supported"
+                cause = "number_not_in_snippet" if c.missing else "not_supported"
+                c.state, c.cause = NOT_SUPPORTED, cause
 
 
 async def _relevance(

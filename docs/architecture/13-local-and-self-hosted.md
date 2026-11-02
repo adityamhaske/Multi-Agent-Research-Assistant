@@ -74,6 +74,13 @@ class Corpus(Protocol):
 `Corpus.search` returns exactly the shape the web retriever returns, so the executor needs no
 branch and the graph does not change when the corpus replaces the web.
 
+A selected-files run (from 3.1) gets `ScopedCorpus` over the store instead: the same two
+methods, answering only for the document versions frozen on the run
+(`RunConfig.corpus_allowed_ids`). It filters inside the search, before the result limit, so
+a selection is never answered with fewer hits than it has, and `read` refuses any other
+document as if it did not exist. Both hosts install it from the run's row, never from the
+request.
+
 Checkpointing needs no port — LangGraph's saver interface *is* the port. The host constructs
 it and hands the ready saver to the runner.
 
@@ -199,6 +206,15 @@ models are, and a local embedder does not make the run offline: corpus mode with
 planner, executor, critic or synthesizer is tier 1 with local evidence, and the question and
 retrieved excerpts go to that provider. A run in this mode with no corpus installed **fails
 closed** rather than falling back to the web.
+
+**Offline** (from 3.1) is the half corpus-only mode leaves to you, enforced: a run that asks
+for it is refused before it starts, on both hosts, unless every role's route is `ollama:` or
+`custom:` at an address on this machine (`research_engine/offline.py`, one implementation,
+checked again at the first model call), and the run records that it asked
+(`research_runs.offline`). The check is on the **address**. A `custom:` endpoint on this
+machine that is a router to cloud providers passes it while prompts leave through it, and
+the app has no way to tell; the run form and the user guide say so rather than promising
+more than the check proves.
 
 Corpus hits carry `corpus://<doc-id>#chars=<start>-<end>` URLs, and the synthesizer's normal
 source assembly turns them into ordinary `[n]` citations whose snippets resolve back to the

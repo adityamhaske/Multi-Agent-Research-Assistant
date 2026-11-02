@@ -1044,7 +1044,7 @@ async def export_markdown(
     run = await _run_or_404(db, run_id, current_user.id)
     revision = await _latest_revision(db, run, revision_version)
     body = _demo_stamped(run, revision.report_markdown) + render_model_attribution_md(
-        run.model_routing
+        run.model_routing, _checker_accuracy(run)
     )
     return Response(
         content=body,
@@ -1070,12 +1070,18 @@ async def export_pdf(
         await _source_dicts(db, run.id),
         title=run.question[:120],
         model_routing=run.model_routing,
+        checker_accuracy=_checker_accuracy(run),
     )
     return Response(
         content=pdf,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="research-{str(run.id)[:8]}.pdf"'},
     )
+
+
+def _checker_accuracy(run: ResearchRun) -> dict | None:
+    """The D-24 label a selected-files run recorded; absent on any other run."""
+    return (run.grounding_report or {}).get("checker_accuracy")
 
 
 def _demo_stamped(run: ResearchRun, report: str) -> str:

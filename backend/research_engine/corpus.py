@@ -1,6 +1,6 @@
 """
 The local corpus: a closed document set as the run's only evidence source
-(docs/12 M10, docs/13 §8).
+(internal/12 M10, docs/13 "Three privacy tiers").
 
 Two things live here:
 
@@ -247,7 +247,7 @@ CREATE TABLE IF NOT EXISTS corpus_documents (
     -- before this column existed keep working and simply cannot be downloaded.
     blob        BLOB,
     -- 'uploaded' (a human added it) or 'generated' (this project's own approved report,
-    -- auto-saved after the report-review gate — docs/12 M10 follow-up). Retrieval excludes
+    -- auto-saved after the report-review gate — internal/12 M10 follow-up). Retrieval excludes
     -- 'generated' unconditionally (see `_search_sync`): without this, an approved report
     -- becomes citable evidence for the next one, and a `[n]` marker would resolve cleanly
     -- while pointing at the model's own earlier output rather than a real source — the
@@ -667,7 +667,7 @@ class CorpusStore:
         # never opens a socket. That made corpus mode's zero-egress claim rest entirely on
         # the host having configured a *local* embedder, and nothing checked: with
         # EMBEDDINGS_PROVIDER=google|openai the server embedded every corpus query through
-        # a hosted API while docs/12 M10 advertised a run with no egress at all, "verified by
+        # a hosted API while internal/12 M10 advertised a run with no egress at all, "verified by
         # test". The test could not catch it either — it injects a FakeEmbeddings, so the
         # one call that egresses was the one call stubbed out. Enforce, don't trust.
         self._require_local_embedder_in_corpus_mode()
@@ -677,7 +677,7 @@ class CorpusStore:
         )
 
     def _require_local_embedder_in_corpus_mode(self) -> None:
-        """Refuse to embed off-machine while promising local retrieval (docs/12 M10).
+        """Refuse to embed off-machine while promising local retrieval (internal/12 M10).
 
         Only corpus-only mode promises local retrieval, so this is silent otherwise:
         a hosted embedder is perfectly correct for ordinary project memory.

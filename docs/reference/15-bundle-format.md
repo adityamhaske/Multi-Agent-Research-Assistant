@@ -271,8 +271,14 @@ verifies it:
 - Each corpus entry in `sources` carries that version's `document_id`, `doc_key`,
   `version`, `sha256` and `path`.
 
-Both are covered by `bundle_hash`, so neither can be edited without breaking integrity. A
-bundle from a run without a selection has neither.
+- `trace` also carries one `{"event": "grounding_validation", ...}` entry: the run's
+  claim-by-claim check, as recorded on the run (`status`, the counts of claims supported,
+  rejected and unmeasured by cause, passages repaired or dropped, the checking cost, the
+  sha256 of the checked text, and `checker_accuracy` — how G-6 measured the checking
+  model), without the per-claim list.
+
+All of these are covered by `bundle_hash`, so none can be edited without breaking integrity.
+A bundle from a run without a selection has none of them.
 
 ## Standalone verifier
 

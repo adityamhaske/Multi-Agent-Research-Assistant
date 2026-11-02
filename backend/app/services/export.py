@@ -84,7 +84,7 @@ def _sources_html(sources: list[dict]) -> str:
     return '<div class="sources"><h2>Sources</h2><ol>' + "".join(items) + "</ol></div>"
 
 
-def _models_html(model_routing: dict[str, str] | None) -> str:
+def _models_html(model_routing: dict[str, str] | None, checker_accuracy: dict | None) -> str:
     """A role → route breakdown (requirement 1: disclosure "in the report/export").
 
     Empty when routing was never resolved — a run that failed before the planner, or a
@@ -97,7 +97,11 @@ def _models_html(model_routing: dict[str, str] | None) -> str:
         f"<li><strong>{html.escape(role)}</strong> — <code>{html.escape(route)}</code></li>"
         for role, route in sorted(model_routing.items())
     )
-    return f'<div class="models"><h2>Models used</h2><ul>{items}</ul></div>'
+    accuracy = ""
+    if checker_accuracy and checker_accuracy.get("label"):
+        label = checker_accuracy["label"]
+        accuracy = f"<p>{html.escape(label[0].upper() + label[1:])}.</p>"
+    return f'<div class="models"><h2>Models used</h2><ul>{items}</ul>{accuracy}</div>'
 
 
 def render_html(
@@ -106,6 +110,7 @@ def render_html(
     *,
     title: str = "Research Report",
     model_routing: dict[str, str] | None = None,
+    checker_accuracy: dict | None = None,
 ) -> str:
     """Full standalone HTML document for the report (used by the PDF renderer)."""
     # Render inline [n] markers as superscripts before markdown conversion so they
@@ -116,7 +121,7 @@ def render_html(
     return (
         "<!DOCTYPE html><html><head><meta charset='utf-8'>"
         f"<title>{safe_title}</title><style>{_PDF_CSS}</style></head><body>"
-        f"{body_html}{_sources_html(sources)}{_models_html(model_routing)}"
+        f"{body_html}{_sources_html(sources)}{_models_html(model_routing, checker_accuracy)}"
         "</body></html>"
     )
 
@@ -127,6 +132,7 @@ def render_pdf(
     *,
     title: str = "Research Report",
     model_routing: dict[str, str] | None = None,
+    checker_accuracy: dict | None = None,
 ) -> bytes:
     """Render the report to PDF. Raises RuntimeError if WeasyPrint's native libs are
     unavailable — the caller maps that to a clear 501."""
@@ -135,5 +141,11 @@ def render_pdf(
     except (OSError, ImportError) as e:  # missing Pango/Cairo native libs
         raise RuntimeError(f"PDF rendering is unavailable in this environment: {e}") from e
 
-    document = render_html(report_markdown, sources, title=title, model_routing=model_routing)
+    document = render_html(
+        report_markdown,
+        sources,
+        title=title,
+        model_routing=model_routing,
+        checker_accuracy=checker_accuracy,
+    )
     return HTML(string=document).write_pdf()

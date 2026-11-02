@@ -73,7 +73,7 @@ class RunConfig:
     tavily_api_key: str = ""
     brave_api_key: str = ""
 
-    # Corpus-only mode (docs/12 M10): evidence comes ONLY from the installed Corpus
+    # Corpus-only mode (internal/12 M10): evidence comes ONLY from the installed Corpus
     # port. `retrievers.search` delegates to it exclusively, `read_webpage` refuses every
     # non-corpus URL, and the store refuses an embedder that is not local — so retrieval
     # never leaves the host. The research models are NOT covered: the question and the

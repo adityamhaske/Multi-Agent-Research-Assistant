@@ -44,9 +44,66 @@ export interface Release {
   knownSummary: string;
   /** True for work merged to main but not yet tagged. */
   unreleased?: boolean;
+  /** The desktop platforms this release published installers for. Omitted means all three,
+   *  as every release did until the desktop became macOS-only (scope-freeze A-6). */
+  platforms?: DesktopPlatform[];
 }
 
+export type DesktopPlatform = "macos" | "windows" | "linux";
+export const DESKTOP_PLATFORMS: DesktopPlatform[] = ["macos", "windows", "linux"];
+
 export const RELEASES: Release[] = [
+  {
+    version: "v3.1.0",
+    date: "2026-11-02",
+    platforms: ["macos"],
+    unreleased: true,
+    headline:
+      "Research only the files you choose, with every claim checked against them before you see the report.",
+    improved: [
+      "Choose files to research: tick files and folders on the Corpus page, choose Ask about these files, and the research may use only those files, at the versions they had when it started. The run page and the verification bundle list exactly which files and versions it was allowed to read.",
+      "Every claim in research limited to your corpus is checked before you see it. Each sentence is split into its claims, and each claim is checked against the passages its citations point to: numbers and dates must appear there, a citation that does not support its claim is removed, and a conclusion must follow from its findings. A passage your files do not support is rewritten from what they do support and checked again, or removed with a note where it was. When your files cannot answer, the research says so instead of answering from the model’s own knowledge.",
+      "The checking model’s measured accuracy is shown with the result. On the default routing, measured against an independent model judge on 425 claims, it passed 1.9% of the claims the judge rejected (with an upper bound of 4.3%) and rejected 5.1% of those the judge accepted; a model that was never benchmarked says “not measured” rather than implying a number.",
+      "Folders in the corpus: upload a whole folder with its subfolders, or drop it onto the Corpus page; rename, move and delete folders, with a confirmation that says how many files will go; stop an upload part-way.",
+      "Many more kinds of file: Word, OpenDocument and RTF documents, spreadsheets (.xlsx, .xls, .ods, .csv, .tsv), PowerPoint, EPUB, Jupyter notebooks, LaTeX, BibTeX and source code, alongside PDF, HTML, Markdown and text. A citation names where in the file it is — the page, sheet and row, slide, cell or line — and opens with the cited passage highlighted; a PDF opens at the cited page.",
+      "Offline: a switch that refuses to start research unless every model runs at an address on this computer, naming any that does not.",
+      "On the desktop app each project has its own corpus, as on a server. Documents uploaded before this release move to a project named “Documents from before 3.1”, and the original file is kept.",
+      "Dropping files or folders onto the desktop app’s Corpus page works. The app’s window took every drop before the page saw it, so the drop zone never reacted.",
+      "The desktop app runs research on a local model or a Custom Endpoint with the run limits the server uses, and Settings sees a Custom Endpoint as soon as its address is saved.",
+      "A Custom Endpoint with no address saved is refused, naming what to set. It used to be sent to OpenAI\u2019s address, with your Custom Endpoint key and your prompts.",
+    ],
+    improvedSummary:
+      "Research only the files you choose, with every claim checked against them before you see the report and the checker’s measured accuracy shown. Folders, many more file kinds with citations that open at the cited page, sheet or slide, an Offline switch, and a separate corpus per project on the desktop.",
+    known: [
+      "The desktop app is published for Apple Silicon Macs only from this release. Windows and Linux users keep v3.0.3, the newest build for those platforms, which has none of this release’s corpus features.",
+      "Checking every claim makes research on your files slower and more expensive. On the default routing a Fast run took a median 115 seconds instead of 33 without the check (the slowest 5%: 249 seconds instead of 80), and used a median 2.5 times the input tokens. If you set MAX_INPUT_TOKENS, allow it room: at 60,000 two of three runs stopped before the check finished and ended without a report, at 120,000 none did.",
+      "The checker’s accuracy was measured against labels from an independent model judge (Claude Sonnet 4.5), not a person, on 425 claims, for two routings: the default (custom:auto/best-fast, a router alias that may send each call to a different model), which meets the threshold, and one pinned model (agy/gemini-3-flash through OmniRoute), which is below it and is labelled so. Every other model, local ones included, is labelled “not measured”.",
+      "Offline checks each model’s address, which is all the app can see. A Custom Endpoint on this computer that forwards to a cloud provider (OmniRoute, LiteLLM and the like) passes the check while your question and excerpts leave the machine through it.",
+      "Research on the web is not checked claim by claim; only research limited to your corpus is \u2014 your whole project corpus, or the files you choose.",
+      "A subfolder your computer does not let the app read is left out of a folder upload without a message.",
+      "Scanned PDFs need text recognition before upload; a PDF with no text is refused.",
+      "The spend limit (MAX_COST_PER_SESSION_USD) does nothing on OpenRouter and Custom routes. Their prices are not known, so a run’s cost is recorded as $0.00 whatever it spent. Cap spending at the provider.",
+      "Verifying a bundle with this release’s verifier needs Python 3.14 or later; on an older Python it refuses to start. The bundle format has not changed, so the verifier from 3.0.2 verifies this release’s bundles, selected-files runs included.",
+      "Bundles from this release are format v2, and a verifier from before 3.0.0 refuses them. Check a bundle with the verifier from this release; it still verifies every earlier bundle unchanged.",
+      "Research recorded before 3.0.0 still exports as a v1 bundle with no instructions recorded. Its prompts were never captured, and the bundle does not invent them.",
+      "Research recorded on the earlier pipeline (Sessions) does not apply customized instructions, and says so.",
+      "Customization is per account and applies to every run you start; there is no per-run override, and you cannot add agents of your own.",
+      "Customized instructions are written into the verification bundle in full, so anyone you share a bundle with can read them.",
+      "The default model routing is Google’s Gemini 2.5 models — 2.5 Pro for the planner and synthesizer, 2.5 Flash for the executor, critic and chat — and Google now limits each 2.5 model to accounts that have used it before. On a key from an account that has not, the first call to that model is refused. Choose other models in Settings → Models.",
+      "On a fresh desktop install, the demo report the app prepares on first launch fails: it is treated as corpus-only research against an empty corpus, so it finds no evidence. Your own research is unaffected.",
+      "Citation support was last measured for 3.0.2, in one run: ten fixed questions on one model routing. It measures whether each claim matches the evidence it cites, not whether the claim is true.",
+      "The share of evidence coming from primary sources is not measured, and is deliberately not estimated. The source URL on a piece of evidence is written by the model, so an invented link would score as a primary source with full confidence.",
+      "Three questions of the scholarly evaluation set carry citation-check records and three are unverified; the set is not yet used to grade anything.",
+      "Retrieval is dense-only; hybrid retrieval was measured against the baseline and did not beat it.",
+      "The desktop build is still not signed with an Apple Developer ID or notarized, and does not auto-update. macOS blocks the first launch until you clear the download flag with the Terminal command on the download page.",
+      "Two research pipelines still exist in the backend. The product has one, and research recorded by the earlier one stays readable.",
+      "Follow-up chat scoped to a single report is available on research recorded as a session and not on a run. Project chat, which cites every approved report in a project, covers both.",
+      "Cancelling a run still does not interrupt research already in flight — it runs to its next checkpoint, and the tokens spent there are recorded because they were really spent.",
+      "Claim lineage across revisions is still not tracked, and contradiction detection is still source-level and unscored.",
+    ],
+    knownSummary:
+      "The desktop app is now macOS-only; Windows and Linux stay on v3.0.3. Checking every claim makes selected-files research slower and costlier, and the checker’s accuracy was measured against a model judge, not a person, on one default routing. Offline checks addresses, so a local router to the cloud passes it.",
+  },
   {
     version: "v3.0.3",
     date: "2026-10-26",
@@ -403,6 +460,25 @@ export const RELEASES: Release[] = [
       "Project memory needs Postgres, so the desktop build has no cross-report memory.",
   },
 ];
+
+/**
+ * The desktop version a platform can actually install when `version` is chosen: that version
+ * if it shipped for the platform, otherwise the newest earlier tagged release that did, or
+ * `null` when none did. A download button built from a version with no installer for its
+ * platform would 404, which reads as the product being broken.
+ */
+export function desktopVersionFor(
+  platform: DesktopPlatform,
+  version: string,
+  releases: Release[] = RELEASES,
+): string | null {
+  const tagged = releases.filter((r) => !r.unreleased);
+  const start = tagged.findIndex((r) => r.version === version);
+  for (const r of start < 0 ? tagged : tagged.slice(start)) {
+    if ((r.platforms ?? DESKTOP_PLATFORMS).includes(platform)) return r.version;
+  }
+  return null;
+}
 
 /** The newest tagged release — what the download page should offer. */
 export function latestRelease(): Release | null {

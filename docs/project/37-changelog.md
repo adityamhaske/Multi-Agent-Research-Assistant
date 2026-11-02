@@ -12,6 +12,83 @@ deciding whether to trust the thing, and a changelog with no bad news is marketi
 
 ---
 
+## v3.1.0 — unreleased
+
+Research only the files you choose, with every claim checked against them before you see the
+report. The desktop app is published for Apple Silicon Macs only from this release.
+
+**Added**
+
+- **Choose files to research** (#212–#217, #227–#229). Tick files and folders on the Corpus
+  page, then **Ask about these files**. The run may read only those files, at the versions
+  they had when it started. The selection is frozen on the run
+  (`research_runs.corpus_selection`), enforced in the store (`ScopedCorpus`, not a prompt),
+  and recorded in the bundle's `corpus_selection` trace entry. The 3.1 verifier checks every
+  corpus source against it, and an older verifier still passes the bundle.
+- **Every claim checked before you see it** (#221, #222, #240, #260–#262, #272). In research
+  limited to your corpus, each sentence is split into claims. Each claim is checked against
+  the passages its citations point to: figures must appear there, a calculation is redone
+  by the code, an irrelevant citation is removed, and a conclusion must follow from its
+  findings. A failing passage is rewritten from what is supported and checked again, or
+  removed with a note. A run whose claims could not all be checked ends without a report.
+- **The checker's measured accuracy is shown** (#273, #277). The run page and the exports say
+  whether the checking model met the G-6 threshold, fell below it, or was never measured.
+- **Folders** (#227, #228, #263, #268). Upload a folder with its subfolders, or drop one onto
+  the Corpus page. Rename, move and delete folders; the delete confirmation says how many
+  files go. Stop an upload part-way.
+- **Many more file kinds** (#223–#226, #245). Word, OpenDocument, RTF, spreadsheets,
+  PowerPoint, EPUB, notebooks, LaTeX, BibTeX and source code. A citation names its page,
+  sheet and row, slide, cell or line, and opens with the passage highlighted; a PDF opens
+  at the cited page (#230, #242, #246).
+- **Offline** (#219). Research refuses to start unless every model runs at an address on
+  this computer.
+- **A corpus per project on the desktop** (#220, #243, #247, #253). Documents from before
+  3.1 move to "Documents from before 3.1", and the original store is kept.
+
+**Fixed**
+
+- **A Custom Endpoint with no address is refused** (#274). It was sent to `api.openai.com`
+  with the Custom Endpoint key and the prompts. The desktop also never read `CUSTOM_BASE_URL`
+  from the environment; both hosts now read keys and the endpoint through
+  `local.provider_keys_from_env`.
+- **Dropping files or folders onto the desktop app works** (#268). Tauri's native drag-drop
+  handler took every drop before the page saw it.
+- **The desktop runs under the server's run limits, and Settings sees a saved Custom
+  Endpoint** (#237).
+
+**Measured**
+
+- **G-6, the grounding benchmark:** 425 claims labelled by an independent model judge
+  (Claude Sonnet 4.5). On the default routing (`custom:auto/best-fast`): false accept 1.9%
+  (Wilson upper 4.3%), false reject 5.1%, unmeasured 4.5%, which meets the threshold. On
+  `custom:agy/gemini-3-flash`: false accept 2.6% (upper 5.2%), which is below it and labelled
+  so.
+- **G-5, the checking cost on the default routing:** a median 115 s instead of 33 s, p95 249 s
+  instead of 80 s (3.13×), and checking adds a median 152% to input tokens. That meets the
+  thresholds set in amendment A-7.
+- **G-4:** bundles from real selected-files runs verify under the unchanged v3.0.2 verifier.
+
+**Known**
+
+- The desktop app is published for Apple Silicon Macs only. Windows and Linux users keep
+  v3.0.3, which has none of this release's corpus features.
+- Checking every claim makes research on your files slower and costlier (see Measured).
+  Below about 120,000 input tokens, `MAX_INPUT_TOKENS` can stop the check part-way, and the
+  run then ends without a report.
+- The checker's accuracy was measured against a model judge, not a person, and for two
+  routings only. Every other model is labelled "not measured".
+- Offline checks each model's address. A Custom Endpoint on this computer that forwards to a
+  cloud provider passes the check while your text leaves the machine.
+- Research on the web is not checked claim by claim.
+- A subfolder the app may not read is left out of a folder upload without a message. Scanned
+  PDFs need text recognition first.
+- `MAX_COST_PER_SESSION_USD` does nothing on `openrouter` and `custom` routes, whose cost is
+  recorded as `$0.00` whatever a run spent.
+- Every other v3.0.3 known gap still applies, except that projects no longer share one corpus
+  on the desktop, and corpus-only mode's model locality now has the Offline switch.
+
+---
+
 ## v3.0.3 — 2026-10-26
 
 The desktop app researches on a local model with no API key, as Settings always said it

@@ -8,7 +8,14 @@ import json
 import re
 import urllib.parse
 
-from .constants import AFTER_TAG, INSTALLERS, MACOS_UNQUARANTINE, SITE_PAGES, SITE_ROUTES
+from .constants import (
+    AFTER_TAG,
+    INSTALLERS,
+    MACOS_UNQUARANTINE,
+    SITE_PAGES,
+    SITE_ROUTES,
+    installers_for,
+)
 from .core import (
     Ctx,
     Outcome,
@@ -169,7 +176,7 @@ def live_robots(ctx: Ctx) -> Outcome:
 def _installer_urls(ctx: Ctx, version: str) -> list[str]:
     return [
         f"https://github.com/{ctx.repo}/releases/download/v{version}/{t.format(v=version)}"
-        for t in INSTALLERS.values()
+        for t in installers_for(version).values()
     ]
 
 
@@ -188,9 +195,14 @@ def live_download(ctx: Ctx) -> Outcome:
     problems = []
     if not selected or selected[1] != ctx.version:
         problems.append(f"the selector defaults to {selected[1] if selected else None}")
-    if links != want:
-        problems.append(f"missing {sorted(want - links)}; unexpected {sorted(links - want)}")
-    return verdict(problems, f"4 installers of {ctx.tag}")
+    if want - links:
+        problems.append(f"missing {sorted(want - links)}")
+    # A platform this release left out links its newest earlier build; A15.02 checks those
+    # answer. Anything else of this version is a link the release does not have.
+    stray = sorted(h for h in links - want if f"/v{ctx.version}/" in h)
+    if stray:
+        problems.append(f"unexpected {stray}")
+    return verdict(problems, f"{len(want)} installer(s) of {ctx.tag}")
 
 
 @check(
@@ -235,7 +247,10 @@ def download_names(ctx: Ctx) -> Outcome:
     )
     if ctx.stage in AFTER_TAG and not ctx.offline:
         names = {a["name"] for a in ctx.release()["assets"]}
-        missing = sorted(n for t in built if (n := t.format(v=ctx.version)) not in names)
+        published = set(installers_for(ctx.version).values())
+        missing = sorted(
+            n for t in built & published if (n := t.format(v=ctx.version)) not in names
+        )
         if missing:
             problems.append(f"the page would link {missing}, which the release does not have")
     return verdict(problems, "names agree")

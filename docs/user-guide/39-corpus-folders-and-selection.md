@@ -45,7 +45,9 @@ password-protected, are refused with the reason.
 
 Choose **Choose folder**, or drop a folder onto the Corpus page, and its subfolders come with
 it. Files upload one at a time; **Stop uploading** lets the file being sent finish and sends
-nothing after it. The same file in two folders is stored once and listed in both.
+nothing after it. The same file in two folders is stored once and listed in both. A subfolder
+your computer does not let the app read is left out, and the app is not told it was there:
+compare the upload list with the folder if something is missing.
 
 Each folder in **Choose files to research** has **Rename**, **Move** and **Delete**. Renaming or
 moving a folder changes nothing that cites its files.
@@ -79,8 +81,13 @@ were selected. It does **not** keep your question private: the question and exce
 files are sent to whichever model provider each agent is set to use.
 
 **Offline** limits where the models run. Turn it on and the research refuses to start unless
-every agent uses a model on this computer — Ollama, or a custom endpoint on this machine — and
-names any agent that does not. Offline research never reads the web.
+every agent uses a model at an address on this computer — Ollama, or a custom endpoint on this
+machine — and names any agent that does not. Offline research never reads the web.
+
+The check is on the address, because that is all the app can see. A custom endpoint on this
+computer that is itself a router to cloud providers (OmniRoute, LiteLLM and the like) passes
+the check while your question and excerpts leave the machine through it. Only turn on Offline
+for such an endpoint if it forwards to models on this computer.
 
 The two are independent: you can have either without the other.
 
