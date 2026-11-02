@@ -22,6 +22,10 @@ NOT_MEASURED = "not_measured"
 #: unmeasured is invalid by §17 and measured nothing.
 MEASURED: dict[str, tuple[str, str]] = {
     "custom:auto/best-fast": (MEETS, "eval-2026-11-02-custom-auto-best-fast-grounding-run1.json"),
+    "custom:agy/gemini-3-flash": (
+        BELOW,
+        "eval-2026-11-02-custom-agy-gemini-3-flash-grounding-run1.json",
+    ),
 }
 
 _WORDS = {
