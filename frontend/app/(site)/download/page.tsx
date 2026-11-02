@@ -403,7 +403,12 @@ export default function DownloadPage() {
         <select
           id="version-select"
           value={version}
-          onChange={(e) => setVersion(e.target.value)}
+          // The version is taken from the release list, never from the DOM: it builds the
+          // download link's address, and an option's value is page text.
+          onChange={(e) => {
+            const chosen = DESKTOP_VERSIONS.find((v) => v === e.target.value);
+            if (chosen) setVersion(chosen);
+          }}
           className="border border-border bg-bg-elevated px-2.5 py-1 font-mono text-xs text-text-primary focus:border-text-primary focus:outline-none"
         >
           {DESKTOP_VERSIONS.map((v) => (
