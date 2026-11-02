@@ -44,7 +44,13 @@ export interface Release {
   knownSummary: string;
   /** True for work merged to main but not yet tagged. */
   unreleased?: boolean;
+  /** The desktop platforms this release published installers for. Omitted means all three,
+   *  as every release did until the desktop became macOS-only (scope-freeze A-6). */
+  platforms?: DesktopPlatform[];
 }
+
+export type DesktopPlatform = "macos" | "windows" | "linux";
+export const DESKTOP_PLATFORMS: DesktopPlatform[] = ["macos", "windows", "linux"];
 
 export const RELEASES: Release[] = [
   {
@@ -403,6 +409,25 @@ export const RELEASES: Release[] = [
       "Project memory needs Postgres, so the desktop build has no cross-report memory.",
   },
 ];
+
+/**
+ * The desktop version a platform can actually install when `version` is chosen: that version
+ * if it shipped for the platform, otherwise the newest earlier tagged release that did, or
+ * `null` when none did. A download button built from a version with no installer for its
+ * platform would 404, which reads as the product being broken.
+ */
+export function desktopVersionFor(
+  platform: DesktopPlatform,
+  version: string,
+  releases: Release[] = RELEASES,
+): string | null {
+  const tagged = releases.filter((r) => !r.unreleased);
+  const start = tagged.findIndex((r) => r.version === version);
+  for (const r of start < 0 ? tagged : tagged.slice(start)) {
+    if ((r.platforms ?? DESKTOP_PLATFORMS).includes(platform)) return r.version;
+  }
+  return null;
+}
 
 /** The newest tagged release — what the download page should offer. */
 export function latestRelease(): Release | null {

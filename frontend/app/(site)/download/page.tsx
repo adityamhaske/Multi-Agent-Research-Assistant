@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 
-import { RELEASES, REPOSITORY_URL, latestRelease } from "@/lib/releases";
+import { RELEASES, REPOSITORY_URL, desktopVersionFor, latestRelease } from "@/lib/releases";
 
 /**
  * Download and install (docs/17 §7).
@@ -50,6 +50,16 @@ function assetUrl(os: OS, version: string): string | null {
     linux: `Research.Assistant_${version}_amd64.AppImage`,
   };
   return `${REPOSITORY_URL}/releases/download/v${version}/${assetName[os]}`;
+}
+
+/**
+ * The version a platform's card offers when `version` is selected: the same one if it shipped
+ * there, else the newest earlier build that did (later releases are macOS-only). `null` when the
+ * platform never had one.
+ */
+function installableVersion(os: OS, version: string): string | null {
+  if (os === "unknown" || os === "docker") return version;
+  return desktopVersionFor(os, `v${version}`, RELEASES)?.replace(/^v/, "") ?? null;
 }
 
 function linuxDebUrl(version: string): string {
@@ -220,6 +230,9 @@ function PlatformCard({
   primary: boolean;
   version: string;
 }) {
+  const chosen = version;
+  const resolved = installableVersion(platform.key, chosen);
+  version = resolved ?? chosen;
   return (
     <section
       className="flex flex-col justify-between border p-5"
@@ -269,11 +282,19 @@ function PlatformCard({
             {platform.note}
           </p>
         )}
+
+        {resolved !== chosen && (
+          <p className="mt-3 border-l-2 border-border pl-3 text-xs leading-relaxed text-text-muted">
+            {resolved
+              ? `v${chosen} was published for macOS only. v${resolved} is the newest ${platform.label} build, and it does not have what v${chosen} added.`
+              : `No ${platform.label} build has been published.`}
+          </p>
+        )}
       </div>
 
       {/* Subtle action buttons at the bottom of the card — no loud or extra colors */}
       <div className="mt-5 flex flex-wrap items-center gap-2.5 border-t border-border pt-4">
-        {platform.key === "macos" && (
+        {platform.key === "macos" && resolved && (
           <a
             href={assetUrl("macos", version)!}
             className="btn btn-secondary font-mono text-xs"
@@ -282,7 +303,7 @@ function PlatformCard({
             Download .dmg · v{version}
           </a>
         )}
-        {platform.key === "windows" && (
+        {platform.key === "windows" && resolved && (
           <a
             href={assetUrl("windows", version)!}
             className="btn btn-secondary font-mono text-xs"
@@ -291,7 +312,7 @@ function PlatformCard({
             Download .msi · v{version}
           </a>
         )}
-        {platform.key === "linux" && (
+        {platform.key === "linux" && resolved && (
           <>
             <a
               href={assetUrl("linux", version)!}
@@ -354,6 +375,8 @@ export default function DownloadPage() {
   const [version, setVersion] = useState<string>(LATEST_VERSION);
 
   const mine = PLATFORMS.find((p) => p.key === os);
+  const mineVersion = installableVersion(os, version);
+  const lastWindows = installableVersion("windows", LATEST_VERSION);
   const others = PLATFORMS.filter((p) => p.key !== os);
 
   return (
@@ -420,12 +443,12 @@ export default function DownloadPage() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        {assetUrl(os, version) ? (
+        {mineVersion && assetUrl(os, mineVersion) ? (
           // Straight at the installer for the OS you are on — an <a>, not <Link>, because
           // this is an external github.com URL, not a route this app owns.
-          <a href={assetUrl(os, version)!} className="btn btn-primary" download>
+          <a href={assetUrl(os, mineVersion)!} className="btn btn-primary" download>
             Download for {PLATFORMS.find((p) => p.key === os)?.label} · v
-            {version}
+            {mineVersion}
           </a>
         ) : (
           <Link
@@ -446,8 +469,10 @@ export default function DownloadPage() {
               architectures are the ones desktop.yml builds — arm64 macOS, x64 Windows,
               x86-64 Linux — and nothing broader is claimed. */}
         <span className="font-mono text-xs text-text-muted">
-          ~80 MB download, ~150 MB installed (macOS) · desktop builds for Apple Silicon
-          Macs and 64-bit (x86-64) Windows and Linux
+          ~80 MB download, ~150 MB installed (macOS) ·{" "}
+          {lastWindows === LATEST_VERSION
+            ? "desktop builds for Apple Silicon Macs and 64-bit (x86-64) Windows and Linux"
+            : `desktop builds for Apple Silicon Macs; the newest 64-bit Windows and Linux builds are v${lastWindows}`}
         </span>
       </div>
 

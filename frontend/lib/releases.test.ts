@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   RELEASES,
   REPOSITORY_URL,
+  type Release,
+  desktopVersionFor,
   latestRelease,
   releaseAnchor,
   releaseTagUrl,
@@ -72,5 +74,39 @@ describe("versions", () => {
 
   it("links a tag to its release on GitHub", () => {
     expect(releaseTagUrl("v3.0.0")).toBe(`${REPOSITORY_URL}/releases/tag/v3.0.0`);
+  });
+});
+
+describe("desktop platforms", () => {
+  const release = (version: string, fields: Partial<Release> = {}): Release => ({
+    version,
+    date: "2026-01-01",
+    headline: "",
+    improved: [],
+    improvedSummary: "",
+    known: [],
+    knownSummary: "",
+    ...fields,
+  });
+  const history = [
+    release("v3.2.0", { unreleased: true }),
+    release("v3.1.0", { platforms: ["macos"] }),
+    release("v3.0.3"),
+  ];
+
+  it("offers a platform the version it chose when that version shipped for it", () => {
+    expect(desktopVersionFor("macos", "v3.1.0", history)).toBe("v3.1.0");
+    expect(desktopVersionFor("windows", "v3.0.3", history)).toBe("v3.0.3");
+  });
+
+  it("falls back to the newest earlier build for a platform the release left out", () => {
+    expect(desktopVersionFor("windows", "v3.1.0", history)).toBe("v3.0.3");
+    expect(desktopVersionFor("linux", "v3.1.0", history)).toBe("v3.0.3");
+  });
+
+  it("never offers an untagged version, and says when no build exists", () => {
+    expect(desktopVersionFor("macos", "v3.2.0", history)).toBe("v3.1.0");
+    expect(desktopVersionFor("windows", "v3.1.0", [release("v3.1.0", { platforms: ["macos"] })]))
+      .toBeNull();
   });
 });

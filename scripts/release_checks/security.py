@@ -18,7 +18,7 @@ def secrets(ctx: Ctx) -> Outcome:
             return []
         try:
             text = path.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError):
+        except UnicodeDecodeError, OSError:
             return []
         return [f"{p}: {label}" for label in secret_hits(text)]
 

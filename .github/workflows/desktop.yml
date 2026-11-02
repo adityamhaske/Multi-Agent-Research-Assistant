@@ -652,11 +652,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release
-          # Bundle layouts differ per OS (dmg/, msi/, appimage/, deb/), so collect by
-          # extension rather than by path and flatten into one directory.
-          find artifacts -type f \
-            \( -name '*.dmg' -o -name '*.msi' -o -name '*.AppImage' -o -name '*.deb' \) \
-            -exec cp {} release/ \;
+          # Only the macOS disk image is published (internal/rfcs/V3.1-scope-freeze.md,
+          # A-6): it is the one platform a release here is launched and verified on, and an
+          # installer nobody launched is not offered. Windows and Linux still build in CI
+          # above, so the code keeps compiling there, but their bundles stay CI artifacts.
+          # `scripts/release_checks/constants.py::installers_for` is the audit's copy.
+          find artifacts -type f -name '*.dmg' -exec cp {} release/ \;
           cd release
           # Squeeze spaces out of the names BEFORE hashing. The bundler names files after
           # productName ("Research Assistant_1.0.1_aarch64.dmg"), and GitHub rewrites the
@@ -693,13 +694,13 @@ jobs:
           body: |
             ## Desktop bundles for ${{ github.ref_name }}
 
-            **These builds are not code-signed.** Your OS will warn you on first launch:
+            **macOS (Apple Silicon) only.** This release has no Windows or Linux installer;
+            the download page offers the newest earlier build for those.
 
-            | OS | What you will see | What to do |
-            |---|---|---|
-            | macOS | A block on first launch — the app is not signed with an Apple Developer ID or notarized | Drag the app to Applications, then run `xattr -dr com.apple.quarantine "/Applications/Research Assistant.app"` in Terminal once |
-            | Windows | SmartScreen warning | **More info** → **Run anyway** |
-            | Linux | AppImage is not executable | `chmod +x *.AppImage` (`.deb` needs nothing) |
+            **This build is not code-signed.** macOS blocks it on first launch: it is not
+            signed with an Apple Developer ID or notarized. Drag the app to Applications,
+            then run `xattr -dr com.apple.quarantine "/Applications/Research Assistant.app"`
+            in Terminal once.
 
             Verify your download against `SHA256SUMS` before running it:
 
