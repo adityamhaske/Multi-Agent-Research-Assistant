@@ -101,7 +101,7 @@ export const RELEASES: Release[] = [
       "Claim lineage across revisions is still not tracked, and contradiction detection is still source-level and unscored.",
     ],
     knownSummary:
-      "The desktop app is now macOS-only; Windows and Linux stay on v3.0.3. Checking every claim makes selected-files research slower and costlier, and the checker’s accuracy was measured against a model judge, not a person, on one default routing. Offline checks addresses, so a local router to the cloud passes it.",
+      "The desktop app is now macOS-only; Windows and Linux stay on v3.0.3. Checking every claim makes selected-files research slower and costlier, and the checker’s accuracy was measured against a model judge, not a person, and meets its threshold on the default routing only. Offline checks addresses, so a local router to the cloud passes it.",
   },
   {
     version: "v3.0.3",

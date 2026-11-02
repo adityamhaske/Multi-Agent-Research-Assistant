@@ -59,7 +59,7 @@ thresholds).
 | Docs: the corpus guide and PR-20b | #231, #232, #270 | docs | docs tests | — | — | — | ✓ | ✓ /docs | — | — | Shipped |
 | Site discoverability: og.png content type, llms.txt, crawler rules, sitemap dates | #264 | `app/(site)` metadata routes | site tests | — | — | — | — | ✓ | — | — | Shipped |
 | The preview drawer links Download only to this app's own API (CodeQL #32, #33) | #281 | `lib/desktop.ts::apiHref`, `PreviewDrawer` | `desktop.test.ts`, `PreviewDrawer.test.tsx` | ✓ | — | ✓ | — | — | — | — | Shipped |
-| The release itself: version, notes, changelog, this record | #278, #282 | `VERSION` and its carriers, `releases.ts`, the changelog, this file | the release audit | — | — | — | ✓ changelog | ✓ /releases (after the flip) | ✓ | ✓ | Shipped (process) |
+| The release itself: version, notes, changelog, this record, the flip and the post-release record | #278, #282, #283, #POST | `VERSION` and its carriers, `releases.ts`, the changelog, this file | the release audit | — | — | — | ✓ changelog | ✓ /releases (after the flip) | ✓ | ✓ | Shipped (process) |
 | Provider SDKs: anthropic 2.3.0 with langchain-anthropic 1.7.7 and langchain-core 1.6.12 (supersedes Dependabot's anthropic bump) | #280, #266 | `backend/constraints.txt` | full backend suite on the new pins in a clean venv (2476 passed; `test_worker_event_loop`, `test_dependency_constraints`); a 40-claim G-6 spot check on the new pins before tagging | — | — | ✓ | — | — | — | — | Shipped. G-5 and G-6 were measured on the previous pins (langchain-core 1.6.6, anthropic 1.9.0). The spot check on the new pins (G-6, first 40 claims, `custom:auto/best-fast`, not written) gave 2 unmeasured, 0 false accepts, 7.1% false rejects. The same 40 claims in the passing full run gave 1 unmeasured, 0 of 25 false accepts and 1 of 14 false rejects (7.1%). Contradicted recall varied (43% vs 100%), but every contradicted claim it missed was still rejected |
 | Dependencies | #209, #267 | vitest, react-query | CI | — | — | — | — | — | — | — | Shipped |
 | Closing v3.0.2 and v3.0.3 (flip, post-release, macOS checks, the 48-hour watches) | #207, #233, #235, #236, #238 | `release-audit/v3.0.2`, `v3.0.3` | the audits | — | — | — | — | ✓ | — | — | Shipped (process) |
@@ -117,7 +117,7 @@ a desktop check (M6.03).
 |---|---|---|---|---|
 | pre-tag | `release_audit.py --version 3.1.0 --stage pre-tag` | PASS | 35 PASS, 1 WARN | `pre-tag.json` |
 | published | `… --published --download --docker` | PASS | 51 PASS, 3 WARN | `published.json` |
-| post-release | `… --post-release --download --docker` | PENDING | | `post-release.json` |
+| post-release | `… --post-release --download --docker`, run on `0135e05` (the flip) | PASS | COUNTS | `post-release.json`. A trial run before these rows were filled failed only A21.01 (the rows it named) |
 
 Disposition of every WARN and UNAVAILABLE (M21.01):
 
@@ -201,15 +201,15 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | **Phase 13 — README Verification** | | |
 | M13.01 | PASS | Read the README top to bottom against the release: the feature list (nothing unreleased, nothing removed),… — README: the desktop is macOS only, and Windows and Linux get the last build published for them (this PR); nothing unreleased is advertised |
 | **Phase 14 — Landing Page Verification** | | |
-| M14.01 | PENDING | View `/` at desktop width and at 375 px, light and dark: hero, download call-to-action, "New in" link to… — evidence: |
-| M14.02 | PENDING | `/why`: every comparison claim (`frontend/lib/comparison.ts`) still holds for this release — evidence: |
+| M14.01 | PASS | View `/` at desktop width and at 375 px, light and dark: hero, download call-to-action, "New in" link to… — Live `/` after the flip (deploy of `0135e05`), at desktop width, in light and in dark through the site's toggle, and at 375 px: the hero; *Get the desktop app →* to `/download/`; "NEW IN V3.1.0 … What changed →" to `/releases/#v3.1.0`; "Everything here ships in v3.1.0". No horizontal scroll at 375 px on any of the five pages (`scrollWidth` equals `clientWidth`) |
+| M14.02 | PASS | `/why`: every comparison claim (`frontend/lib/comparison.ts`) still holds for this release — `/why` against 3.1.0: the corpus row says the question and excerpts still go to each research model's provider, and that the Offline switch refuses to start unless every model is at an address on this computer; the detail says a local router that forwards to a cloud provider passes it. Every "offline"/"no network" claim left on the page is about the bundle verifier, which holds |
 | **Phase 15 — Download Page Verification** | | |
-| M15.01 | PENDING | On each OS (or with a UA override), the detected-OS card leads; the big button and every card button point… — evidence: |
-| M15.02 | PENDING | Download one installer by clicking the page's button in a real browser; the file name and checksum are right — evidence: |
+| M15.01 | PASS | On each OS (or with a UA override), the detected-OS card leads; the big button and every card button point… — Live `/download/` on a Mac: the macOS card leads with *Download for macOS — Apple Silicon (M1+) · v3.1.0*, and it and the card button point at `v3.1.0/Research.Assistant_3.1.0_aarch64.dmg`. The Windows and Linux cards say "v3.1.0 was published for macOS only. v3.0.3 is the newest … build" and link the v3.0.3 `.msi`, `.AppImage` and `.deb`; the source `.zip` is v3.1.0. No UA override for Windows or Linux; A15.01–A15.03 PASS |
+| M15.02 | NOT RUN | Download one installer by clicking the page's button in a real browser; the file name and checksum are right — Not clicked through in a browser: a browser download needs the release manager's own go-ahead. The post-release audit's `--download` fetched and hashed the DMG at the URL the buttons use (A11.06, `9088a3a8…c05`), and the same file matched `SHA256SUMS` here (M7.01) |
 | **Phase 16 — Releases Page Verification** | | |
-| M16.01 | PENDING | View `/releases`: the new entry is first with the tag's date; its summaries are shown and the lists fold… — evidence: |
+| M16.01 | PASS | View `/releases`: the new entry is first with the tag's date; its summaries are shown and the lists fold… — Live `/releases/`: v3.1.0 first, marked latest, dated 2026-11-02, headline and both summaries shown; *All 10 improvements* and *All 25 known gaps* fold; all twelve releases in the index. No "unreleased" text on the page. Its known-gaps summary said accuracy was measured "on one default routing", which contradicts the entry's own list (two routings, the default meets the threshold); corrected in the post-release PR |
 | **Phase 17 — GitHub Pages / Deployment Verification** | | |
-| M17.01 | PENDING | If A17.01 fails because `main` moved after the flip, wait for the newer deploy and re-run; if the deploy… — evidence: |
+| M17.01 | PASS | If A17.01 fails because `main` moved after the flip, wait for the newer deploy and re-run; if the deploy… — A17.01 passed first time: the Pages deploy (run 41526219196) published `0135e05`, which is `main`; A17.02's stamp names the same commit at 3.1.0 |
 | **Phase 18 — Security / Configuration Verification** | | |
 | M18.01 | PASS | Review `git diff v3.0.3..HEAD` for debug flags, test accounts, credentials, private URLs, and anything that… — `git diff v3.0.3..v3.1.0`: no debug flags, test accounts or credentials; A18.01 and A18.02 PASS. Two security fixes landed: #274 (a custom route never dials api.openai.com) and #281 (the desktop accepts only a loopback engine address) |
 | M18.02 | PASS | If `backend/app/config.py`, the security middleware, auth, or the SSRF guard changed: re-check CORS… — `app/config.py` and the auth and middleware code are unchanged; the provider-key path changed in #274 and is tested in `test_byok_and_profile.py` |
@@ -232,11 +232,11 @@ One row per `M…` item in RELEASE.md (A21.01 fails on a missing row).
 | M21.03 | PASS | The release manager signs the approval block in the record — approved below under the owner's delegation |
 | **Phase 22 — Post-Release Verification** | | |
 | M22.01 | PASS | The flip PR: drop `unreleased`, set the entry's `date` to the tag's date, date the changelog heading,… — this PR: `unreleased` dropped, dated 2026-11-02 (the tag's date), the changelog dated, the record and its evidence committed, `pre-tag.json` and `published.json` added |
-| M22.02 | PENDING | After Pages deploys: run the post-release audit with `--download --docker`, commit its JSON (write-once)… — evidence: |
-| M22.03 | PENDING | Load `/`, `/why`, `/docs`, `/download`, `/releases` on a phone and a desktop browser with the cache disabled — evidence: |
-| M22.04 | PENDING | In an installed copy of the **previous** desktop release, Settings → About → *Check for updates* reports… — evidence: |
-| M22.05 | PENDING | For 48 hours, watch issues and discussions for install or launch reports; any release-blocking report… — evidence: |
-| M22.06 | PENDING | Every incident found during this release becomes a check: an `A…` check (preferred) or an `M…` item, plus… — evidence: |
+| M22.02 | PASS | After Pages deploys: run the post-release audit with `--download --docker`, commit its JSON (write-once)… — Post-release audit with `--download --docker` on `0135e05` after these rows were filled, saved as `post-release.json` |
+| M22.03 | NOT RUN | Load `/`, `/why`, `/docs`, `/download`, `/releases` on a phone and a desktop browser with the cache disabled — Not on a phone. In the browser pane at desktop width and at 375 px emulation, `/`, `/why`, `/docs`, `/download` and `/releases` load with their content, log no console error, and request nothing under `/api/v1/` |
+| M22.04 | PASS | In an installed copy of the **previous** desktop release, Settings → About → *Check for updates* reports… — `evidence/M22/updates-check-from-3.0.3.json`: the published 3.0.3 desktop engine, from its DMG, answers `/api/v1/updates/check` with `update_available`, running 3.0.3, latest 3.1.0, and the v3.1.0 release URL. **Finding:** the check reads `releases/latest`, which knows no platform, so a Windows or Linux 3.0.3 install reports the same update. That code is shipped and cannot change; the Release page it links to says the release has no Windows or Linux installer, and A11.07 now requires that sentence on every macOS-only release |
+| M22.05 | NOT RUN | For 48 hours, watch issues and discussions for install or launch reports; any release-blocking report… — The window is open until 2026-11-04T21:14Z, 48 h after the site began offering 3.1.0. As of 2026-11-02T21:17Z: no issues or discussions opened since the tag |
+| M22.06 | PASS | Every incident found during this release becomes a check: an `A…` check (preferred) or an `M…` item, plus… — Incidents table below: each became a test, a release check, or (runner capacity) a recorded re-run |
 
 ## Known issues shipped with this release
 
@@ -260,6 +260,8 @@ The `known` list of the v3.1.0 entry in `frontend/lib/releases.ts`, which the ch
 | The desktop took the engine address from a `?sidecar=` query parameter, so a crafted URL could redirect API calls and the token (CodeQL #32, #33) | `lib/desktop.test.ts` loopback-only cases (#281) |
 | WebKitGTK suppresses file choosers under WebDriver, so a scripted picker-cancel "passed" with no picker; recorded so no future G-2 trusts it | the closed #269 notes |
 | macOS arm64 runners not acquired ("capacity constraints") cancelled release-commit jobs twice | M3.01 records re-runs; no code check applies |
+| An installed Windows or Linux 3.0.3 reports 3.1.0 as its update, because the update check reads `releases/latest` with no platform (M22.04) | A11.07: a macOS-only release body must say it has no Windows or Linux installer; `test_a_macos_only_release_must_say_it_has_no_windows_or_linux_installer` |
+| The v3.1.0 site summary said the checker was measured on one routing; the entry's own list says two (M16.01) | corrected in the post-release PR; no check can compare prose to prose |
 
 ## Release approval
 
@@ -269,9 +271,9 @@ Commit:             ba7c2ab80a6025c0108a379c389ecc91b36662b4
 Tag:                v3.1.0 (annotated)
 Release manager:    Aditya Mhaske (delegated to Claude Code, "do all for me and tag 3.1.0")
 
-Automated checks    [x] pre-tag PASS   [x] published PASS   [ ] post-release PASS
+Automated checks    [x] pre-tag PASS   [x] published PASS   [x] post-release PASS
 Desktop             [x] macOS PASS     [-] Windows N/A (A-6) [-] Linux N/A (A-6)
-Web                 [ ] Landing PASS   [ ] Download PASS    [ ] Releases PASS   [ ] Docs PASS
+Web                 [x] Landing PASS   [x] Download PASS    [x] Releases PASS   [x] Docs PASS
 Distribution        [x] GitHub Release PASS   [x] Docker PASS   [x] Checksums PASS
 Security            [x] PASS
 Upgrade/migration   [x] PASS

@@ -173,6 +173,7 @@ Multi-arch container images (linux/amd64, linux/arm64) pushed to GHCR:
 - `ghcr.io/o/r-worker:{V}`
 - `ghcr.io/o/r-frontend:{V}`
 ## Desktop bundles for v{V}
+**macOS (Apple Silicon) only.** This release has no Windows or Linux installer;
 run `xattr -dr com.apple.quarantine "/Applications/Research Assistant.app"` in Terminal once
 sha256sum -c SHA256SUMS --ignore-missing
 """
@@ -200,6 +201,16 @@ def test_a_pull_line_naming_the_git_tag_instead_of_the_image_tag_is_caught():
 def test_release_notes_with_a_different_macos_command_are_caught():
     body = GOOD_BODY.replace("xattr -dr", "xattr -d")  # `-r` is what reaches the engine
     assert any("first-launch command" in p for p in release_body_problems(body, V))
+
+
+def test_a_macos_only_release_must_say_it_has_no_windows_or_linux_installer():
+    # The update check in an installed 3.0.3 links Windows and Linux users here.
+    body = GOOD_BODY.replace("This release has no Windows or Linux installer;", "")
+    assert any("no installer for them" in p for p in release_body_problems(body, V))
+    pre = GOOD_BODY.replace(V, PRE_MAC_ONLY).replace(
+        "This release has no Windows or Linux installer;", ""
+    )
+    assert not any("no installer for them" in p for p in release_body_problems(pre, PRE_MAC_ONLY))
 
 
 # ─── Version references ─────────────────────────────────────────────────────────────────

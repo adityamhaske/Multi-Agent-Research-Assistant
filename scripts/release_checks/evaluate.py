@@ -245,6 +245,15 @@ def release_body_problems(body: str, version: str) -> list[str]:
         )
     if "SHA256SUMS" not in body:
         problems.append("no instruction to verify downloads against SHA256SUMS")
+    # A Windows or Linux install of an earlier release still reports this one as its update
+    # (`app/services/updates.py` reads `releases/latest`, which knows no platform), so the
+    # page that notice links to is where those users learn this build is not for them.
+    if not any(k.startswith("Windows") for k in installers_for(version)) and (
+        "has no Windows or Linux installer" not in " ".join(body.split())
+    ):
+        problems.append(
+            "a macOS-only release does not tell Windows and Linux users it has no installer for them"
+        )
     return problems
 
 
