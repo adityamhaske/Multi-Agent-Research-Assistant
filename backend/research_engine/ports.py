@@ -81,7 +81,7 @@ class Embeddings(Protocol):
 
 @runtime_checkable
 class Corpus(Protocol):
-    """A closed document corpus as a search source (docs/12 M10, docs/13 §8).
+    """A closed document corpus as a search source (internal/12 M10, docs/13 "Three privacy tiers").
 
     Corpus-only mode's retrieval connector. `search` returns exactly the shape
     `retrievers.search` returns — `{title, url, snippet}` — so the executor needs no
@@ -90,7 +90,7 @@ class Corpus(Protocol):
 
     Installed via `corpus.set_corpus` and selected per-run by `RunConfig.corpus_mode`:
     when that flag is set, `retrievers.search` delegates here exclusively and
-    `read_webpage` refuses every non-corpus URL — no retrieval egress (docs/12 M10
+    `read_webpage` refuses every non-corpus URL — no retrieval egress (internal/12 M10
     DoD). Model calls are routed separately and are not restricted here.
     """
 

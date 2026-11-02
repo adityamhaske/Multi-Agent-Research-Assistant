@@ -93,9 +93,9 @@ imagined.
 The frontend has **three build targets**: `next.config.ts` branches on `NEXT_PUBLIC_PAGES`
 (static export, GitHub Pages), then `NEXT_PUBLIC_DESKTOP` (static export, Tauri), then the
 standalone server image. A branch is only exercised by the target that builds it —
-`npm run build`, `build:desktop` and `build:pages` are three separate checks; CI runs only
-the first two. Anything touching `app/(site)/` or `app/layout.tsx` needs all three run
-locally.
+`npm run build`, `build:desktop` and `build:pages` are three separate checks; CI's frontend
+job runs all three. Anything touching `app/(site)/` or `app/layout.tsx` still needs all three
+run locally before pushing, because one green build says nothing about the other two.
 
 | Behaviour | Copies | How many were wrong |
 |---|---|---|

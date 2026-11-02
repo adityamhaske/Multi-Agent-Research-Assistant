@@ -22,6 +22,22 @@ A single page routinely supports several distinct facts, so a source carries **e
 snippet extracted from it, not one. Keeping only the first meant a chip could show a quote
 that had nothing to do with the sentence it was attached to.
 
+## Citations of your own files
+
+A citation of a file you uploaded points at a character range in the text the app extracted
+from it: `corpus://<document>#chars=<start>-<end>`. Opening it shows that text with the
+cited passage highlighted, and names where in the file it is — the page of a PDF, the sheet
+of a spreadsheet, the slide of a presentation, the cell of a notebook — from the positions
+recorded at ingest. A PDF can also be opened at the cited page. The passage is shown as
+text, never rendered, so nothing in a file can run in the app.
+
+Some formats are read row by row or cell by cell rather than as running text (spreadsheets,
+notebooks, presentations). Their quotes are checked against that linearised text, and the
+passage says so beside the quote.
+
+A run limited to selected files can only cite those files, at the versions frozen when it
+started; a later upload or delete does not change what it cited.
+
 ## Reading the report
 
 Every factual claim carries `[n]` markers. Hover one and you get the source title, the

@@ -347,8 +347,9 @@ export function StartResearchForm({
               <span>
                 <span className="block text-sm font-medium text-text-primary">Offline</span>
                 <span className="block text-xs leading-relaxed text-text-muted">
-                  Every model runs on this computer. Research refuses to start if any model is
-                  set to a cloud provider.
+                  Every model call goes to an address on this computer. Research refuses to
+                  start if any model is set to a cloud provider. A local router that forwards
+                  to a cloud service still sends your text out.
                 </span>
               </span>
             </label>

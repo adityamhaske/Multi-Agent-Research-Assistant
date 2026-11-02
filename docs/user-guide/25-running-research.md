@@ -34,6 +34,20 @@ the mode enforces:
 A run in this mode with no corpus installed fails rather than quietly falling back to the
 web.
 
+> **Not in a released version yet:** the two switches below are on `main`; the installers on
+> the download page do not have them ([Corpus folders and selection](39-corpus-folders-and-selection.md)).
+
+**Only the files you selected** — with files or folders ticked on the Corpus page, the same
+switch reads that way, and the run may use only those files, frozen at the versions they had
+when the run started. Every claim in the answer is then checked against the passages it
+cites before the report reaches you, and the run page says how many were kept out, how many
+passages were rewritten, and how accurate the checking model was measured to be.
+
+**Offline** makes the research refuse to start unless every model runs at an address on this
+computer. It is separate from the two above: those decide where evidence comes from, Offline
+decides where your text goes. [Corpus folders and selection](39-corpus-folders-and-selection.md)
+explains both, and what Offline cannot see.
+
 **Review the research plan before searching** — on by default: the run pauses at the design
 gate after the planner, before anything is spent. Turn it off and the run starts searching
 immediately. ([Review and approval](26-review-and-approval.md))

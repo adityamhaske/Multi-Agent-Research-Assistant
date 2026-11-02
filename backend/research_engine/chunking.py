@@ -211,11 +211,11 @@ def chunk_report(
     return chunks
 
 
-# ── Corpus documents (docs/12 M10) ──────────────────────────────────────────────
+# ── Corpus documents (internal/12 M10) ──────────────────────────────────────────────
 #
 # Reports are our own Markdown and get heading-aware chunks above. Ingested corpus
 # documents are arbitrary prose, and their requirement is different: every chunk must
-# cite an EXACT location in its source (docs/12 M10 DoD). So a corpus chunk is a
+# cite an EXACT location in its source (internal/12 M10 DoD). So a corpus chunk is a
 # verbatim span [start, end) of the extracted text — no carried headings, no
 # reassembled openers — which makes "text[start:end] is the chunk" true by
 # construction rather than by convention.

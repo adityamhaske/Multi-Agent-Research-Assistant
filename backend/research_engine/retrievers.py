@@ -7,7 +7,7 @@ Results are normalized to {title, url, snippet} and cached in Redis (24h).
 
 In LLM_MODE=fake a deterministic fixture retriever is used so tests need no network.
 
-In corpus mode (docs/12 M10) the chain is replaced outright: the installed Corpus
+In corpus mode (internal/12 M10) the chain is replaced outright: the installed Corpus
 port answers every search, and nothing else runs — that exclusivity IS the airgap.
 The delegation sits before the fake-mode shortcut so a corpus is honoured even under
 scripted models (the egress test relies on that).
@@ -92,7 +92,7 @@ async def search(query: str, max_results: int = 5) -> list[SearchResult]:
     if get_run_config().corpus_mode:
         # Corpus-only: the port answers exclusively. NoCorpus raises, and the raise is
         # deliberate — an airgapped run with no corpus must fail visibly, not fall
-        # through to the web chain (docs/12 M10 DoD: no retrieval egress).
+        # through to the web chain (internal/12 M10 DoD: no retrieval egress).
         return await get_corpus().search(query, max_results)
 
     cfg = get_run_config()

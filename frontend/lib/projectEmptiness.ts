@@ -9,9 +9,9 @@
  * layout decision rather than to a metric.
  *
  * A pure function in `lib/` rather than a few `&&`s inside the page component because it
- * is the page's one load-bearing piece of logic and the page itself is not reachable by
- * the unit suite (`vitest.config.ts` collects `{lib,components,hooks}` only). Logic that
- * decides what a user sees should not be the part that nothing can test.
+ * is the page's one load-bearing piece of logic, and a function is tested on every state
+ * the queries can be in without rendering the page around it. Logic that decides what a
+ * user sees should be the easiest part to test, not the hardest.
  *
  * **`data` presence is the settled signal, not the absence of the two flags.** Checking
  * only `!isLoading && !isError` misses a third state: React Query v5 reports

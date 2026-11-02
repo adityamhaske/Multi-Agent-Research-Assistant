@@ -10,7 +10,7 @@ only changes what SQLite sees (TEXT-backed JSON, CHAR(32) UUID). Nothing on the 
 path changes; this is what lets the sidecar reuse `app.models` instead of forking them.
 
 `memory_chunks.embedding` stays pgvector-only: that table is excluded from the desktop
-`create_all` until M10 ships local embeddings (docs/12 M10).
+`create_all` until M10 ships local embeddings (internal/12 M10).
 """
 
 from __future__ import annotations

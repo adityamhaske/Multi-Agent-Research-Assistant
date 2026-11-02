@@ -42,7 +42,7 @@ _LOCAL_HOSTS = frozenset(
 def is_local_endpoint(base_url: str) -> bool:
     """True when `base_url` points at this machine.
 
-    Corpus-only mode promises that retrieval stays on this machine (docs/12 M10). The query
+    Corpus-only mode promises that retrieval stays on this machine (internal/12 M10). The query
     embedding is the one model call retrieval makes, so whether that endpoint is local is
     the whole difference between local retrieval and retrieval that quietly phones a
     provider. (The agents' own model calls are a separate axis, governed by routing.) One

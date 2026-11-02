@@ -342,7 +342,7 @@ class _ScriptedModel(FakeMessagesListChatModel):
         The real executor's contract in one line — and it keeps a fake corpus run
         HONEST: the submitted evidence carries real `corpus://` locations from the
         installed store, so the synthesized source list's citations resolve to exact
-        document positions (docs/12 M10 DoD). Fixture URLs would prove nothing here.
+        document positions (internal/12 M10 DoD). Fixture URLs would prove nothing here.
         """
         from research_engine.retrievers import search
 

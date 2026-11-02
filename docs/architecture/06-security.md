@@ -130,6 +130,11 @@ that call a real model, which have to reach a local model server on loopback.
 - **Project isolation is a SQL predicate**, never a prompt instruction. Retrieval is filtered
   by `project_id` after an ownership check, before anything reaches a model. A prompt-level
   "only use project X" is not a security control and is not treated as one.
+- **A project's corpus is its own file**, on the server and (from 3.1) on the desktop app, and
+  a selected-files run is limited in the store, not in the prompt: `ScopedCorpus` answers only
+  for the document versions frozen on the run, inside the search and in `read`. A citation
+  of a document from another project resolves only when that run recorded it as a source
+  (`GET /runs/{id}/cited-documents/{document_id}`).
 - **Assistant history is replayed as assistant messages**, never as system messages. Model
   output must not gain system authority.
 - Memory persists attacker-influenced text indefinitely, so an injection captured months ago
@@ -267,8 +272,16 @@ that route. In-place PDF preview cannot work any other way.
 
 Every other kind is served `attachment` and previewed by the client fetching the bytes and
 rendering them itself — `fetch` ignores `Content-Disposition`, so this costs the preview
-nothing. Uploaded HTML renders inside a fully sandboxed frame. Accepted kinds are `pdf`,
-`html`, `md`, and `txt`.
+nothing. Uploaded HTML renders inside a fully sandboxed frame. Every other kind — Office
+documents, spreadsheets, notebooks, code — is previewed as the text extracted at ingest
+(`…/documents/{doc_id}/text`), never rendered: the app has no Office renderer in its origin.
+The accepted kinds are `documents.FORMATS` (user guide 39 lists them).
+
+Office files are ZIP archives, so the parsers refuse one that would expand past 200 MB and
+one that is password-protected, naming the reason, before extraction starts. On the desktop
+app the preview and the download link fetch with the app's bearer token: the engine
+answers `401` to a request without it, so another program on the machine cannot read the
+corpus through the engine's port.
 
 ## 9. Bring-your-own-key protection
 

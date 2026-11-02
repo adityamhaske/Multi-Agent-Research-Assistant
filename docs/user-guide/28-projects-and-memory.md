@@ -126,12 +126,15 @@ to tighten it against.
 
 ## The corpus
 
-Separate from memory, and complementary. You upload documents — `pdf`, `html`, `md`, `txt` —
-to a project, and they become searchable evidence.
+Separate from memory, and complementary. You upload documents — PDFs, Office documents,
+spreadsheets, presentations, notebooks, Markdown, plain text and source code; [Corpus folders
+and selection](39-corpus-folders-and-selection.md) has the full list — to a project, in
+folders if you like, and they become searchable evidence. Pick files and folders to limit a
+run to just those.
 
 Documents preview in place from the corpus list rather than downloading. PDFs render in the
-browser's own sandboxed viewer; everything else is fetched and rendered by the client
-without leaving the page.
+browser's own sandboxed viewer; HTML renders in a sandboxed frame; everything else is shown
+as the text extracted from it, without leaving the page.
 
 **Corpus-only mode** keeps the *evidence* local: it comes exclusively from the uploaded
 corpus, web search is off and page fetching refuses every non-corpus URL, and indexing
