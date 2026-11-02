@@ -1,0 +1,131 @@
+name: G-2 webview pass
+
+# RFC V3.1 gate G-2 on Windows (WebView2) and Linux (WebKitGTK): the app installed from a
+# Desktop workflow run's own installers, driven through its webview with tauri-driver
+# (scripts/gates/g2_webview_e2e.py). macOS has no WebDriver for WKWebView; its pass is run
+# by hand on a launched build and recorded beside these.
+#
+# Run on demand against the installers of a named Desktop run, so the evidence names the
+# exact build tested and a re-run does not rebuild anything.
+
+on:
+  workflow_dispatch:
+    inputs:
+      desktop_run_id:
+        description: "Desktop workflow run whose installers to test (default: newest green on main)"
+        required: false
+  pull_request:
+    paths:
+      - .github/workflows/g2-webview.yml
+      - scripts/gates/g2_*.py
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  webview:
+    name: G-2 webview (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Which Desktop run's installers
+        id: source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED: ${{ inputs.desktop_run_id }}
+        run: |
+          set -euo pipefail
+          run="${REQUESTED:-}"
+          if [ -z "$run" ]; then
+            run=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/desktop.yml/runs?branch=main&status=success&per_page=1" --jq '.workflow_runs[0].id')
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" --jq '"desktop run \(.id) at \(.head_sha)"' | tee desktop-run.txt
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+      - name: The installers that Desktop run built
+        uses: actions/download-artifact@v8
+        with:
+          name: research-desktop-shell-${{ matrix.os }}
+          path: bundle
+          run-id: ${{ steps.source.outputs.run }}
+          github-token: ${{ github.token }}
+      - name: Linux webview, WebDriver, display and input tools
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/apt-install
+        # The same bound as desktop.yml's WebKitGTK install, for the same package chain.
+        timeout-minutes: 35
+        with:
+          packages: >-
+            libwebkit2gtk-4.1-0 webkit2gtk-driver xvfb openbox xdotool imagemagick
+      - name: Install the .deb
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          deb=$(find bundle -name '*.deb' -print -quit)
+          sha256sum "$deb" | tee installer.sha256
+          sudo dpkg -i "$deb"
+          pkg=$(dpkg-deb -f "$deb" Package)
+          app=$(dpkg -L "$pkg" | grep -E '/bin/[^/]+$' | head -1)
+          echo "APP=$app" >> "$GITHUB_ENV"
+      - name: Install the .msi
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msi = Get-ChildItem bundle -Recurse -Filter *.msi | Select-Object -First 1
+          (Get-FileHash $msi.FullName -Algorithm SHA256).Hash.ToLower() + "  " + $msi.Name | Tee-Object installer.sha256
+          $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @('/i', "`"$($msi.FullName)`"", '/qn', '/norestart')
+          if ($p.ExitCode -ne 0) { throw "msiexec /i exited $($p.ExitCode)" }
+          $app = Get-ChildItem (Join-Path $env:ProgramFiles 'Research Assistant') -Recurse -Filter research-desktop.exe | Select-Object -First 1
+          if (-not $app) { throw "no research-desktop.exe after install" }
+          "APP=$($app.FullName)" >> $env:GITHUB_ENV
+      - name: tauri-driver
+        timeout-minutes: 15
+        run: cargo install tauri-driver --locked
+      - name: Embedding stub, display, window manager and tauri-driver (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/gates/g2_embed_stub.py --port 11434 &
+          Xvfb :99 -screen 0 1600x1000x24 &
+          sleep 2
+          DISPLAY=:99 openbox &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+          DISPLAY=:99 OLLAMA_BASE_URL=http://127.0.0.1:11434/v1 tauri-driver > tauri-driver.log 2>&1 &
+          sleep 3
+      - name: Embedding stub and tauri-driver (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Start-Process python -ArgumentList 'scripts/gates/g2_embed_stub.py','--port','11434'
+          $env:OLLAMA_BASE_URL = 'http://127.0.0.1:11434/v1'
+          $driver = Join-Path $env:EDGEWEBDRIVER 'msedgedriver.exe'
+          Start-Process tauri-driver -ArgumentList '--native-driver', $driver -RedirectStandardError tauri-driver.log
+          Start-Sleep 3
+      - name: Drive the installed app
+        shell: bash
+        run: |
+          python scripts/gates/g2_webview_e2e.py --app "$APP" \
+            --fixtures "$RUNNER_TEMP/g2-fixtures" --out g2-evidence
+      - name: Upload G-2 evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: g2-evidence-${{ matrix.os }}
+          path: |
+            g2-evidence/
+            installer.sha256
+            desktop-run.txt
+            tauri-driver.log
+          retention-days: 90
