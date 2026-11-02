@@ -86,4 +86,25 @@ describe("RunScopePanel", () => {
     const { container } = render(<RunScopePanel run={run({})} />);
     expect(container).toBeEmptyDOMElement();
   });
+  // D-24: the checking model's measured accuracy is stated in the record's own words, and a
+  // model never benchmarked says so rather than implying a number.
+  it("states the checking model's measured accuracy as recorded", () => {
+    render(
+      <RunScopePanel
+        run={run({
+          corpus_mode: true,
+          grounding_report: {
+            status: "complete",
+            checker_accuracy: {
+              status: "not_measured",
+              label: "checker accuracy on this model: not measured",
+            },
+          },
+        } as Partial<Run>)}
+      />,
+    );
+    expect(
+      screen.getByText("Checker accuracy on this model: not measured."),
+    ).toBeInTheDocument();
+  });
 });

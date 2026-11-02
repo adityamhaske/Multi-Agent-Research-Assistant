@@ -25,7 +25,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
-from research_engine import grounding
+from research_engine import checker_accuracy, grounding
 from research_engine.grounding import (
     CAPTION,
     CONCLUSION,
@@ -40,6 +40,7 @@ from research_engine.grounding import (
     BudgetExhausted,
     Validation,
 )
+from research_engine.runconfig import get_run_config
 
 MAX_ATTEMPTS = 2
 
@@ -306,6 +307,7 @@ def _finish(body, sources, validation, ledger: _Ledger, *, status: str, failure:
             "seconds": round(time.monotonic() - ledger.started, 3),
         },
         "claims": [c.as_dict() for c in validation.claims] if validation is not None else [],
+        "checker_accuracy": checker_accuracy.for_route(get_run_config().model_for("critic")),
         "validated_text_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()
         if status == "complete"
         else None,
